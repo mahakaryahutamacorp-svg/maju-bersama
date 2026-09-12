@@ -20,10 +20,20 @@ class DatabaseSeeder extends Seeder
 
         $branchId = DB::table('branches')->insertGetId([
             'code' => 'PUSAT',
-            'name' => 'Pusat',
+            'name' => 'majubersamapusat',
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        foreach (range(1, 5) as $number) {
+            DB::table('branches')->insert([
+                'parent_id' => $branchId,
+                'code' => 'MAJUBERSAMA-'.$number,
+                'name' => 'majubersama '.$number,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
 
         User::factory()->create([
             'branch_id' => $branchId,
