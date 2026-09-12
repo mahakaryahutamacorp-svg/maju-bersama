@@ -29,7 +29,7 @@ class WebAuthTest extends TestCase
         $this->post('/login', [
             'email' => $user->email,
             'password' => 'password',
-        ])->assertRedirect('/pos');
+        ])->assertRedirect('/backoffice');
 
         $this->assertAuthenticatedAs($user);
         $this->get('/inventory')->assertOk();

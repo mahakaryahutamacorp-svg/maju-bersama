@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Backoffice | Maju Bersama ERP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body x-data="backoffice()" class="min-h-screen bg-slate-100 text-slate-900 antialiased">
+    <div class="min-h-screen lg:flex">
+        <aside class="border-b border-slate-800 bg-slate-950 text-white lg:min-h-screen lg:w-72 lg:border-b-0 lg:border-r">
+            <div class="flex items-center justify-between px-6 py-5 lg:block">
+                <a href="/backoffice" class="block">
+                    <p class="text-xs font-semibold uppercase tracking-[0.26em] text-amber-400">Maju Bersama ERP</p>
+                    <p class="mt-1 text-xl font-bold tracking-tight">Backoffice</p>
+                </a>
+                <button type="button" @click="mobileMenu = !mobileMenu" class="rounded-lg border border-slate-700 px-3 py-2 text-sm text-slate-300 lg:hidden">Menu</button>
+            </div>
+
+            <div class="px-4 pb-5 lg:pb-6">
+                <div class="rounded-xl border border-sky-400/20 bg-sky-400/10 px-4 py-3">
+                    <p class="text-xs uppercase tracking-wider text-sky-200">Active branch</p>
+                    <p class="mt-1 font-semibold text-white">{{ $currentUser->branch->name }}</p>
+                    <p class="mt-1 text-xs text-slate-400">{{ $currentUser->name }} · {{ $currentUser->role }}</p>
+                </div>
+            </div>
+
+            <nav x-show="mobileMenu" x-transition class="space-y-1 px-4 pb-6 lg:block">
+                <p class="px-3 pb-2 pt-1 text-xs font-semibold uppercase tracking-wider text-slate-500">Workspace</p>
+                <button @click="select('overview')" :class="active === 'overview' ? 'bg-sky-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'" class="w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium">Overview</button>
+                <a href="/pos" class="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white">Point of Sale</a>
+                <a href="/inventory" class="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white">Inventory</a>
+                <a href="/reports/journal" class="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white">Journal Ledger</a>
+                <p class="px-3 pb-2 pt-7 text-xs font-semibold uppercase tracking-wider text-slate-500">Administration</p>
+                <template x-for="module in modules" :key="module.id">
+                    <button @click="select(module.id)" :class="active === module.id ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'" class="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-medium">
+                        <span x-text="module.name"></span>
+                        <span x-show="module.status === 'planned'" class="text-[10px] uppercase tracking-wider text-slate-500">Soon</span>
+                    </button>
+                </template>
+            </nav>
+        </aside>
+
+        <main class="min-w-0 flex-1">
+            <header class="border-b border-slate-200 bg-white">
+                <div class="flex flex-col justify-between gap-4 px-6 py-5 sm:flex-row sm:items-center lg:px-10">
+                    <div>
+                        <p class="text-sm font-medium text-amber-600">Operational control center</p>
+                        <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-950" x-text="pageTitle"></h1>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <a href="/" class="text-sm text-slate-500 hover:text-slate-900">Public preview</a>
+                        <form method="POST" action="/logout">
+                            @csrf
+                            <button type="submit" class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Logout</button>
+                        </form>
+                    </div>
+                </div>
+            </header>
+
+            <div class="mx-auto max-w-7xl space-y-8 px-6 py-8 lg:px-10">
+                <section x-show="active === 'overview'" x-transition>
+                    <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                        <template x-for="stat in stats" :key="stat.label">
+                            <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                                <p class="text-sm text-slate-500" x-text="stat.label"></p>
+                                <p class="mt-3 text-3xl font-bold tracking-tight text-slate-950" x-text="stat.value"></p>
+                                <p class="mt-2 text-xs text-slate-400" x-text="stat.caption"></p>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div class="mt-8 grid gap-6 xl:grid-cols-[1.4fr_0.6fr]">
+                        <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                            <div class="flex items-start justify-between gap-4">
+                                <div>
+                                    <p class="text-sm font-medium text-amber-600">Daily workflow</p>
+                                    <h2 class="mt-1 text-xl font-bold text-slate-950">Quick actions</h2>
+                                </div>
+                                <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Ready</span>
+                            </div>
+                            <div class="mt-6 grid gap-3 sm:grid-cols-3">
+                                <a href="/pos" class="rounded-xl border border-slate-200 p-4 transition hover:border-sky-300 hover:bg-sky-50">
+                                    <p class="font-semibold text-slate-900">New sale</p>
+                                    <p class="mt-1 text-xs text-slate-500">Open POS checkout</p>
+                                </a>
+                                <a href="/inventory" class="rounded-xl border border-slate-200 p-4 transition hover:border-sky-300 hover:bg-sky-50">
+                                    <p class="font-semibold text-slate-900">Check stock</p>
+                                    <p class="mt-1 text-xs text-slate-500">Review branch inventory</p>
+                                </a>
+                                <a href="/reports/journal" class="rounded-xl border border-slate-200 p-4 transition hover:border-sky-300 hover:bg-sky-50">
+                                    <p class="font-semibold text-slate-900">Review ledger</p>
+                                    <p class="mt-1 text-xs text-slate-500">Verify double-entry journals</p>
+                                </a>
+                            </div>
+                        </section>
+                        <section class="rounded-2xl bg-slate-900 p-6 text-white shadow-sm">
+                            <p class="text-sm font-medium text-sky-300">Branch access</p>
+                            <h2 class="mt-2 text-xl font-bold">{{ $currentUser->branch->name }}</h2>
+                            <p class="mt-3 text-sm leading-6 text-slate-300">Semua transaksi operasional dan laporan pada workspace ini mengikuti branch yang sedang aktif.</p>
+                        </section>
+                    </div>
+                </section>
+
+                <section x-show="active !== 'overview'" x-transition class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+                        <div>
+                            <p class="text-sm font-medium text-amber-600" x-text="selectedModule.group"></p>
+                            <h2 class="mt-1 text-2xl font-bold text-slate-950" x-text="selectedModule.name"></h2>
+                            <p class="mt-3 max-w-2xl text-slate-500" x-text="selectedModule.description"></p>
+                        </div>
+                        <span class="rounded-full px-3 py-1 text-xs font-bold" :class="selectedModule.status === 'ready' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'" x-text="selectedModule.status === 'ready' ? 'Active module' : 'Planned module'"></span>
+                    </div>
+                    <div class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                        <template x-for="action in selectedModule.actions" :key="action">
+                            <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+                                <p class="text-sm font-semibold text-slate-800" x-text="action"></p>
+                                <p class="mt-1 text-xs text-slate-500">Workflow siap dikembangkan dengan kontrol branch aktif.</p>
+                            </div>
+                        </template>
+                    </div>
+                    <div class="mt-8 flex flex-wrap gap-3">
+                        <a x-show="selectedModule.id === 'inventory'" href="/inventory" class="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-sky-700">Open inventory</a>
+                        <a x-show="selectedModule.id === 'sales'" href="/pos" class="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-sky-700">Open POS</a>
+                        <a x-show="selectedModule.id === 'reports'" href="/reports/journal" class="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-sky-700">Open ledger</a>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        function backoffice() {
+            const modules = [
+                { id: 'purchases', group: 'Purchases', name: 'Pembelian', status: 'planned', description: 'Kelola hutang usaha, pembayaran hutang, dan retur pembelian dari satu alur kerja.', actions: ['Hutang usaha', 'Pembayaran hutang usaha', 'Retur pembelian'] },
+                { id: 'sales', group: 'Sales', name: 'Penjualan', status: 'ready', description: 'Jalankan penjualan dari POS dan siapkan alur piutang serta retur penjualan.', actions: ['Piutang usaha', 'Pembayaran piutang usaha', 'Retur penjualan'] },
+                { id: 'cash', group: 'Treasury', name: 'Kas dan bank', status: 'planned', description: 'Pantau arus kas masuk, kas keluar, kas besar, kas kecil, dan kas bank.', actions: ['Kas masuk', 'Kas keluar', 'Kas besar', 'Kas kecil', 'Kas bank'] },
+                { id: 'assets', group: 'Assets', name: 'Harta tetap', status: 'planned', description: 'Catat total aset, umur manfaat, dan akumulasi penyusutan secara terkontrol.', actions: ['Daftar aset tetap', 'Penyusutan periodik', 'Akumulasi penyusutan'] },
+                { id: 'inventory', group: 'Inventory', name: 'Persediaan', status: 'ready', description: 'Kelola stok branch dan siapkan klasifikasi produk berdasarkan kategori serta status pajak.', actions: ['Pupuk', 'Insektisida', 'Pestisida', 'Fungisida', 'Pakan', 'Penyesuaian persediaan'] },
+                { id: 'warehouses', group: 'Inventory', name: 'Multi gudang', status: 'planned', description: 'Pindahkan persediaan antar gudang dengan jejak transfer yang jelas.', actions: ['Daftar gudang', 'Transfer persediaan antar gudang', 'Riwayat transfer'] },
+                { id: 'pricing', group: 'Commercial', name: 'Multi price', status: 'planned', description: 'Sediakan harga berbeda untuk retailer dan petani dalam satu katalog produk.', actions: ['Harga retailer', 'Harga petani', 'Riwayat perubahan harga'] },
+                { id: 'reports', group: 'Reports', name: 'Laporan', status: 'ready', description: 'Akses laporan persediaan, laba rugi, neraca, hutang, piutang, dan kas keluar.', actions: ['Persediaan per gudang', 'Laba rugi', 'Neraca', 'Hutang', 'Piutang', 'Kas keluar'] },
+            ];
+
+            return {
+                modules,
+                active: 'overview',
+                mobileMenu: true,
+                stats: [
+                    { label: 'Produk aktif', value: '{{ $stats['products'] }}', caption: 'Pada branch aktif' },
+                    { label: 'Total stok', value: '{{ number_format($stats['stock']) }}', caption: 'Unit tersedia' },
+                    { label: 'Jurnal', value: '{{ $stats['journals'] }}', caption: 'Transaksi tercatat' },
+                    { label: 'Penjualan POS', value: '{{ $stats['sales'] }}', caption: 'Transaksi otomatis' },
+                ],
+                get selectedModule() {
+                    return this.modules.find((module) => module.id === this.active) || this.modules[0];
+                },
+                get pageTitle() {
+                    return this.active === 'overview' ? 'Overview' : this.selectedModule.name;
+                },
+                select(module) {
+                    this.active = module;
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                },
+            };
+        }
+    </script>
+</body>
+</html>
