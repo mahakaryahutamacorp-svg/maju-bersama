@@ -58,4 +58,9 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Branch::class);
     }
+
+    public function isMaster(): bool
+    {
+        return $this->role === 'master';
+    }
 }

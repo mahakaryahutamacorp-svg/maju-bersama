@@ -10,11 +10,13 @@ class ReportController extends Controller
 {
     public function journal(Request $request): View
     {
+        $user = $request->user();
+
         $headers = JournalHeader::with([
             'journalLines.chartOfAccount',
             'user',
         ])
-            ->where('branch_id', $request->user()->branch_id)
+            ->when(! $user->isMaster(), fn ($query) => $query->where('branch_id', $user->branch_id))
             ->latest('transaction_date')
             ->latest('id')
             ->get();

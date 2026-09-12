@@ -11,9 +11,11 @@ class InventoryController extends Controller
 {
     public function index(Request $request): View
     {
+        $user = $request->user();
+
         return view('inventory', [
             'products' => Product::with(['category', 'branch'])
-                ->where('branch_id', $request->user()->branch_id)
+                ->when(! $user->isMaster(), fn ($query) => $query->where('branch_id', $user->branch_id))
                 ->orderBy('name')
                 ->get(),
         ]);

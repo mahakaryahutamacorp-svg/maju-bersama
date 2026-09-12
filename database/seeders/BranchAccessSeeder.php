@@ -22,6 +22,16 @@ class BranchAccessSeeder extends Seeder
             ],
         );
 
+        User::updateOrCreate(
+            ['email' => 'master@majubersama.test'],
+            [
+                'branch_id' => $centralBranch->id,
+                'name' => 'Master Backoffice',
+                'password' => 'password',
+                'role' => 'master',
+            ],
+        );
+
         foreach ($centralBranch->children()->orderBy('id')->get() as $index => $branch) {
             User::updateOrCreate(
                 ['email' => 'admin'.($index + 1).'@majubersama.test'],

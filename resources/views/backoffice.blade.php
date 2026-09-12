@@ -20,8 +20,8 @@
 
             <div class="px-4 pb-5 lg:pb-6">
                 <div class="rounded-xl border border-sky-400/20 bg-sky-400/10 px-4 py-3">
-                    <p class="text-xs uppercase tracking-wider text-sky-200">Active branch</p>
-                    <p class="mt-1 font-semibold text-white">{{ $currentUser->branch->name }}</p>
+                    <p class="text-xs uppercase tracking-wider text-sky-200">{{ $isMaster ? 'Master access' : 'Active branch' }}</p>
+                    <p class="mt-1 font-semibold text-white">{{ $isMaster ? 'All branches' : $currentUser->branch->name }}</p>
                     <p class="mt-1 text-xs text-slate-400">{{ $currentUser->name }} · {{ $currentUser->role }}</p>
                 </div>
             </div>
@@ -70,6 +70,74 @@
                             </div>
                         </template>
                     </div>
+
+                    @if ($isMaster)
+                        <section class="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                            <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
+                                <div>
+                                    <p class="text-sm font-medium text-amber-600">Master monitoring</p>
+                                    <h2 class="mt-1 text-xl font-bold text-slate-950">Inventory seluruh branch</h2>
+                                </div>
+                                <span class="text-sm text-slate-500">{{ $branchSummaries->count() }} branches terpantau</span>
+                            </div>
+                            <div class="mt-5 overflow-x-auto">
+                                <table class="min-w-full divide-y divide-slate-200">
+                                    <thead class="bg-slate-50">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Branch</th>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Parent</th>
+                                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Products</th>
+                                            <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Stock</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100">
+                                        @foreach ($branchSummaries as $branch)
+                                            <tr class="hover:bg-slate-50">
+                                                <td class="px-4 py-3 text-sm font-semibold text-slate-900">{{ $branch->name }}<span class="ml-2 font-mono text-xs text-slate-400">{{ $branch->code }}</span></td>
+                                                <td class="px-4 py-3 text-sm text-slate-500">{{ $branch->parent?->name ?? 'Root pusat' }}</td>
+                                                <td class="px-4 py-3 text-right text-sm text-slate-700">{{ $branch->products_count }}</td>
+                                                <td class="px-4 py-3 text-right text-sm font-semibold text-emerald-700">{{ number_format($branch->products_sum_stock ?? 0) }}</td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+
+                        <section class="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                            <div class="flex items-end justify-between gap-3">
+                                <div>
+                                    <p class="text-sm font-medium text-amber-600">Cross-branch activity</p>
+                                    <h2 class="mt-1 text-xl font-bold text-slate-950">Transaksi terbaru seluruh branch</h2>
+                                </div>
+                                <a href="/reports/journal" class="text-sm font-semibold text-sky-700 hover:text-sky-800">Buka ledger</a>
+                            </div>
+                            <div class="mt-5 overflow-x-auto">
+                                <table class="min-w-full divide-y divide-slate-200">
+                                    <thead class="bg-slate-50">
+                                        <tr>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Reference</th>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Branch</th>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Description</th>
+                                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">User</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100">
+                                        @forelse ($recentJournals as $journal)
+                                            <tr class="hover:bg-slate-50">
+                                                <td class="px-4 py-3 font-mono text-xs font-semibold text-sky-700">{{ $journal->reference_number }}</td>
+                                                <td class="px-4 py-3 text-sm text-slate-700">{{ $journal->branch?->name }}</td>
+                                                <td class="px-4 py-3 text-sm text-slate-700">{{ $journal->description }}</td>
+                                                <td class="px-4 py-3 text-sm text-slate-500">{{ $journal->user?->name }}</td>
+                                            </tr>
+                                        @empty
+                                            <tr><td colspan="4" class="px-4 py-8 text-center text-sm text-slate-400">Belum ada transaksi antar branch.</td></tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                        </section>
+                    @endif
 
                     <div class="mt-8 grid gap-6 xl:grid-cols-[1.4fr_0.6fr]">
                         <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -148,9 +216,9 @@
                 active: 'overview',
                 mobileMenu: true,
                 stats: [
-                    { label: 'Produk aktif', value: '{{ $stats['products'] }}', caption: 'Pada branch aktif' },
-                    { label: 'Total stok', value: '{{ number_format($stats['stock']) }}', caption: 'Unit tersedia' },
-                    { label: 'Jurnal', value: '{{ $stats['journals'] }}', caption: 'Transaksi tercatat' },
+                    { label: '{{ $isMaster ? 'Branch terpantau' : 'Produk aktif' }}', value: '{{ $isMaster ? $stats['branches'] : $stats['products'] }}', caption: '{{ $isMaster ? 'Pusat dan cabang' : 'Pada branch aktif' }}' },
+                    { label: 'Total stok', value: '{{ number_format($stats['stock']) }}', caption: '{{ $isMaster ? 'Seluruh branch' : 'Unit tersedia' }}' },
+                    { label: 'Jurnal', value: '{{ $stats['journals'] }}', caption: '{{ $isMaster ? 'Lintas branch' : 'Transaksi tercatat' }}' },
                     { label: 'Penjualan POS', value: '{{ $stats['sales'] }}', caption: 'Transaksi otomatis' },
                 ],
                 get selectedModule() {
