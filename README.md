@@ -33,6 +33,22 @@ php artisan test
 
 Konfigurasi default menggunakan SQLite untuk pengembangan lokal. Untuk MySQL/PostgreSQL, ubah `DB_CONNECTION` dan variabel `DB_*` di `.env`.
 
+## Deploy ke Hostinger
+
+Repository GitHub: `https://github.com/mahakaryahutamacorp-svg/maju-bersama`
+
+Workflow `.github/workflows/deploy-hostinger.yml` melakukan deploy otomatis setiap push ke `main`. Tambahkan GitHub Actions secrets berikut pada repository:
+
+- `HOSTINGER_HOST`: hostname SSH Hostinger.
+- `HOSTINGER_PORT`: port SSH, biasanya `65002`.
+- `HOSTINGER_USER`: username SSH Hostinger.
+- `HOSTINGER_PATH`: absolute path aplikasi Laravel di server.
+- `HOSTINGER_SSH_KEY`: private key SSH untuk user Hostinger.
+
+Document root domain harus diarahkan ke folder `public` aplikasi. File `.env` tidak dikirim oleh workflow; buat `.env` production langsung di server dengan `APP_KEY`, `APP_URL`, kredensial MySQL Hostinger, dan driver `database` yang sesuai.
+
+Setelah secret tersedia, push ke branch `main` akan menjalankan test, build frontend, upload release, migrate, seed akun branch, dan cache konfigurasi Laravel.
+
 ## Rencana Fase Berikutnya
 
 - **Fase 2:** model relasi, Sanctum, RBAC, form requests, API, dan service posting jurnal.
