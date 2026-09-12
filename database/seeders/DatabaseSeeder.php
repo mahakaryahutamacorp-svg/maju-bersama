@@ -50,6 +50,7 @@ class DatabaseSeeder extends Seeder
             'role' => 'admin',
         ]);
 
+        $this->call(BranchAccessSeeder::class);
         $this->call(ProductSeeder::class);
     }
 }
