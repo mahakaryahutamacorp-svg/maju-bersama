@@ -14,8 +14,12 @@
             <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-8">
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                    <h1 class="mt-1 text-2xl font-bold tracking-tight">Point of Sale</h1>
+                        {{ auth()->user()->branch->name }}
                 </div>
+                    <form method="POST" action="/logout" class="hidden sm:block">
+                        @csrf
+                        <button type="submit" class="text-sm text-slate-300 hover:text-white">Logout</button>
+                    </form>
                 <div class="flex items-center gap-4">
                     <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
                         <a href="/pos" class="font-semibold text-white">POS</a>

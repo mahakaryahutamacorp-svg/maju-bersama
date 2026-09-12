@@ -23,6 +23,10 @@
                 <div class="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-300">
                     <span x-text="filteredProducts.length"></span> products
                 </div>
+                <form method="POST" action="/logout" class="hidden sm:block">
+                    @csrf
+                    <button type="submit" class="text-sm text-slate-300 hover:text-white">Logout</button>
+                </form>
             </div>
         </div>
     </header>
@@ -32,7 +36,7 @@
             <div>
                 <p class="text-sm font-medium text-amber-600">Stock control</p>
                 <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-950">Product inventory</h2>
-                <p class="mt-2 text-slate-500">Current product availability across the Pusat branch.</p>
+                <p class="mt-2 text-slate-500">Current product availability across {{ auth()->user()->branch->name }}.</p>
             </div>
             <div class="flex flex-col gap-3 sm:items-end">
                 <div class="text-sm text-slate-500">Updated {{ now()->format('d M Y, H:i') }}</div>

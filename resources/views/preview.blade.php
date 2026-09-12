@@ -17,6 +17,7 @@
                 <a href="/pos" class="hover:text-white">POS</a>
                 <a href="/inventory" class="hover:text-white">Inventory</a>
                 <a href="/reports/journal" class="hover:text-white">Ledger</a>
+                <a href="/login" class="rounded-lg bg-sky-600 px-3 py-2 font-semibold text-white hover:bg-sky-500">Login</a>
             </nav>
         </div>
     </header>

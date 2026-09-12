@@ -23,6 +23,10 @@
                 <div class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200">
                     {{ $headers->count() }} transactions
                 </div>
+                <form method="POST" action="/logout" class="hidden sm:block">
+                    @csrf
+                    <button type="submit" class="text-sm text-slate-300 hover:text-white">Logout</button>
+                </form>
             </div>
         </div>
     </header>
