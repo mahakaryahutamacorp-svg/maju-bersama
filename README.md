@@ -37,11 +37,17 @@ Konfigurasi default menggunakan SQLite untuk pengembangan lokal. Untuk MySQL/Pos
 
 Repository GitHub: `https://github.com/mahakaryahutamacorp-svg/maju-bersama`
 
+Konfigurasi SSH Hostinger:
+
+- Host: `45.130.228.151`
+- Port: `65002`
+- User: `u451393082`
+
 Workflow `.github/workflows/deploy-hostinger.yml` melakukan deploy otomatis setiap push ke `main`. Tambahkan GitHub Actions secrets berikut pada repository:
 
-- `HOSTINGER_HOST`: hostname SSH Hostinger.
-- `HOSTINGER_PORT`: port SSH, biasanya `65002`.
-- `HOSTINGER_USER`: username SSH Hostinger.
+- `HOSTINGER_HOST`: `45.130.228.151`.
+- `HOSTINGER_PORT`: `65002`.
+- `HOSTINGER_USER`: `u451393082`.
 - `HOSTINGER_PATH`: absolute path aplikasi Laravel di server.
 - `HOSTINGER_SSH_KEY`: private key SSH untuk user Hostinger.
 
