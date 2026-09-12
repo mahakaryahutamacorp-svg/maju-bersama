@@ -13,7 +13,11 @@
                 <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Accounting platform</p>
                 <h1 class="mt-1 text-2xl font-bold tracking-tight">Maju Bersama ERP</h1>
             </div>
-            <span class="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-300">Seed preview</span>
+            <nav class="flex items-center gap-4 text-sm text-slate-300">
+                <a href="/pos" class="hover:text-white">POS</a>
+                <a href="/inventory" class="hover:text-white">Inventory</a>
+                <a href="/reports/journal" class="hover:text-white">Ledger</a>
+            </nav>
         </div>
     </header>
 

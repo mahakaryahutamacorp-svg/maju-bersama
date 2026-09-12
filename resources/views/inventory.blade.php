@@ -5,16 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inventory | Maju Bersama ERP</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
+<body x-data="inventoryTable({{ $products->toJson() }})" class="min-h-screen bg-slate-100 text-slate-900 antialiased">
     <header class="border-b border-slate-800 bg-slate-950 text-white">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-8">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
                 <h1 class="mt-1 text-2xl font-bold tracking-tight">Inventory</h1>
             </div>
-            <div class="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-300">
-                {{ $products->count() }} products
+            <div class="flex items-center gap-4">
+                <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
+                    <a href="/pos" class="hover:text-white">POS</a>
+                    <a href="/inventory" class="font-semibold text-white">Inventory</a>
+                    <a href="/reports/journal" class="hover:text-white">Ledger</a>
+                </nav>
+                <div class="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-300">
+                    <span x-text="filteredProducts.length"></span> products
+                </div>
             </div>
         </div>
     </header>
@@ -26,7 +34,16 @@
                 <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-950">Product inventory</h2>
                 <p class="mt-2 text-slate-500">Current product availability across the Pusat branch.</p>
             </div>
-            <div class="text-sm text-slate-500">Updated {{ now()->format('d M Y, H:i') }}</div>
+            <div class="flex flex-col gap-3 sm:items-end">
+                <div class="text-sm text-slate-500">Updated {{ now()->format('d M Y, H:i') }}</div>
+                <div class="flex flex-col gap-2 sm:flex-row">
+                    <input x-model="query" type="search" placeholder="Search SKU or product..." class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none ring-sky-500 placeholder:text-slate-400 focus:ring-2">
+                    <select x-model="category" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none ring-sky-500 focus:ring-2">
+                        <option value="all">All categories</option>
+                        <template x-for="name in categories" :key="name"><option :value="name" x-text="name"></option></template>
+                    </select>
+                </div>
+            </div>
         </div>
 
         <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -42,8 +59,8 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 bg-white">
-                        @forelse ($products as $product)
-                            <tr class="transition-colors hover:bg-slate-50">
+                        @foreach ($products as $product)
+                            <tr x-show="matches({{ $product->toJson() }})" class="transition-colors hover:bg-slate-50">
                                 <td class="whitespace-nowrap px-6 py-5 font-mono text-sm font-semibold text-sky-700">{{ $product->sku }}</td>
                                 <td class="px-6 py-5">
                                     <div class="font-semibold text-slate-900">{{ $product->name }}</div>
@@ -58,15 +75,35 @@
                                     <span class="ml-1 text-xs text-slate-400">units</span>
                                 </td>
                             </tr>
-                        @empty
-                            <tr>
-                                <td colspan="5" class="px-6 py-12 text-center text-slate-500">No products found.</td>
-                            </tr>
-                        @endforelse
+                        @endforeach
+                        <tr x-show="filteredProducts.length === 0">
+                            <td colspan="5" class="px-6 py-12 text-center text-slate-500">No products match your filters.</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
         </section>
     </main>
+    <script>
+        function inventoryTable(products) {
+            return {
+                products,
+                query: '',
+                category: 'all',
+                get categories() {
+                    return [...new Set(this.products.map((product) => product.category?.name).filter(Boolean))];
+                },
+                get filteredProducts() {
+                    return this.products.filter((product) => this.matches(product));
+                },
+                matches(product) {
+                    const query = this.query.toLowerCase().trim();
+                    const matchesQuery = !query || product.name.toLowerCase().includes(query) || product.sku.toLowerCase().includes(query);
+                    const matchesCategory = this.category === 'all' || product.category?.name === this.category;
+                    return matchesQuery && matchesCategory;
+                },
+            };
+        }
+    </script>
 </body>
 </html>

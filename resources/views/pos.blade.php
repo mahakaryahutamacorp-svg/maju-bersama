@@ -16,8 +16,15 @@
                     <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
                     <h1 class="mt-1 text-2xl font-bold tracking-tight">Point of Sale</h1>
                 </div>
-                <div class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200">
-                    Pusat branch
+                <div class="flex items-center gap-4">
+                    <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
+                        <a href="/pos" class="font-semibold text-white">POS</a>
+                        <a href="/inventory" class="hover:text-white">Inventory</a>
+                        <a href="/reports/journal" class="hover:text-white">Ledger</a>
+                    </nav>
+                    <div class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200">
+                        Pusat branch
+                    </div>
                 </div>
             </div>
         </header>
