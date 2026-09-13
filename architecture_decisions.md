@@ -70,6 +70,54 @@ Dokumen ini mencatat keputusan arsitektur penting, bug major, dan perubahan stru
 
 ---
 
+## ADR-007: Products and Categories CRUD Implementation [2026-09-13]
+
+**Konteks:** Need to implement full CRUD operations for Products and Categories with proper multi-tenant isolation.
+
+**Keputusan:**
+- **Products**: Branch-scoped resource using `HasBranchScope` trait
+  - Users can only access products in their own branch
+  - Superadmins can view all products across branches
+  - Auto-generate SKU if not provided (format: `PROD-{branch_code}-{random}`)
+  - Initial stock defaults to 0 if not specified
+  
+- **Categories**: Global resource (not branch-scoped)
+  - All users can view categories
+  - Only superadmins can create/update/delete categories
+  - Categories cannot be deleted if they have associated products
+  
+- **Authorization Strategy:**
+  - Products: Implicit via `HasBranchScope` (automatic filtering)
+  - Categories: Explicit via `authorize()` in FormRequest classes
+
+**Konsekuensi:**
+- ✅ Branch isolation is automatic for Products (no manual checks needed)
+- ✅ Clear separation: Products are branch-specific, Categories are shared
+- ⚠️ Category deletion requires checking for associated products
+- ⚠️ SKU generation uses random suffix to avoid collisions
+
+**Files Created:**
+- `app/Http/Controllers/Api/CategoryController.php`
+- `app/Http/Requests/StoreProductRequest.php`
+- `app/Http/Requests/UpdateProductRequest.php`
+- `app/Http/Requests/StoreCategoryRequest.php`
+- `app/Http/Requests/UpdateCategoryRequest.php`
+- `app/Services/ProductService.php`
+- `tests/Feature/ProductApiTest.php` (11 tests)
+- `tests/Feature/CategoryApiTest.php` (11 tests)
+
+**Files Modified:**
+- `app/Http/Controllers/Api/ProductController.php` (added store, show, update, destroy)
+- `routes/api.php` (added CRUD routes for products and categories)
+
+**Test Coverage:**
+- Branch isolation tests: Users cannot access products from other branches
+- Authorization tests: Regular users cannot modify categories
+- Validation tests: Required fields, negative stock prevention, duplicate names
+- Business logic tests: SKU generation, category deletion protection
+
+---
+
 ## Bug Fixes
 
 ### BUG-001: HasBranchScope di Sale Model [RESOLVED]
