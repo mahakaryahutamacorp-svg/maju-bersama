@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\LoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,12 +16,9 @@ class AuthController extends Controller
         return view('auth.login');
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(LoginRequest $request): RedirectResponse
     {
-        $credentials = $request->validate([
-            'email' => ['required', 'email'],
-            'password' => ['required', 'string'],
-        ]);
+        $credentials = $request->validated();
 
         if (! Auth::attempt($credentials, $request->boolean('remember'))) {
             return back()
@@ -29,6 +27,11 @@ class AuthController extends Controller
         }
 
         $request->session()->regenerate();
+
+        // Redirect cashier to POS, others to backoffice
+        if ($request->user()->role === 'cashier') {
+            return redirect('/pos');
+        }
 
         return redirect()->intended('/backoffice');
     }

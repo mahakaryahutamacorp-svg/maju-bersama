@@ -4,13 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\Branch;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class WebAuthTest extends TestCase
 {
-    use RefreshDatabase;
-
     public function test_guest_can_open_login_and_is_redirected_from_pos(): void
     {
         $this->get('/login')->assertOk();

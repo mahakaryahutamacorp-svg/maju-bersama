@@ -3,25 +3,20 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreCheckoutRequest;
 use App\Models\ChartOfAccount;
 use App\Models\JournalHeader;
 use App\Models\Product;
 use App\Models\Sale;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class CheckoutController extends Controller
 {
-    public function store(Request $request): JsonResponse
+    public function store(StoreCheckoutRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
-            'payment_method' => ['sometimes', 'nullable', 'string', 'max:255'],
-        ]);
+        $validated = $request->validated();
 
         $items = collect($validated['items'])
             ->groupBy('product_id')
@@ -38,7 +33,6 @@ class CheckoutController extends Controller
         $sale = DB::transaction(function () use ($items, $request, $receiptNumber, $paymentMethod): Sale {
             $products = Product::query()
                 ->whereIn('id', $items->pluck('product_id'))
-                ->where('branch_id', $request->user()->branch_id)
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('id');

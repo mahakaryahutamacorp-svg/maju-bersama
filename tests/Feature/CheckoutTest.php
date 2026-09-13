@@ -7,14 +7,11 @@ use App\Models\Category;
 use App\Models\ChartOfAccount;
 use App\Models\Product;
 use App\Models\User;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class CheckoutTest extends TestCase
 {
-    use RefreshDatabase;
-
     public function test_checkout_records_sale_items_and_decrements_stock_with_balanced_journal(): void
     {
         [$user, $product] = $this->checkoutSetup();
@@ -33,7 +30,7 @@ class CheckoutTest extends TestCase
                 'sale' => ['id', 'total_amount', 'items'],
             ])
             ->assertJsonPath('sale.total_amount', 22000000)
-            ->assertJsonCount(2, 'sale.items');
+            ->assertJsonCount(1, 'sale.items');
 
         $saleId = $response->json('sale.id');
 

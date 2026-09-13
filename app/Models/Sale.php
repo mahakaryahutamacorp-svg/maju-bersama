@@ -32,7 +32,7 @@ class Sale extends Model
         return $this->belongsTo(Branch::class);
     }
 
-    public function createdBy(): BelongsTo
+    public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
     }

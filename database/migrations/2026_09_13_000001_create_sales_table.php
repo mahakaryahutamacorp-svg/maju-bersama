@@ -12,8 +12,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('branch_id')->constrained('branches')->cascadeOnDelete();
             $table->string('receipt_number')->unique();
-            $table->unsignedBigInteger('total_amount');
-            $table->string('payment_method');
+            $table->integer('total_amount');
+            $table->string('payment_method')->default('cash');
             $table->string('status')->default('completed');
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();

@@ -62,11 +62,11 @@ class User extends Authenticatable
 
     public function sales(): HasMany
     {
-        return $this->hasMany(Sale::class);
+        return $this->hasMany(Sale::class, 'created_by');
     }
 
     public function isMaster(): bool
     {
-        return $this->role === 'master';
+        return in_array($this->role, ['master', 'superadmin'], true);
     }
 }

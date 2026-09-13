@@ -14,7 +14,6 @@ class PosController extends Controller
 
         return view('pos', [
             'products' => Product::with('category')
-                ->where('branch_id', $user->branch_id)
                 ->orderBy('name')
                 ->get(),
             'previewToken' => $user->createToken('pos_preview')->plainTextToken,

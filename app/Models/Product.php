@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Traits\HasBranchScope;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Product extends Model
 {
+    use HasBranchScope;
+
     protected $fillable = [
         'branch_id',
         'category_id',

@@ -13,8 +13,8 @@ return new class extends Migration
             $table->foreignId('sale_id')->constrained('sales')->cascadeOnDelete();
             $table->foreignId('product_id')->constrained('products');
             $table->integer('quantity');
-            $table->unsignedBigInteger('price');
-            $table->unsignedBigInteger('subtotal');
+            $table->integer('price');
+            $table->integer('subtotal');
             $table->timestamps();
 
             $table->index(['sale_id', 'product_id']);
