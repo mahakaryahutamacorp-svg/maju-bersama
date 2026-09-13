@@ -2,28 +2,28 @@
 
 namespace App\Models;
 
+use App\Traits\HasBranchScope;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Product extends Model
+class Sale extends Model
 {
+    use HasBranchScope;
+
     protected $fillable = [
         'branch_id',
-        'category_id',
-        'sku',
-        'name',
-        'purchase_price',
-        'selling_price',
-        'stock',
+        'receipt_number',
+        'total_amount',
+        'payment_method',
+        'status',
+        'created_by',
     ];
 
     protected function casts(): array
     {
         return [
-            'purchase_price' => 'decimal:2',
-            'selling_price' => 'decimal:2',
-            'stock' => 'integer',
+            'total_amount' => 'integer',
         ];
     }
 
@@ -32,12 +32,12 @@ class Product extends Model
         return $this->belongsTo(Branch::class);
     }
 
-    public function category(): BelongsTo
+    public function createdBy(): BelongsTo
     {
-        return $this->belongsTo(Category::class);
+        return $this->belongsTo(User::class, 'created_by');
     }
 
-    public function saleItems(): HasMany
+    public function items(): HasMany
     {
         return $this->hasMany(SaleItem::class);
     }

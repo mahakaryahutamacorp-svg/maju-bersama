@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="pos-token" content="{{ $previewToken }}">
     <title>POS | Maju Bersama ERP</title>
+    <style>[x-cloak]{display:none !important}</style>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
@@ -112,6 +113,37 @@
                 </div>
             </aside>
         </main>
+
+        <!-- Receipt success modal -->
+        <div x-show="receiptOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-slate-950/60" @click="receiptOpen = false"></div>
+            <div class="relative w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+                <div class="border-b border-slate-200 bg-slate-950 px-6 py-4 text-white">
+                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Pembayaran berhasil</p>
+                    <h2 class="mt-1 text-lg font-bold" x-text="'No. Resi: ' + receiptNumber"></h2>
+                </div>
+                <div class="px-6 py-5">
+                    <ul class="divide-y divide-slate-100">
+                        <template x-for="item in (sale?.items || [])" :key="item.id">
+                            <li class="flex items-center justify-between gap-3 py-3">
+                                <div class="min-w-0">
+                                    <p class="truncate text-sm font-semibold text-slate-900" x-text="item.product?.name"></p>
+                                    <p class="mt-0.5 text-xs text-slate-500" x-text="item.quantity + ' x ' + formatCurrency(item.price / 100)"></p>
+                                </div>
+                                <span class="text-sm font-semibold text-slate-900" x-text="formatCurrency(item.subtotal / 100)"></span>
+                            </li>
+                        </template>
+                    </ul>
+                    <div class="mt-4 flex items-center justify-between border-t border-slate-200 pt-4 text-base font-bold text-slate-950">
+                        <span>Total</span>
+                        <span x-text="sale ? formatCurrency(sale.total_amount / 100) : ''"></span>
+                    </div>
+                </div>
+                <div class="px-6 pb-6">
+                    <button type="button" @click="resetAfterSale" class="w-full rounded-xl bg-sky-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-sky-700">Tutup &amp; Transaksi Baru</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -122,6 +154,9 @@
                 loading: false,
                 message: '',
                 error: '',
+                receiptNumber: '',
+                sale: null,
+                receiptOpen: false,
                 get itemCount() {
                     return this.cart.reduce((sum, item) => sum + item.quantity, 0);
                 },
@@ -161,15 +196,19 @@
                                 'Authorization': 'Bearer ' + document.querySelector('meta[name="pos-token"]').content,
                             },
                             body: JSON.stringify({
+                                payment_method: 'cash',
                                 items: this.cart.map((item) => ({ product_id: item.product.id, quantity: item.quantity })),
                             }),
                         });
                         const payload = await response.json();
                         if (!response.ok) throw new Error(payload.message || 'Checkout failed.');
-                        this.message = payload.message + ' Total: ' + this.formatCurrency(payload.total);
-                        this.cart = [];
+
+                        this.receiptNumber = payload.receipt_number;
+                        this.sale = payload.sale;
+                        this.receiptOpen = true;
+
                         this.products = this.products.map((product) => {
-                            const sold = payload.items.find((item) => item.product_id === product.id);
+                            const sold = (this.sale.items || []).find((item) => item.product_id === product.id);
                             return sold ? { ...product, stock: product.stock - sold.quantity } : product;
                         });
                     } catch (checkoutError) {
@@ -177,6 +216,14 @@
                     } finally {
                         this.loading = false;
                     }
+                },
+                resetAfterSale() {
+                    this.receiptOpen = false;
+                    this.receiptNumber = '';
+                    this.sale = null;
+                    this.cart = [];
+                    this.message = '';
+                    this.error = '';
                 },
             };
         }

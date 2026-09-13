@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ChartOfAccount;
 use App\Models\JournalHeader;
 use App\Models\Product;
+use App\Models\Sale;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,7 @@ class CheckoutController extends Controller
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'payment_method' => ['sometimes', 'nullable', 'string', 'max:255'],
         ]);
 
         $items = collect($validated['items'])
@@ -29,7 +31,11 @@ class CheckoutController extends Controller
             ])
             ->values();
 
-        $sale = DB::transaction(function () use ($items, $request): array {
+        $paymentMethod = $validated['payment_method'] ?? 'cash';
+
+        $receiptNumber = $this->generateReceiptNumber();
+
+        $sale = DB::transaction(function () use ($items, $request, $receiptNumber, $paymentMethod): Sale {
             $products = Product::query()
                 ->whereIn('id', $items->pluck('product_id'))
                 ->where('branch_id', $request->user()->branch_id)
@@ -44,7 +50,7 @@ class CheckoutController extends Controller
             }
 
             $totalCents = 0;
-            $lines = [];
+            $saleItems = [];
 
             foreach ($items as $item) {
                 $product = $products->get($item['product_id']);
@@ -56,13 +62,16 @@ class CheckoutController extends Controller
                 }
 
                 $product->decrement('stock', $item['quantity']);
-                $lineTotalCents = $this->toCents($product->selling_price) * $item['quantity'];
-                $totalCents += $lineTotalCents;
 
-                $lines[] = [
+                $priceCents = $this->toCents($product->selling_price);
+                $subtotalCents = $priceCents * $item['quantity'];
+                $totalCents += $subtotalCents;
+
+                $saleItems[] = [
                     'product_id' => $product->id,
                     'quantity' => $item['quantity'],
-                    'line_total' => $lineTotalCents / 100,
+                    'price' => $priceCents,
+                    'subtotal' => $subtotalCents,
                 ];
             }
 
@@ -77,11 +86,22 @@ class CheckoutController extends Controller
                 ]);
             }
 
+            $sale = Sale::create([
+                'branch_id' => $request->user()->branch_id,
+                'created_by' => $request->user()->id,
+                'receipt_number' => $receiptNumber,
+                'total_amount' => $totalCents,
+                'payment_method' => $paymentMethod,
+                'status' => 'completed',
+            ]);
+
+            $sale->items()->createMany($saleItems);
+
             $journal = JournalHeader::create([
                 'branch_id' => $request->user()->branch_id,
                 'user_id' => $request->user()->id,
                 'transaction_date' => now()->toDateString(),
-                'reference_number' => 'POS-'.now()->format('YmdHis').'-'.random_int(100, 999),
+                'reference_number' => $receiptNumber,
                 'description' => 'POS Sale',
             ]);
 
@@ -101,17 +121,24 @@ class CheckoutController extends Controller
                 ],
             ]);
 
-            return [
-                'journal' => $journal->load('journalLines'),
-                'items' => $lines,
-                'total' => $total,
-            ];
+            return $sale->load('items.product');
         });
 
         return response()->json([
             'message' => 'Checkout completed successfully.',
-            ...$sale,
+            'status' => 'success',
+            'receipt_number' => $receiptNumber,
+            'sale' => $sale,
         ], 201);
+    }
+
+    private function generateReceiptNumber(): string
+    {
+        do {
+            $receipt = 'INV-'.now()->format('Ymd').'-'.str_pad((string) random_int(1, 9999), 4, '0', STR_PAD_LEFT);
+        } while (Sale::withoutGlobalScopes()->where('receipt_number', $receipt)->exists());
+
+        return $receipt;
     }
 
     private function toCents(string|int|float $amount): int

@@ -22,3 +22,7 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Junk Windows DB caches and agent workspace
+*.db
+.cline/

@@ -53,7 +53,9 @@ Workflow `.github/workflows/deploy-hostinger.yml` melakukan deploy otomatis seti
 
 Document root domain harus diarahkan ke folder `public` aplikasi. File `.env` tidak dikirim oleh workflow; buat `.env` production langsung di server dengan `APP_KEY`, `APP_URL`, kredensial MySQL Hostinger, dan driver `database` yang sesuai.
 
-Setelah secret tersedia, push ke branch `main` akan menjalankan test, build frontend, upload release, migrate, seed akun branch, dan cache konfigurasi Laravel.
+Workflow deployment saat ini hanya mengirim code dan menjalankan cache/optimasi yang aman. Ia tidak menjalankan `migrate`, `db:seed`, `migrate:fresh`, `db:wipe`, atau perintah data-mutating lainnya. Semua migrasi/seed database harus dijalankan manual setelah backup dan validasi server selesai.
+
+Setelah secret tersedia, push ke branch `main` akan menjalankan test, build frontend, upload release, validasi host, dan cache konfigurasi Laravel tanpa mengubah data produksi secara otomatis.
 
 ## Rencana Fase Berikutnya
 

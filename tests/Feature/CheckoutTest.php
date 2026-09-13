@@ -15,7 +15,7 @@ class CheckoutTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_checkout_decrements_stock_and_creates_balanced_journal(): void
+    public function test_checkout_records_sale_items_and_decrements_stock_with_balanced_journal(): void
     {
         [$user, $product] = $this->checkoutSetup();
         Sanctum::actingAs($user);
@@ -27,22 +27,47 @@ class CheckoutTest extends TestCase
         ]);
 
         $response->assertCreated()
-            ->assertJsonPath('total', 220000)
-            ->assertJsonCount(2, 'journal.journal_lines');
+            ->assertJsonPath('status', 'success')
+            ->assertJsonStructure([
+                'receipt_number',
+                'sale' => ['id', 'total_amount', 'items'],
+            ])
+            ->assertJsonPath('sale.total_amount', 22000000)
+            ->assertJsonCount(2, 'sale.items');
+
+        $saleId = $response->json('sale.id');
 
         $this->assertDatabaseHas('products', [
             'id' => $product->id,
             'stock' => 3,
         ]);
+
+        $this->assertDatabaseHas('sales', [
+            'id' => $saleId,
+            'branch_id' => $user->branch_id,
+            'status' => 'completed',
+            'total_amount' => 22000000,
+        ]);
+
+        $this->assertDatabaseHas('sale_items', [
+            'sale_id' => $saleId,
+            'product_id' => $product->id,
+            'quantity' => 2,
+            'price' => 11000000,
+            'subtotal' => 22000000,
+        ]);
+
         $this->assertDatabaseHas('journal_headers', [
             'description' => 'POS Sale',
             'branch_id' => $user->branch_id,
         ]);
+
         $this->assertDatabaseHas('journal_lines', [
             'chart_of_account_id' => ChartOfAccount::where('code', '1110')->value('id'),
             'debit' => 220000,
             'credit' => 0,
         ]);
+
         $this->assertDatabaseHas('journal_lines', [
             'chart_of_account_id' => ChartOfAccount::where('code', '4110')->value('id'),
             'debit' => 0,
@@ -65,6 +90,7 @@ class CheckoutTest extends TestCase
             ->assertJsonValidationErrors('items');
         $this->assertDatabaseHas('products', ['id' => $product->id, 'stock' => 5]);
         $this->assertDatabaseCount('journal_headers', 0);
+        $this->assertDatabaseCount('sales', 0);
     }
 
     private function checkoutSetup(): array

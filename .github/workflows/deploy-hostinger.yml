@@ -11,6 +11,11 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      HOSTINGER_HOST: ${{ secrets.HOSTINGER_HOST }}
+      HOSTINGER_PORT: ${{ secrets.HOSTINGER_PORT }}
+      HOSTINGER_USER: ${{ secrets.HOSTINGER_USER }}
+      HOSTINGER_PATH: ${{ secrets.HOSTINGER_PATH }}
 
     steps:
       - name: Checkout
@@ -43,27 +48,63 @@ jobs:
           npm ci
           npm run build
 
+      - name: Validate deployment secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for var in HOSTINGER_HOST HOSTINGER_PORT HOSTINGER_USER HOSTINGER_PATH; do
+            if [ -z "${!var:-}" ]; then
+              echo "Missing required secret: $var" >&2
+              exit 1
+            fi
+          done
+
+          test -f artisan
+          test -f public/index.php
+
       - name: Install SSH key
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.HOSTINGER_SSH_KEY }}
 
-      - name: Upload release
-        env:
-          HOSTINGER_HOST: ${{ secrets.HOSTINGER_HOST }}
-          HOSTINGER_PORT: ${{ secrets.HOSTINGER_PORT }}
-          HOSTINGER_USER: ${{ secrets.HOSTINGER_USER }}
-          HOSTINGER_PATH: ${{ secrets.HOSTINGER_PATH }}
+      - name: Add Hostinger host key
+        shell: bash
         run: |
-          tar --exclude=.git --exclude=.env --exclude=storage/logs --exclude=storage/framework/cache --exclude=storage/framework/sessions --exclude=storage/framework/views -czf /tmp/release.tar.gz .
-          scp -P "${HOSTINGER_PORT:-65002}" -o StrictHostKeyChecking=no /tmp/release.tar.gz "${HOSTINGER_USER}@${HOSTINGER_HOST}:/tmp/maju-bersama-release.tar.gz"
-          ssh -p "${HOSTINGER_PORT:-65002}" -o StrictHostKeyChecking=no "${HOSTINGER_USER}@${HOSTINGER_HOST}" "mkdir -p '${HOSTINGER_PATH}' && tar -xzf /tmp/maju-bersama-release.tar.gz -C '${HOSTINGER_PATH}' && rm /tmp/maju-bersama-release.tar.gz"
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          ssh-keyscan -p "${HOSTINGER_PORT:-65002}" "${HOSTINGER_HOST}" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
 
-      - name: Run Laravel deployment commands
-        env:
-          HOSTINGER_HOST: ${{ secrets.HOSTINGER_HOST }}
-          HOSTINGER_PORT: ${{ secrets.HOSTINGER_PORT }}
-          HOSTINGER_USER: ${{ secrets.HOSTINGER_USER }}
-          HOSTINGER_PATH: ${{ secrets.HOSTINGER_PATH }}
+      - name: Upload release
+        shell: bash
         run: |
-          ssh -p "${HOSTINGER_PORT:-65002}" -o StrictHostKeyChecking=no "${HOSTINGER_USER}@${HOSTINGER_HOST}" "cd '${HOSTINGER_PATH}' && php artisan migrate --force && php artisan db:seed --class=BranchAccessSeeder --force && php artisan optimize:clear && php artisan config:cache && php artisan route:cache && php artisan view:cache"
+          set -euo pipefail
+          tar --exclude=.git \
+              --exclude=.env \
+              --exclude=storage/logs \
+              --exclude=storage/framework/cache \
+              --exclude=storage/framework/sessions \
+              --exclude=storage/framework/views \
+              -czf /tmp/release.tar.gz .
+
+          scp -P "${HOSTINGER_PORT:-65002}" \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            /tmp/release.tar.gz "${HOSTINGER_USER}@${HOSTINGER_HOST}:/tmp/maju-bersama-release.tar.gz"
+
+          ssh -p "${HOSTINGER_PORT:-65002}" \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            "${HOSTINGER_USER}@${HOSTINGER_HOST}" \
+            "mkdir -p '${HOSTINGER_PATH}' && tar -xzf /tmp/maju-bersama-release.tar.gz -C '${HOSTINGER_PATH}' && rm -f /tmp/maju-bersama-release.tar.gz && test -f '${HOSTINGER_PATH}/public/index.php'"
+
+      - name: Run production-safe Laravel optimization
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -p "${HOSTINGER_PORT:-65002}" \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            "${HOSTINGER_USER}@${HOSTINGER_HOST}" \
+            "cd '${HOSTINGER_PATH}' && php artisan about --no-interaction && php artisan optimize --force && php artisan config:cache && php artisan route:cache && php artisan view:cache"
