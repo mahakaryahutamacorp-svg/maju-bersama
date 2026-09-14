@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\BranchController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\JournalController;
@@ -30,6 +31,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/categories/{category}', [CategoryController::class, 'show']);
     Route::put('/categories/{category}', [CategoryController::class, 'update']);
     Route::delete('/categories/{category}', [CategoryController::class, 'destroy']);
+
+    // Branches CRUD (superadmin only)
+    Route::get('/branches', [BranchController::class, 'index']);
+    Route::post('/branches', [BranchController::class, 'store']);
+    Route::get('/branches/{branch}', [BranchController::class, 'show']);
+    Route::put('/branches/{branch}', [BranchController::class, 'update']);
+    Route::delete('/branches/{branch}', [BranchController::class, 'destroy']);
 
     Route::post('/journals', [JournalController::class, 'store']);
     Route::post('/checkout', [CheckoutController::class, 'store']);
