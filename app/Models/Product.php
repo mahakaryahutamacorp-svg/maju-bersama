@@ -6,6 +6,7 @@ use App\Traits\HasBranchScope;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Product extends Model
 {
@@ -43,5 +44,38 @@ class Product extends Model
     public function saleItems(): HasMany
     {
         return $this->hasMany(SaleItem::class);
+    }
+
+    /**
+     * Stock rows for this product. A product belongs to a single branch catalogue,
+     * so in practice this resolves to one row, but the relation is kept as HasMany
+     * to mirror the table structure.
+     */
+    public function inventories(): HasMany
+    {
+        return $this->hasMany(Inventory::class);
+    }
+
+    /**
+     * The authoritative stock row for this product within its own branch.
+     */
+    public function inventory(): HasOne
+    {
+        return $this->hasOne(Inventory::class)
+            ->where('inventories.branch_id', $this->branch_id);
+    }
+
+    /**
+     * Current on-hand quantity taken from the inventories table, falling back to the
+     * legacy products.stock column when no inventory row exists yet.
+     */
+    public function availableQuantity(): int
+    {
+        $inventory = Inventory::withoutGlobalScopes()
+            ->where('branch_id', $this->branch_id)
+            ->where('product_id', $this->id)
+            ->first();
+
+        return $inventory?->quantity ?? (int) $this->stock;
     }
 }

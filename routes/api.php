@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\CheckoutController;
 use App\Http\Controllers\Api\JournalController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\StockTransferController;
 use App\Http\Controllers\AuthController;
 
 Route::post('/login', [AuthController::class, 'login']);
@@ -38,6 +39,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/branches/{branch}', [BranchController::class, 'show']);
     Route::put('/branches/{branch}', [BranchController::class, 'update']);
     Route::delete('/branches/{branch}', [BranchController::class, 'destroy']);
+
+    // Inter-branch stock distribution
+    Route::get('/stock-transfers', [StockTransferController::class, 'index']);
+    Route::post('/stock-transfers', [StockTransferController::class, 'store']);
+    Route::get('/stock-transfers/{stockTransfer}', [StockTransferController::class, 'show']);
 
     Route::post('/journals', [JournalController::class, 'store']);
     Route::post('/checkout', [CheckoutController::class, 'store']);

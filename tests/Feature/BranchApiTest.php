@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\Category;
 use App\Models\Product;
 use App\Models\User;
 use Laravel\Sanctum\Sanctum;
@@ -11,6 +12,7 @@ use Tests\TestCase;
 class BranchApiTest extends TestCase
 {
     private Branch $branch;
+    private Category $category;
     private User $superadmin;
     private User $branchAdmin;
     private User $cashier;
@@ -18,6 +20,8 @@ class BranchApiTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->category = Category::create(['name' => 'Elektronik']);
 
         $this->branch = Branch::create([
             'code' => 'BR001',
@@ -210,6 +214,7 @@ class BranchApiTest extends TestCase
 
         Product::create([
             'branch_id' => $branchWithProducts->id,
+            'category_id' => $this->category->id,
             'sku' => 'TEST-001',
             'name' => 'Test Product',
             'purchase_price' => 10000,
@@ -257,6 +262,7 @@ class BranchApiTest extends TestCase
     {
         Product::create([
             'branch_id' => $this->branch->id,
+            'category_id' => $this->category->id,
             'sku' => 'PROD-001',
             'name' => 'Product 1',
             'purchase_price' => 10000,

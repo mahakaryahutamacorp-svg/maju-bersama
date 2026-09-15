@@ -118,13 +118,99 @@ Dokumen ini mencatat keputusan arsitektur penting, bug major, dan perubahan stru
 
 ---
 
+## ADR-008: Database Produksi MySQL + Transaksi ACID via Laravel [2026-09-14]
+
+**Konteks:**
+Spesifikasi awal menyebut penggunaan PostgreSQL/Supabase RPC untuk membungkus
+logika double-entry dalam blok `BEGIN`/`COMMIT`. Kenyataannya ekosistem yang sudah
+berjalan adalah Laravel 12 dengan MySQL 8 (produksi) dan SQLite in-memory (testing).
+Migrasi ke PostgreSQL berarti mengganti seluruh infrastruktur yang sudah live.
+
+**Keputusan:**
+Tetap menggunakan MySQL 8 (InnoDB) dan membungkus seluruh operasi multi-tabel
+dengan `DB::transaction()` milik Laravel.
+
+**Alasan:**
+- `DB::transaction()` pada InnoDB mengeluarkan `BEGIN`/`COMMIT`/`ROLLBACK` yang
+  sesungguhnya, sehingga jaminan atomicity identik dengan PostgreSQL.
+- Logika transaksi tetap berada di layer aplikasi (PHP) sehingga dapat diuji otomatis
+  lewat PHPUnit tanpa memerlukan database server terpisah.
+- Menghindari pemecahan logika bisnis ke dalam stored procedure yang sulit di-version
+  control dan sulit di-review.
+- Biaya migrasi infrastruktur produksi yang sudah live tidak sebanding dengan
+  manfaat yang diperoleh.
+
+**Konsekuensi:**
+- Semua operasi yang menyentuh lebih dari satu tabel wajib berada di dalam
+  `DB::transaction()`.
+- Pembacaan baris yang akan dimutasi wajib memakai `lockForUpdate()` untuk mencegah
+  race condition (pola ini sudah diterapkan pada `CheckoutController`).
+- Jika suatu saat benar-benar pindah ke PostgreSQL, kode transaksi tidak perlu diubah
+  karena abstraksi Laravel bersifat database-agnostic.
+
+---
+
+## ADR-009: Deployment ke VPS aaPanel dengan SSL Let's Encrypt [2026-09-14]
+
+**Konteks:**
+Aplikasi perlu diakses publik pada domain `majubersama.online`. VPS Hostinger yang
+tersedia sudah ter-install aaPanel beserta stack Nginx 1.30, PHP 8.3, dan MySQL 8.
+
+**Keputusan:**
+- Document root diarahkan ke `/www/wwwroot/majubersama.online/public`.
+- Sertifikat SSL diterbitkan memakai `acme.sh` (bukan fitur SSL bawaan panel).
+- Nginx dikonfigurasi dengan dua server block: port 80 melakukan redirect 301 ke HTTPS,
+  port 443 melayani aplikasi dengan TLS 1.2/1.3, HTTP/2, dan header HSTS.
+- Perpanjangan sertifikat otomatis lewat cron `acme.sh --cron` dengan
+  `--reloadcmd "nginx -s reload"`.
+
+**Alasan:**
+- `acme.sh` dapat dioperasikan sepenuhnya lewat SSH sehingga proses deployment dapat
+  diotomatisasi dan diulang, tanpa bergantung pada klik manual di antarmuka panel.
+- Redirect 301 dan HSTS memastikan cookie sesi Laravel selalu dikirim melalui koneksi
+  terenkripsi (atribut `secure` aktif).
+
+**Konsekuensi:**
+- Pengelolaan nginx pada server ini memakai `nginx -s reload`, bukan `systemctl`
+  (lihat BUG-002 pada `docs/BUG_REGISTRY.md`).
+- Konfigurasi vhost diedit langsung di
+  `/www/server/panel/vhost/nginx/majubersama.online.conf`. Perubahan lewat UI aaPanel
+  berpotensi menimpa konfigurasi ini, sehingga backup selalu dibuat sebelum diedit.
+
+---
+
+## ADR-010: Pemisahan Bug Registry dari Architecture Decisions [2026-09-14]
+
+**Konteks:**
+Catatan bug sebelumnya bercampur di dalam dokumen keputusan arsitektur. Keduanya
+memiliki umur pakai dan pembaca yang berbeda: keputusan arsitektur dibaca saat
+merancang modul baru, sedangkan rekaman bug dibaca saat melakukan diagnosis masalah.
+
+**Keputusan:**
+- `architecture_decisions.md` menyimpan keputusan arsitektur beserta alasannya (ADR).
+- `docs/BUG_REGISTRY.md` menyimpan rekaman bug beserta akar masalah dan pencegahannya.
+- Jika sebuah bug melahirkan keputusan arsitektur, keduanya saling menautkan nomor.
+
+**Konsekuensi:**
+- Setiap perbaikan bug yang tidak trivial wajib menghasilkan satu entri di
+  `docs/BUG_REGISTRY.md`, termasuk bagian akar masalah dan pencegahan.
+
+---
+
 ## Bug Fixes
 
-### BUG-001: HasBranchScope di Sale Model [RESOLVED]
+Rekaman bug lengkap beserta akar masalah dan langkah pencegahannya dipindahkan ke
+[`docs/BUG_REGISTRY.md`](docs/BUG_REGISTRY.md) (lihat ADR-010).
 
-**Issue:** Sale model tidak punya HasBranchScope, user bisa lihat sales branch lain.
+Ringkasan bug yang pernah ditemukan:
 
-**Fix:** Tambah `use HasBranchScope;` di Sale model.
+| ID | Judul | Status |
+| --- | --- | --- |
+| BUG-001 | HasBranchScope belum dipasang pada model Sale | RESOLVED |
+| BUG-002 | Nginx tidak dapat di-start melalui systemd (aaPanel) | MITIGATED |
+| BUG-003 | Aplikasi produksi berjalan dengan konfigurasi lokal | RESOLVED |
+| BUG-004 | Sertifikat SSL gagal terbit untuk subdomain `www` | RESOLVED |
+| BUG-005 | Test BranchApiTest gagal karena `category_id` tidak diisi | RESOLVED |
 
 ---
 

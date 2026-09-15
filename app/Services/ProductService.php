@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use App\Models\Inventory;
 use App\Models\Product;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class ProductService
@@ -29,7 +31,17 @@ class ProductService
             $data['stock'] = 0;
         }
 
-        return Product::create($data);
+        return DB::transaction(function () use ($data, $branchId): Product {
+            $product = Product::create($data);
+
+            // Keep the per-branch stock table in sync with the catalogue row.
+            Inventory::withoutGlobalScopes()->firstOrCreate(
+                ['branch_id' => $branchId, 'product_id' => $product->id],
+                ['quantity' => (int) $product->stock],
+            );
+
+            return $product;
+        });
     }
 
     /**
@@ -41,8 +53,18 @@ class ProductService
      */
     public function updateProduct(Product $product, array $data): Product
     {
-        $product->update($data);
-        return $product->fresh();
+        return DB::transaction(function () use ($product, $data): Product {
+            $product->update($data);
+
+            if (array_key_exists('stock', $data)) {
+                Inventory::withoutGlobalScopes()->updateOrCreate(
+                    ['branch_id' => $product->branch_id, 'product_id' => $product->id],
+                    ['quantity' => (int) $data['stock']],
+                );
+            }
+
+            return $product->fresh();
+        });
     }
 
     /**

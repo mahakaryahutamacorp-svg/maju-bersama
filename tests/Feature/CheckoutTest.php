@@ -5,6 +5,9 @@ namespace Tests\Feature;
 use App\Models\Branch;
 use App\Models\Category;
 use App\Models\ChartOfAccount;
+use App\Models\Inventory;
+use App\Models\JournalHeader;
+use App\Models\JournalLine;
 use App\Models\Product;
 use App\Models\User;
 use Laravel\Sanctum\Sanctum;
@@ -70,6 +73,52 @@ class CheckoutTest extends TestCase
             'debit' => 0,
             'credit' => 220000,
         ]);
+
+        // Cost side of the entry: 2 units at a purchase price of 100000 each.
+        $this->assertDatabaseHas('journal_lines', [
+            'chart_of_account_id' => ChartOfAccount::where('code', '5100')->value('id'),
+            'debit' => 200000,
+            'credit' => 0,
+        ]);
+
+        $this->assertDatabaseHas('journal_lines', [
+            'chart_of_account_id' => ChartOfAccount::where('code', '1210')->value('id'),
+            'debit' => 0,
+            'credit' => 200000,
+        ]);
+
+        $journalId = JournalHeader::where('reference_number', $response->json('receipt_number'))
+            ->value('id');
+
+        $this->assertSame(4, JournalLine::where('journal_header_id', $journalId)->count());
+
+        $this->assertSame(
+            (float) JournalLine::where('journal_header_id', $journalId)->sum('debit'),
+            (float) JournalLine::where('journal_header_id', $journalId)->sum('credit'),
+        );
+    }
+
+    public function test_checkout_decrements_the_inventory_table(): void
+    {
+        [$user, $product] = $this->checkoutSetup();
+        Sanctum::actingAs($user);
+
+        $this->postJson('/api/checkout', [
+            'items' => [
+                ['product_id' => $product->id, 'quantity' => 2],
+            ],
+        ])->assertCreated();
+
+        $this->assertDatabaseHas('inventories', [
+            'branch_id' => $user->branch_id,
+            'product_id' => $product->id,
+            'quantity' => 3,
+        ]);
+
+        $this->assertSame(1, Inventory::withoutGlobalScopes()
+            ->where('branch_id', $user->branch_id)
+            ->where('product_id', $product->id)
+            ->count());
     }
 
     public function test_checkout_rejects_insufficient_stock_without_changes(): void
@@ -97,7 +146,9 @@ class CheckoutTest extends TestCase
         $category = Category::create(['name' => 'Elektronik']);
         ChartOfAccount::insert([
             ['code' => '1110', 'name' => 'Kas', 'type' => 'asset'],
+            ['code' => '1210', 'name' => 'Persediaan', 'type' => 'asset'],
             ['code' => '4110', 'name' => 'Pendapatan', 'type' => 'revenue'],
+            ['code' => '5100', 'name' => 'Harga Pokok Penjualan', 'type' => 'expense'],
         ]);
         $product = Product::create([
             'branch_id' => $branch->id,

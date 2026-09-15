@@ -18,6 +18,7 @@
                 <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
                     <a href="/pos" class="hover:text-white">POS</a>
                     <a href="/inventory" class="font-semibold text-white">Inventory</a>
+                    <a href="/inventory/transfer" class="hover:text-white">Transfer</a>
                     <a href="/reports/journal" class="hover:text-white">Ledger</a>
                 </nav>
                 <div class="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-300">

@@ -6,6 +6,7 @@ use App\Http\Controllers\BackofficeController;
 use App\Http\Controllers\PreviewController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\Web\InventoryController;
+use App\Http\Controllers\Web\StockTransferController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [PreviewController::class, 'index']);
@@ -16,6 +17,7 @@ Route::middleware('auth')->group(function () {
 	Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
 	Route::get('/backoffice', [BackofficeController::class, 'index']);
 	Route::get('/inventory', [InventoryController::class, 'index']);
+	Route::get('/inventory/transfer', [StockTransferController::class, 'index'])->name('stock-transfer');
 	Route::get('/pos', [PosController::class, 'index']);
 	Route::get('/reports/journal', [ReportController::class, 'journal']);
 });

@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Category;
+use App\Models\Inventory;
 use App\Models\Product;
 use Illuminate\Database\Seeder;
 
@@ -15,7 +16,7 @@ class ProductSeeder extends Seeder
             'Elektronik' => Category::create(['name' => 'Elektronik']),
         ];
 
-        Product::insert([
+        $products = [
             [
                 'branch_id' => 1,
                 'category_id' => $categories['Pertanian']->id,
@@ -24,8 +25,6 @@ class ProductSeeder extends Seeder
                 'purchase_price' => 85000,
                 'selling_price' => 110000,
                 'stock' => 48,
-                'created_at' => now(),
-                'updated_at' => now(),
             ],
             [
                 'branch_id' => 1,
@@ -35,8 +34,6 @@ class ProductSeeder extends Seeder
                 'purchase_price' => 42000,
                 'selling_price' => 57500,
                 'stock' => 120,
-                'created_at' => now(),
-                'updated_at' => now(),
             ],
             [
                 'branch_id' => 1,
@@ -46,8 +43,6 @@ class ProductSeeder extends Seeder
                 'purchase_price' => 325000,
                 'selling_price' => 425000,
                 'stock' => 12,
-                'created_at' => now(),
-                'updated_at' => now(),
             ],
             [
                 'branch_id' => 1,
@@ -57,9 +52,19 @@ class ProductSeeder extends Seeder
                 'purchase_price' => 275000,
                 'selling_price' => 365000,
                 'stock' => 7,
-                'created_at' => now(),
-                'updated_at' => now(),
             ],
-        ]);
+        ];
+
+        foreach ($products as $row) {
+            $product = Product::withoutGlobalScopes()->create($row);
+
+            // Every seeded stock level needs a matching inventory row so the
+            // per-branch stock table stays the single source of truth.
+            Inventory::withoutGlobalScopes()->create([
+                'branch_id' => $product->branch_id,
+                'product_id' => $product->id,
+                'quantity' => $product->stock,
+            ]);
+        }
     }
 }
