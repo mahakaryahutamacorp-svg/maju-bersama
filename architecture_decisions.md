@@ -197,6 +197,84 @@ merancang modul baru, sedangkan rekaman bug dibaca saat melakukan diagnosis masa
 
 ---
 
+## ADR-011: Tabel `inventories` dengan Composite Unique `(branch_id, product_id)` [2026-09-15]
+
+**Konteks:**
+Modul Distribusi Inventori membutuhkan aliran barang dari entitas pusat ke cabang.
+Skema lama menyimpan stok pada kolom `products.stock`, sementara `products` terikat
+satu cabang dan `products.sku` bersifat unique global. Konsekuensinya satu artikel
+tidak dapat berada di pusat dan cabang secara bersamaan, sehingga transfer stok
+mustahil dicatat tanpa memaksa SKU baru.
+
+**Keputusan:**
+- Tabel baru `inventories` menjadi sumber kebenaran stok, dengan **composite unique
+  key `(branch_id, product_id)`** sehingga mustahil ada dua baris stok untuk pasangan
+  cabang/produk yang sama.
+- Kolom `products.stock` dipertahankan sebagai cache kompatibilitas dan selalu
+  disinkronkan oleh service (`StockTransferService`, `SalePostingService`,
+  `ProductService`) di dalam transaksi yang sama.
+- SKU produk dilonggarkan dari unique global menjadi **unique per cabang**
+  (`products_branch_sku_unique`) agar artikel yang sama dapat didaftarkan di cabang
+  tujuan saat transfer pertama kali terjadi.
+- Migrasi `create_inventories_table` sekaligus backfill dari `products.stock` agar
+  data produksi tidak kehilangan stok awal.
+
+**Konsekuensi:**
+- Semua pembacaan stok kritis (transfer, checkout) membaca `inventories` dengan
+  `lockForUpdate()`.
+- `firstOrCreate` pada pasangan `(branch_id, product_id)` aman dari duplikasi karena
+  dijaga constraint database, bukan logika aplikasi.
+- Jika katalog produk kelak dinormalisasi menjadi global (tanpa `branch_id`), tabel
+  `inventories` sudah berbentuk benar dan tidak perlu dimigrasi ulang.
+
+---
+
+## ADR-012: Jurnal Penjualan POS Empat Baris [2026-09-15]
+
+**Konteks:**
+Checkout sebelumnya hanya menulis dua baris jurnal (Dr Kas, Cr Pendapatan). Akibatnya
+persediaan di neraca tidak berkurang saat barang terjual dan laba kotor tidak terbaca
+dari ledger.
+
+**Keputusan:**
+- Setiap penjualan POS menulis empat baris dalam satu header jurnal:
+  `Dr 1110 Kas`, `Cr 4110 Pendapatan`, `Dr 5100 Harga Pokok Penjualan`,
+  `Cr 1210 Persediaan`, dengan sisi biaya dihitung dari `purchase_price`.
+- Akun baru `5100 Harga Pokok Penjualan` ditambahkan ke `ChartOfAccountSeeder`
+  (idempoten via `updateOrCreate`, aman dijalankan ulang di produksi).
+- Logika dipindah dari controller ke `SalePostingService` sesuai ADR-002; seluruh
+  mutasi (stok, sale, jurnal) berada dalam satu `DB::transaction()` sesuai ADR-008.
+
+**Konsekuensi:**
+- Baris HPP/Persediaan dilewati ketika total biaya nol agar ledger tidak berisi baris
+  kosong; jurnal tetap balance.
+- `CheckoutTest` memverifikasi keempat baris, keseimbangan debit/kredit, dan
+  decrement pada tabel `inventories`.
+
+---
+
+## ADR-013: Modul Distribusi Inventori (Stock Transfer) [2026-09-15]
+
+**Keputusan:**
+- Endpoint `GET/POST /api/stock-transfers` dan `GET /api/stock-transfers/{id}`
+  (Sanctum), plus halaman web `/inventory/transfer` (Blade + Alpine).
+- `StockTransferService::transfer()` membungkus seluruh operasi dalam satu
+  `DB::transaction()`: validasi stok sumber, decrement stok pusat, increment stok
+  cabang (membuat baris katalog tujuan berdasarkan SKU bila belum ada), pencatatan
+  `stock_transfers` + `stock_transfer_items`, dan dua jurnal mirror
+  (`Stock transfer out` di sumber, `Stock transfer in` di tujuan) memakai akun
+  `1210 Persediaan`.
+- Otorisasi: master boleh transfer dari cabang manapun; non-master hanya boleh
+  mengeluarkan stok dari cabangnya sendiri.
+- Nomor referensi: `TRF-YYYYMMDD-XXXX`, konsisten dengan format resi ADR-006.
+
+**Konsekuensi:**
+- Transfer `majubersamapusat` -> `majubersama 1` berjalan dengan stok berkurang akurat
+  di sumber, bertambah di tujuan, tanpa duplikasi baris `inventories`
+  (test `test_repeated_transfers_do_not_duplicate_inventory_rows`).
+
+---
+
 ## Bug Fixes
 
 Rekaman bug lengkap beserta akar masalah dan langkah pencegahannya dipindahkan ke
@@ -222,6 +300,9 @@ Ringkasan bug yang pernah ditemukan:
 - `GET /api/products` - List products (branch-scoped)
 - `POST /api/checkout` - Create sale + journal
 - `POST /api/journals` - Create journal entry
+- `GET /api/stock-transfers` - List transfers involving caller's branch
+- `POST /api/stock-transfers` - Execute stock transfer pusat -> cabang
+- `GET /api/stock-transfers/{stockTransfer}` - Transfer detail
 
 ---
 

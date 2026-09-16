@@ -16,6 +16,7 @@ class ChartOfAccountSeeder extends Seeder
         $accounts = [
             ['code' => '1110', 'name' => 'Kas', 'type' => 'asset'],
             ['code' => '1210', 'name' => 'Persediaan', 'type' => 'asset'],
+            ['code' => '2110', 'name' => 'Hutang Dagang', 'type' => 'liability'],
             ['code' => '3110', 'name' => 'Modal', 'type' => 'equity'],
             ['code' => '4110', 'name' => 'Pendapatan', 'type' => 'revenue'],
             // Cost of goods sold, required so that every POS sale can be recorded as a
