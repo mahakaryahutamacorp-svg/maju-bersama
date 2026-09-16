@@ -275,50 +275,134 @@ dari ledger.
 
 ---
 
-## Bug Fixes
+## ADR-014: Modul Penerimaan Barang (Goods Receipt) & Hutang Usaha [2026-09-16]
 
-Rekaman bug lengkap beserta akar masalah dan langkah pencegahannya dipindahkan ke
-[`docs/BUG_REGISTRY.md`](docs/BUG_REGISTRY.md) (lihat ADR-010).
+**Konteks:** Pengadaan stok dari supplier memerlukan pencatatan fisik dan finansial otomatis (tunai vs kredit/hutang usaha).
 
-Ringkasan bug yang pernah ditemukan:
-
-| ID | Judul | Status |
-| --- | --- | --- |
-| BUG-001 | HasBranchScope belum dipasang pada model Sale | RESOLVED |
-| BUG-002 | Nginx tidak dapat di-start melalui systemd (aaPanel) | MITIGATED |
-| BUG-003 | Aplikasi produksi berjalan dengan konfigurasi lokal | RESOLVED |
-| BUG-004 | Sertifikat SSL gagal terbit untuk subdomain `www` | RESOLVED |
-| BUG-005 | Test BranchApiTest gagal karena `category_id` tidak diisi | RESOLVED |
+**Keputusan:**
+- Service `GoodsReceiptService::processReceipt()` dibungkus dalam `DB::transaction()`.
+- Validasi item: produk, kuantitas masuk, harga beli per unit.
+- Kuantitas stok ditambah secara atomik pada tabel `inventories` dan cache kolom `products.stock`.
+- Pencatatan jurnal ganda otomatis:
+  - Debit: `1210 Persediaan Barang Dagang`
+  - Kredit: `1110 Kas` (Metode Cash) ATAU `2110 Hutang Dagang` (Metode Credit / Tempo).
+- Middleware `EnsureCentralAdmin` membatasi akses input pengadaan hanya untuk staf/admin pusat.
 
 ---
 
-## API Endpoints
+## ADR-015: Modul Penyesuaian Stok (Stock Adjustment / Opname) [2026-09-16]
 
-- `POST /api/login` - Login
-- `POST /api/logout` - Logout
-- `GET /api/user` - Current user
-- `GET /api/products` - List products (branch-scoped)
-- `POST /api/checkout` - Create sale + journal
-- `POST /api/journals` - Create journal entry
-- `GET /api/stock-transfers` - List transfers involving caller's branch
-- `POST /api/stock-transfers` - Execute stock transfer pusat -> cabang
-- `GET /api/stock-transfers/{stockTransfer}` - Transfer detail
+**Konteks:** Selisih fisik antara barang di rak toko dan sistem (rusak/hilang/berlebih) perlu disesuaikan tanpa merusak audit trail.
 
----
-
-## Testing Strategy
-
-- PHPUnit + Laravel TestCase
-- `DatabaseTransactions` untuk rollback
-- SQLite in-memory untuk speed
-- `Sanctum::actingAs()` untuk API auth
+**Keputusan:**
+- `StockAdjustmentService::processAdjustment()` memproses selisih (`actual_qty - expected_qty`).
+- Menggunakan database locking (`lockForUpdate()`) pada baris `inventories` untuk menghindari race condition saat opname bersamaan dengan kasir.
+- Otomasi jurnal ganda terpadu per branch:
+  - Jika Selisih Negatif (Hilang/Rusak): Debit `5210 Beban Kerugian Selisih Persediaan`, Kredit `1210 Persediaan`.
+  - Jika Selisih Positif (Berlebih): Debit `1210 Persediaan`, Kredit `4210 Pendapatan Selisih Persediaan`.
+  - Batch opname campuran menghasilkan satu dokumen jurnal yang seimbang sempurna (*balanced journal*).
 
 ---
 
-## Future Considerations
+## ADR-016: Laporan Kartu Stok Terpadu (Stock Movement Ledger) [2026-09-16]
 
-- [ ] Redis caching untuk product list
-- [ ] Rate limiting API endpoints
-- [ ] Error tracking (Sentry/Bugsnag)
-- [ ] Queue workers dengan Supervisor
-- [ ] Database backup automation
+**Konteks:** Melacak mutasi kronologis stok masuk dan keluar per produk di tiap cabang dengan saldo berjalan (*running balance*).
+
+**Keputusan:**
+- Pendekatan Arsitektur: **Union Query Multi-Sumber** di `StockCardService` yang menyatukan 6 alur mutasi:
+  1. `SaleItem` (POS Checkout) -> Keluar
+  2. `GoodsReceiptItem` (Penerimaan Supplier) -> Masuk
+  3. `StockTransferItem` (Transfer Masuk dari Pusat) -> Masuk
+  4. `StockTransferItem` (Transfer Keluar ke Cabang) -> Keluar
+  5. `StockAdjustmentItem` (Opname Selisih Positif) -> Masuk
+  6. `StockAdjustmentItem` (Opname Selisih Negatif) -> Keluar
+- Perhitungan Saldo Awal dinamis berdasarkan akumulasi seluruh transaksi sebelum `start_date`.
+- Penomoran referensi dan running balance dihitung secara presisi per cabang.
+
+---
+
+## ADR-017: Peningkatan Kasir POS & Modul Pembayaran Kasir [2026-09-16]
+
+**Konteks:** Kasir toko membutuhkan antarmuka yang cepat (keyboard-first), scan barcode instan, kalkulasi kembalian akurat, dan slip thermal siap cetak.
+
+**Keputusan:**
+- Antarmuka POS Blade ditenagai reaktivitas `Alpine.js` tanpa reload halaman.
+- Pencarian cerdas: Barcode scanner / SKU scan instan memasukkan item ke keranjang belanja secara otomatis.
+- Modal pembayaran interaktif: input cash tendered, tombol nominal cepat uang pecahan (Rp 20.000, 50.000, 100.000, Uang Pas), dan validasi dana mencukupi.
+- Halaman cetak struk thermal standar 58mm/80mm di `/pos/receipt/{receipt_number}` dengan styling `@media print` rapi.
+
+---
+
+## ADR-018: Backoffice Master Data Management & Strict Multi-Tenancy Isolation [2026-09-16]
+
+**Konteks:** Pengelolaan data Produk, Kategori, Staf/Kasir, dan Cabang melalui antarmuka web oleh pengguna non-teknis dengan pembatasan hak akses yang tegas.
+
+**Keputusan:**
+- Controller Web di bawah namespace `App\Http\Controllers\Web`:
+  - `ProductController`: CRUD produk, auto-generate SKU unik format `BR{branch}-{random}` jika SKU dikosongkan. Admin cabang hanya bisa melihat & mengedit produk cabangnya sendiri (HTTP 403 jika melanggar). Role `master` dapat mengelola produk lintas cabang.
+  - `CategoryController`: CRUD kategori bersama modal interaktif Alpine.js. Proteksi penghapusan jika kategori masih memuat produk aktif.
+  - `UserController`: Pendaftaran akun staf/kasir baru. Password dienkripsi dengan Bcrypt (`Hash::make`). Admin cabang hanya diizinkan membuat akun role `cashier` atau `admin` pada cabangnya sendiri. Role `master` bebas mendaftarkan akun di cabang manapun.
+  - `BranchController`: CRUD Cabang Toko. **Dibatasi eksklusif hanya untuk pengguna dengan role `master`** (`abort(403)` jika diakses oleh admin cabang).
+
+---
+
+## ADR-019: Concurrency Locking & Strict Balance Checking Architecture [2026-09-16]
+
+**Konteks:** Menghindari race conditions pada stok bersamaan dan menjamin kebenaran mutlak pada pembukuan akuntansi terdistribusi.
+
+**Keputusan:**
+1. **Pessimistic Concurrency Lock**:
+   - Seluruh mutasi kuantitas pada tabel `inventories` (Penjualan POS, Transfer Barang, Penerimaan Barang Supplier, dan Penyesuaian Stok) **wajib** menggunakan query `lockForUpdate()` di dalam transaksi database `DB::transaction()`.
+   - Ini mencegah stok bernilai negatif atau *dirty reads* saat transaksi kasir simultan terjadi pada jam sibuk toko.
+2. **Strict Balance Checking pada Akuntansi**:
+   - Validasi `total_debit == total_credit` ditegakkan secara absolut pada service layer (`JournalPostingService`) sebelum transaksi di-*commit*.
+   - Laporan Neraca Saldo (*Trial Balance*) menghitung total debit dan kredit per akun dengan pengecekan selisih nol (zero-imbalance guarantee). Jika debit dan kredit tidak seimbang, sistem memberikan peringatan selisih akuntansi secara transparan.
+
+---
+
+## Standar Arsitektur & Fakta Proyek yang Stabil
+
+### 1. Arsitektur Multi-Tenancy
+- Trait `HasBranchScope` dipasang pada model transaksi dan data operasional (`Product`, `Sale`, `Inventory`, `JournalHeader`).
+- Mekanisme global scope otomatis memfilter data sesuai `auth()->user()->branch_id`.
+- Pengecualian global: Pengguna dengan role `master` atau `superadmin` diberikan akses memantau seluruh cabang tanpa batasan scope (*Master Monitoring Center*).
+
+### 2. Double-Entry Accounting Engine
+- Setiap aksi bisnis yang mengubah nilai ekonomi barang atau kas secara otomatis memicu pembuatan dokumen jurnal (`JournalHeader` + `JournalLine`).
+- Standar Bagan Akun (Chart of Accounts / CoA):
+  - `1110` - Kas & Bank (Aset)
+  - `1210` - Persediaan Barang Dagang (Aset)
+  - `2110` - Hutang Usaha / Dagang (Liabilitas)
+  - `4110` - Pendapatan Penjualan POS (Pendapatan)
+  - `4210` - Pendapatan Selisih Persediaan (Pendapatan)
+  - `5110` - Harga Pokok Penjualan / HPP (Beban)
+  - `5210` - Beban Kerugian Selisih Persediaan (Beban)
+
+### 3. Matriks Hak Akses & Batasan Otorisasi (Authorization Matrix)
+
+| Modul / Kemampuan | Kasir (`cashier`) | Admin Cabang (`admin`) | Master Pusat (`master`) |
+| :--- | :---: | :---: | :---: |
+| **Kasir POS & Cetak Struk** | ✅ Akses Penuh | ✅ Akses Penuh | ✅ Akses Penuh |
+| **Katalog Stok Sendiri** | ❌ Terbatas | ✅ Akses Penuh | ✅ Lintas Cabang |
+| **Kelola Produk & Harga** | ❌ Ditolak | ✅ Cabang Sendiri | ✅ Bebas Pilih Cabang |
+| **Kategori Produk** | ❌ Ditolak | ✅ Kelola (Read/Write) | ✅ Kelola (Read/Write) |
+| **Staf & Kasir Cabang** | ❌ Ditolak | ✅ Khusus Cabang Sendiri | ✅ Seluruh Cabang & Role |
+| **Penerimaan Barang Supplier**| ❌ Ditolak | ❌ Ditolak | ✅ Khusus Admin Pusat |
+| **Transfer Stok Antar Cabang** | ❌ Ditolak | ✅ Dari Cabang Sendiri | ✅ Dari Cabang Mana Saja |
+| **Penyesuaian Stok (Opname)** | ❌ Ditolak | ✅ Cabang Sendiri | ✅ Bebas Pilih Cabang |
+| **Buku Besar & Neraca Saldo**| ❌ Ditolak | ✅ Cabang Sendiri | ✅ Konsolidasi / Cabang |
+| **Pendaftaran Cabang Baru** | ❌ **403 Forbidden** | ❌ **403 Forbidden** | ✅ **Eksklusif Master** |
+
+---
+
+## Testing & Regression Strategy
+
+- **Test Suite Otomatis**: PHPUnit / Laravel Test Suite dijalankan dengan `php artisan test`.
+- **Status Akhir**: **96 Passed (506 Assertions), 0 Errors**.
+- **Cakupan Pengujian**:
+  - `MasterDataWebTest`: Isolasi multi-tenancy produk, pendaftaran kasir Bcrypt, dan restriksi 403 pada manajemen cabang.
+  - `StockAdjustmentServiceTest` & `StockAdjustmentWebTest`: Validasi selisih stok, lock atomik, dan jurnal seimbang.
+  - `StockCardTest`: Presisi kronologis mutasi keluar-masuk dan saldo berjalan.
+  - `PosWebTest`: Otomasi kasir dan cetak struk thermal.
+  - `GoodsReceiptServiceTest` & `GoodsReceiptWebTest`: Pembelian tunai/kredit dan jurnal hutang dagang.
+  - `AccountingReportServiceTest` & `AccountingReportWebTest`: Integritas buku besar, laba rugi, dan neraca saldo.
