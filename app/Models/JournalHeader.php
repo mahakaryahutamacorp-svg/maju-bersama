@@ -40,4 +40,9 @@ class JournalHeader extends Model
     {
         return $this->hasMany(JournalLine::class);
     }
+
+    public function lines(): HasMany
+    {
+        return $this->journalLines();
+    }
 }
