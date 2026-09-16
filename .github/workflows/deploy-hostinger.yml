@@ -9,8 +9,39 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
+  # ──────────────────────────────────────────────
+  # Job 1: Run automated tests on CI
+  # ──────────────────────────────────────────────
+  test:
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, dom, fileinfo, pdo_sqlite
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Run test suite
+        run: php artisan test --no-interaction
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ':memory:'
+
+  # ──────────────────────────────────────────────
+  # Job 2: Deploy to VPS via SSH after tests pass
+  # ──────────────────────────────────────────────
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     env:
       HOSTINGER_HOST: ${{ secrets.HOSTINGER_HOST }}
       HOSTINGER_PORT: ${{ secrets.HOSTINGER_PORT }}
@@ -18,93 +49,101 @@ jobs:
       HOSTINGER_PATH: ${{ secrets.HOSTINGER_PATH }}
 
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.2'
-          extensions: mbstring, dom, fileinfo, pdo_mysql
-          coverage: none
-
-      - name: Install Composer dependencies for tests
-        run: composer install --prefer-dist --no-interaction
-
-      - name: Run Laravel tests
-        run: php artisan test
-
-      - name: Install production Composer dependencies
-        run: composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: npm
-
-      - name: Build frontend
-        run: |
-          npm ci
-          npm run build
 
       - name: Validate deployment secrets
         shell: bash
         run: |
           set -euo pipefail
+          missing=0
           for var in HOSTINGER_HOST HOSTINGER_PORT HOSTINGER_USER HOSTINGER_PATH; do
             if [ -z "${!var:-}" ]; then
-              echo "Missing required secret: $var" >&2
-              exit 1
+              echo "::error::Missing required secret: $var"
+              missing=1
             fi
           done
-
-          test -f artisan
-          test -f public/index.php
+          if [ "$missing" -eq 1 ]; then exit 1; fi
+          echo "All deployment secrets are present."
 
       - name: Install SSH key
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.HOSTINGER_SSH_KEY }}
 
-      - name: Add Hostinger host key
+      - name: Add Hostinger host to known_hosts
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          ssh-keyscan -p "${HOSTINGER_PORT:-65002}" "${HOSTINGER_HOST}" >> ~/.ssh/known_hosts
+          ssh-keyscan -p "${HOSTINGER_PORT}" "${HOSTINGER_HOST}" >> ~/.ssh/known_hosts 2>/dev/null
           chmod 600 ~/.ssh/known_hosts
 
-      - name: Upload release
+      - name: Create release archive
         shell: bash
         run: |
           set -euo pipefail
           tar --exclude=.git \
+              --exclude=.github \
               --exclude=.env \
-              --exclude=storage/logs \
-              --exclude=storage/framework/cache \
+              --exclude=node_modules \
+              --exclude=tests \
+              --exclude=storage/logs/*.log \
+              --exclude=storage/framework/cache/data \
               --exclude=storage/framework/sessions \
               --exclude=storage/framework/views \
               -czf /tmp/release.tar.gz .
+          echo "Archive size: $(du -h /tmp/release.tar.gz | cut -f1)"
 
-          scp -P "${HOSTINGER_PORT:-65002}" \
-            -o StrictHostKeyChecking=yes \
-            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
-            /tmp/release.tar.gz "${HOSTINGER_USER}@${HOSTINGER_HOST}:/tmp/maju-bersama-release.tar.gz"
-
-          ssh -p "${HOSTINGER_PORT:-65002}" \
-            -o StrictHostKeyChecking=yes \
-            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
-            "${HOSTINGER_USER}@${HOSTINGER_HOST}" \
-            "mkdir -p '${HOSTINGER_PATH}' && tar -xzf /tmp/maju-bersama-release.tar.gz -C '${HOSTINGER_PATH}' && rm -f /tmp/maju-bersama-release.tar.gz && test -f '${HOSTINGER_PATH}/public/index.php'"
-
-      - name: Run production-safe Laravel optimization
+      - name: Upload release to VPS
         shell: bash
         run: |
           set -euo pipefail
-          ssh -p "${HOSTINGER_PORT:-65002}" \
-            -o StrictHostKeyChecking=yes \
-            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
-            "${HOSTINGER_USER}@${HOSTINGER_HOST}" \
-            "cd '${HOSTINGER_PATH}' && php artisan about --no-interaction && php artisan optimize --force && php artisan config:cache && php artisan route:cache && php artisan view:cache"
+          scp -P "${HOSTINGER_PORT}" \
+            /tmp/release.tar.gz \
+            "${HOSTINGER_USER}@${HOSTINGER_HOST}:/tmp/maju-bersama-release.tar.gz"
+          echo "Upload complete."
+
+      - name: Extract and install on VPS
+        shell: bash
+        run: |
+          set -euo pipefail
+          ssh -p "${HOSTINGER_PORT}" "${HOSTINGER_USER}@${HOSTINGER_HOST}" bash <<'REMOTE_SCRIPT'
+            set -euo pipefail
+
+            DEPLOY_PATH="${{ secrets.HOSTINGER_PATH }}"
+
+            echo "==> Creating deployment directory..."
+            mkdir -p "${DEPLOY_PATH}"
+
+            echo "==> Extracting release archive..."
+            tar -xzf /tmp/maju-bersama-release.tar.gz -C "${DEPLOY_PATH}"
+            rm -f /tmp/maju-bersama-release.tar.gz
+
+            cd "${DEPLOY_PATH}"
+
+            echo "==> Ensuring storage directories exist..."
+            mkdir -p storage/logs \
+                     storage/framework/cache/data \
+                     storage/framework/sessions \
+                     storage/framework/views \
+                     bootstrap/cache
+
+            echo "==> Installing Composer dependencies (production)..."
+            composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction --no-progress 2>&1
+
+            echo "==> Running database migrations..."
+            php artisan migrate --force --no-interaction 2>&1
+
+            echo "==> Caching configuration, routes, and views..."
+            php artisan config:cache 2>&1
+            php artisan route:cache 2>&1
+            php artisan view:cache 2>&1
+
+            echo "==> Verifying deployment..."
+            test -f public/index.php && echo "✓ public/index.php exists"
+            php artisan about --no-interaction 2>&1 | head -5
+
+            echo "==> Deployment completed successfully!"
+          REMOTE_SCRIPT
