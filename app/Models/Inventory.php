@@ -14,6 +14,7 @@ class Inventory extends Model
 
     protected $fillable = [
         'branch_id',
+        'warehouse_id',
         'product_id',
         'quantity',
     ];
@@ -25,9 +26,21 @@ class Inventory extends Model
         ];
     }
 
+    /**
+     * Backward-compat: inventory still belongs to a branch directly.
+     * Kept so existing code and tests continue to work.
+     */
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    /**
+     * Phase-2 relation: every inventory row now also belongs to a specific warehouse.
+     */
+    public function warehouse(): BelongsTo
+    {
+        return $this->belongsTo(Warehouse::class);
     }
 
     public function product(): BelongsTo

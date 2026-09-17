@@ -9,6 +9,7 @@ use App\Models\JournalHeader;
 use App\Models\Product;
 use App\Models\StockTransfer;
 use App\Models\User;
+use App\Models\Warehouse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -180,15 +181,18 @@ class StockTransferService
 
     /**
      * Fetch the stock row for a branch/product pair, creating it when absent.
+     * warehouse_id is populated for new rows (Phase-2 forward compat).
      *
      * The composite unique key on (branch_id, product_id) is what guarantees a single
      * row per pair, so this can never introduce duplicated inventory rows.
      */
     private function lockInventory(int $branchId, int $productId): Inventory
     {
+        $warehouse = $this->resolveWarehouseForBranch($branchId);
+
         Inventory::withoutGlobalScopes()->firstOrCreate(
             ['branch_id' => $branchId, 'product_id' => $productId],
-            ['quantity' => 0],
+            ['quantity' => 0, 'warehouse_id' => $warehouse?->id],
         );
 
         return Inventory::withoutGlobalScopes()
@@ -196,6 +200,22 @@ class StockTransferService
             ->where('product_id', $productId)
             ->lockForUpdate()
             ->first();
+    }
+
+    /**
+     * Resolve the "Gudang Utama" warehouse for a given branch.
+     * Returns null gracefully if no warehouse exists yet (e.g. in tests).
+     */
+    private function resolveWarehouseForBranch(int $branchId): ?Warehouse
+    {
+        return Warehouse::withoutGlobalScopes()
+            ->where('branch_id', $branchId)
+            ->where('name', 'Gudang Utama')
+            ->first()
+            ?? Warehouse::withoutGlobalScopes()
+                ->where('branch_id', $branchId)
+                ->orderBy('id')
+                ->first();
     }
 
     /**

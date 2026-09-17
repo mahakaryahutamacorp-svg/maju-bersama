@@ -8,6 +8,7 @@ use App\Models\JournalHeader;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\User;
+use App\Models\Warehouse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -194,12 +195,15 @@ class SalePostingService
     /**
      * Read the stock row for locking, seeding it from the legacy products.stock column
      * the first time a product is sold after the inventory table was introduced.
+     * Also ensures warehouse_id is populated for new rows (Phase-2 forward compat).
      */
     private function lockInventory(int $branchId, int $productId, int $fallbackQuantity): Inventory
     {
+        $warehouse = $this->resolveWarehouseForBranch($branchId);
+
         Inventory::withoutGlobalScopes()->firstOrCreate(
             ['branch_id' => $branchId, 'product_id' => $productId],
-            ['quantity' => $fallbackQuantity],
+            ['quantity' => $fallbackQuantity, 'warehouse_id' => $warehouse?->id],
         );
 
         return Inventory::withoutGlobalScopes()
@@ -207,6 +211,23 @@ class SalePostingService
             ->where('product_id', $productId)
             ->lockForUpdate()
             ->first();
+    }
+
+    /**
+     * Resolve the "Gudang Utama" warehouse for a given branch.
+     * Returns null gracefully when the warehouses table has no row yet
+     * (e.g. during test bootstrap before the migration has seeded data).
+     */
+    private function resolveWarehouseForBranch(int $branchId): ?Warehouse
+    {
+        return Warehouse::withoutGlobalScopes()
+            ->where('branch_id', $branchId)
+            ->where('name', 'Gudang Utama')
+            ->first()
+            ?? Warehouse::withoutGlobalScopes()
+                ->where('branch_id', $branchId)
+                ->orderBy('id')
+                ->first();
     }
 
     /**

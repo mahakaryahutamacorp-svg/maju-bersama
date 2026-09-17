@@ -9,6 +9,7 @@ use App\Models\Inventory;
 use App\Models\JournalHeader;
 use App\Models\Product;
 use App\Models\User;
+use App\Models\Warehouse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -161,12 +162,15 @@ class GoodsReceiptService
 
     /**
      * Lock or create an inventory row for a branch and product.
+     * warehouse_id is populated for new rows (Phase-2 forward compat).
      */
     private function lockInventory(int $branchId, int $productId): Inventory
     {
+        $warehouse = $this->resolveWarehouseForBranch($branchId);
+
         Inventory::withoutGlobalScopes()->firstOrCreate(
             ['branch_id' => $branchId, 'product_id' => $productId],
-            ['quantity' => 0]
+            ['quantity' => 0, 'warehouse_id' => $warehouse?->id]
         );
 
         return Inventory::withoutGlobalScopes()
@@ -174,6 +178,22 @@ class GoodsReceiptService
             ->where('product_id', $productId)
             ->lockForUpdate()
             ->first();
+    }
+
+    /**
+     * Resolve the "Gudang Utama" warehouse for a given branch.
+     * Returns null gracefully if no warehouse exists yet (e.g. in tests).
+     */
+    private function resolveWarehouseForBranch(int $branchId): ?Warehouse
+    {
+        return Warehouse::withoutGlobalScopes()
+            ->where('branch_id', $branchId)
+            ->where('name', 'Gudang Utama')
+            ->first()
+            ?? Warehouse::withoutGlobalScopes()
+                ->where('branch_id', $branchId)
+                ->orderBy('id')
+                ->first();
     }
 
     /**
