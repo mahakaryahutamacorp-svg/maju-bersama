@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Transfer | Maju Bersama ERP</title>
+    <title>Transfer Stok (Stock Transfer) | Maju Bersama POS &amp; Akuntansi</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
@@ -20,18 +20,19 @@
         <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-8">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                <h1 class="mt-1 text-2xl font-bold tracking-tight">Stock Transfer</h1>
+                <h1 class="mt-1 text-2xl font-bold tracking-tight">Transfer Stok (Stock Transfer)</h1>
             </div>
             <div class="flex items-center gap-4">
                 <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
-                    <a href="/pos" class="hover:text-white">POS</a>
-                    <a href="/inventory" class="hover:text-white">Inventory</a>
-                    <a href="/inventory/transfer" class="font-semibold text-white">Transfer</a>
-                    <a href="/reports/journal" class="hover:text-white">Ledger</a>
+                    <a href="/pos" class="hover:text-white">Kasir (POS)</a>
+                    <a href="/inventory" class="hover:text-white">Persediaan</a>
+                    <a href="/inventory/transfer" class="font-semibold text-white">Transfer Stok</a>
+                    <a href="/reports/journal" class="hover:text-white">Buku Jurnal</a>
+                    <a href="/backoffice" class="hover:text-white">Panel Admin</a>
                 </nav>
                 <form method="POST" action="/logout" class="hidden sm:block">
                     @csrf
-                    <button type="submit" class="text-sm text-slate-300 hover:text-white">Logout</button>
+                    <button type="submit" class="text-sm text-slate-300 hover:text-white">Keluar</button>
                 </form>
             </div>
         </div>
@@ -39,11 +40,10 @@
 
     <main class="mx-auto max-w-7xl space-y-8 px-6 py-10 lg:px-8">
         <div>
-            <p class="text-sm font-medium text-amber-600">Distribution</p>
-            <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-950">Move stock between branches</h2>
+            <p class="text-sm font-medium text-amber-600">Distribusi &amp; Mutasi Barang</p>
+            <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-950">Mutasi Persediaan Antarcabang</h2>
             <p class="mt-2 text-slate-500">
-                Stock leaves the source branch and arrives at the destination branch in a single
-                transaction. If any line fails, nothing is committed.
+                Barang keluar dari cabang asal dan masuk ke cabang tujuan dalam satu transaksi atomik terpadu.
             </p>
         </div>
 
@@ -59,10 +59,10 @@
 
         <section class="grid gap-6 lg:grid-cols-[1fr_1.4fr]">
             <div class="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h3 class="text-lg font-semibold text-slate-900">Transfer details</h3>
+                <h3 class="text-lg font-semibold text-slate-900">Rincian Transfer</h3>
 
                 <label class="block">
-                    <span class="text-sm font-medium text-slate-700">Source branch</span>
+                    <span class="text-sm font-medium text-slate-700">Cabang Asal (Pengirim)</span>
                     <select x-model.number="sourceBranchId" @change="resetLines()" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-sky-500 focus:ring-2">
                         @foreach ($sourceBranches as $branch)
                             <option value="{{ $branch->id }}">{{ $branch->name }}</option>
@@ -71,7 +71,7 @@
                 </label>
 
                 <label class="block">
-                    <span class="text-sm font-medium text-slate-700">Destination branch</span>
+                    <span class="text-sm font-medium text-slate-700">Cabang Tujuan (Penerima)</span>
                     <select x-model.number="destinationBranchId" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-sky-500 focus:ring-2">
                         @foreach ($destinationBranches as $branch)
                             <option value="{{ $branch->id }}">{{ $branch->name }}</option>
@@ -80,8 +80,8 @@
                 </label>
 
                 <label class="block">
-                    <span class="text-sm font-medium text-slate-700">Notes</span>
-                    <textarea x-model="notes" rows="2" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-sky-500 focus:ring-2" placeholder="Optional"></textarea>
+                    <span class="text-sm font-medium text-slate-700">Catatan / Keterangan</span>
+                    <textarea x-model="notes" rows="2" class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-sky-500 focus:ring-2" placeholder="Keterangan transfer (opsional)"></textarea>
                 </label>
 
                 <button
@@ -90,30 +90,30 @@
                     :disabled="submitting || lines.length === 0 || sourceBranchId === destinationBranchId"
                     class="w-full rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300"
                 >
-                    <span x-show="!submitting">Execute transfer</span>
-                    <span x-show="submitting" x-cloak>Processing...</span>
+                    <span x-show="!submitting">Proses Transfer Stok</span>
+                    <span x-show="submitting" x-cloak>Memproses...</span>
                 </button>
 
                 <p x-show="sourceBranchId === destinationBranchId" x-cloak class="text-xs text-rose-600">
-                    Source and destination branch must be different.
+                    Cabang asal dan cabang tujuan tidak boleh sama.
                 </p>
             </div>
 
             <div class="space-y-4 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                 <div class="flex items-center justify-between">
-                    <h3 class="text-lg font-semibold text-slate-900">Items</h3>
-                    <span class="text-xs text-slate-500" x-text="`${lines.length} line(s)`"></span>
+                    <h3 class="text-lg font-semibold text-slate-900">Daftar Barang Transfer</h3>
+                    <span class="text-xs text-slate-500" x-text="`${lines.length} baris barang`"></span>
                 </div>
 
                 <div class="flex flex-col gap-2 sm:flex-row">
                     <select x-model.number="picker.productId" class="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-sky-500 focus:ring-2">
-                        <option value="">Select product...</option>
+                        <option value="">Pilih produk barang...</option>
                         <template x-for="option in availableStock" :key="option.product_id">
-                            <option :value="option.product_id" x-text="`${option.sku} - ${option.name} (${option.quantity} on hand)`"></option>
+                            <option :value="option.product_id" x-text="`${option.sku} - ${option.name} (Stok: ${option.quantity})`"></option>
                         </template>
                     </select>
-                    <input x-model.number="picker.quantity" type="number" min="1" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-sky-500 focus:ring-2 sm:w-28" placeholder="Qty">
-                    <button type="button" @click="addLine()" class="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600">Add</button>
+                    <input x-model.number="picker.quantity" type="number" min="1" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-sky-500 focus:ring-2 sm:w-28" placeholder="Jumlah">
+                    <button type="button" @click="addLine()" class="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600">Tambah</button>
                 </div>
 
                 <p x-show="lineError" x-cloak class="text-xs text-rose-600" x-text="lineError"></p>
@@ -121,8 +121,8 @@
                 <table class="min-w-full divide-y divide-slate-200 text-sm">
                     <thead>
                         <tr class="text-left text-xs uppercase tracking-wider text-slate-500">
-                            <th class="py-2">Product</th>
-                            <th class="py-2 text-right">Qty</th>
+                            <th class="py-2">Nama Produk &amp; SKU</th>
+                            <th class="py-2 text-right">Jumlah (Qty)</th>
                             <th class="py-2"></th>
                         </tr>
                     </thead>
@@ -135,12 +135,12 @@
                                 </td>
                                 <td class="py-3 text-right font-semibold" x-text="line.quantity"></td>
                                 <td class="py-3 text-right">
-                                    <button type="button" @click="lines.splice(index, 1)" class="text-xs text-rose-600 hover:underline">Remove</button>
+                                    <button type="button" @click="lines.splice(index, 1)" class="text-xs text-rose-600 hover:underline">Hapus</button>
                                 </td>
                             </tr>
                         </template>
                         <tr x-show="lines.length === 0">
-                            <td colspan="3" class="py-8 text-center text-slate-500">No items added yet.</td>
+                            <td colspan="3" class="py-8 text-center text-slate-500">Belum ada barang yang ditambahkan.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -149,31 +149,31 @@
 
         <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div class="border-b border-slate-200 px-6 py-4">
-                <h3 class="text-lg font-semibold text-slate-900">Recent transfers</h3>
+                <h3 class="text-lg font-semibold text-slate-900">Riwayat Transfer Terkini</h3>
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-slate-200">
                     <thead class="bg-slate-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Reference</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Date</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">From</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">To</th>
-                            <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Lines</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">No. Referensi</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Tanggal</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Dari Cabang</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Ke Cabang</th>
+                            <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Baris Barang</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         @forelse ($transfers as $transfer)
                             <tr class="hover:bg-slate-50">
                                 <td class="whitespace-nowrap px-6 py-4 font-mono text-sm font-semibold text-sky-700">{{ $transfer->reference_number }}</td>
-                                <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{{ $transfer->transfer_date->format('d M Y') }}</td>
+                                <td class="whitespace-nowrap px-6 py-4 text-sm text-slate-600">{{ $transfer->transfer_date->translatedFormat('d M Y') }}</td>
                                 <td class="px-6 py-4 text-sm text-slate-900">{{ $transfer->sourceBranch->name }}</td>
                                 <td class="px-6 py-4 text-sm text-slate-900">{{ $transfer->destinationBranch->name }}</td>
                                 <td class="px-6 py-4 text-right text-sm font-semibold text-slate-900">{{ $transfer->items->count() }}</td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-6 py-12 text-center text-slate-500">No transfers recorded yet.</td>
+                                <td colspan="5" class="px-6 py-12 text-center text-slate-500">Belum ada riwayat transfer stok yang tercatat.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -212,14 +212,14 @@
                     const quantity = Number(this.picker.quantity);
 
                     if (!productId || quantity < 1) {
-                        this.lineError = 'Select a product and enter a quantity of at least 1.';
+                        this.lineError = 'Pilih produk dan masukkan kuantitas minimal 1.';
                         return;
                     }
 
                     const source = this.availableStock.find((row) => row.product_id === productId);
 
                     if (!source) {
-                        this.lineError = 'That product is not stocked at the source branch.';
+                        this.lineError = 'Produk tersebut tidak memiliki stok di cabang asal.';
                         return;
                     }
 
@@ -227,7 +227,7 @@
                     const requested = (existing?.quantity ?? 0) + quantity;
 
                     if (requested > source.quantity) {
-                        this.lineError = `Only ${source.quantity} unit(s) available for ${source.name}.`;
+                        this.lineError = `Hanya tersedia ${source.quantity} unit untuk produk ${source.name}.`;
                         return;
                     }
 
@@ -279,18 +279,18 @@
                                 ? Object.values(payload.errors).flat()[0]
                                 : payload.message;
 
-                            this.feedback = { type: 'error', message: firstError ?? 'Transfer failed.' };
+                            this.feedback = { type: 'error', message: firstError ?? 'Transfer stok gagal diproses.' };
                             return;
                         }
 
                         this.feedback = {
                             type: 'success',
-                            message: `Transfer ${payload.reference_number} completed. Reloading...`,
+                            message: `Transfer ${payload.reference_number} berhasil. Memuat ulang data...`,
                         };
 
                         window.setTimeout(() => window.location.reload(), 1200);
                     } catch (error) {
-                        this.feedback = { type: 'error', message: 'Network error. Please try again.' };
+                        this.feedback = { type: 'error', message: 'Gangguan koneksi. Silakan coba kembali.' };
                     } finally {
                         this.submitting = false;
                     }

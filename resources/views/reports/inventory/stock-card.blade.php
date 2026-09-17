@@ -27,16 +27,20 @@
             </div>
             <div class="flex items-center gap-4">
                 <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
-                    <a href="/pos" class="hover:text-white">POS</a>
-                    <a href="/inventory" class="hover:text-white">Inventory</a>
-                    <a href="/inventory/adjustments" class="hover:text-white">Stock Opname</a>
-                    <a href="/purchases/goods-receipts" class="hover:text-white">Penerimaan</a>
-                    <a href="/reports/accounting/ledger" class="hover:text-white">Akuntansi</a>
-                    <a href="/backoffice" class="hover:text-white">Backoffice</a>
+                    <a href="/pos" class="hover:text-white">Kasir (POS)</a>
+                    <a href="/inventory" class="hover:text-white">Persediaan</a>
+                    <a href="/inventory/adjustments" class="hover:text-white">Stok Opname</a>
+                    <a href="/purchases/goods-receipts" class="hover:text-white">Penerimaan Barang</a>
+                    <a href="/reports/accounting/ledger" class="hover:text-white">Buku Besar</a>
+                    <a href="/backoffice" class="hover:text-white">Panel Admin</a>
                 </nav>
                 <div class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200">
                     {{ $currentUser->branch?->name ?? 'Pusat' }} ({{ $currentUser->role }})
                 </div>
+                <form method="POST" action="/logout" class="hidden sm:block">
+                    @csrf
+                    <button type="submit" class="text-sm text-slate-300 hover:text-white">Keluar</button>
+                </form>
             </div>
         </div>
     </header>

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inventory | Maju Bersama ERP</title>
+    <title>Persediaan Barang | Maju Bersama POS &amp; Akuntansi</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
@@ -12,21 +12,22 @@
         <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-8">
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                <h1 class="mt-1 text-2xl font-bold tracking-tight">Inventory</h1>
+                <h1 class="mt-1 text-2xl font-bold tracking-tight">Persediaan Barang</h1>
             </div>
             <div class="flex items-center gap-4">
                 <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
-                    <a href="/pos" class="hover:text-white">POS</a>
-                    <a href="/inventory" class="font-semibold text-white">Inventory</a>
-                    <a href="/inventory/transfer" class="hover:text-white">Transfer</a>
-                    <a href="/reports/journal" class="hover:text-white">Ledger</a>
+                    <a href="/pos" class="hover:text-white">Kasir (POS)</a>
+                    <a href="/inventory" class="font-semibold text-white">Persediaan</a>
+                    <a href="/inventory/transfer" class="hover:text-white">Transfer Stok</a>
+                    <a href="/reports/journal" class="hover:text-white">Buku Jurnal</a>
+                    <a href="/backoffice" class="hover:text-white">Panel Admin</a>
                 </nav>
                 <div class="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-300">
-                    <span x-text="filteredProducts.length"></span> products
+                    <span x-text="filteredProducts.length"></span> produk
                 </div>
                 <form method="POST" action="/logout" class="hidden sm:block">
                     @csrf
-                    <button type="submit" class="text-sm text-slate-300 hover:text-white">Logout</button>
+                    <button type="submit" class="text-sm text-slate-300 hover:text-white">Keluar</button>
                 </form>
             </div>
         </div>
@@ -35,16 +36,16 @@
     <main class="mx-auto max-w-7xl space-y-8 px-6 py-10 lg:px-8">
         <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-                <p class="text-sm font-medium text-amber-600">Stock control</p>
-                <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-950">Product inventory</h2>
-                <p class="mt-2 text-slate-500">Current product availability across {{ auth()->user()->branch->name }}.</p>
+                <p class="text-sm font-medium text-amber-600">Kontrol Stok &amp; Gudang</p>
+                <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-950">Katalog Persediaan Produk</h2>
+                <p class="mt-2 text-slate-500">Ketersediaan stok barang pada cabang {{ auth()->user()->branch->name }}.</p>
             </div>
             <div class="flex flex-col gap-3 sm:items-end">
-                <div class="text-sm text-slate-500">Updated {{ now()->format('d M Y, H:i') }}</div>
+                <div class="text-sm text-slate-500">Diperbarui {{ now()->translatedFormat('d M Y, H:i') }}</div>
                 <div class="flex flex-col gap-2 sm:flex-row">
-                    <input x-model="query" type="search" placeholder="Search SKU or product..." class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none ring-sky-500 placeholder:text-slate-400 focus:ring-2">
+                    <input x-model="query" type="search" placeholder="Cari SKU atau nama produk..." class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none ring-sky-500 placeholder:text-slate-400 focus:ring-2">
                     <select x-model="category" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none ring-sky-500 focus:ring-2">
-                        <option value="all">All categories</option>
+                        <option value="all">Semua Kategori</option>
                         <template x-for="name in categories" :key="name"><option :value="name" x-text="name"></option></template>
                     </select>
                 </div>
@@ -56,11 +57,11 @@
                 <table class="min-w-full divide-y divide-slate-200">
                     <thead class="bg-slate-50">
                         <tr>
-                            <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">SKU</th>
-                            <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Product</th>
-                            <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Category</th>
-                            <th class="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Selling price</th>
-                            <th class="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Stock</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Kode Barang (SKU)</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Nama Produk</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Kategori</th>
+                            <th class="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Harga Jual</th>
+                            <th class="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Stok</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 bg-white">
@@ -77,12 +78,12 @@
                                 <td class="whitespace-nowrap px-6 py-5 text-right font-medium text-slate-900">Rp {{ number_format((float) $product->selling_price, 0, ',', '.') }}</td>
                                 <td class="whitespace-nowrap px-6 py-5 text-right">
                                     <span class="font-semibold {{ $product->stock < 10 ? 'text-rose-600' : 'text-emerald-600' }}">{{ number_format($product->stock) }}</span>
-                                    <span class="ml-1 text-xs text-slate-400">units</span>
+                                    <span class="ml-1 text-xs text-slate-400">unit</span>
                                 </td>
                             </tr>
                         @endforeach
                         <tr x-show="filteredProducts.length === 0">
-                            <td colspan="5" class="px-6 py-12 text-center text-slate-500">No products match your filters.</td>
+                            <td colspan="5" class="px-6 py-12 text-center text-slate-500">Tidak ada produk yang sesuai dengan filter pencarian.</td>
                         </tr>
                     </tbody>
                 </table>

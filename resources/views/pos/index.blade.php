@@ -24,7 +24,7 @@
                     <a href="/backoffice" class="block">
                         <p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
                         <h1 class="text-lg font-bold tracking-tight flex items-center gap-2">
-                            <span>Penjualan Kasir Multi-Store</span>
+                            <span>Kasir POS Multi-Store</span>
                             <span class="rounded bg-sky-500/20 px-2 py-0.5 text-xs text-sky-300 font-mono">{{ $currentUser->branch?->name ?? 'Cabang Pusat' }}</span>
                         </h1>
                     </a>
@@ -32,10 +32,10 @@
 
                 <div class="flex items-center gap-4">
                     <nav class="hidden items-center gap-3 text-xs text-slate-300 sm:flex font-medium">
-                        <a href="/inventory" class="hover:text-white px-2 py-1 rounded hover:bg-slate-800">Data Barang</a>
-                        <a href="/inventory/adjustments" class="hover:text-white px-2 py-1 rounded hover:bg-slate-800">Opname</a>
+                        <a href="/inventory" class="hover:text-white px-2 py-1 rounded hover:bg-slate-800">Persediaan Barang</a>
+                        <a href="/inventory/adjustments" class="hover:text-white px-2 py-1 rounded hover:bg-slate-800">Stok Opname</a>
                         <a href="/reports/inventory/stock-card" class="hover:text-white px-2 py-1 rounded hover:bg-slate-800">Kartu Stok</a>
-                        <a href="/backoffice" class="hover:text-white px-2 py-1 rounded hover:bg-slate-800">Backoffice</a>
+                        <a href="/backoffice" class="hover:text-white px-2 py-1 rounded hover:bg-slate-800">Panel Admin</a>
                     </nav>
 
                     <div class="flex items-center gap-2 border-l border-slate-800 pl-4">
@@ -68,7 +68,7 @@
                             x-ref="barcodeInput"
                             x-model="searchQuery" 
                             @keydown.enter.prevent="handleScanOrSearch()"
-                            placeholder="Cari nama atau scan barcode... (Tekan Enter untuk cepat)" 
+                            placeholder="Cari nama produk atau Scan Barcode... (Tekan Enter)" 
                             class="block w-full rounded-xl border border-slate-300 bg-slate-50/50 py-3 pl-11 pr-24 text-sm font-medium shadow-inner focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                             autofocus
                         >
