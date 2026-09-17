@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="pos-token" content="{{ $previewToken }}">
-    <title>Kasir POS | Maju Bersama ERP</title>
+    <title>Penjualan Kasir | Maju Bersama ERP</title>
     <style>
         [x-cloak] { display: none !important; }
     </style>
@@ -24,7 +24,7 @@
                     <a href="/backoffice" class="block">
                         <p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
                         <h1 class="text-lg font-bold tracking-tight flex items-center gap-2">
-                            <span>Kasir POS Multi-Store</span>
+                            <span>Penjualan Kasir Multi-Store</span>
                             <span class="rounded bg-sky-500/20 px-2 py-0.5 text-xs text-sky-300 font-mono">{{ $currentUser->branch?->name ?? 'Cabang Pusat' }}</span>
                         </h1>
                     </a>
@@ -32,7 +32,7 @@
 
                 <div class="flex items-center gap-4">
                     <nav class="hidden items-center gap-3 text-xs text-slate-300 sm:flex font-medium">
-                        <a href="/inventory" class="hover:text-white px-2 py-1 rounded hover:bg-slate-800">Inventory</a>
+                        <a href="/inventory" class="hover:text-white px-2 py-1 rounded hover:bg-slate-800">Data Barang</a>
                         <a href="/inventory/adjustments" class="hover:text-white px-2 py-1 rounded hover:bg-slate-800">Opname</a>
                         <a href="/reports/inventory/stock-card" class="hover:text-white px-2 py-1 rounded hover:bg-slate-800">Kartu Stok</a>
                         <a href="/backoffice" class="hover:text-white px-2 py-1 rounded hover:bg-slate-800">Backoffice</a>
@@ -43,7 +43,7 @@
                         <form method="POST" action="/logout" class="inline">
                             @csrf
                             <button type="submit" class="rounded-lg bg-rose-600/20 px-2.5 py-1 text-xs font-semibold text-rose-300 hover:bg-rose-600/40 transition">
-                                Logout
+                                Keluar
                             </button>
                         </form>
                     </div>
@@ -51,9 +51,9 @@
             </div>
         </header>
 
-        <!-- Main Layout: Katalog Produk & Keranjang Belanja -->
+        <!-- Main Layout: Katalog Data Barang & Rincian Transaksi -->
         <main class="mx-auto grid max-w-7xl flex-1 w-full gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1fr)_390px] lg:px-8">
-            <!-- Kolom Kiri: Barcode Search, Kategori Chips & Grid Katalog Produk -->
+            <!-- Kolom Kiri: Barcode Search, Kelompok Barang Chips & Grid Data Barang -->
             <section class="flex flex-col gap-4">
                 <!-- 1. Kolom Input Scan Barcode & Pencarian Cerdas -->
                 <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -68,12 +68,12 @@
                             x-ref="barcodeInput"
                             x-model="searchQuery" 
                             @keydown.enter.prevent="handleScanOrSearch()"
-                            placeholder="Scan Barcode atau ketik SKU / Nama Produk... (Tekan Enter untuk cepat)" 
+                            placeholder="Cari nama atau scan barcode... (Tekan Enter untuk cepat)" 
                             class="block w-full rounded-xl border border-slate-300 bg-slate-50/50 py-3 pl-11 pr-24 text-sm font-medium shadow-inner focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                             autofocus
                         >
                         <div class="absolute inset-y-0 right-0 flex items-center pr-2">
-                            <span class="rounded bg-slate-200 px-2 py-0.5 text-[10px] font-mono font-semibold text-slate-600">Enter = Add</span>
+                            <span class="rounded bg-slate-200 px-2 py-0.5 text-[10px] font-mono font-semibold text-slate-600">Enter = Tambah</span>
                         </div>
                     </div>
 
@@ -86,7 +86,7 @@
                     ></div>
                 </div>
 
-                <!-- 2. Tab / Chips Filter Kategori -->
+                <!-- 2. Tab / Chips Filter Kelompok Barang -->
                 <div class="flex items-center gap-2 overflow-x-auto pb-1">
                     <button 
                         type="button" 
@@ -94,7 +94,7 @@
                         class="whitespace-nowrap rounded-xl px-4 py-2 text-xs font-semibold shadow-sm transition"
                         :class="selectedCategory === null ? 'bg-indigo-600 text-white shadow-indigo-200' : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200'"
                     >
-                        Semua Kategori (<span x-text="products.length"></span>)
+                        Semua Kelompok Barang (<span x-text="products.length"></span>)
                     </button>
                     <template x-for="cat in categories" :key="cat.id">
                         <button 
@@ -108,7 +108,7 @@
                     </template>
                 </div>
 
-                <!-- 3. Grid Katalog Produk -->
+                <!-- 3. Grid Data Barang -->
                 <div class="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-3">
                     <template x-for="product in filteredProducts" :key="product.id">
                         <button 
@@ -144,18 +144,18 @@
 
                 <!-- Empty state jika tidak ada produk yang cocok -->
                 <div x-show="filteredProducts.length === 0" class="rounded-2xl border border-slate-200 bg-white p-10 text-center">
-                    <p class="font-bold text-slate-700">Produk Tidak Ditemukan</p>
-                    <p class="mt-1 text-xs text-slate-500">Coba ubah kata kunci pencarian atau pilih kategori lain.</p>
+                    <p class="font-bold text-slate-700">Data Barang Tidak Ditemukan</p>
+                    <p class="mt-1 text-xs text-slate-500">Coba ubah kata kunci pencarian atau pilih kelompok barang lain.</p>
                 </div>
             </section>
 
-            <!-- Kolom Kanan: Keranjang Belanja Kasir (Cart Aside) -->
+            <!-- Kolom Kanan: Rincian Transaksi (Cart Aside) -->
             <aside class="flex flex-col h-fit rounded-2xl border border-slate-200 bg-white shadow-sm lg:sticky lg:top-6">
-                <!-- Header Cart -->
+                <!-- Header Rincian Transaksi -->
                 <div class="border-b border-slate-200 px-5 py-4 flex items-center justify-between">
                     <div>
-                        <h2 class="text-base font-bold text-slate-900">Keranjang Kasir</h2>
-                        <p class="text-xs text-slate-500" x-text="totalItems + ' pcs barang'"></p>
+                        <h2 class="text-base font-bold text-slate-900">Rincian Transaksi</h2>
+                        <p class="text-xs text-slate-500" x-text="totalItems + ' item barang'"></p>
                     </div>
                     <button 
                         type="button" 
@@ -167,15 +167,15 @@
                     </button>
                 </div>
 
-                <!-- Daftar Item di Cart -->
+                <!-- Daftar Item di Rincian Transaksi -->
                 <div class="max-h-[min(52vh,480px)] overflow-y-auto px-5 divide-y divide-slate-100">
                     <template x-if="cart.length === 0">
                         <div class="py-12 text-center text-slate-400">
                             <svg class="mx-auto h-10 w-10 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path>
                             </svg>
-                            <p class="mt-2 text-sm font-semibold text-slate-600">Keranjang Masih Kosong</p>
-                            <p class="text-xs text-slate-400">Scan barcode atau pilih barang dari katalog.</p>
+                            <p class="mt-2 text-sm font-semibold text-slate-600">Rincian Transaksi Masih Kosong</p>
+                            <p class="text-xs text-slate-400">Cari nama atau scan barcode untuk menambah barang.</p>
                         </div>
                     </template>
 
@@ -217,7 +217,7 @@
                 <!-- Ringkasan & Tombol Pembayaran -->
                 <div class="border-t border-slate-200 bg-slate-50/70 p-5 rounded-b-2xl">
                     <div class="flex items-baseline justify-between">
-                        <span class="text-sm font-semibold text-slate-600">Total Tagihan:</span>
+                        <span class="text-sm font-semibold text-slate-600">Total Akhir:</span>
                         <span class="text-2xl font-black text-indigo-900" x-text="formatRupiah(grandTotal)"></span>
                     </div>
 
@@ -227,7 +227,7 @@
                         :disabled="cart.length === 0"
                         class="mt-4 w-full rounded-xl bg-indigo-600 py-3.5 text-center text-sm font-bold text-white shadow-lg shadow-indigo-600/30 transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
                     >
-                        Bayar Sekarang (F9) →
+                        Pembayaran (F9) →
                     </button>
                 </div>
             </aside>
@@ -245,19 +245,19 @@
                 class="relative w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl"
                 @click.away="paymentModalOpen = false"
             >
-                <!-- Header Modal Bayar -->
+                <!-- Header Modal Pembayaran -->
                 <div class="bg-indigo-600 px-6 py-4 text-white flex items-center justify-between">
                     <div>
-                        <p class="text-xs font-semibold uppercase tracking-wider text-indigo-200">Proses Kasir</p>
-                        <h2 class="text-lg font-bold">Kalkulasi Pembayaran</h2>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-indigo-200">Penjualan Kasir</p>
+                        <h2 class="text-lg font-bold">Pembayaran</h2>
                     </div>
                     <button type="button" @click="paymentModalOpen = false" class="text-white hover:text-indigo-200 text-xl font-bold">&times;</button>
                 </div>
 
                 <div class="p-6 space-y-5">
-                    <!-- Total Belanja Display -->
+                    <!-- Total Akhir Display -->
                     <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 flex items-center justify-between">
-                        <span class="text-sm font-bold text-slate-700">Total Yang Harus Dibayar:</span>
+                        <span class="text-sm font-bold text-slate-700">Total Akhir:</span>
                         <span class="text-2xl font-black text-indigo-700 font-mono" x-text="formatRupiah(grandTotal)"></span>
                     </div>
 
@@ -271,7 +271,7 @@
                                 class="rounded-lg border py-2 text-xs font-bold transition"
                                 :class="paymentMethod === 'cash' ? 'border-indigo-600 bg-indigo-50 text-indigo-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'"
                             >
-                                💵 Tunai (Cash)
+                                💵 Tunai
                             </button>
                             <button 
                                 type="button" 
@@ -292,9 +292,9 @@
                         </div>
                     </div>
 
-                    <!-- Input Uang Diterima (Cash Tendered) -->
+                    <!-- Input Tunai / Bayar -->
                     <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Uang Tunai Diterima (Rp)</label>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Tunai / Bayar (Rp)</label>
                         <input 
                             type="number" 
                             x-ref="cashInput"
@@ -354,7 +354,7 @@
                         </div>
                     </div>
 
-                    <!-- Kalkulasi Kembalian (Change Due) -->
+                    <!-- Kalkulasi Kembalian -->
                     <div 
                         class="rounded-xl p-4 transition"
                         :class="{
@@ -367,8 +367,8 @@
                                 class="text-xs font-bold uppercase tracking-wider"
                                 :class="changeDue >= 0 ? 'text-emerald-800' : 'text-rose-800'"
                             >
-                                <span x-show="changeDue >= 0">Uang Kembalian:</span>
-                                <span x-show="changeDue < 0">Uang Pembayaran Kurang:</span>
+                                <span x-show="changeDue >= 0">Kembalian:</span>
+                                <span x-show="changeDue < 0">Kekurangan Bayar:</span>
                             </span>
                             <span 
                                 class="text-xl font-black font-mono"
@@ -397,7 +397,7 @@
                         :disabled="loading || (paymentMethod === 'cash' && changeDue < 0)"
                         class="rounded-xl bg-indigo-600 px-6 py-2.5 text-xs font-bold text-white shadow-md transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-300"
                     >
-                        <span x-show="!loading">Selesaikan &amp; Cetak Struk →</span>
+                        <span x-show="!loading">Selesaikan & Cetak Faktur →</span>
                         <span x-show="loading">Memproses...</span>
                     </button>
                 </div>
@@ -420,17 +420,17 @@
                         </svg>
                     </div>
                     <h2 class="mt-2 text-lg font-bold">Transaksi Berhasil!</h2>
-                    <p class="text-xs text-emerald-100 font-mono" x-text="'No. Resi: ' + lastReceiptNumber"></p>
+                    <p class="text-xs text-emerald-100 font-mono" x-text="'No. Faktur: ' + lastReceiptNumber"></p>
                 </div>
 
                 <div class="p-6 space-y-4 text-sm">
                     <div class="rounded-xl border border-slate-100 bg-slate-50 p-3.5 space-y-2">
                         <div class="flex justify-between text-slate-600">
-                            <span>Total Belanja:</span>
+                            <span>Total Akhir:</span>
                             <span class="font-bold text-slate-900" x-text="formatRupiah(lastSaleTotal)"></span>
                         </div>
                         <div class="flex justify-between text-slate-600">
-                            <span>Uang Diterima:</span>
+                            <span>Tunai / Bayar:</span>
                             <span class="font-mono text-slate-800" x-text="formatRupiah(lastCashTendered)"></span>
                         </div>
                         <div class="flex justify-between text-emerald-700 font-bold border-t border-slate-200 pt-1.5">
@@ -440,13 +440,13 @@
                     </div>
 
                     <div class="grid grid-cols-2 gap-3 pt-2">
-                        <!-- Tombol Cetak Struk Thermal -->
+                        <!-- Tombol Cetak Faktur -->
                         <button 
                             type="button" 
                             @click="printThermalReceipt()" 
                             class="flex items-center justify-center gap-1.5 rounded-xl border border-indigo-600 bg-indigo-50 py-3 text-xs font-bold text-indigo-700 shadow-sm transition hover:bg-indigo-100"
                         >
-                            🖨️ Cetak Struk Thermal
+                            🖨️ Cetak Faktur
                         </button>
 
                         <!-- Tombol Transaksi Baru -->
@@ -463,7 +463,7 @@
         </div>
     </div>
 
-    <!-- Script Alpine.js Kasir POS -->
+    <!-- Script Alpine.js Penjualan Kasir -->
     <script>
         function posSystem(initialProducts, initialCategories) {
             return {
@@ -530,7 +530,7 @@
                     const exactSku = this.products.find(p => p.sku.toLowerCase() === q);
                     if (exactSku) {
                         this.addToCart(exactSku);
-                        this.notifyScan('✓ ' + exactSku.name + ' ditambahkan ke keranjang');
+                        this.notifyScan('✓ ' + exactSku.name + ' ditambahkan ke transaksi');
                         this.searchQuery = '';
                         return;
                     }
@@ -539,7 +539,7 @@
                     const matches = this.filteredProducts;
                     if (matches.length === 1) {
                         this.addToCart(matches[0]);
-                        this.notifyScan('✓ ' + matches[0].name + ' ditambahkan ke keranjang');
+                        this.notifyScan('✓ ' + matches[0].name + ' ditambahkan ke transaksi');
                         this.searchQuery = '';
                         return;
                     }
@@ -593,7 +593,7 @@
                 },
 
                 clearCart() {
-                    if (confirm('Apakah Anda yakin ingin mengosongkan keranjang?')) {
+                    if (confirm('Apakah Anda yakin ingin mengosongkan rincian transaksi?')) {
                         this.cart = [];
                     }
                 },
