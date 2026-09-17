@@ -25,6 +25,7 @@ class UpdateProductRequest extends FormRequest
             'category_id' => ['sometimes', 'integer', 'exists:categories,id'],
             'sku' => ['nullable', 'string', 'max:50'],
             'name' => ['sometimes', 'string', 'max:255'],
+            'unit' => ['nullable', 'string', 'max:50'],
             'purchase_price' => ['sometimes', 'numeric', 'min:0', 'decimal:0,2'],
             'selling_price' => ['sometimes', 'numeric', 'min:0', 'decimal:0,2'],
             'stock' => ['sometimes', 'integer', 'min:0'],

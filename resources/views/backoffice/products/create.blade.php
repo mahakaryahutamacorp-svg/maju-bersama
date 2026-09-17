@@ -82,8 +82,8 @@
                     <p class="text-[11px] text-slate-400 mt-1">Jika dikosongkan, SKU akan otomatis dibuat dengan format <code>BR{Cabang}-{KodeUnik}</code>.</p>
                 </div>
 
-                <!-- Kategori & Cabang -->
-                <div class="grid gap-4 sm:grid-cols-2">
+                <!-- Kategori, Satuan & Cabang -->
+                <div class="grid gap-4 sm:grid-cols-3">
                     <div>
                         <label for="category_id" class="block text-sm font-semibold text-slate-800">
                             Kategori Produk <span class="text-rose-500">*</span>
@@ -93,6 +93,19 @@
                             @foreach ($categories as $category)
                                 <option value="{{ $category->id }}" {{ old('category_id') == $category->id ? 'selected' : '' }}>
                                     {{ $category->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="unit" class="block text-sm font-semibold text-slate-800">
+                            Satuan Barang <span class="text-rose-500">*</span>
+                        </label>
+                        <select id="unit" name="unit" class="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
+                            @foreach (['pcs', 'kg', 'gram', 'liter', 'botol', 'sak', 'kardus', 'karung', 'ton', 'renceng', 'pak'] as $u)
+                                <option value="{{ $u }}" {{ old('unit', 'pcs') == $u ? 'selected' : '' }}>
+                                    {{ $u }}
                                 </option>
                             @endforeach
                         </select>
