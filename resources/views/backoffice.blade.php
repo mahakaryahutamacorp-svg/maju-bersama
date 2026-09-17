@@ -52,6 +52,10 @@
                         <span class="text-[10px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded">Master</span>
                     </a>
                 @endif
+                <a href="/backoffice/warehouses" class="block rounded-lg px-3 py-2 text-sm font-medium text-teal-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
+                    <span>Multi Gudang</span>
+                    <span class="text-[10px] bg-teal-400/20 text-teal-300 px-1.5 py-0.5 rounded">CRUD</span>
+                </a>
 
                 <p class="px-3 pb-2 pt-5 text-xs font-semibold uppercase tracking-wider text-slate-500">Administration</p>
                 <template x-for="module in modules" :key="module.id">

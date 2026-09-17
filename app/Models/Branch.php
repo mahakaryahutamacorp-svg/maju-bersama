@@ -52,4 +52,9 @@ class Branch extends Model
     {
         return $this->hasMany(self::class, 'parent_id');
     }
+
+    public function warehouses(): HasMany
+    {
+        return $this->hasMany(Warehouse::class);
+    }
 }

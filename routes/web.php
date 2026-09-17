@@ -11,6 +11,7 @@ use App\Http\Controllers\StockCardController;
 use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\InventoryController;
 use App\Http\Controllers\Web\StockTransferController;
+use App\Http\Controllers\Web\WarehouseController;
 use App\Http\Middleware\EnsureCentralAdmin;
 use Illuminate\Support\Facades\Route;
 
@@ -63,6 +64,9 @@ Route::middleware('auth')->group(function () {
 
 		// Branches (Strictly Master only)
 		Route::resource('branches', App\Http\Controllers\Web\BranchController::class)->except(['show']);
+
+		// Warehouses (Master: all branches, Branch Admin: own branch only)
+		Route::resource('warehouses', WarehouseController::class)->except(['show']);
 	});
 });
 
