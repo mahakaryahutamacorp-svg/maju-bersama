@@ -5,7 +5,9 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\Category;
+use App\Models\PriceLevel;
 use App\Models\Product;
+use App\Models\ProductPrice;
 use App\Services\ProductService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,7 +32,7 @@ class ProductController extends Controller
         $search = $request->input('search');
 
         $query = Product::withoutGlobalScopes()
-            ->with(['category', 'branch'])
+            ->with(['category', 'branch', 'productPrices'])
             ->when(! $isMaster, fn ($q) => $q->where('branch_id', $user->branch_id))
             ->when($isMaster && $branchId, fn ($q) => $q->where('branch_id', $branchId))
             ->when($categoryId, fn ($q) => $q->where('category_id', $categoryId))
@@ -69,12 +71,17 @@ class ProductController extends Controller
 
         $branches = $isMaster ? Branch::orderBy('name')->get() : collect([$user->branch]);
         $categories = Category::orderBy('name')->get();
+        $priceLevels = PriceLevel::where('is_active', true)
+            ->orderByDesc('is_default')
+            ->orderBy('id')
+            ->get();
 
         return view('backoffice.products.create', [
             'currentUser' => $user,
             'isMaster' => $isMaster,
             'branches' => $branches,
             'categories' => $categories,
+            'priceLevels' => $priceLevels,
         ]);
     }
 
@@ -86,6 +93,19 @@ class ProductController extends Controller
         $user = $request->user();
         $isMaster = $user->isMaster();
 
+        $defaultPriceLevel = PriceLevel::where('is_default', true)->first();
+
+        // If form submitted 'prices' array, populate 'selling_price' from default level
+        if ($defaultPriceLevel && $request->filled("prices.{$defaultPriceLevel->id}")) {
+            $request->merge(['selling_price' => $request->input("prices.{$defaultPriceLevel->id}")]);
+        } elseif ($request->filled('selling_price') && $defaultPriceLevel) {
+            $prices = $request->input('prices', []);
+            if (!isset($prices[$defaultPriceLevel->id])) {
+                $prices[$defaultPriceLevel->id] = $request->input('selling_price');
+                $request->merge(['prices' => $prices]);
+            }
+        }
+
         $rules = [
             'name' => ['required', 'string', 'max:255'],
             'sku' => ['nullable', 'string', 'max:50'],
@@ -94,6 +114,8 @@ class ProductController extends Controller
             'purchase_price' => ['required', 'numeric', 'min:0'],
             'selling_price' => ['required', 'numeric', 'min:0'],
             'stock' => ['nullable', 'integer', 'min:0'],
+            'prices' => ['nullable', 'array'],
+            'prices.*' => ['nullable', 'numeric', 'min:0'],
         ];
 
         if ($isMaster) {
@@ -109,6 +131,9 @@ class ProductController extends Controller
 
         $product = $this->productService->createProduct($validated, $targetBranchId);
 
+        // Sync tiered product prices
+        $this->syncProductPrices($product, $request->input('prices', []));
+
         return redirect()
             ->route('backoffice.products.index')
             ->with('success', "Produk '{$product->name}' (SKU: {$product->sku}) berhasil ditambahkan!");
@@ -122,7 +147,7 @@ class ProductController extends Controller
         $user = $request->user()->load('branch');
         $isMaster = $user->isMaster();
 
-        $product = Product::withoutGlobalScopes()->with(['category', 'branch'])->findOrFail($id);
+        $product = Product::withoutGlobalScopes()->with(['category', 'branch', 'productPrices'])->findOrFail($id);
 
         // Security: Non-master cannot edit products belonging to other branches
         if (! $isMaster && (int) $product->branch_id !== (int) $user->branch_id) {
@@ -131,6 +156,10 @@ class ProductController extends Controller
 
         $branches = $isMaster ? Branch::orderBy('name')->get() : collect([$product->branch]);
         $categories = Category::orderBy('name')->get();
+        $priceLevels = PriceLevel::where('is_active', true)
+            ->orderByDesc('is_default')
+            ->orderBy('id')
+            ->get();
 
         return view('backoffice.products.edit', [
             'currentUser' => $user,
@@ -138,6 +167,7 @@ class ProductController extends Controller
             'product' => $product,
             'branches' => $branches,
             'categories' => $categories,
+            'priceLevels' => $priceLevels,
         ]);
     }
 
@@ -156,6 +186,19 @@ class ProductController extends Controller
             abort(403, 'Anda tidak memiliki otorisasi untuk mengubah produk cabang lain.');
         }
 
+        $defaultPriceLevel = PriceLevel::where('is_default', true)->first();
+
+        // If form submitted 'prices' array, populate 'selling_price' from default level
+        if ($defaultPriceLevel && $request->filled("prices.{$defaultPriceLevel->id}")) {
+            $request->merge(['selling_price' => $request->input("prices.{$defaultPriceLevel->id}")]);
+        } elseif ($request->filled('selling_price') && $defaultPriceLevel) {
+            $prices = $request->input('prices', []);
+            if (!isset($prices[$defaultPriceLevel->id])) {
+                $prices[$defaultPriceLevel->id] = $request->input('selling_price');
+                $request->merge(['prices' => $prices]);
+            }
+        }
+
         $rules = [
             'name' => ['required', 'string', 'max:255'],
             'sku' => ['required', 'string', 'max:50'],
@@ -163,15 +206,59 @@ class ProductController extends Controller
             'unit' => ['nullable', 'string', 'max:50'],
             'purchase_price' => ['required', 'numeric', 'min:0'],
             'selling_price' => ['required', 'numeric', 'min:0'],
+            'prices' => ['nullable', 'array'],
+            'prices.*' => ['nullable', 'numeric', 'min:0'],
         ];
 
         $validated = $request->validate($rules);
 
         $this->productService->updateProduct($product, $validated);
 
+        // Sync tiered product prices
+        $this->syncProductPrices($product, $request->input('prices', []));
+
         return redirect()
             ->route('backoffice.products.index')
             ->with('success', "Data produk '{$product->name}' berhasil diperbarui!");
+    }
+
+    /**
+     * Synchronize price tiers for a product.
+     */
+    protected function syncProductPrices(Product $product, array $prices): void
+    {
+        $defaultLevel = PriceLevel::where('is_default', true)->first();
+
+        // Always ensure default level has a price from selling_price fallback
+        if ($defaultLevel && (!isset($prices[$defaultLevel->id]) || $prices[$defaultLevel->id] === '' || $prices[$defaultLevel->id] === null)) {
+            if ($product->selling_price !== null) {
+                $prices[$defaultLevel->id] = $product->selling_price;
+            }
+        }
+
+        foreach ($prices as $levelId => $price) {
+            $priceLevelId = (int) $levelId;
+            if ($price !== null && $price !== '') {
+                ProductPrice::updateOrCreate(
+                    [
+                        'product_id' => $product->id,
+                        'price_level_id' => $priceLevelId,
+                    ],
+                    [
+                        'price' => $price,
+                    ]
+                );
+            } else {
+                // Do not delete default level price
+                if ($defaultLevel && $priceLevelId === (int) $defaultLevel->id) {
+                    continue;
+                }
+
+                ProductPrice::where('product_id', $product->id)
+                    ->where('price_level_id', $priceLevelId)
+                    ->delete();
+            }
+        }
     }
 
     /**

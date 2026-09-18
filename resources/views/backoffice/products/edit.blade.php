@@ -121,20 +121,85 @@
                     </div>
                 </div>
 
-                <!-- Harga Beli (HPP) & Harga Jual -->
-                <div class="grid gap-4 sm:grid-cols-2">
-                    <div>
-                        <label for="purchase_price" class="block text-sm font-semibold text-slate-800">
-                            Harga Beli / HPP (Rp) <span class="text-rose-500">*</span>
-                        </label>
-                        <input type="number" step="any" min="0" id="purchase_price" name="purchase_price" value="{{ old('purchase_price', $product->purchase_price) }}" required class="mt-1.5 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
+                <!-- Harga Beli (HPP) -->
+                <div>
+                    <label for="purchase_price" class="block text-sm font-semibold text-slate-800">
+                        Harga Beli / HPP (Rp) <span class="text-rose-500">*</span>
+                    </label>
+                    <div class="relative mt-1.5">
+                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5">
+                            <span class="text-sm font-semibold text-slate-400">Rp</span>
+                        </div>
+                        <input type="number" step="any" min="0" id="purchase_price" name="purchase_price" value="{{ old('purchase_price', $product->purchase_price) }}" required class="w-full rounded-xl border border-slate-300 pl-10 pr-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-1">Biaya pokok pembelian untuk perhitungan laba kotor.</p>
+                </div>
+
+                <!-- Section: Penetapan Tingkat Harga -->
+                <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
+                    <div class="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                <svg class="h-4 w-4 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                                </svg>
+                                Penetapan Tingkat Harga
+                            </h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Tentukan harga jual bertingkat untuk kategori pelanggan eceran, grosir, dan member.</p>
+                        </div>
+                        <span class="inline-flex self-start sm:self-auto items-center rounded-full bg-sky-100 px-2.5 py-0.5 text-[11px] font-semibold text-sky-700">
+                            Multi Price
+                        </span>
                     </div>
 
-                    <div>
-                        <label for="selling_price" class="block text-sm font-semibold text-slate-800">
-                            Harga Jual Kasir (Rp) <span class="text-rose-500">*</span>
-                        </label>
-                        <input type="number" step="any" min="0" id="selling_price" name="selling_price" value="{{ old('selling_price', $product->selling_price) }}" required class="mt-1.5 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        @foreach ($priceLevels as $level)
+                            @php
+                                $isDefault = (bool) $level->is_default;
+                                $existingTierPrice = $product->productPrices->firstWhere('price_level_id', $level->id)?->price;
+                                $defaultPrice = $isDefault ? ($existingTierPrice ?? $product->selling_price) : $existingTierPrice;
+                                $fieldValue = old("prices.{$level->id}", $defaultPrice);
+                            @endphp
+                            <div class="rounded-xl border bg-white p-3.5 shadow-sm transition-all {{ $isDefault ? 'border-sky-300 ring-1 ring-sky-200' : 'border-slate-200 hover:border-slate-300' }}">
+                                <div class="flex items-center justify-between mb-1.5">
+                                    <label for="price_level_{{ $level->id }}" class="text-xs font-bold text-slate-800">
+                                        {{ $level->name }}
+                                        @if ($isDefault)
+                                            <span class="text-rose-500">*</span>
+                                        @endif
+                                    </label>
+                                    @if ($isDefault)
+                                        <span class="rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-700">Default</span>
+                                    @else
+                                        <span class="text-[10px] text-slate-400">Opsional</span>
+                                    @endif
+                                </div>
+
+                                <div class="relative mt-1">
+                                    <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                        <span class="text-xs font-semibold text-slate-400">Rp</span>
+                                    </div>
+                                    <input
+                                        type="number"
+                                        step="any"
+                                        min="0"
+                                        id="price_level_{{ $level->id }}"
+                                        name="prices[{{ $level->id }}]"
+                                        value="{{ $fieldValue }}"
+                                        {{ $isDefault ? 'required' : '' }}
+                                        placeholder="{{ $isDefault ? '0' : 'Sama dgn eceran' }}"
+                                        class="w-full rounded-lg border border-slate-300 pl-9 pr-3 py-2 text-sm font-semibold text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 {{ $isDefault ? 'bg-sky-50/20' : '' }}"
+                                    >
+                                </div>
+                                <p class="text-[10px] text-slate-400 mt-1">
+                                    @if ($isDefault)
+                                        Harga dasar kasir &amp; fallback produk.
+                                    @else
+                                        Kosongkan jika sama dengan harga eceran.
+                                    @endif
+                                </p>
+                            </div>
+                        @endforeach
                     </div>
                 </div>
 

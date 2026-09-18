@@ -47,6 +47,11 @@ class Product extends Model
         return $this->hasMany(SaleItem::class);
     }
 
+    public function productPrices(): HasMany
+    {
+        return $this->hasMany(ProductPrice::class);
+    }
+
     /**
      * Stock rows for this product. A product belongs to a single branch catalogue,
      * so in practice this resolves to one row, but the relation is kept as HasMany
@@ -78,5 +83,24 @@ class Product extends Model
             ->first();
 
         return $inventory?->quantity ?? (int) $this->stock;
+    }
+
+    /**
+     * Get the selling price for a given price level ID,
+     * falling back to the legacy selling_price column if null or not found.
+     */
+    public function getPrice(?int $priceLevelId = null)
+    {
+        if ($priceLevelId !== null) {
+            $productPrice = $this->relationLoaded('productPrices')
+                ? $this->productPrices->firstWhere('price_level_id', $priceLevelId)
+                : $this->productPrices()->where('price_level_id', $priceLevelId)->first();
+
+            if ($productPrice !== null && $productPrice->price !== null) {
+                return $productPrice->price;
+            }
+        }
+
+        return $this->selling_price;
     }
 }

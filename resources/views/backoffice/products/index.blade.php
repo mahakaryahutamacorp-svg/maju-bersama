@@ -180,8 +180,17 @@
                                 <td class="px-6 py-4 text-right font-medium text-slate-700">
                                     Rp {{ number_format($product->purchase_price, 0, ',', '.') }}
                                 </td>
-                                <td class="px-6 py-4 text-right font-semibold text-emerald-700">
-                                    Rp {{ number_format($product->selling_price, 0, ',', '.') }}
+                                <td class="px-6 py-4 text-right">
+                                    <div class="font-semibold text-emerald-700">
+                                        Rp {{ number_format($product->getPrice(), 0, ',', '.') }}
+                                    </div>
+                                    @if ($product->productPrices->count() > 1)
+                                        <div class="mt-0.5">
+                                            <span class="inline-flex items-center rounded-md bg-sky-50 px-1.5 py-0.5 text-[10px] font-semibold text-sky-700 border border-sky-200" title="{{ $product->productPrices->count() }} tingkat harga aktif">
+                                                (+ Multi Harga)
+                                            </span>
+                                        </div>
+                                    @endif
                                 </td>
                                 <td class="px-6 py-4 text-right font-semibold text-slate-800">
                                     {{ number_format($product->stock, 0, ',', '.') }}
