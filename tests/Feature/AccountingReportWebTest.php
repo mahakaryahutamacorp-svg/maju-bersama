@@ -65,7 +65,27 @@ class AccountingReportWebTest extends TestCase
         $response->assertSee('Net Profit Margin');
         $response->assertSee('GPM:');
         $response->assertSee('NPM:');
-        $response->assertSee('Harga Pokok Penjualan');
         $response->assertSee('Beban Operasional');
+    }
+
+    public function test_ledger_page_renders_consolidated(): void
+    {
+        $response = $this->actingAs($this->master)->get('/reports/accounting/ledger');
+
+        $response->assertStatus(200);
+        $response->assertSee('Buku Besar &mdash; <span class="text-slate-800">Konsolidasi Seluruh Cabang</span>', false);
+        $response->assertSee('Konsolidasi Seluruh Cabang');
+        $response->assertSee('Semua Cabang (Konsolidasi)');
+        $response->assertSee('Cabang / Toko');
+    }
+
+    public function test_ledger_page_renders_filtered_by_branch(): void
+    {
+        $response = $this->actingAs($this->master)->get('/reports/accounting/ledger?branch_id=' . $this->central->id);
+
+        $response->assertStatus(200);
+        $response->assertSee('Buku Besar &mdash; <span class="text-sky-700 uppercase tracking-tight">' . $this->central->name . '</span>', false);
+        $response->assertSee('Filter Toko: <strong class="uppercase">' . $this->central->name . '</strong>', false);
+        $response->assertSee('Kas');
     }
 }

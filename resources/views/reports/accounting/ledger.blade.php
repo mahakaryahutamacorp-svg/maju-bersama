@@ -18,6 +18,38 @@
     </style>
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
+    @php
+        // Helper badge warna untuk visual grouping transaksi antar cabang
+        if (!function_exists('getBranchBadgeStyle')) {
+            function getBranchBadgeStyle(?string $branchName): string {
+                $name = strtolower(trim((string) $branchName));
+                if (str_contains($name, 'pusat')) {
+                    return 'bg-blue-100 text-blue-800 border-blue-300';
+                } elseif (str_contains($name, '1') || str_contains($name, 'arofah')) {
+                    return 'bg-emerald-100 text-emerald-800 border-emerald-300';
+                } elseif (str_contains($name, '2')) {
+                    return 'bg-amber-100 text-amber-800 border-amber-300';
+                } elseif (str_contains($name, '3')) {
+                    return 'bg-purple-100 text-purple-800 border-purple-300';
+                } elseif (str_contains($name, '4')) {
+                    return 'bg-rose-100 text-rose-800 border-rose-300';
+                } elseif (str_contains($name, '5')) {
+                    return 'bg-teal-100 text-teal-800 border-teal-300';
+                } else {
+                    $palette = [
+                        'bg-sky-100 text-sky-800 border-sky-300',
+                        'bg-indigo-100 text-indigo-800 border-indigo-300',
+                        'bg-cyan-100 text-cyan-800 border-cyan-300',
+                        'bg-orange-100 text-orange-800 border-orange-300',
+                        'bg-violet-100 text-violet-800 border-violet-300',
+                    ];
+                    $index = abs(crc32($name)) % count($palette);
+                    return $palette[$index];
+                }
+            }
+        }
+    @endphp
+
     <!-- Header Utama -->
     <header class="border-b border-slate-800 bg-slate-950 text-white no-print">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
@@ -70,41 +102,70 @@
     </div>
 
     <main class="mx-auto max-w-7xl space-y-6 px-6 py-8 lg:px-8">
-        <!-- Judul & Breadcrumb -->
+        <!-- 2. Header Laporan Dinamis (Bereaksi Terhadap Filter Toko / Konsolidasi) -->
         <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-wider text-amber-600">Laporan Keuangan</p>
-                <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Buku Besar (General Ledger)</h2>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-amber-600">Laporan Keuangan</span>
+                    <span class="text-xs text-slate-400">&bull;</span>
+                    @if ($branchId && $activeBranch)
+                        <span class="inline-flex items-center gap-1.5 rounded-md border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-800 shadow-xs">
+                            <svg class="h-3.5 w-3.5 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                            Filter Toko: <strong class="uppercase">{{ $activeBranchName }}</strong>
+                        </span>
+                    @else
+                        <span class="inline-flex items-center gap-1.5 rounded-md border border-purple-200 bg-purple-50 px-2.5 py-0.5 text-xs font-semibold text-purple-800 shadow-xs">
+                            <svg class="h-3.5 w-3.5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            Konsolidasi Seluruh Cabang
+                        </span>
+                    @endif
+                </div>
+
+                <!-- Judul Utama Dinamis -->
+                <h2 class="mt-1.5 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+                    @if ($branchId && $activeBranch)
+                        Buku Besar &mdash; <span class="text-sky-700 uppercase tracking-tight">{{ $activeBranchName }}</span>
+                    @else
+                        Buku Besar &mdash; <span class="text-slate-800">Konsolidasi Seluruh Cabang</span>
+                    @endif
+                </h2>
+
                 <p class="mt-1 text-sm text-slate-500">
-                    Cakupan: <span class="font-semibold text-slate-800">{{ $report['branch']['name'] }}</span>
+                    Cakupan: <span class="font-semibold text-slate-800">{{ $activeBranchName }}</span>
                     @if ($startDate || $endDate)
                         &middot; Periode: <span class="font-semibold text-slate-800">{{ $startDate ? \Carbon\Carbon::parse($startDate)->format('d M Y') : 'Awal' }}</span> s/d <span class="font-semibold text-slate-800">{{ $endDate ? \Carbon\Carbon::parse($endDate)->format('d M Y') : 'Hari ini' }}</span>
                     @endif
                 </p>
             </div>
             <div class="flex items-center gap-3">
-                <div class="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2.5 text-right">
+                <div class="rounded-xl border border-sky-200 bg-sky-50 px-4 py-2.5 text-right shadow-xs">
                     <p class="text-xs font-medium uppercase tracking-wider text-sky-700">Akun Aktif</p>
                     <p class="text-lg font-bold text-sky-900">{{ count($report['accounts']) }} Akun</p>
                 </div>
             </div>
         </div>
 
-        <!-- 1. Form Filter (Pencarian) -->
+        <!-- 4. Seksi Filter (Pencarian Dinamis) -->
         <section class="rounded-lg border border-gray-200 bg-gray-50/50 p-5 shadow-sm no-print">
             <form method="GET" action="/reports/accounting/ledger" class="grid gap-4 sm:grid-cols-2 {{ $isMaster ? 'lg:grid-cols-5' : 'lg:grid-cols-4' }} items-end">
-                <!-- Pilihan Cabang (Hanya untuk Master) -->
+                <!-- Dropdown Cabang Dinamis -->
                 @if ($isMaster)
                     <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">Cabang</label>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">Cabang / Toko</label>
                         <select name="branch_id" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500">
                             <option value="">Semua Cabang (Konsolidasi)</option>
                             @foreach ($branches as $branch)
                                 <option value="{{ $branch->id }}" {{ (string) $branchId === (string) $branch->id ? 'selected' : '' }}>
-                                    {{ $branch->name }}
+                                    {{ $branch->name }} {{ $branch->code ? '('.$branch->code.')' : '' }}
                                 </option>
                             @endforeach
                         </select>
+                    </div>
+                @else
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">Cabang / Toko</label>
+                        <input type="text" readonly value="{{ $activeBranchName }}" class="w-full rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-600 shadow-sm outline-none cursor-not-allowed">
+                        <input type="hidden" name="branch_id" value="{{ $branchId }}">
                     </div>
                 @endif
 
@@ -153,7 +214,7 @@
                     $acc = $item['account'];
                 @endphp
                 <section class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-                    <!-- 2. Header Akun (Flexbox/Grid Dua Sisi) -->
+                    <!-- Header Akun (Flexbox Dua Sisi) -->
                     <div class="flex flex-col gap-4 border-b border-gray-200 bg-slate-50/60 px-6 py-4 xl:flex-row xl:items-center xl:justify-between">
                         <!-- Sisi Kiri -->
                         <div class="flex items-start gap-3">
@@ -173,7 +234,7 @@
                             </div>
                         </div>
 
-                        <!-- Sisi Kanan (Mini Stats: 4 Kolom) -->
+                        <!-- Sisi Kanan (Mini Stats 4 Kolom) -->
                         <div class="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
                             <!-- Saldo Awal -->
                             <div class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-right shadow-xs">
@@ -203,7 +264,7 @@
                                 </span>
                             </div>
 
-                            <!-- Saldo Akhir (Penekanan Visual Badge Biru Muda) -->
+                            <!-- Saldo Akhir -->
                             <div class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-right shadow-sm">
                                 <span class="block text-[11px] font-semibold uppercase tracking-wider text-blue-600">Saldo Akhir</span>
                                 <span class="block text-xs font-bold tabular-nums {{ $item['ending_balance'] < 0 ? 'text-red-600' : 'text-blue-700' }}">
@@ -217,7 +278,7 @@
                         </div>
                     </div>
 
-                    <!-- 3. Tabel Transaksi (SaaS Standard) -->
+                    <!-- 3. Tabel Transaksi (Visual Grouping & Badge Cabang) -->
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200 text-left text-sm">
                             <thead class="bg-gray-100 text-xs font-semibold uppercase tracking-wider text-gray-600 border-b border-gray-200">
@@ -226,9 +287,7 @@
                                     <th class="whitespace-nowrap px-5 py-3.5">No. Referensi</th>
                                     <th class="px-5 py-3.5">Keterangan</th>
                                     <th class="px-5 py-3.5">Memo / Catatan</th>
-                                    @if ($isMaster && $branchId === null)
-                                        <th class="whitespace-nowrap px-5 py-3.5">Cabang</th>
-                                    @endif
+                                    <th class="whitespace-nowrap px-5 py-3.5">Cabang / Toko</th>
                                     <th class="whitespace-nowrap px-5 py-3.5 text-right">Debit</th>
                                     <th class="whitespace-nowrap px-5 py-3.5 text-right">Kredit</th>
                                     <th class="whitespace-nowrap px-5 py-3.5 text-right">Saldo Berjalan</th>
@@ -238,8 +297,8 @@
                                 <!-- Baris Saldo Awal -->
                                 <tr class="bg-amber-50/40 border-b border-gray-100 text-xs font-medium text-gray-600">
                                     <td class="whitespace-nowrap px-5 py-3 font-mono tabular-nums">{{ $startDate ? \Carbon\Carbon::parse($startDate)->format('d/m/Y') : '-' }}</td>
-                                    <td class="whitespace-nowrap px-5 py-3 font-mono text-gray-400">—</td>
-                                    <td colspan="{{ ($isMaster && $branchId === null) ? '3' : '2' }}" class="px-5 py-3 font-semibold text-gray-800">
+                                    <td class="px-5 py-3 font-mono text-gray-400">—</td>
+                                    <td colspan="3" class="px-5 py-3 font-semibold text-gray-800">
                                         SALDO AWAL {{ $startDate ? '(SEBELUM ' . \Carbon\Carbon::parse($startDate)->format('d M Y') . ')' : '' }}
                                     </td>
                                     <td class="whitespace-nowrap px-5 py-3 text-right font-mono tabular-nums text-gray-400">—</td>
@@ -267,11 +326,13 @@
                                         <td class="px-5 py-3.5 text-xs text-gray-500">
                                             {{ $line['memo'] ?? '—' }}
                                         </td>
-                                        @if ($isMaster && $branchId === null)
-                                            <td class="whitespace-nowrap px-5 py-3.5 text-xs text-gray-600">
-                                                <span class="rounded bg-gray-100 px-2 py-0.5">{{ $line['branch_name'] }}</span>
-                                            </td>
-                                        @endif
+                                        <!-- Badge Cabang dengan identitas visual unik -->
+                                        <td class="whitespace-nowrap px-5 py-3.5 text-xs">
+                                            <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold shadow-xs {{ getBranchBadgeStyle($line['branch_name']) }}">
+                                                <span class="h-1.5 w-1.5 rounded-full bg-current opacity-70"></span>
+                                                {{ $line['branch_name'] }}
+                                            </span>
+                                        </td>
                                         <td class="whitespace-nowrap px-5 py-3.5 text-right font-mono text-sm tabular-nums {{ $line['debit'] > 0 ? 'font-medium text-gray-900' : 'text-gray-300' }}">
                                             {{ $line['debit'] > 0 ? 'Rp ' . number_format($line['debit'], 0, ',', '.') : '—' }}
                                         </td>
@@ -288,16 +349,16 @@
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="{{ ($isMaster && $branchId === null) ? '8' : '7' }}" class="px-5 py-6 text-center text-xs text-gray-400 italic">
+                                        <td colspan="8" class="px-5 py-6 text-center text-xs text-gray-400 italic">
                                             Tidak ada mutasi transaksi pada periode yang dipilih.
                                         </td>
                                     </tr>
                                 @endforelse
                             </tbody>
-                            <!-- 4. Baris Total (Footer Tabel) -->
+                            <!-- Footer Ringkasan Akun -->
                             <tfoot class="border-t-2 border-gray-300 bg-slate-50 text-xs font-bold text-gray-900">
                                 <tr>
-                                    <td colspan="{{ ($isMaster && $branchId === null) ? '5' : '4' }}" class="px-5 py-3.5 text-right uppercase tracking-wider text-gray-700">
+                                    <td colspan="5" class="px-5 py-3.5 text-right uppercase tracking-wider text-gray-700">
                                         TOTAL MUTASI &amp; SALDO AKHIR {{ $acc['name'] }}:
                                     </td>
                                     <td class="whitespace-nowrap px-5 py-3.5 text-right font-mono text-sm tabular-nums text-sky-800">

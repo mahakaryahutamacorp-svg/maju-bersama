@@ -20,7 +20,9 @@ class AccountingReportController extends Controller
     public function ledger(Request $request): View
     {
         $user = $request->user();
-        $isMaster = $user->isMaster();
+        $isMaster = $user->isMaster()
+            || in_array($user->role, ['admin', 'superadmin', 'master'], true)
+            || ($user->branch && ($user->branch->parent_id === null || $user->branch->code === 'PUSAT'));
 
         // Default date range: start of current month to today
         $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
@@ -43,9 +45,14 @@ class AccountingReportController extends Controller
                 ->all();
         }
 
+        // Ambil objek Branch dan passing activeBranchName
+        $activeBranch = $branchId ? Branch::query()->find($branchId) : null;
+        $activeBranchName = $activeBranch ? $activeBranch->name : 'Konsolidasi Seluruh Cabang';
+
+        // Pastikan dropdown cabang terisi penuh dengan data dari tabel branches
         $branches = $isMaster
-            ? Branch::query()->orderBy('name')->get()
-            : collect([$user->branch]);
+            ? Branch::query()->orderBy('id')->get()
+            : Branch::query()->where('id', $user->branch_id)->get();
 
         $accounts = ChartOfAccount::query()->orderBy('code')->get();
 
@@ -56,6 +63,8 @@ class AccountingReportController extends Controller
             'branches' => $branches,
             'accounts' => $accounts,
             'branchId' => $branchId,
+            'activeBranch' => $activeBranch,
+            'activeBranchName' => $activeBranchName,
             'startDate' => $startDate,
             'endDate' => $endDate,
             'accountId' => $accountId,
