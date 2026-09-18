@@ -4,9 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Neraca Saldo (Trial Balance) | Maju Bersama ERP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
         @media print {
             .no-print { display: none !important; }
             body { background: white !important; color: black !important; }
@@ -72,12 +75,35 @@
     </div>
 
     <main class="mx-auto max-w-7xl space-y-6 px-6 py-8 lg:px-8">
-        <!-- Judul & Status Badge -->
+        <!-- Header Laporan Dinamis (Bereaksi Terhadap Filter Cabang / Konsolidasi) -->
         <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-                <p class="text-sm font-semibold uppercase tracking-wider text-amber-600">Laporan Keuangan</p>
-                <div class="mt-1 flex flex-wrap items-center gap-3">
-                    <h2 class="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Neraca Saldo (Trial Balance)</h2>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-amber-600">Laporan Keuangan</span>
+                    <span class="text-xs text-slate-400">&bull;</span>
+                    @if ($branchId && $activeBranch)
+                        <span class="inline-flex items-center gap-1.5 rounded-md border border-sky-200 bg-sky-50 px-2.5 py-0.5 text-xs font-semibold text-sky-800 shadow-xs">
+                            <svg class="h-3.5 w-3.5 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                            Filter Toko: <strong class="uppercase">{{ $activeBranchName }}</strong>
+                        </span>
+                    @else
+                        <span class="inline-flex items-center gap-1.5 rounded-md border border-purple-200 bg-purple-50 px-2.5 py-0.5 text-xs font-semibold text-purple-800 shadow-xs">
+                            <svg class="h-3.5 w-3.5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            Konsolidasi Seluruh Cabang
+                        </span>
+                    @endif
+                </div>
+
+                <!-- Judul Dinamis & Status Seimbang -->
+                <div class="mt-1.5 flex flex-wrap items-center gap-3">
+                    <h2 class="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
+                        @if ($branchId && $activeBranch)
+                            Neraca Saldo &mdash; <span class="text-sky-700 uppercase tracking-tight">{{ $activeBranchName }}</span>
+                        @else
+                            Neraca Saldo &mdash; <span class="text-slate-800">Konsolidasi Seluruh Cabang</span>
+                        @endif
+                    </h2>
+
                     <!-- Indikator Visual Badge SEIMBANG / TIDAK SEIMBANG -->
                     @if ($isBalanced)
                         <span class="inline-flex items-center gap-1.5 rounded-full border border-emerald-300 bg-emerald-50 px-3.5 py-1 text-xs font-bold text-emerald-700 shadow-sm">
@@ -95,8 +121,9 @@
                         </span>
                     @endif
                 </div>
+
                 <p class="mt-1 text-sm text-slate-500">
-                    Cakupan: <span class="font-semibold text-slate-800">{{ $report['branch']['name'] }}</span>
+                    Cakupan: <span class="font-semibold text-slate-800">{{ $activeBranchName }}</span>
                     @if ($startDate || $endDate)
                         &middot; Periode: <span class="font-semibold text-slate-800">{{ $startDate ? \Carbon\Carbon::parse($startDate)->format('d M Y') : 'Awal' }}</span> s/d <span class="font-semibold text-slate-800">{{ $endDate ? \Carbon\Carbon::parse($endDate)->format('d M Y') : 'Hari ini' }}</span>
                     @endif
@@ -105,101 +132,108 @@
 
             <!-- Kartu Status Ringkas -->
             <div class="flex flex-wrap items-center gap-3">
-                <div class="rounded-xl border border-slate-200 bg-white px-4 py-2.5 shadow-sm text-right">
-                    <p class="text-xs font-medium uppercase tracking-wider text-slate-500">Total Akun</p>
-                    <p class="text-lg font-bold text-slate-900">{{ count($report['accounts']) }} Akun</p>
+                <div class="rounded-xl border border-gray-200 bg-white px-4 py-2.5 shadow-xs text-right">
+                    <p class="text-xs font-medium uppercase tracking-wider text-gray-500">Total Akun</p>
+                    <p class="text-lg font-bold text-gray-900">{{ count($report['accounts']) }} Akun</p>
                 </div>
-                <div class="rounded-xl border {{ $isBalanced ? 'border-emerald-200 bg-emerald-50/60' : 'border-rose-200 bg-rose-50/60' }} px-4 py-2.5 text-right">
-                    <p class="text-xs font-medium uppercase tracking-wider {{ $isBalanced ? 'text-emerald-700' : 'text-rose-700' }}">Keseimbangan Buku</p>
-                    <p class="text-lg font-bold font-mono {{ $isBalanced ? 'text-emerald-900' : 'text-rose-900' }}">
+                <div class="rounded-xl border {{ $isBalanced ? 'border-emerald-200 bg-emerald-50/70' : 'border-rose-200 bg-rose-50/70' }} px-4 py-2.5 text-right shadow-xs">
+                    <p class="text-xs font-semibold uppercase tracking-wider {{ $isBalanced ? 'text-emerald-700' : 'text-rose-700' }}">Keseimbangan Buku</p>
+                    <p class="text-lg font-bold font-mono tabular-nums {{ $isBalanced ? 'text-emerald-900' : 'text-rose-900' }}">
                         {{ $isBalanced ? 'Rp 0 (Klop)' : 'Selisih Rp ' . number_format($diff, 0, ',', '.') }}
                     </p>
                 </div>
             </div>
         </div>
 
-        <!-- Form Filter -->
-        <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm no-print">
-            <form method="GET" action="/reports/accounting/trial-balance" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                <!-- Pilihan Cabang (Hanya untuk Master) -->
+        <!-- Seksi Filter (Pencarian Dinamis Cabang & Tanggal) -->
+        <section class="rounded-lg border border-gray-200 bg-gray-50/50 p-5 shadow-sm no-print">
+            <form method="GET" action="/reports/accounting/trial-balance" class="grid gap-4 sm:grid-cols-2 {{ $isMaster ? 'lg:grid-cols-4' : 'lg:grid-cols-3' }} items-end">
+                <!-- Pilihan Cabang Dinamis -->
                 @if ($isMaster)
                     <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600">Cabang</label>
-                        <select name="branch_id" class="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500">
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">Cabang / Toko</label>
+                        <select name="branch_id" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500">
                             <option value="">Semua Cabang (Konsolidasi)</option>
                             @foreach ($branches as $branch)
                                 <option value="{{ $branch->id }}" {{ (string) $branchId === (string) $branch->id ? 'selected' : '' }}>
-                                    {{ $branch->name }}
+                                    {{ $branch->name }} {{ $branch->code ? '('.$branch->code.')' : '' }}
                                 </option>
                             @endforeach
                         </select>
+                    </div>
+                @else
+                    <div>
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">Cabang / Toko</label>
+                        <input type="text" readonly value="{{ $activeBranchName }}" class="w-full rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-600 shadow-sm outline-none cursor-not-allowed">
+                        <input type="hidden" name="branch_id" value="{{ $branchId }}">
                     </div>
                 @endif
 
                 <!-- Dari Tanggal -->
                 <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600">Dari Tanggal</label>
-                    <input type="date" name="start_date" value="{{ $startDate }}" class="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500">
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">Dari Tanggal</label>
+                    <input type="date" name="start_date" value="{{ $startDate }}" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500">
                 </div>
 
                 <!-- Sampai Tanggal -->
                 <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600">Sampai Tanggal</label>
-                    <input type="date" name="end_date" value="{{ $endDate }}" class="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500">
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">Sampai Tanggal</label>
+                    <input type="date" name="end_date" value="{{ $endDate }}" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500">
                 </div>
 
                 <!-- Tombol Submit & Reset -->
-                <div class="flex items-end gap-2 {{ !$isMaster ? 'sm:col-span-2 lg:col-span-2' : '' }}">
-                    <button type="submit" class="w-full rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700">
+                <div class="flex items-center gap-2">
+                    <button type="submit" class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-1">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
                         Terapkan
                     </button>
-                    <a href="/reports/accounting/trial-balance" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                    <a href="/reports/accounting/trial-balance" class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-200">
                         Reset
                     </a>
                 </div>
             </form>
         </section>
 
-        <!-- Tabel Neraca Saldo -->
-        <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <!-- Tabel Neraca Saldo (Modern SaaS Standard) -->
+        <section class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
+                <table class="min-w-full divide-y divide-gray-200 text-left text-sm">
                     <thead>
                         <!-- Baris Group Header -->
                         <tr class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                             <th rowspan="2" class="border-r border-slate-800 px-4 py-3">Kode</th>
                             <th rowspan="2" class="border-r border-slate-800 px-4 py-3">Nama Akun</th>
                             <th rowspan="2" class="border-r border-slate-800 px-3 py-3 text-center">Tipe</th>
-                            <th colspan="2" class="border-r border-slate-800 px-4 py-2.5 text-center bg-slate-800/80">Saldo Awal</th>
-                            <th colspan="2" class="border-r border-slate-800 px-4 py-2.5 text-center bg-slate-800/50">Mutasi Periode</th>
+                            <th colspan="2" class="border-r border-slate-800 px-4 py-2.5 text-center bg-slate-800/90">Saldo Awal</th>
+                            <th colspan="2" class="border-r border-slate-800 px-4 py-2.5 text-center bg-slate-800/60">Mutasi Periode</th>
                             <th colspan="2" class="px-4 py-2.5 text-center bg-sky-950">Saldo Akhir</th>
                         </tr>
                         <!-- Baris Sub Header Debit / Kredit -->
-                        <tr class="bg-slate-100 text-xs font-semibold uppercase tracking-wider text-slate-700 border-b border-slate-200">
-                            <th class="px-3 py-2 text-right border-r border-slate-200">Debit</th>
-                            <th class="px-3 py-2 text-right border-r border-slate-200">Kredit</th>
-                            <th class="px-3 py-2 text-right border-r border-slate-200">Debit</th>
-                            <th class="px-3 py-2 text-right border-r border-slate-200">Kredit</th>
-                            <th class="px-3 py-2 text-right border-r border-slate-200 bg-sky-50 text-sky-900">Debit</th>
-                            <th class="px-3 py-2 text-right bg-sky-50 text-sky-900">Kredit</th>
+                        <tr class="bg-gray-100 text-xs font-semibold uppercase tracking-wider text-gray-600 border-b border-gray-200">
+                            <th class="px-3 py-2 text-right border-r border-gray-200">Debit</th>
+                            <th class="px-3 py-2 text-right border-r border-gray-200">Kredit</th>
+                            <th class="px-3 py-2 text-right border-r border-gray-200">Debit</th>
+                            <th class="px-3 py-2 text-right border-r border-gray-200">Kredit</th>
+                            <th class="px-3 py-2 text-right border-r border-gray-200 bg-sky-50 text-sky-900 font-bold">Debit</th>
+                            <th class="px-3 py-2 text-right bg-sky-50 text-sky-900 font-bold">Kredit</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100">
+                    <tbody class="divide-y divide-gray-100 bg-white">
                         @forelse ($report['accounts'] as $row)
-                            <tr class="transition hover:bg-slate-50/80">
+                            <tr class="transition hover:bg-gray-50/80 border-b border-gray-100">
                                 <!-- Kode Akun -->
-                                <td class="whitespace-nowrap px-4 py-3 font-mono text-xs font-bold text-slate-900 border-r border-slate-100">
-                                    <span class="rounded bg-slate-100 px-2 py-1">{{ $row['code'] }}</span>
+                                <td class="whitespace-nowrap px-4 py-3 font-mono text-xs font-bold text-gray-900 border-r border-gray-100">
+                                    <span class="rounded bg-slate-800 text-white px-2 py-0.5 shadow-2xs">{{ $row['code'] }}</span>
                                 </td>
 
                                 <!-- Nama Akun -->
-                                <td class="px-4 py-3 font-medium text-slate-900 border-r border-slate-100">
+                                <td class="px-4 py-3 font-medium text-gray-900 border-r border-gray-100">
                                     {{ $row['name'] }}
                                 </td>
 
                                 <!-- Tipe Akun -->
-                                <td class="whitespace-nowrap px-3 py-3 text-center text-xs border-r border-slate-100">
-                                    <span class="rounded-full px-2 py-0.5 font-medium uppercase
+                                <td class="whitespace-nowrap px-3 py-3 text-center text-xs border-r border-gray-100">
+                                    <span class="rounded-full px-2.5 py-0.5 font-medium uppercase text-[11px]
                                         @if(in_array(strtolower($row['type']), ['asset'])) bg-blue-50 text-blue-700 border border-blue-200
                                         @elseif(in_array(strtolower($row['type']), ['liability'])) bg-purple-50 text-purple-700 border border-purple-200
                                         @elseif(in_array(strtolower($row['type']), ['equity'])) bg-indigo-50 text-indigo-700 border border-indigo-200
@@ -211,66 +245,66 @@
                                 </td>
 
                                 <!-- Saldo Awal Debit -->
-                                <td class="whitespace-nowrap px-3 py-3 text-right font-mono text-xs border-r border-slate-100 {{ $row['opening_debit'] > 0 ? 'text-slate-900 font-semibold' : 'text-slate-300' }}">
+                                <td class="whitespace-nowrap px-3 py-3 text-right font-mono text-xs tabular-nums border-r border-gray-100 {{ $row['opening_debit'] > 0 ? 'text-gray-900 font-medium' : 'text-gray-300' }}">
                                     {{ $row['opening_debit'] > 0 ? 'Rp ' . number_format($row['opening_debit'], 0, ',', '.') : '—' }}
                                 </td>
 
                                 <!-- Saldo Awal Kredit -->
-                                <td class="whitespace-nowrap px-3 py-3 text-right font-mono text-xs border-r border-slate-100 {{ $row['opening_credit'] > 0 ? 'text-slate-900 font-semibold' : 'text-slate-300' }}">
+                                <td class="whitespace-nowrap px-3 py-3 text-right font-mono text-xs tabular-nums border-r border-gray-100 {{ $row['opening_credit'] > 0 ? 'text-gray-900 font-medium' : 'text-gray-300' }}">
                                     {{ $row['opening_credit'] > 0 ? 'Rp ' . number_format($row['opening_credit'], 0, ',', '.') : '—' }}
                                 </td>
 
                                 <!-- Mutasi Periode Debit -->
-                                <td class="whitespace-nowrap px-3 py-3 text-right font-mono text-xs border-r border-slate-100 {{ $row['movement_debit'] > 0 ? 'text-sky-700 font-semibold' : 'text-slate-300' }}">
+                                <td class="whitespace-nowrap px-3 py-3 text-right font-mono text-xs tabular-nums border-r border-gray-100 {{ $row['movement_debit'] > 0 ? 'text-sky-700 font-semibold' : 'text-gray-300' }}">
                                     {{ $row['movement_debit'] > 0 ? 'Rp ' . number_format($row['movement_debit'], 0, ',', '.') : '—' }}
                                 </td>
 
                                 <!-- Mutasi Periode Kredit -->
-                                <td class="whitespace-nowrap px-3 py-3 text-right font-mono text-xs border-r border-slate-100 {{ $row['movement_credit'] > 0 ? 'text-amber-700 font-semibold' : 'text-slate-300' }}">
+                                <td class="whitespace-nowrap px-3 py-3 text-right font-mono text-xs tabular-nums border-r border-gray-100 {{ $row['movement_credit'] > 0 ? 'text-amber-700 font-semibold' : 'text-gray-300' }}">
                                     {{ $row['movement_credit'] > 0 ? 'Rp ' . number_format($row['movement_credit'], 0, ',', '.') : '—' }}
                                 </td>
 
                                 <!-- Saldo Akhir Debit -->
-                                <td class="whitespace-nowrap px-3 py-3 text-right font-mono text-xs border-r border-slate-100 bg-sky-50/30 {{ $row['ending_debit'] > 0 ? 'font-bold text-slate-950' : 'text-slate-300' }}">
+                                <td class="whitespace-nowrap px-3 py-3 text-right font-mono text-xs tabular-nums border-r border-gray-100 bg-sky-50/40 {{ $row['ending_debit'] > 0 ? 'font-bold text-slate-950' : 'text-gray-300' }}">
                                     {{ $row['ending_debit'] > 0 ? 'Rp ' . number_format($row['ending_debit'], 0, ',', '.') : '—' }}
                                 </td>
 
                                 <!-- Saldo Akhir Kredit -->
-                                <td class="whitespace-nowrap px-3 py-3 text-right font-mono text-xs bg-sky-50/30 {{ $row['ending_credit'] > 0 ? 'font-bold text-slate-950' : 'text-slate-300' }}">
+                                <td class="whitespace-nowrap px-3 py-3 text-right font-mono text-xs tabular-nums bg-sky-50/40 {{ $row['ending_credit'] > 0 ? 'font-bold text-slate-950' : 'text-gray-300' }}">
                                     {{ $row['ending_credit'] > 0 ? 'Rp ' . number_format($row['ending_credit'], 0, ',', '.') : '—' }}
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="9" class="px-6 py-12 text-center text-slate-500">
-                                    <svg class="mx-auto h-10 w-10 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                                    <p class="mt-3 text-sm font-semibold text-slate-800">Tidak ada data untuk ditampilkan</p>
-                                    <p class="text-xs text-slate-500">Belum ada akun yang memiliki saldo atau mutasi pada kriteria filter ini.</p>
+                                <td colspan="9" class="px-6 py-12 text-center text-gray-500">
+                                    <svg class="mx-auto h-10 w-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                    <p class="mt-3 text-sm font-semibold text-gray-800">Tidak ada data untuk ditampilkan</p>
+                                    <p class="text-xs text-gray-500">Belum ada akun yang memiliki saldo atau mutasi pada kriteria filter ini.</p>
                                 </td>
                             </tr>
                         @endforelse
                     </tbody>
 
                     <!-- Footer Total Baris -->
-                    <tfoot class="border-t-2 border-slate-300 bg-slate-50 text-xs font-bold">
+                    <tfoot class="border-t-2 border-gray-300 bg-slate-50 text-xs font-bold">
                         <!-- Subtotal Saldo Awal & Mutasi -->
-                        <tr class="border-b border-slate-200">
-                            <td colspan="3" class="px-4 py-3 text-right uppercase tracking-wider text-slate-600">
+                        <tr class="border-b border-gray-200">
+                            <td colspan="3" class="px-4 py-3.5 text-right uppercase tracking-wider text-gray-700">
                                 Total Saldo Awal &amp; Mutasi:
                             </td>
-                            <td class="px-3 py-3 text-right font-mono text-slate-900 border-r border-slate-200">
+                            <td class="px-3 py-3.5 text-right font-mono tabular-nums text-gray-900 border-r border-gray-200">
                                 Rp {{ number_format($report['total_opening_debit'], 0, ',', '.') }}
                             </td>
-                            <td class="px-3 py-3 text-right font-mono text-slate-900 border-r border-slate-200">
+                            <td class="px-3 py-3.5 text-right font-mono tabular-nums text-gray-900 border-r border-gray-200">
                                 Rp {{ number_format($report['total_opening_credit'], 0, ',', '.') }}
                             </td>
-                            <td class="px-3 py-3 text-right font-mono text-sky-900 border-r border-slate-200">
+                            <td class="px-3 py-3.5 text-right font-mono tabular-nums text-sky-800 border-r border-gray-200">
                                 Rp {{ number_format($report['total_movement_debit'], 0, ',', '.') }}
                             </td>
-                            <td class="px-3 py-3 text-right font-mono text-amber-900 border-r border-slate-200">
+                            <td class="px-3 py-3.5 text-right font-mono tabular-nums text-amber-800 border-r border-gray-200">
                                 Rp {{ number_format($report['total_movement_credit'], 0, ',', '.') }}
                             </td>
-                            <td colspan="2" class="px-3 py-3 bg-slate-100"></td>
+                            <td colspan="2" class="px-3 py-3.5 bg-gray-100/60"></td>
                         </tr>
 
                         <!-- Grand Total Ending Balance -->
@@ -281,10 +315,10 @@
                             <td colspan="4" class="px-3 py-4 text-center text-xs font-normal text-slate-400">
                                 Penjumlahan Saldo Akhir Semua Akun
                             </td>
-                            <td class="px-3 py-4 text-right font-mono text-sm font-extrabold text-amber-300 border-r border-slate-800 bg-slate-950">
+                            <td class="px-3 py-4 text-right font-mono text-sm tabular-nums font-extrabold text-amber-300 border-r border-slate-800 bg-slate-950">
                                 Rp {{ number_format($report['total_ending_debit'], 0, ',', '.') }}
                             </td>
-                            <td class="px-3 py-4 text-right font-mono text-sm font-extrabold text-amber-300 bg-slate-950">
+                            <td class="px-3 py-4 text-right font-mono text-sm tabular-nums font-extrabold text-amber-300 bg-slate-950">
                                 Rp {{ number_format($report['total_ending_credit'], 0, ',', '.') }}
                             </td>
                         </tr>
@@ -294,7 +328,7 @@
         </section>
 
         <!-- Banner Validasi Keseimbangan (Double-Entry Audit) -->
-        <section class="rounded-2xl border {{ $isBalanced ? 'border-emerald-200 bg-emerald-50/50' : 'border-rose-200 bg-rose-50/50' }} p-6 shadow-sm">
+        <section class="rounded-xl border {{ $isBalanced ? 'border-emerald-200 bg-emerald-50/50' : 'border-rose-200 bg-rose-50/50' }} p-6 shadow-sm">
             <div class="flex flex-col justify-between gap-4 md:flex-row md:items-center">
                 <div class="flex items-start gap-4">
                     <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl {{ $isBalanced ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700' }}">
@@ -326,14 +360,14 @@
                 </div>
 
                 <div class="flex items-center gap-4 text-xs font-mono">
-                    <div class="rounded-xl border border-slate-200 bg-white p-3 text-right shadow-sm">
-                        <span class="text-slate-500 block text-[10px] uppercase font-sans">Ending Debit</span>
-                        <span class="font-bold text-slate-900">Rp {{ number_format($report['total_ending_debit'], 0, ',', '.') }}</span>
+                    <div class="rounded-xl border border-gray-200 bg-white p-3 text-right shadow-2xs">
+                        <span class="text-gray-500 block text-[10px] uppercase font-sans">Ending Debit</span>
+                        <span class="font-bold text-gray-900 tabular-nums">Rp {{ number_format($report['total_ending_debit'], 0, ',', '.') }}</span>
                     </div>
-                    <div class="text-slate-400 font-sans font-bold text-lg">=</div>
-                    <div class="rounded-xl border border-slate-200 bg-white p-3 text-right shadow-sm">
-                        <span class="text-slate-500 block text-[10px] uppercase font-sans">Ending Kredit</span>
-                        <span class="font-bold text-slate-900">Rp {{ number_format($report['total_ending_credit'], 0, ',', '.') }}</span>
+                    <div class="text-gray-400 font-sans font-bold text-lg">=</div>
+                    <div class="rounded-xl border border-gray-200 bg-white p-3 text-right shadow-2xs">
+                        <span class="text-gray-500 block text-[10px] uppercase font-sans">Ending Kredit</span>
+                        <span class="font-bold text-gray-900 tabular-nums">Rp {{ number_format($report['total_ending_credit'], 0, ',', '.') }}</span>
                     </div>
                 </div>
             </div>

@@ -48,11 +48,22 @@ class AccountingReportWebTest extends TestCase
         $response = $this->actingAs($this->master)->get('/reports/accounting/trial-balance');
 
         $response->assertStatus(200);
-        $response->assertSee('Neraca Saldo (Trial Balance)');
+        $response->assertSee('Neraca Saldo &mdash; <span class="text-slate-800">Konsolidasi Seluruh Cabang</span>', false);
         $response->assertSee('SEIMBANG');
         $response->assertSee('Saldo Awal');
         $response->assertSee('Mutasi Periode');
         $response->assertSee('Saldo Akhir');
+        $response->assertSee('Cabang / Toko');
+    }
+
+    public function test_trial_balance_page_renders_filtered_by_branch(): void
+    {
+        $response = $this->actingAs($this->master)->get('/reports/accounting/trial-balance?branch_id=' . $this->central->id);
+
+        $response->assertStatus(200);
+        $response->assertSee('Neraca Saldo &mdash; <span class="text-sky-700 uppercase tracking-tight">' . $this->central->name . '</span>', false);
+        $response->assertSee('Filter Toko: <strong class="uppercase">' . $this->central->name . '</strong>', false);
+        $response->assertSee('SEIMBANG');
     }
 
     public function test_income_statement_page_renders_with_profit_margins(): void
@@ -60,12 +71,23 @@ class AccountingReportWebTest extends TestCase
         $response = $this->actingAs($this->master)->get('/reports/accounting/income-statement');
 
         $response->assertStatus(200);
-        $response->assertSee('Laporan Laba Rugi (Income Statement)');
+        $response->assertSee('Laporan Laba Rugi &mdash; <span class="text-slate-800">Konsolidasi Seluruh Cabang</span>', false);
         $response->assertSee('Gross Profit Margin');
         $response->assertSee('Net Profit Margin');
         $response->assertSee('GPM:');
         $response->assertSee('NPM:');
         $response->assertSee('Beban Operasional');
+        $response->assertSee('Cabang / Toko');
+    }
+
+    public function test_income_statement_page_renders_filtered_by_branch(): void
+    {
+        $response = $this->actingAs($this->master)->get('/reports/accounting/income-statement?branch_id=' . $this->central->id);
+
+        $response->assertStatus(200);
+        $response->assertSee('Laporan Laba Rugi &mdash; <span class="text-sky-700 uppercase tracking-tight">' . $this->central->name . '</span>', false);
+        $response->assertSee('Filter Toko: <strong class="uppercase">' . $this->central->name . '</strong>', false);
+        $response->assertSee('Gross Profit Margin');
     }
 
     public function test_ledger_page_renders_consolidated(): void
