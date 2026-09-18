@@ -4,9 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Buku Besar (General Ledger) | Maju Bersama ERP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
         @media print {
             .no-print { display: none !important; }
             body { background: white !important; color: black !important; }
@@ -70,7 +73,7 @@
         <!-- Judul & Breadcrumb -->
         <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-                <p class="text-sm font-semibold uppercase tracking-wider text-amber-600">Laporan Keuangan</p>
+                <p class="text-xs font-semibold uppercase tracking-wider text-amber-600">Laporan Keuangan</p>
                 <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Buku Besar (General Ledger)</h2>
                 <p class="mt-1 text-sm text-slate-500">
                     Cakupan: <span class="font-semibold text-slate-800">{{ $report['branch']['name'] }}</span>
@@ -87,14 +90,14 @@
             </div>
         </div>
 
-        <!-- Form Filter -->
-        <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm no-print">
-            <form method="GET" action="/reports/accounting/ledger" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+        <!-- 1. Form Filter (Pencarian) -->
+        <section class="rounded-lg border border-gray-200 bg-gray-50/50 p-5 shadow-sm no-print">
+            <form method="GET" action="/reports/accounting/ledger" class="grid gap-4 sm:grid-cols-2 {{ $isMaster ? 'lg:grid-cols-5' : 'lg:grid-cols-4' }} items-end">
                 <!-- Pilihan Cabang (Hanya untuk Master) -->
                 @if ($isMaster)
                     <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600">Cabang</label>
-                        <select name="branch_id" class="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500">
+                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">Cabang</label>
+                        <select name="branch_id" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500">
                             <option value="">Semua Cabang (Konsolidasi)</option>
                             @foreach ($branches as $branch)
                                 <option value="{{ $branch->id }}" {{ (string) $branchId === (string) $branch->id ? 'selected' : '' }}>
@@ -107,8 +110,8 @@
 
                 <!-- Pilihan Akun -->
                 <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600">Akun Perkiraan</label>
-                    <select name="account_id" class="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500">
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">Akun Perkiraan</label>
+                    <select name="account_id" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500">
                         <option value="">Semua Akun Aktif</option>
                         @foreach ($accounts as $acc)
                             <option value="{{ $acc->id }}" {{ (string) $accountId === (string) $acc->id ? 'selected' : '' }}>
@@ -120,22 +123,23 @@
 
                 <!-- Dari Tanggal -->
                 <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600">Dari Tanggal</label>
-                    <input type="date" name="start_date" value="{{ $startDate }}" class="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500">
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">Dari Tanggal</label>
+                    <input type="date" name="start_date" value="{{ $startDate }}" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500">
                 </div>
 
                 <!-- Sampai Tanggal -->
                 <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600">Sampai Tanggal</label>
-                    <input type="date" name="end_date" value="{{ $endDate }}" class="mt-1.5 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500">
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">Sampai Tanggal</label>
+                    <input type="date" name="end_date" value="{{ $endDate }}" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500">
                 </div>
 
-                <!-- Tombol Submit -->
-                <div class="flex items-end gap-2">
-                    <button type="submit" class="w-full rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700">
+                <!-- Tombol Submit & Reset -->
+                <div class="flex items-center gap-2">
+                    <button type="submit" class="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:ring-offset-1">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
                         Terapkan
                     </button>
-                    <a href="/reports/accounting/ledger" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                    <a href="/reports/accounting/ledger" class="inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 shadow-sm transition hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-200">
                         Reset
                     </a>
                 </div>
@@ -148,125 +152,166 @@
                 @php
                     $acc = $item['account'];
                 @endphp
-                <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <!-- Header Akun -->
-                    <div class="flex flex-col justify-between gap-4 border-b border-slate-200 bg-slate-50 px-6 py-4 sm:flex-row sm:items-center">
-                        <div class="flex items-center gap-3">
-                            <span class="rounded-lg bg-slate-900 px-3 py-1 font-mono text-sm font-bold text-amber-400">
+                <section class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                    <!-- 2. Header Akun (Flexbox/Grid Dua Sisi) -->
+                    <div class="flex flex-col gap-4 border-b border-gray-200 bg-slate-50/60 px-6 py-4 xl:flex-row xl:items-center xl:justify-between">
+                        <!-- Sisi Kiri -->
+                        <div class="flex items-start gap-3">
+                            <span class="inline-flex items-center rounded-md bg-slate-800 px-2 py-1 font-mono text-sm font-semibold text-white shadow-sm shrink-0">
                                 {{ $acc['code'] }}
                             </span>
                             <div>
-                                <h3 class="text-lg font-bold text-slate-950">{{ $acc['name'] }}</h3>
-                                <p class="text-xs text-slate-500">
-                                    Tipe: <span class="font-semibold uppercase text-slate-700">{{ $acc['type'] }}</span> &middot; 
-                                    Saldo Normal: <span class="font-semibold uppercase {{ $acc['normal_balance'] === 'debit' ? 'text-sky-700' : 'text-emerald-700' }}">{{ $acc['normal_balance'] }}</span>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <h3 class="text-lg font-bold text-gray-900 leading-snug">{{ $acc['name'] }}</h3>
+                                    <span class="inline-block rounded border border-gray-200 bg-white px-2 py-0.5 text-[11px] font-medium text-gray-600 uppercase">
+                                        Saldo Normal: {{ $acc['normal_balance'] }}
+                                    </span>
+                                </div>
+                                <p class="mt-0.5 text-xs text-gray-500">
+                                    Tipe Akun: <span class="font-medium text-gray-700 uppercase">{{ $acc['type'] }}</span>
                                 </p>
                             </div>
                         </div>
-                        <!-- Stat Mini Saldo -->
-                        <div class="flex flex-wrap items-center gap-4 text-xs sm:text-right">
-                            <div>
-                                <span class="text-slate-500">Saldo Awal:</span>
-                                <span class="ml-1 font-bold text-slate-900">Rp {{ number_format($item['beginning_balance'], 0, ',', '.') }}</span>
+
+                        <!-- Sisi Kanan (Mini Stats: 4 Kolom) -->
+                        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+                            <!-- Saldo Awal -->
+                            <div class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-right shadow-xs">
+                                <span class="block text-[11px] font-medium uppercase tracking-wider text-gray-500">Saldo Awal</span>
+                                <span class="block text-xs font-semibold tabular-nums {{ $item['beginning_balance'] < 0 ? 'text-red-600' : 'text-gray-900' }}">
+                                    @if ($item['beginning_balance'] < 0)
+                                        (Rp {{ number_format(abs($item['beginning_balance']), 0, ',', '.') }})
+                                    @else
+                                        Rp {{ number_format($item['beginning_balance'], 0, ',', '.') }}
+                                    @endif
+                                </span>
                             </div>
-                            <div class="text-sky-700">
-                                <span class="text-slate-500">Total Debit:</span>
-                                <span class="ml-1 font-bold">Rp {{ number_format($item['total_debit'], 0, ',', '.') }}</span>
+
+                            <!-- Total Debit -->
+                            <div class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-right shadow-xs">
+                                <span class="block text-[11px] font-medium uppercase tracking-wider text-gray-500">Total Debit</span>
+                                <span class="block text-xs font-semibold tabular-nums text-sky-700">
+                                    Rp {{ number_format($item['total_debit'], 0, ',', '.') }}
+                                </span>
                             </div>
-                            <div class="text-amber-700">
-                                <span class="text-slate-500">Total Kredit:</span>
-                                <span class="ml-1 font-bold">Rp {{ number_format($item['total_credit'], 0, ',', '.') }}</span>
+
+                            <!-- Total Kredit -->
+                            <div class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-right shadow-xs">
+                                <span class="block text-[11px] font-medium uppercase tracking-wider text-gray-500">Total Kredit</span>
+                                <span class="block text-xs font-semibold tabular-nums text-amber-700">
+                                    Rp {{ number_format($item['total_credit'], 0, ',', '.') }}
+                                </span>
                             </div>
-                            <div class="rounded-lg border border-slate-300 bg-white px-2.5 py-1">
-                                <span class="text-slate-500">Saldo Akhir:</span>
-                                <span class="ml-1 font-bold text-slate-950">Rp {{ number_format($item['ending_balance'], 0, ',', '.') }}</span>
+
+                            <!-- Saldo Akhir (Penekanan Visual Badge Biru Muda) -->
+                            <div class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-right shadow-sm">
+                                <span class="block text-[11px] font-semibold uppercase tracking-wider text-blue-600">Saldo Akhir</span>
+                                <span class="block text-xs font-bold tabular-nums {{ $item['ending_balance'] < 0 ? 'text-red-600' : 'text-blue-700' }}">
+                                    @if ($item['ending_balance'] < 0)
+                                        (Rp {{ number_format(abs($item['ending_balance']), 0, ',', '.') }})
+                                    @else
+                                        Rp {{ number_format($item['ending_balance'], 0, ',', '.') }}
+                                    @endif
+                                </span>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Tabel Transaksi -->
+                    <!-- 3. Tabel Transaksi (SaaS Standard) -->
                     <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
-                            <thead class="bg-slate-100 text-xs font-semibold uppercase tracking-wider text-slate-600">
+                        <table class="min-w-full divide-y divide-gray-200 text-left text-sm">
+                            <thead class="bg-gray-100 text-xs font-semibold uppercase tracking-wider text-gray-600 border-b border-gray-200">
                                 <tr>
-                                    <th class="px-5 py-3">Tanggal</th>
-                                    <th class="px-5 py-3">No. Referensi</th>
-                                    <th class="px-5 py-3">Keterangan</th>
-                                    <th class="px-5 py-3">Memo / Catatan</th>
+                                    <th class="whitespace-nowrap px-5 py-3.5">Tanggal</th>
+                                    <th class="whitespace-nowrap px-5 py-3.5">No. Referensi</th>
+                                    <th class="px-5 py-3.5">Keterangan</th>
+                                    <th class="px-5 py-3.5">Memo / Catatan</th>
                                     @if ($isMaster && $branchId === null)
-                                        <th class="px-5 py-3">Cabang</th>
+                                        <th class="whitespace-nowrap px-5 py-3.5">Cabang</th>
                                     @endif
-                                    <th class="px-5 py-3 text-right">Debit</th>
-                                    <th class="px-5 py-3 text-right">Kredit</th>
-                                    <th class="px-5 py-3 text-right">Saldo Berjalan</th>
+                                    <th class="whitespace-nowrap px-5 py-3.5 text-right">Debit</th>
+                                    <th class="whitespace-nowrap px-5 py-3.5 text-right">Kredit</th>
+                                    <th class="whitespace-nowrap px-5 py-3.5 text-right">Saldo Berjalan</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100">
+                            <tbody class="divide-y divide-gray-100 bg-white">
                                 <!-- Baris Saldo Awal -->
-                                <tr class="bg-amber-50/40 text-xs font-medium text-slate-600">
-                                    <td class="px-5 py-3 font-mono">{{ $startDate ? \Carbon\Carbon::parse($startDate)->format('d/m/Y') : '-' }}</td>
-                                    <td class="px-5 py-3 font-mono text-slate-400">—</td>
-                                    <td colspan="{{ ($isMaster && $branchId === null) ? '3' : '2' }}" class="px-5 py-3 font-semibold text-slate-800">
-                                        SALDO AWAL (SEBELUM {{ $startDate ? \Carbon\Carbon::parse($startDate)->format('d M Y') : 'PERIODE' }})
+                                <tr class="bg-amber-50/40 border-b border-gray-100 text-xs font-medium text-gray-600">
+                                    <td class="whitespace-nowrap px-5 py-3 font-mono tabular-nums">{{ $startDate ? \Carbon\Carbon::parse($startDate)->format('d/m/Y') : '-' }}</td>
+                                    <td class="whitespace-nowrap px-5 py-3 font-mono text-gray-400">—</td>
+                                    <td colspan="{{ ($isMaster && $branchId === null) ? '3' : '2' }}" class="px-5 py-3 font-semibold text-gray-800">
+                                        SALDO AWAL {{ $startDate ? '(SEBELUM ' . \Carbon\Carbon::parse($startDate)->format('d M Y') . ')' : '' }}
                                     </td>
-                                    <td class="px-5 py-3 text-right text-slate-400">—</td>
-                                    <td class="px-5 py-3 text-right text-slate-400">—</td>
-                                    <td class="px-5 py-3 text-right font-bold text-slate-900">
-                                        Rp {{ number_format($item['beginning_balance'], 0, ',', '.') }}
+                                    <td class="whitespace-nowrap px-5 py-3 text-right font-mono tabular-nums text-gray-400">—</td>
+                                    <td class="whitespace-nowrap px-5 py-3 text-right font-mono tabular-nums text-gray-400">—</td>
+                                    <td class="whitespace-nowrap px-5 py-3 text-right font-mono text-xs font-bold tabular-nums {{ $item['beginning_balance'] < 0 ? 'text-red-600' : 'text-gray-900' }}">
+                                        @if ($item['beginning_balance'] < 0)
+                                            (Rp {{ number_format(abs($item['beginning_balance']), 0, ',', '.') }})
+                                        @else
+                                            Rp {{ number_format($item['beginning_balance'], 0, ',', '.') }}
+                                        @endif
                                     </td>
                                 </tr>
 
                                 @forelse ($item['lines'] as $line)
-                                    <tr class="transition hover:bg-slate-50">
-                                        <td class="whitespace-nowrap px-5 py-3.5 font-mono text-xs text-slate-700">
+                                    <tr class="border-b border-gray-100 transition hover:bg-gray-50 text-sm">
+                                        <td class="whitespace-nowrap px-5 py-3.5 font-mono text-xs text-gray-600 tabular-nums">
                                             {{ \Carbon\Carbon::parse($line['date'])->format('d/m/Y') }}
                                         </td>
                                         <td class="whitespace-nowrap px-5 py-3.5 font-mono text-xs font-semibold text-sky-700">
                                             {{ $line['reference_number'] }}
                                         </td>
-                                        <td class="px-5 py-3.5 text-slate-800 font-medium">
+                                        <td class="px-5 py-3.5 text-gray-800 font-medium text-sm">
                                             {{ $line['description'] }}
                                         </td>
-                                        <td class="px-5 py-3.5 text-xs text-slate-500">
+                                        <td class="px-5 py-3.5 text-xs text-gray-500">
                                             {{ $line['memo'] ?? '—' }}
                                         </td>
                                         @if ($isMaster && $branchId === null)
-                                            <td class="whitespace-nowrap px-5 py-3.5 text-xs text-slate-600">
-                                                <span class="rounded bg-slate-100 px-2 py-0.5">{{ $line['branch_name'] }}</span>
+                                            <td class="whitespace-nowrap px-5 py-3.5 text-xs text-gray-600">
+                                                <span class="rounded bg-gray-100 px-2 py-0.5">{{ $line['branch_name'] }}</span>
                                             </td>
                                         @endif
-                                        <td class="whitespace-nowrap px-5 py-3.5 text-right font-mono text-xs {{ $line['debit'] > 0 ? 'font-semibold text-slate-900' : 'text-slate-300' }}">
-                                            {{ $line['debit'] > 0 ? 'Rp '.number_format($line['debit'], 0, ',', '.') : '—' }}
+                                        <td class="whitespace-nowrap px-5 py-3.5 text-right font-mono text-sm tabular-nums {{ $line['debit'] > 0 ? 'font-medium text-gray-900' : 'text-gray-300' }}">
+                                            {{ $line['debit'] > 0 ? 'Rp ' . number_format($line['debit'], 0, ',', '.') : '—' }}
                                         </td>
-                                        <td class="whitespace-nowrap px-5 py-3.5 text-right font-mono text-xs {{ $line['credit'] > 0 ? 'font-semibold text-slate-900' : 'text-slate-300' }}">
-                                            {{ $line['credit'] > 0 ? 'Rp '.number_format($line['credit'], 0, ',', '.') : '—' }}
+                                        <td class="whitespace-nowrap px-5 py-3.5 text-right font-mono text-sm tabular-nums {{ $line['credit'] > 0 ? 'font-medium text-gray-900' : 'text-gray-300' }}">
+                                            {{ $line['credit'] > 0 ? 'Rp ' . number_format($line['credit'], 0, ',', '.') : '—' }}
                                         </td>
-                                        <td class="whitespace-nowrap px-5 py-3.5 text-right font-mono text-xs font-bold text-slate-950">
-                                            Rp {{ number_format($line['balance'], 0, ',', '.') }}
+                                        <td class="whitespace-nowrap px-5 py-3.5 text-right font-mono text-sm tabular-nums font-semibold {{ $line['balance'] < 0 ? 'text-red-600 font-bold' : 'text-gray-900' }}">
+                                            @if ($line['balance'] < 0)
+                                                (Rp {{ number_format(abs($line['balance']), 0, ',', '.') }})
+                                            @else
+                                                Rp {{ number_format($line['balance'], 0, ',', '.') }}
+                                            @endif
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="{{ ($isMaster && $branchId === null) ? '8' : '7' }}" class="px-5 py-4 text-center text-xs text-slate-400 italic">
+                                        <td colspan="{{ ($isMaster && $branchId === null) ? '8' : '7' }}" class="px-5 py-6 text-center text-xs text-gray-400 italic">
                                             Tidak ada mutasi transaksi pada periode yang dipilih.
                                         </td>
                                     </tr>
                                 @endforelse
                             </tbody>
-                            <!-- Footer Ringkasan Akun -->
-                            <tfoot class="border-t-2 border-slate-200 bg-slate-50 text-xs font-bold">
+                            <!-- 4. Baris Total (Footer Tabel) -->
+                            <tfoot class="border-t-2 border-gray-300 bg-slate-50 text-xs font-bold text-gray-900">
                                 <tr>
-                                    <td colspan="{{ ($isMaster && $branchId === null) ? '5' : '4' }}" class="px-5 py-3.5 text-right text-slate-700 uppercase">
-                                        Total Mutasi &amp; Saldo Akhir {{ $acc['name'] }}:
+                                    <td colspan="{{ ($isMaster && $branchId === null) ? '5' : '4' }}" class="px-5 py-3.5 text-right uppercase tracking-wider text-gray-700">
+                                        TOTAL MUTASI &amp; SALDO AKHIR {{ $acc['name'] }}:
                                     </td>
-                                    <td class="px-5 py-3.5 text-right text-sky-900">
+                                    <td class="whitespace-nowrap px-5 py-3.5 text-right font-mono text-sm tabular-nums text-sky-800">
                                         Rp {{ number_format($item['total_debit'], 0, ',', '.') }}
                                     </td>
-                                    <td class="px-5 py-3.5 text-right text-amber-900">
+                                    <td class="whitespace-nowrap px-5 py-3.5 text-right font-mono text-sm tabular-nums text-amber-800">
                                         Rp {{ number_format($item['total_credit'], 0, ',', '.') }}
                                     </td>
-                                    <td class="px-5 py-3.5 text-right text-slate-950 bg-slate-100 font-extrabold">
-                                        Rp {{ number_format($item['ending_balance'], 0, ',', '.') }}
+                                    <td class="whitespace-nowrap px-5 py-3.5 text-right font-mono text-sm tabular-nums bg-gray-100 font-extrabold {{ $item['ending_balance'] < 0 ? 'text-red-600' : 'text-gray-900' }}">
+                                        @if ($item['ending_balance'] < 0)
+                                            (Rp {{ number_format(abs($item['ending_balance']), 0, ',', '.') }})
+                                        @else
+                                            Rp {{ number_format($item['ending_balance'], 0, ',', '.') }}
+                                        @endif
                                     </td>
                                 </tr>
                             </tfoot>
@@ -274,30 +319,30 @@
                     </div>
                 </section>
             @empty
-                <div class="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
-                    <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                    <h3 class="mt-4 text-base font-semibold text-slate-900">Tidak ada data buku besar</h3>
-                    <p class="mt-1 text-sm text-slate-500">Belum ada transaksi atau saldo pada rentang tanggal dan cabang yang dipilih.</p>
+                <div class="rounded-xl border border-dashed border-gray-300 bg-white p-12 text-center shadow-sm">
+                    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    <h3 class="mt-4 text-base font-semibold text-gray-900">Tidak ada data buku besar</h3>
+                    <p class="mt-1 text-sm text-gray-500">Belum ada transaksi atau saldo pada rentang tanggal dan cabang yang dipilih.</p>
                 </div>
             @endforelse
         </div>
 
         <!-- Grand Total Summary -->
         @if (count($report['accounts']) > 0)
-            <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
                 <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                     <div>
-                        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Grand Total Mutasi Periode</p>
-                        <p class="text-sm text-slate-600">Akumulasi seluruh debit dan kredit akun aktif pada periode ini</p>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Grand Total Mutasi Periode</p>
+                        <p class="text-sm text-gray-600">Akumulasi seluruh debit dan kredit akun aktif pada periode ini</p>
                     </div>
-                    <div class="flex items-center gap-6 text-sm font-bold">
-                        <div>
-                            <span class="text-slate-500 font-medium">Grand Total Debit:</span>
-                            <span class="ml-2 font-mono text-sky-700">Rp {{ number_format($report['grand_total_debit'], 0, ',', '.') }}</span>
+                    <div class="flex flex-wrap items-center gap-4 text-sm font-bold">
+                        <div class="rounded-lg bg-gray-50 border border-gray-200 px-4 py-2">
+                            <span class="text-gray-500 font-medium text-xs block uppercase">Grand Total Debit</span>
+                            <span class="font-mono text-sky-700 text-base font-bold tabular-nums">Rp {{ number_format($report['grand_total_debit'], 0, ',', '.') }}</span>
                         </div>
-                        <div>
-                            <span class="text-slate-500 font-medium">Grand Total Kredit:</span>
-                            <span class="ml-2 font-mono text-amber-700">Rp {{ number_format($report['grand_total_credit'], 0, ',', '.') }}</span>
+                        <div class="rounded-lg bg-gray-50 border border-gray-200 px-4 py-2">
+                            <span class="text-gray-500 font-medium text-xs block uppercase">Grand Total Kredit</span>
+                            <span class="font-mono text-amber-700 text-base font-bold tabular-nums">Rp {{ number_format($report['grand_total_credit'], 0, ',', '.') }}</span>
                         </div>
                     </div>
                 </div>
