@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Branch;
 use App\Models\GoodsReceipt;
 use App\Models\Product;
+use App\Models\PurchaseOrder;
 use App\Services\GoodsReceiptService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -94,11 +95,53 @@ class GoodsReceiptController extends Controller
             'stock' => (int) $p->availableQuantity(),
         ])->values();
 
+        // Fetch active POs (pending or partial) with items and supplier
+        $activePOs = PurchaseOrder::withoutGlobalScopes()
+            ->with(['supplier', 'items.product'])
+            ->whereIn('status', ['pending', 'partial'])
+            ->when($centralBranch, fn ($q) => $q->where('branch_id', $centralBranch->id))
+            ->latest('order_date')
+            ->latest('id')
+            ->get();
+
+        if ($activePOs->isEmpty()) {
+            $activePOs = PurchaseOrder::withoutGlobalScopes()
+                ->with(['supplier', 'items.product'])
+                ->whereIn('status', ['pending', 'partial'])
+                ->latest('order_date')
+                ->latest('id')
+                ->get();
+        }
+
+        $activePOsData = $activePOs->map(function (PurchaseOrder $po) {
+            return [
+                'id'               => $po->id,
+                'reference_number' => $po->reference_number,
+                'supplier_name'    => $po->supplier?->name ?? '',
+                'order_date'       => $po->order_date ? $po->order_date->format('d/m/Y') : '',
+                'status'           => $po->status,
+                'items'            => $po->items->map(function ($item) {
+                    $remaining = max(0, (int) $item->quantity - (int) $item->received_quantity);
+                    return [
+                        'product_id'         => $item->product_id,
+                        'product_name'       => $item->product?->name ?? 'Produk #' . $item->product_id,
+                        'sku'                => $item->product?->sku ?? '',
+                        'quantity'           => (int) $item->quantity,
+                        'received_quantity'  => (int) $item->received_quantity,
+                        'remaining_quantity' => $remaining,
+                        'unit_price'         => (float) $item->unit_price,
+                    ];
+                })->filter(fn ($item) => $item['remaining_quantity'] > 0)->values(),
+            ];
+        })->values();
+
         return view('purchases.goods-receipts.create', [
-            'currentUser' => $user,
+            'currentUser'   => $user,
             'centralBranch' => $centralBranch,
-            'products' => $productsData,
-            'todayDate' => now()->toDateString(),
+            'products'      => $productsData,
+            'activePOs'     => $activePOs,
+            'activePOsData' => $activePOsData,
+            'todayDate'     => now()->toDateString(),
         ]);
     }
 
@@ -108,6 +151,7 @@ class GoodsReceiptController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
+            'purchase_order_id' => ['nullable', 'integer', 'exists:purchase_orders,id'],
             'supplier_name' => ['nullable', 'string', 'max:255'],
             'date' => ['required', 'date'],
             'payment_type' => ['required', 'in:cash,credit'],

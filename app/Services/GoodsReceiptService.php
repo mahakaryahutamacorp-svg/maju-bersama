@@ -8,6 +8,7 @@ use App\Models\GoodsReceipt;
 use App\Models\Inventory;
 use App\Models\JournalHeader;
 use App\Models\Product;
+use App\Models\PurchaseOrder;
 use App\Models\User;
 use App\Models\Warehouse;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +21,7 @@ use Illuminate\Validation\ValidationException;
  * 1. Creates GoodsReceipt and GoodsReceiptItem records.
  * 2. Increments stock in inventories table and products cached stock with lockForUpdate().
  * 3. Records double-entry balanced accounting journal (Dr 1210 Persediaan, Cr 1110 Kas / 2110 Hutang Dagang).
+ * 4. If linked to Purchase Order: updates PO items received_quantity, transitions PO status, and records Hutang Usaha.
  */
 class GoodsReceiptService
 {
@@ -32,6 +34,7 @@ class GoodsReceiptService
      *
      * @param array{
      *     branch_id?: int|null,
+     *     purchase_order_id?: int|null,
      *     reference_number?: string|null,
      *     supplier_name?: string|null,
      *     date?: string|null,
@@ -40,7 +43,7 @@ class GoodsReceiptService
      *     items: array<int, array{
      *         product_id: int,
      *         quantity: int,
-     *         unit_price: float|string,
+     *         unit_price?: float|string|null,
      *         subtotal?: float|string|null
      *     }>
      * } $data
@@ -55,16 +58,41 @@ class GoodsReceiptService
             ]);
         }
 
-        $paymentType = strtolower($data['payment_type'] ?? 'cash');
+        // 1. Check if purchase_order_id is provided and validate PO
+        $purchaseOrderId = ! empty($data['purchase_order_id']) ? (int) $data['purchase_order_id'] : null;
+        $purchaseOrder = null;
+
+        if ($purchaseOrderId) {
+            $purchaseOrder = PurchaseOrder::withoutGlobalScopes()
+                ->with(['items', 'supplier'])
+                ->find($purchaseOrderId);
+
+            if (! $purchaseOrder) {
+                throw ValidationException::withMessages([
+                    'purchase_order_id' => ['Purchase Order tidak ditemukan.'],
+                ]);
+            }
+
+            if (in_array($purchaseOrder->status, ['completed', 'cancelled'], true)) {
+                throw ValidationException::withMessages([
+                    'purchase_order_id' => ["Purchase Order tidak dapat diproses karena berstatus {$purchaseOrder->status}."],
+                ]);
+            }
+        }
+
+        $paymentType = $purchaseOrder
+            ? 'credit'
+            : strtolower($data['payment_type'] ?? 'cash');
+
         if (! in_array($paymentType, ['cash', 'credit'], true)) {
             throw ValidationException::withMessages([
                 'payment_type' => ['Payment type must be either cash or credit.'],
             ]);
         }
 
-        return DB::transaction(function () use ($data, $actor, $paymentType): GoodsReceipt {
+        return DB::transaction(function () use ($data, $actor, $paymentType, $purchaseOrder): GoodsReceipt {
             // Resolve central branch
-            $branch = $this->resolveCentralBranch($data['branch_id'] ?? null);
+            $branch = $this->resolveCentralBranch($data['branch_id'] ?? $purchaseOrder?->branch_id);
 
             // Resolve accounting ledgers
             $inventoryAccount = $this->resolveInventoryAccount();
@@ -76,6 +104,7 @@ class GoodsReceiptService
                 : $this->generateReferenceNumber();
 
             $date = $data['date'] ?? now()->toDateString();
+            $supplierName = $data['supplier_name'] ?? $purchaseOrder?->supplier?->name;
 
             // Calculate totals and prepare item data
             $totalAmount = '0.00';
@@ -84,7 +113,6 @@ class GoodsReceiptService
             foreach ($data['items'] as $index => $itemData) {
                 $productId = (int) ($itemData['product_id'] ?? 0);
                 $quantity = (int) ($itemData['quantity'] ?? 0);
-                $unitPrice = (string) ($itemData['unit_price'] ?? '0.00');
 
                 if ($quantity <= 0) {
                     throw ValidationException::withMessages([
@@ -92,7 +120,17 @@ class GoodsReceiptService
                     ]);
                 }
 
-                $subtotal = isset($itemData['subtotal'])
+                // If linked to PO, resolve unit_price from PO item or itemData
+                $poItem = null;
+                if ($purchaseOrder) {
+                    $poItem = $purchaseOrder->items->firstWhere('product_id', $productId);
+                }
+
+                $unitPrice = $poItem
+                    ? (string) $poItem->unit_price
+                    : (string) ($itemData['unit_price'] ?? '0.00');
+
+                $subtotal = isset($itemData['subtotal']) && ! $poItem
                     ? (string) $itemData['subtotal']
                     : bcmul($unitPrice, (string) $quantity, 2);
 
@@ -100,21 +138,23 @@ class GoodsReceiptService
 
                 $processedItems[] = [
                     'product_id' => $productId,
-                    'quantity' => $quantity,
+                    'quantity'   => $quantity,
                     'unit_price' => $unitPrice,
-                    'subtotal' => $subtotal,
+                    'subtotal'   => $subtotal,
+                    'po_item'    => $poItem,
                 ];
             }
 
             // Langkah A: Simpan data ke goods_receipts
             $receipt = GoodsReceipt::create([
-                'branch_id' => $branch->id,
-                'reference_number' => $referenceNumber,
-                'supplier_name' => $data['supplier_name'] ?? null,
-                'date' => $date,
-                'total_amount' => $totalAmount,
-                'payment_type' => $paymentType,
-                'notes' => $data['notes'] ?? null,
+                'branch_id'         => $branch->id,
+                'purchase_order_id' => $purchaseOrder?->id,
+                'reference_number'  => $referenceNumber,
+                'supplier_name'     => $supplierName,
+                'date'              => $date,
+                'total_amount'      => $totalAmount,
+                'payment_type'      => $paymentType,
+                'notes'             => $data['notes'] ?? null,
             ]);
 
             // Langkah B: Update kuantitas stok di inventories dan sync cache di products (dengan locking)
@@ -140,20 +180,39 @@ class GoodsReceiptService
                 // Create GoodsReceiptItem record
                 $receipt->items()->create([
                     'product_id' => $product->id,
-                    'quantity' => $item['quantity'],
+                    'quantity'   => $item['quantity'],
                     'unit_price' => $item['unit_price'],
-                    'subtotal' => $item['subtotal'],
+                    'subtotal'   => $item['subtotal'],
                 ]);
+
+                // Perbarui received_quantity pada purchase_order_items jika terkait PO
+                if ($item['po_item']) {
+                    $item['po_item']->increment('received_quantity', $item['quantity']);
+                }
             }
 
-            // Langkah C: Buat Jurnal Ganda Otomatis (JournalHeader & JournalLine)
+            // Langkah C: Pembaruan Status PO
+            if ($purchaseOrder) {
+                $purchaseOrder->refresh();
+                $totalOrdered = (int) $purchaseOrder->items->sum('quantity');
+                $totalReceived = (int) $purchaseOrder->items->sum('received_quantity');
+
+                if ($totalReceived >= $totalOrdered) {
+                    $purchaseOrder->update(['status' => 'completed']);
+                } elseif ($totalReceived > 0) {
+                    $purchaseOrder->update(['status' => 'partial']);
+                }
+            }
+
+            // Langkah D: Buat Jurnal Ganda Otomatis (JournalHeader & JournalLine)
             $this->recordJournal(
                 $receipt,
                 $branch->id,
                 $actor->id,
                 $inventoryAccount->id,
                 $creditAccount->id,
-                $totalAmount
+                $totalAmount,
+                $purchaseOrder
             );
 
             return $receipt->load(['items.product', 'branch']);
@@ -207,21 +266,34 @@ class GoodsReceiptService
         int $actorId,
         int $inventoryAccountId,
         int $creditAccountId,
-        string $totalAmount
+        string $totalAmount,
+        ?PurchaseOrder $purchaseOrder = null
     ): void {
         if (bccomp($totalAmount, '0.00', 2) === 0) {
             return;
         }
 
-        $supplierText = $receipt->supplier_name ? " dari {$receipt->supplier_name}" : '';
-        $paymentLabel = $receipt->payment_type === 'credit' ? 'Kredit (Hutang Dagang)' : 'Tunai (Kas)';
+        if ($purchaseOrder) {
+            $supplierName = $purchaseOrder->supplier?->name ?? $receipt->supplier_name ?? 'Supplier';
+            $description = "Penerimaan barang dari PO: {$purchaseOrder->reference_number} - Supplier: {$supplierName}";
+            $debitMemo = 'Penerimaan persediaan barang masuk gudang dari PO';
+            $creditMemo = 'Pencatatan hutang usaha atas penerimaan PO';
+        } else {
+            $supplierText = $receipt->supplier_name ? " dari {$receipt->supplier_name}" : '';
+            $paymentLabel = $receipt->payment_type === 'credit' ? 'Kredit (Hutang Dagang)' : 'Tunai (Kas)';
+            $description = "Penerimaan Barang {$receipt->reference_number}{$supplierText} [{$paymentLabel}]";
+            $debitMemo = 'Penerimaan persediaan barang masuk gudang';
+            $creditMemo = $receipt->payment_type === 'credit'
+                ? 'Pengakuan hutang dagang kepada supplier'
+                : 'Pengeluaran kas untuk pembelian persediaan';
+        }
 
         $journal = JournalHeader::create([
             'branch_id' => $branchId,
             'user_id' => $actorId,
             'transaction_date' => $receipt->date,
             'reference_number' => $receipt->reference_number,
-            'description' => "Penerimaan Barang {$receipt->reference_number}{$supplierText} [{$paymentLabel}]",
+            'description' => $description,
         ]);
 
         $journal->journalLines()->createMany([
@@ -229,15 +301,13 @@ class GoodsReceiptService
                 'chart_of_account_id' => $inventoryAccountId,
                 'debit' => $totalAmount,
                 'credit' => 0,
-                'memo' => 'Penerimaan persediaan barang masuk gudang',
+                'memo' => $debitMemo,
             ],
             [
                 'chart_of_account_id' => $creditAccountId,
                 'debit' => 0,
                 'credit' => $totalAmount,
-                'memo' => $receipt->payment_type === 'credit'
-                    ? 'Pengakuan hutang dagang kepada supplier'
-                    : 'Pengeluaran kas untuk pembelian persediaan',
+                'memo' => $creditMemo,
             ],
         ]);
     }

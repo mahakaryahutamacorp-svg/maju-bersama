@@ -10,8 +10,12 @@ use App\Models\GoodsReceiptItem;
 use App\Models\Inventory;
 use App\Models\JournalHeader;
 use App\Models\Product;
+use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderItem;
+use App\Models\Supplier;
 use App\Models\User;
 use App\Services\GoodsReceiptService;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class GoodsReceiptServiceTest extends TestCase
@@ -244,5 +248,182 @@ class GoodsReceiptServiceTest extends TestCase
 
         $newProduct->refresh();
         $this->assertEquals(50, $newProduct->stock);
+    }
+
+    public function test_goods_receipt_linked_to_po_records_payable_journal_and_updates_partial_status(): void
+    {
+        $supplier = Supplier::withoutGlobalScopes()->create([
+            'branch_id' => $this->central->id,
+            'name' => 'PT Agrindo Perkasa',
+            'is_active' => true,
+        ]);
+
+        $po = PurchaseOrder::withoutGlobalScopes()->create([
+            'branch_id' => $this->central->id,
+            'supplier_id' => $supplier->id,
+            'reference_number' => 'PO-20260919-0001',
+            'order_date' => '2026-09-19',
+            'status' => 'pending',
+            'total_amount' => 440000.00,
+        ]);
+
+        $poItemA = PurchaseOrderItem::create([
+            'purchase_order_id' => $po->id,
+            'product_id' => $this->productA->id,
+            'quantity' => 10,
+            'received_quantity' => 0,
+            'unit_price' => 14000,
+            'subtotal' => 140000,
+        ]);
+
+        $poItemB = PurchaseOrderItem::create([
+            'purchase_order_id' => $po->id,
+            'product_id' => $this->productB->id,
+            'quantity' => 5,
+            'received_quantity' => 0,
+            'unit_price' => 60000,
+            'subtotal' => 300000,
+        ]);
+
+        // Receive partial: 6 of Product A, 2 of Product B
+        // Value: (6 * 14000) + (2 * 60000) = 84000 + 120000 = 204000
+        $payload = [
+            'purchase_order_id' => $po->id,
+            'date' => '2026-09-19',
+            'items' => [
+                [
+                    'product_id' => $this->productA->id,
+                    'quantity' => 6,
+                ],
+                [
+                    'product_id' => $this->productB->id,
+                    'quantity' => 2,
+                ],
+            ],
+        ];
+
+        $receipt = $this->service->processReceipt($payload, $this->master);
+
+        // 1. GoodsReceipt assertions
+        $this->assertEquals($po->id, $receipt->purchase_order_id);
+        $this->assertEquals(204000.00, (float) $receipt->total_amount);
+        $this->assertEquals('credit', $receipt->payment_type);
+        $this->assertEquals('PT Agrindo Perkasa', $receipt->supplier_name);
+
+        // 2. PO items received_quantity updated
+        $poItemA->refresh();
+        $poItemB->refresh();
+        $this->assertEquals(6, $poItemA->received_quantity);
+        $this->assertEquals(2, $poItemB->received_quantity);
+
+        // 3. PO status changed to partial (8 received < 15 ordered)
+        $po->refresh();
+        $this->assertEquals('partial', $po->status);
+
+        // 4. Stock incremented: A (10 + 6 = 16), B (5 + 2 = 7)
+        $this->productA->refresh();
+        $this->productB->refresh();
+        $this->assertEquals(16, $this->productA->stock);
+        $this->assertEquals(7, $this->productB->stock);
+
+        // 5. Journal Hutang Usaha created
+        $journal = JournalHeader::with('journalLines')
+            ->where('reference_number', $receipt->reference_number)
+            ->first();
+
+        $this->assertNotNull($journal);
+        $this->assertEquals(
+            "Penerimaan barang dari PO: {$po->reference_number} - Supplier: PT Agrindo Perkasa",
+            $journal->description
+        );
+
+        $lines = $journal->journalLines;
+        $this->assertCount(2, $lines);
+
+        $debitLine = $lines->firstWhere('chart_of_account_id', $this->accountInventory->id);
+        $creditLine = $lines->firstWhere('chart_of_account_id', $this->accountPayable->id);
+
+        $this->assertNotNull($debitLine, 'Harus mencatat Debit ke Persediaan (1210)');
+        $this->assertNotNull($creditLine, 'Harus mencatat Kredit ke Hutang Usaha (2110)');
+
+        $this->assertEquals(204000.00, (float) $debitLine->debit);
+        $this->assertEquals(204000.00, (float) $creditLine->credit);
+        $this->assertEquals($lines->sum('debit'), $lines->sum('credit'));
+    }
+
+    public function test_goods_receipt_linked_to_po_completes_when_fully_received(): void
+    {
+        $supplier = Supplier::withoutGlobalScopes()->create([
+            'branch_id' => $this->central->id,
+            'name' => 'PT Mitra Sejati',
+            'is_active' => true,
+        ]);
+
+        $po = PurchaseOrder::withoutGlobalScopes()->create([
+            'branch_id' => $this->central->id,
+            'supplier_id' => $supplier->id,
+            'reference_number' => 'PO-FULL-001',
+            'order_date' => '2026-09-19',
+            'status' => 'pending',
+            'total_amount' => 140000.00,
+        ]);
+
+        $poItem = PurchaseOrderItem::create([
+            'purchase_order_id' => $po->id,
+            'product_id' => $this->productA->id,
+            'quantity' => 10,
+            'received_quantity' => 0,
+            'unit_price' => 14000,
+            'subtotal' => 140000,
+        ]);
+
+        // Receive full 10
+        $payload = [
+            'purchase_order_id' => $po->id,
+            'items' => [
+                [
+                    'product_id' => $this->productA->id,
+                    'quantity' => 10,
+                ],
+            ],
+        ];
+
+        $receipt = $this->service->processReceipt($payload, $this->master);
+
+        $poItem->refresh();
+        $this->assertEquals(10, $poItem->received_quantity);
+
+        $po->refresh();
+        $this->assertEquals('completed', $po->status);
+    }
+
+    public function test_goods_receipt_rejects_completed_or_cancelled_po(): void
+    {
+        $supplier = Supplier::withoutGlobalScopes()->create([
+            'branch_id' => $this->central->id,
+            'name' => 'PT Selesai Vendor',
+            'is_active' => true,
+        ]);
+
+        $completedPO = PurchaseOrder::withoutGlobalScopes()->create([
+            'branch_id' => $this->central->id,
+            'supplier_id' => $supplier->id,
+            'reference_number' => 'PO-CMP-001',
+            'order_date' => '2026-09-19',
+            'status' => 'completed',
+            'total_amount' => 140000.00,
+        ]);
+
+        $this->expectException(ValidationException::class);
+
+        $this->service->processReceipt([
+            'purchase_order_id' => $completedPO->id,
+            'items' => [
+                [
+                    'product_id' => $this->productA->id,
+                    'quantity' => 5,
+                ],
+            ],
+        ], $this->master);
     }
 }

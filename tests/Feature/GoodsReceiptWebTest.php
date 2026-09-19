@@ -95,4 +95,64 @@ class GoodsReceiptWebTest extends TestCase
         $showResponse->assertSee('Rp 1.250.000');
         $showResponse->assertSee('Jurnal Terposting');
     }
+
+    public function test_master_can_pull_po_and_store_goods_receipt(): void
+    {
+        $supplier = \App\Models\Supplier::withoutGlobalScopes()->create([
+            'branch_id' => $this->central->id,
+            'name' => 'PT Pangan Sumber Utama',
+            'is_active' => true,
+        ]);
+
+        $po = \App\Models\PurchaseOrder::withoutGlobalScopes()->create([
+            'branch_id' => $this->central->id,
+            'supplier_id' => $supplier->id,
+            'reference_number' => 'PO-TEST-WEB-01',
+            'order_date' => now()->toDateString(),
+            'status' => 'pending',
+            'total_amount' => 500000.00,
+        ]);
+
+        $poItem = \App\Models\PurchaseOrderItem::create([
+            'purchase_order_id' => $po->id,
+            'product_id' => $this->product->id,
+            'quantity' => 10,
+            'received_quantity' => 0,
+            'unit_price' => 50000,
+            'subtotal' => 500000,
+        ]);
+
+        // 1. Create page should see the active PO in JSON and in select options
+        $createResponse = $this->actingAs($this->master)->get('/purchases/goods-receipts/create');
+        $createResponse->assertOk();
+        $createResponse->assertSee('Tarik Data dari Purchase Order');
+        $createResponse->assertSee('PO-TEST-WEB-01');
+        $createResponse->assertSee('loadFromPO');
+
+        // 2. Submit Goods Receipt with purchase_order_id
+        $payload = [
+            'purchase_order_id' => $po->id,
+            'supplier_name' => 'PT Pangan Sumber Utama',
+            'date' => now()->toDateString(),
+            'payment_type' => 'credit',
+            'notes' => 'Penerimaan bertahap truk 1',
+            'items' => [
+                [
+                    'product_id' => $this->product->id,
+                    'quantity' => 6,
+                    'unit_price' => 50000,
+                ],
+            ],
+        ];
+
+        $postResponse = $this->actingAs($this->master)->post('/purchases/goods-receipts', $payload);
+        $postResponse->assertSessionHasNoErrors();
+        $postResponse->assertRedirect();
+
+        // 3. Verify PO updated to partial
+        $po->refresh();
+        $this->assertEquals('partial', $po->status);
+        $poItem->refresh();
+        $this->assertEquals(6, $poItem->received_quantity);
+    }
 }
