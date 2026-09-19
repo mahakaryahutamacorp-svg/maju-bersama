@@ -42,6 +42,10 @@
                     <span>Kategori Produk</span>
                     <span class="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">CRUD</span>
                 </a>
+                <a href="{{ route('backoffice.suppliers.index') }}" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
+                    <span>Data Supplier</span>
+                    <span class="text-[10px] bg-indigo-400/20 text-indigo-300 px-1.5 py-0.5 rounded">Supplier</span>
+                </a>
                 <a href="/backoffice/users" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
                     <span>Staf &amp; Kasir</span>
                     <span class="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">Akun</span>
@@ -55,6 +59,16 @@
                 <a href="/backoffice/warehouses" class="block rounded-lg px-3 py-2 text-sm font-medium text-teal-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
                     <span>Multi Gudang</span>
                     <span class="text-[10px] bg-teal-400/20 text-teal-300 px-1.5 py-0.5 rounded">CRUD</span>
+                </a>
+
+                <p class="px-3 pb-2 pt-5 text-xs font-semibold uppercase tracking-wider text-amber-400/90">Pengadaan &amp; PO</p>
+                <a href="{{ route('backoffice.purchase-orders.index') }}" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
+                    <span>Pembelian / PO</span>
+                    <span class="text-[10px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded">PO</span>
+                </a>
+                <a href="/purchases/goods-receipts" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
+                    <span>Penerimaan Barang</span>
+                    <span class="text-[10px] bg-emerald-400/20 text-emerald-300 px-1.5 py-0.5 rounded">GR</span>
                 </a>
 
                 <p class="px-3 pb-2 pt-5 text-xs font-semibold uppercase tracking-wider text-slate-500">Administration</p>

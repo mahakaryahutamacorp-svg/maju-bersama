@@ -67,6 +67,12 @@ Route::middleware('auth')->group(function () {
 
 		// Warehouses (Master: all branches, Branch Admin: own branch only)
 		Route::resource('warehouses', WarehouseController::class)->except(['show']);
+
+		// Suppliers
+		Route::resource('suppliers', App\Http\Controllers\Web\SupplierController::class);
+
+		// Purchase Orders
+		Route::resource('purchase-orders', App\Http\Controllers\Web\PurchaseOrderController::class);
 	});
 });
 
