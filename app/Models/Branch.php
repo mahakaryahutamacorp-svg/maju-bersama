@@ -87,4 +87,9 @@ class Branch extends Model
     {
         return $this->hasMany(Expense::class);
     }
+
+    public function purchaseReturns(): HasMany
+    {
+        return $this->hasMany(PurchaseReturn::class);
+    }
 }

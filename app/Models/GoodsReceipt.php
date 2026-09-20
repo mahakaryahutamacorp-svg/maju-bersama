@@ -47,4 +47,9 @@ class GoodsReceipt extends Model
     {
         return $this->hasOne(JournalHeader::class, 'reference_number', 'reference_number');
     }
+
+    public function purchaseReturns(): HasMany
+    {
+        return $this->hasMany(PurchaseReturn::class);
+    }
 }

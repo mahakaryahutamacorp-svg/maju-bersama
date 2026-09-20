@@ -6,6 +6,7 @@ use App\Models\CashTransfer;
 use App\Models\Expense;
 use App\Models\GoodsReceipt;
 use App\Models\JournalHeader;
+use App\Models\PurchaseReturn;
 use App\Models\Sale;
 use App\Models\StockAdjustment;
 use App\Models\StockTransfer;
@@ -91,7 +92,17 @@ class TransactionViewerController extends Controller
             return view('backoffice.transactions.partials.stock-adjustment', compact('stockAdjustment'));
         }
 
-        // 8. Fallback: Jurnal Akuntansi Umum / Saldo Awal (OB-)
+        // 8. Retur Pembelian (PRT-)
+        $purchaseReturn = PurchaseReturn::withoutGlobalScopes()
+            ->where('reference_number', $ref)
+            ->with(['items.product', 'supplier', 'branch', 'goodsReceipt', 'journalHeader.journalLines.chartOfAccount'])
+            ->first();
+
+        if ($purchaseReturn) {
+            return view('backoffice.transactions.partials.purchase-return', compact('purchaseReturn'));
+        }
+
+        // 9. Fallback: Jurnal Akuntansi Umum / Saldo Awal (OB-)
         $journal = JournalHeader::with(['journalLines.chartOfAccount', 'branch', 'user'])
             ->where('reference_number', $ref)
             ->first();
@@ -100,7 +111,7 @@ class TransactionViewerController extends Controller
             return view('backoffice.transactions.partials.journal', compact('journal'));
         }
 
-        // 9. Jika tidak ditemukan
+        // 10. Jika tidak ditemukan
         return view('backoffice.transactions.partials.not-found', ['reference' => $ref]);
     }
 }

@@ -76,6 +76,9 @@ Route::middleware('auth')->group(function () {
 		// Purchase Orders
 		Route::resource('purchase-orders', App\Http\Controllers\Web\PurchaseOrderController::class);
 
+		// Purchase Returns (Retur Pembelian)
+		Route::resource('purchase-returns', App\Http\Controllers\Web\PurchaseReturnController::class);
+
 		// Supplier Payments
 		Route::resource('supplier-payments', App\Http\Controllers\Web\SupplierPaymentController::class);
 

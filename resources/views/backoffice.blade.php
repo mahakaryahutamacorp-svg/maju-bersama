@@ -75,6 +75,10 @@
                     <span>Penerimaan Barang</span>
                     <span class="text-[10px] bg-emerald-400/20 text-emerald-300 px-1.5 py-0.5 rounded">GR</span>
                 </a>
+                <a href="{{ route('backoffice.purchase-returns.index') }}" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
+                    <span>Retur Pembelian</span>
+                    <span class="text-[10px] bg-rose-400/20 text-rose-300 px-1.5 py-0.5 rounded">Retur</span>
+                </a>
                 <a href="{{ route('backoffice.supplier-payments.index') }}" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
                     <span>Pembayaran Supplier</span>
                     <span class="text-[10px] bg-indigo-400/20 text-indigo-300 px-1.5 py-0.5 rounded">Bayar</span>
