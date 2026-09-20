@@ -60,6 +60,10 @@
                     <span>Multi Gudang</span>
                     <span class="text-[10px] bg-teal-400/20 text-teal-300 px-1.5 py-0.5 rounded">CRUD</span>
                 </a>
+                <a href="{{ route('backoffice.expense-categories.index') }}" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
+                    <span>Kategori Biaya</span>
+                    <span class="text-[10px] bg-rose-400/20 text-rose-300 px-1.5 py-0.5 rounded">Beban</span>
+                </a>
 
                 <p class="px-3 pb-2 pt-5 text-xs font-semibold uppercase tracking-wider text-amber-400/90">Pengadaan &amp; PO</p>
                 <a href="{{ route('backoffice.purchase-orders.index') }}" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
@@ -73,6 +77,20 @@
                 <a href="{{ route('backoffice.supplier-payments.index') }}" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
                     <span>Pembayaran Supplier</span>
                     <span class="text-[10px] bg-indigo-400/20 text-indigo-300 px-1.5 py-0.5 rounded">Bayar</span>
+                </a>
+
+                <p class="px-3 pb-2 pt-5 text-xs font-semibold uppercase tracking-wider text-amber-400/90">Keuangan &amp; Akuntansi</p>
+                <a href="{{ route('backoffice.expenses.index') }}" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
+                    <span>Biaya Operasional</span>
+                    <span class="text-[10px] bg-rose-400/20 text-rose-300 px-1.5 py-0.5 rounded">Kas Keluar</span>
+                </a>
+                <a href="/reports/accounting/ledger" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
+                    <span>Buku Besar Akuntansi</span>
+                    <span class="text-[10px] bg-sky-400/20 text-sky-300 px-1.5 py-0.5 rounded">Ledger</span>
+                </a>
+                <a href="/reports/accounting/income-statement" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
+                    <span>Laporan Laba Rugi</span>
+                    <span class="text-[10px] bg-emerald-400/20 text-emerald-300 px-1.5 py-0.5 rounded">L/R</span>
                 </a>
 
                 <p class="px-3 pb-2 pt-5 text-xs font-semibold uppercase tracking-wider text-slate-500">Administration</p>

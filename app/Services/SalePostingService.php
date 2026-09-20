@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\CashRegisterShift;
 use App\Models\ChartOfAccount;
 use App\Models\Inventory;
 use App\Models\JournalHeader;
@@ -83,8 +84,15 @@ class SalePostingService
                 ];
             }
 
+            // Tautkan secara otomatis ke sesi shift kasir yang sedang aktif
+            $activeShift = CashRegisterShift::where('user_id', $actor->id)
+                ->where('status', 'open')
+                ->latest('opened_at')
+                ->first();
+
             $sale = Sale::create([
                 'branch_id' => $actor->branch_id,
+                'cash_register_shift_id' => $activeShift?->id ?? ($data['cash_register_shift_id'] ?? null),
                 'created_by' => $actor->id,
                 'receipt_number' => $receiptNumber,
                 'total_amount' => $totalCents,

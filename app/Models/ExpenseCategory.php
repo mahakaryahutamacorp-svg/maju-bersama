@@ -7,24 +7,21 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Sale extends Model
+class ExpenseCategory extends Model
 {
     use HasBranchScope;
 
     protected $fillable = [
         'branch_id',
-        'cash_register_shift_id',
-        'receipt_number',
-        'total_amount',
-        'payment_method',
-        'status',
-        'created_by',
+        'name',
+        'chart_of_account_id',
+        'is_active',
     ];
 
     protected function casts(): array
     {
         return [
-            'total_amount' => 'integer',
+            'is_active' => 'boolean',
         ];
     }
 
@@ -33,18 +30,18 @@ class Sale extends Model
         return $this->belongsTo(Branch::class);
     }
 
-    public function cashRegisterShift(): BelongsTo
+    public function chartOfAccount(): BelongsTo
     {
-        return $this->belongsTo(CashRegisterShift::class);
+        return $this->belongsTo(ChartOfAccount::class, 'chart_of_account_id');
     }
 
-    public function creator(): BelongsTo
+    public function account(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->chartOfAccount();
     }
 
-    public function items(): HasMany
+    public function expenses(): HasMany
     {
-        return $this->hasMany(SaleItem::class);
+        return $this->hasMany(Expense::class);
     }
 }

@@ -65,6 +65,11 @@ class User extends Authenticatable
         return $this->hasMany(Sale::class, 'created_by');
     }
 
+    public function cashRegisterShifts(): HasMany
+    {
+        return $this->hasMany(CashRegisterShift::class);
+    }
+
     public function isMaster(): bool
     {
         return in_array($this->role, ['master', 'superadmin'], true);

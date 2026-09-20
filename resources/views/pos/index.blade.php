@@ -13,7 +13,7 @@
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
     <div 
-        x-data="posSystem({{ Js::from($products) }}, {{ Js::from($categories) }})" 
+        x-data="posSystem({{ Js::from($products) }}, {{ Js::from($categories) }}, { hasActiveShift: {{ $hasActiveShift ? 'true' : 'false' }}, expectedBalance: {{ (float) $expectedBalance }} })" 
         class="min-h-screen flex flex-col"
         @keydown.window.escape="handleEscapeKey()"
     >
@@ -38,11 +38,34 @@
                         <a href="/backoffice" class="hover:text-white px-2 py-1 rounded hover:bg-slate-800">Panel Admin</a>
                     </nav>
 
-                    <div class="flex items-center gap-2 border-l border-slate-800 pl-4">
+                    <div class="flex items-center gap-3 border-l border-slate-800 pl-4">
+                        @if ($hasActiveShift)
+                            <div class="flex items-center gap-2">
+                                <span class="rounded-full bg-emerald-500/20 px-2.5 py-1 text-[11px] font-bold text-emerald-300 flex items-center gap-1.5 border border-emerald-500/30">
+                                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                                    <span>Shift #{{ $activeShift->id }} ({{ $activeShift->cashRegister?->name }})</span>
+                                </span>
+                                <button 
+                                    type="button" 
+                                    @click="openCloseShiftModal()" 
+                                    id="btn-tutup-shift"
+                                    class="rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-rose-700 transition flex items-center gap-1.5"
+                                >
+                                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                                    Tutup Shift
+                                </button>
+                            </div>
+                        @else
+                            <span class="rounded-full bg-rose-500/20 px-2.5 py-1 text-[11px] font-bold text-rose-300 border border-rose-500/30 flex items-center gap-1.5">
+                                <span class="h-1.5 w-1.5 rounded-full bg-rose-400"></span>
+                                <span>Shift Belum Dibuka</span>
+                            </span>
+                        @endif
+
                         <span class="text-xs text-slate-400">Kasir: <strong class="text-white">{{ $currentUser->name }}</strong></span>
                         <form method="POST" action="/logout" class="inline">
                             @csrf
-                            <button type="submit" class="rounded-lg bg-rose-600/20 px-2.5 py-1 text-xs font-semibold text-rose-300 hover:bg-rose-600/40 transition">
+                            <button type="submit" class="rounded-lg bg-slate-800 px-2.5 py-1 text-xs font-semibold text-slate-300 hover:bg-slate-700 transition">
                                 Keluar
                             </button>
                         </form>
@@ -50,6 +73,35 @@
                 </div>
             </div>
         </header>
+
+        <!-- Flash Message Notification -->
+        @if (session('success'))
+            <div class="mx-auto max-w-7xl px-6 pt-4 lg:px-8 w-full">
+                <div class="rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-xs font-semibold text-emerald-800 flex items-center gap-2 shadow-xs">
+                    <svg class="h-4 w-4 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                    <span>{{ session('success') }}</span>
+                </div>
+            </div>
+        @endif
+        @if (session('error'))
+            <div class="mx-auto max-w-7xl px-6 pt-4 lg:px-8 w-full">
+                <div class="rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-xs font-semibold text-rose-800 flex items-center gap-2 shadow-xs">
+                    <svg class="h-4 w-4 text-rose-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    <span>{{ session('error') }}</span>
+                </div>
+            </div>
+        @endif
+        @if ($errors->any())
+            <div class="mx-auto max-w-7xl px-6 pt-4 lg:px-8 w-full">
+                <div class="rounded-xl border border-rose-200 bg-rose-50 p-3.5 text-xs font-semibold text-rose-800 shadow-xs">
+                    <ul class="list-disc list-inside space-y-1">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            </div>
+        @endif
 
         <!-- Main Layout: Katalog Data Barang & Rincian Transaksi -->
         <main class="mx-auto grid max-w-7xl flex-1 w-full gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1fr)_390px] lg:px-8">
@@ -461,11 +513,274 @@
                 </div>
             </div>
         </div>
+
+        <!-- ======================================================== -->
+        <!-- MODAL 3: PEMBLOKIR BUKA SHIFT KASIR (FULLSCREEN DIALOG) -->
+        <!-- ======================================================== -->
+        @if (! $hasActiveShift)
+        <div 
+            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md"
+            aria-modal="true"
+            role="dialog"
+        >
+            <div class="relative w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+                <!-- Header Modal Buka Shift -->
+                <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 px-8 py-7 text-white text-center">
+                    <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-400">
+                        <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                    </div>
+                    <span class="mt-3 inline-block rounded-full bg-amber-400/20 px-3 py-0.5 text-[11px] font-bold text-amber-300 border border-amber-400/30 uppercase tracking-wider">
+                        Sesi Kasir Terkunci
+                    </span>
+                    <h2 class="mt-2 text-xl font-bold tracking-tight">Buka Shift Kasir Baru</h2>
+                    <p class="mt-1 text-xs text-slate-300 max-w-sm mx-auto">
+                        Untuk keamanan dan rekonsiliasi kasir, Anda wajib memilih mesin kasir dan mendeklarasikan modal kembalian awal sebelum memulai transaksi.
+                    </p>
+                </div>
+
+                <!-- Form Buka Shift -->
+                <form method="POST" action="{{ route('pos.shift.open') }}" class="p-8 space-y-5">
+                    @csrf
+                    
+                    <!-- Pilihan Mesin Kasir / Register -->
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                            Pilih Mesin / Laci Kasir <span class="text-rose-500">*</span>
+                        </label>
+                        <select 
+                            name="cash_register_id" 
+                            required
+                            class="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
+                        >
+                            @foreach ($registers as $register)
+                                <option value="{{ $register->id }}">{{ $register->name }} (Cabang: {{ $currentUser->branch?->name ?? 'Pusat' }})</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <!-- Input Modal Awal -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                                Modal Awal Kembalian (Rp) <span class="text-rose-500">*</span>
+                            </label>
+                            <span class="text-[11px] text-slate-500">Uang receh di laci</span>
+                        </div>
+                        <div class="relative">
+                            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 font-bold text-slate-400 text-sm">
+                                Rp
+                            </span>
+                            <input 
+                                type="text"
+                                inputmode="numeric"
+                                x-model="openingBalanceDisplay"
+                                @input="updateOpeningBalance($event)"
+                                placeholder="0"
+                                required
+                                autofocus
+                                id="input-modal-awal"
+                                class="w-full rounded-xl border border-slate-300 bg-white pl-12 pr-4 py-3.5 text-lg font-black font-mono text-slate-900 focus:border-indigo-500 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
+                            />
+                            <input type="hidden" name="opening_balance" :value="openingBalanceRaw" />
+                        </div>
+
+                        <!-- Shortcut Pilihan Cepat Modal Awal -->
+                        <div class="mt-3 grid grid-cols-4 gap-2">
+                            <button 
+                                type="button" 
+                                @click="setOpeningBalance(100000)" 
+                                class="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-center text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition"
+                            >
+                                100 rb
+                            </button>
+                            <button 
+                                type="button" 
+                                @click="setOpeningBalance(200000)" 
+                                class="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-center text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition"
+                            >
+                                200 rb
+                            </button>
+                            <button 
+                                type="button" 
+                                @click="setOpeningBalance(300000)" 
+                                class="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-center text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition"
+                            >
+                                300 rb
+                            </button>
+                            <button 
+                                type="button" 
+                                @click="setOpeningBalance(500000)" 
+                                class="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-center text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition"
+                            >
+                                500 rb
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Tombol Submit -->
+                    <div class="pt-2">
+                        <button 
+                            type="submit" 
+                            id="btn-submit-buka-shift"
+                            :disabled="openingBalanceRaw < 0"
+                            class="w-full flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-6 py-3.5 text-sm font-bold text-white shadow-lg shadow-indigo-600/30 transition hover:bg-indigo-500 disabled:opacity-50"
+                        >
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/></svg>
+                            <span>Buka Sesi Shift Sekarang →</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        @endif
+
+        <!-- ======================================================== -->
+        <!-- MODAL 4: TUTUP SHIFT KASIR & REKONSILIASI LACI -->
+        <!-- ======================================================== -->
+        @if ($hasActiveShift)
+        <div 
+            x-show="closeShiftModalOpen" 
+            x-cloak 
+            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+        >
+            <div class="relative w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100">
+                <!-- Header Modal Tutup Shift -->
+                <div class="bg-gradient-to-r from-rose-900 via-rose-950 to-slate-900 px-8 py-6 text-white">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-500/20 border border-rose-400/30 text-rose-300">
+                                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                                </svg>
+                            </div>
+                            <div>
+                                <h2 class="text-lg font-bold">Tutup Shift & Rekonsiliasi</h2>
+                                <p class="text-xs text-rose-200">Shift #{{ $activeShift->id }} &bull; {{ $activeShift->cashRegister?->name }}</p>
+                            </div>
+                        </div>
+                        <button 
+                            type="button" 
+                            @click="closeShiftModalOpen = false" 
+                            class="rounded-xl p-2 text-rose-300 hover:bg-white/10 hover:text-white transition"
+                        >
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Form Tutup Shift -->
+                <form method="POST" action="{{ route('pos.shift.close') }}" class="p-6 space-y-4">
+                    @csrf
+                    
+                    <!-- Ringkasan Sesi Shift -->
+                    <div class="rounded-2xl border border-slate-100 bg-slate-50 p-4 space-y-2.5 text-xs">
+                        <div class="flex justify-between text-slate-600">
+                            <span>Waktu Buka Shift:</span>
+                            <span class="font-semibold text-slate-800">{{ $activeShift->opened_at?->format('d/m/Y H:i') }}</span>
+                        </div>
+                        <div class="flex justify-between text-slate-600">
+                            <span>Modal Awal Kasir:</span>
+                            <span class="font-bold text-slate-800">Rp {{ number_format($activeShift->opening_balance, 0, ',', '.') }}</span>
+                        </div>
+                        <div class="flex justify-between items-center border-t border-slate-200 pt-2 font-bold text-slate-900">
+                            <span>Ekspektasi Saldo Sistem (Modal + Penjualan Tunai):</span>
+                            <span class="font-mono text-sm text-indigo-700" x-text="formatRupiah(expectedBalance)"></span>
+                        </div>
+                    </div>
+
+                    <!-- Input Uang Fisik Aktual -->
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                            Total Uang Fisik di Laci saat ini (Rp) <span class="text-rose-500">*</span>
+                        </label>
+                        <div class="relative">
+                            <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 font-bold text-slate-400 text-sm">
+                                Rp
+                            </span>
+                            <input 
+                                type="text"
+                                inputmode="numeric"
+                                x-model="closingBalanceDisplay"
+                                @input="updateClosingBalance($event)"
+                                placeholder="0"
+                                required
+                                id="input-uang-fisik-tutup"
+                                class="w-full rounded-xl border border-slate-300 bg-white pl-12 pr-4 py-3 text-lg font-black font-mono text-slate-900 focus:border-rose-500 focus:outline-hidden focus:ring-2 focus:ring-rose-500/20"
+                            />
+                            <input type="hidden" name="actual_closing_balance" :value="closingBalanceRaw" />
+                        </div>
+                    </div>
+
+                    <!-- Status Rekonsiliasi (Selisih Live) -->
+                    <div 
+                        class="rounded-xl p-3.5 border transition"
+                        :class="{
+                            'bg-emerald-50 border-emerald-200 text-emerald-800': shiftDifference === 0,
+                            'bg-sky-50 border-sky-200 text-sky-800': shiftDifference > 0,
+                            'bg-rose-50 border-rose-200 text-rose-800': shiftDifference < 0
+                        }"
+                    >
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="font-bold uppercase tracking-wider">
+                                <span x-show="shiftDifference === 0">Status: Seimbang (Pas)</span>
+                                <span x-show="shiftDifference > 0">Status: Surplus / Lebih Kas</span>
+                                <span x-show="shiftDifference < 0">Status: Selisih Kurang (Defisit)</span>
+                            </span>
+                            <span 
+                                class="text-sm font-black font-mono"
+                                x-text="(shiftDifference > 0 ? '+' : '') + formatRupiah(shiftDifference)"
+                            ></span>
+                        </div>
+                        <p class="text-[11px] mt-1 opacity-80">
+                            <span x-show="shiftDifference === 0">Uang fisik di laci sesuai dengan perhitungan mutasi kas sistem.</span>
+                            <span x-show="shiftDifference > 0">Uang fisik di laci melebihi kalkulasi penjualan tunai dan modal awal.</span>
+                            <span x-show="shiftDifference < 0">Uang fisik di laci lebih sedikit dari kalkulasi penjualan tunai dan modal awal.</span>
+                        </p>
+                    </div>
+
+                    <!-- Catatan Shift (Opsional) -->
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">
+                            Catatan Rekonsiliasi (Opsional)
+                        </label>
+                        <textarea 
+                            name="notes" 
+                            rows="2"
+                            placeholder="Tuliskan keterangan jika terdapat selisih uang kas..."
+                            class="w-full rounded-xl border border-slate-300 p-3 text-xs text-slate-800 focus:border-rose-500 focus:outline-hidden focus:ring-2 focus:ring-rose-500/20"
+                        ></textarea>
+                    </div>
+
+                    <!-- Footer / Buttons -->
+                    <div class="border-t border-slate-100 pt-4 flex items-center justify-end gap-3">
+                        <button 
+                            type="button" 
+                            @click="closeShiftModalOpen = false" 
+                            class="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-100"
+                        >
+                            Batal
+                        </button>
+                        <button 
+                            type="submit" 
+                            id="btn-submit-tutup-shift"
+                            class="rounded-xl bg-rose-600 px-6 py-2.5 text-xs font-bold text-white shadow-md hover:bg-rose-700 transition"
+                        >
+                            Konfirmasi & Tutup Shift →
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        @endif
     </div>
 
     <!-- Script Alpine.js Penjualan Kasir -->
     <script>
-        function posSystem(initialProducts, initialCategories) {
+        function posSystem(initialProducts, initialCategories, shiftConfig = {}) {
             return {
                 products: initialProducts || [],
                 categories: initialCategories || [],
@@ -474,6 +789,44 @@
                 scanNotification: '',
                 cart: [],
                 loading: false,
+
+                // State Shift Kasir & Rekonsiliasi
+                hasActiveShift: shiftConfig.hasActiveShift ?? false,
+                expectedBalance: Number(shiftConfig.expectedBalance || 0),
+                closeShiftModalOpen: false,
+                openingBalanceDisplay: '',
+                openingBalanceRaw: 0,
+                closingBalanceDisplay: '',
+                closingBalanceRaw: 0,
+
+                get shiftDifference() {
+                    return (this.closingBalanceRaw || 0) - this.expectedBalance;
+                },
+
+                setOpeningBalance(amount) {
+                    this.openingBalanceRaw = Number(amount);
+                    this.openingBalanceDisplay = (amount).toLocaleString('id-ID');
+                },
+
+                updateOpeningBalance(event) {
+                    const clean = event.target.value.replace(/[^0-9]/g, '');
+                    const val = clean ? parseInt(clean, 10) : 0;
+                    this.openingBalanceRaw = val;
+                    this.openingBalanceDisplay = val > 0 ? val.toLocaleString('id-ID') : '';
+                },
+
+                openCloseShiftModal() {
+                    this.closingBalanceRaw = this.expectedBalance;
+                    this.closingBalanceDisplay = this.expectedBalance > 0 ? this.expectedBalance.toLocaleString('id-ID') : '0';
+                    this.closeShiftModalOpen = true;
+                },
+
+                updateClosingBalance(event) {
+                    const clean = event.target.value.replace(/[^0-9]/g, '');
+                    const val = clean ? parseInt(clean, 10) : 0;
+                    this.closingBalanceRaw = val;
+                    this.closingBalanceDisplay = val > 0 ? val.toLocaleString('id-ID') : '';
+                },
 
                 // State Modal Pembayaran
                 paymentModalOpen: false,
@@ -522,6 +875,11 @@
 
                 // Scan Barcode / Quick Add via Enter
                 handleScanOrSearch() {
+                    if (!this.hasActiveShift) {
+                        alert('Shift kasir belum dibuka! Silakan buka shift terlebih dahulu dengan memasukkan modal awal.');
+                        return;
+                    }
+
                     if (!this.searchQuery.trim()) return;
 
                     const q = this.searchQuery.trim().toLowerCase();
@@ -553,6 +911,11 @@
                 },
 
                 addToCart(product) {
+                    if (!this.hasActiveShift) {
+                        alert('Shift kasir belum dibuka! Silakan masukkan modal awal dan buka shift terlebih dahulu.');
+                        return;
+                    }
+
                     if (product.stock < 1) return;
 
                     const existing = this.cart.find(item => item.product.id === product.id);
@@ -600,6 +963,11 @@
 
                 // Buka Modal Pembayaran
                 openPaymentModal() {
+                    if (!this.hasActiveShift) {
+                        alert('Shift kasir belum dibuka! Silakan buka shift terlebih dahulu.');
+                        return;
+                    }
+
                     if (this.cart.length === 0) return;
                     this.paymentMethod = 'cash';
                     this.cashTendered = this.grandTotal; // default uang pas
@@ -627,6 +995,11 @@
 
                 // Proses Checkout ke API
                 async processCheckout() {
+                    if (!this.hasActiveShift) {
+                        alert('Shift kasir belum dibuka! Silakan buka shift terlebih dahulu.');
+                        return;
+                    }
+
                     if (this.paymentMethod === 'cash' && this.changeDue < 0) {
                         alert('Uang pembayaran tunai masih kurang!');
                         return;
@@ -703,6 +1076,8 @@
                         this.resetAfterSale();
                     } else if (this.paymentModalOpen) {
                         this.paymentModalOpen = false;
+                    } else if (this.closeShiftModalOpen) {
+                        this.closeShiftModalOpen = false;
                     }
                 },
 

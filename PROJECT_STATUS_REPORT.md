@@ -2,7 +2,7 @@
 **Dokumen Status Sistem, Audit Codebase, Gap Analysis, & Rekomendasi Roadmap**  
 *Dipersiapkan oleh: Lead Software Architect & Technical Project Manager*  
 *Tanggal: 20 September 2026*  
-*Status Test Suite: 127 Passed (704 Assertions) — 100% Green*
+*Status Test Suite: 155 Passed (860 Assertions) — 100% Green*
 
 ---
 
@@ -27,7 +27,7 @@
 
 ### 1.2. Pola Desain Perangkat Lunak (Design Patterns & Paradigms)
 1. **Service Layer Pattern**:
-   - Seluruh logika bisnis yang kompleks, validasi mendalam, dan mutasi basis data atomik dipisahkan dari controller ke dalam layer service khusus di direktori `app/Services/` (`GoodsReceiptService`, `SalePostingService`, `StockTransferService`, `StockAdjustmentService`, `SupplierPaymentService`, `AccountingReportService`, `StockCardService`, `ProductService`).
+   - Seluruh logika bisnis yang kompleks, validasi mendalam, dan mutasi basis data atomik dipisahkan dari controller ke dalam layer service khusus di direktori `app/Services/` (`GoodsReceiptService`, `SalePostingService`, `StockTransferService`, `StockAdjustmentService`, `SupplierPaymentService`, `ExpenseService`, `JournalPostingService`, `AccountingReportService`, `StockCardService`, `ProductService`, `CashRegisterShiftService`).
    - Controller beroperasi ramping (*skinny controller*) hanya bertugas menangani HTTP request, validasi otorisasi, dan mendelegasikan eksekusi ke service.
 2. **Multi-Tenancy & Isolasi Cabang (`HasBranchScope`)**:
    - Diterapkan melalui Global Eloquent Scope (`App\Traits\HasBranchScope`).
@@ -36,12 +36,14 @@
 3. **Konkurensi & Integritas Data Stok**:
    - Penggunaan *pessimistic locking* (`lockForUpdate()`) dan transaksi database atomik (`DB::transaction`) pada mutasi inventaris dan kasir untuk mencegah kondisi *race condition* dan selisih stok saat volume transaksi tinggi.
 4. **Otomatisasi Akuntansi Terpadu (Double-Entry Bookkeeping)**:
-   - Setiap transaksi operasional (penjualan kasir, penerimaan barang, penyesuaian stok opname, pembayaran supplier) langsung membukukan jurnal akuntansi berpasangan yang seimbang (*balanced journal lines*), memastikan integritas laporan Buku Besar dan Neraca Saldo setiap detik.
+   - Setiap transaksi operasional (penjualan kasir, penerimaan barang, penyesuaian stok opname, pembayaran supplier, kas keluar biaya operasional) langsung membukukan jurnal akuntansi berpasangan yang seimbang (*balanced journal lines*), memastikan integritas laporan Buku Besar dan Neraca Saldo setiap detik.
 
 ### 1.3. Status Kesehatan Kode & Pengujian (Test Suite Health)
-- **Total Uji Berjalan**: **127 Tests (100% Passed)**
-- **Total Asersi Pengujian**: **704 Assertions**
+- **Total Uji Berjalan**: **155 Tests (100% Passed)**
+- **Total Asersi Pengujian**: **860 Assertions**
 - **Cakupan Pengujian**:
+  - `Feature/ExpenseModelServiceTest` & `Feature/ExpenseWebTest`: Uji master kategori biaya, transaksi kas keluar operasional, UI form dengan Live Rupiah Formatter & Live Journal Preview, validasi akun beban dan sumber dana, isolasi cabang `HasBranchScope`, dan integrasi posting jurnal otomatis seimbang.
+  - `Feature/CashRegisterShiftModelTest` & `Feature/PosShiftWebTest`: Uji lifecycle shift kasir, pemblokiran POS, auto-link penjualan kasir ke shift aktif, perhitungan expected closing balance, dan rekonsiliasi selisih kas fisik laci.
   - `Feature/MultiPriceTest`: Validasi master harga bertingkat dan sinkronisasi harga.
   - `Feature/PosWebTest` & `Feature/CheckoutTest`: Uji alur kasir, cetak struk termal, dan jurnal 4-baris otomatis.
   - `Feature/ProductApiTest` & `BranchApiTest`: Uji isolasi data API multi-cabang.
@@ -101,7 +103,12 @@ graph LR
 - **Konfigurasi Level Harga**: Fleksibilitas skema harga berdasarkan klasifikasi pembeli (Eceran/Reguler, Grosir, Member/VIP).
 - **Sinkronisasi Otomatis**: Integrasi langsung dengan master produk dan POS Kasir untuk memastikan harga yang diterapkan tepat sesuai tier yang dipilih.
 
-### 2.4. Modul Point of Sale (POS Kasir)
+### 2.4. Modul Point of Sale (POS Kasir) & Manajemen Shift
+- **Manajemen Shift Kasir & Rekonsiliasi Laci Kasir (Cash Drawer & Shift Settlement)**:
+  - **Pemblokir Sesi Kasir (Blocking Screen Modal)**: Kasir yang belum membuka shift tidak dapat memindai barcode, menambahkan barang ke keranjang belanja, ataupun melakukan checkout. Layar terkunci oleh modal fullscreen wajib input Laci/Register dan Modal Awal Kembalian (Rp).
+  - **Live Currency Formatter**: Pemformatan Rupiah secara instan berbasis Alpine.js dengan tombol nominal cepat (100rb, 200rb, 300rb, 500rb).
+  - **Tutup Shift & Rekonsiliasi Kas Laci**: Tombol navigasi POS "Tutup Shift" memicu modal rekonsiliasi yang menghitung estimasi saldo sistem (`opening_balance + total penjualan tunai`), menerima input uang fisik riil, dan mengkalkulasi selisih (*surplus*, *defisit*, atau *seimbang*) secara *real-time*.
+  - **Audit Trail & Hubungan Transaksi**: Setiap penjualan kasir (`Sale`) otomatis mencatat `cash_register_shift_id` yang sedang aktif.
 - **Layar Kasir Cepat (Touch & Keyboard Friendly)**:
   - Antarmuka visual kasir dengan filter kategori produk dan pencarian instan.
   - Keranjang belanja dinamis berbasis Alpine.js dengan kalkulasi subtotal, total, dan kembalian tunai.
@@ -127,16 +134,34 @@ graph LR
 - **Neraca Saldo (Trial Balance)**: Verifikasi keseimbangan total debit dan kredit per akun dengan filter per cabang.
 - **Laporan Laba Rugi (Income Statement)**: Rekapitulasi Pendapatan Penjualan dikurangi HPP dan Beban Operasional untuk menghasilkan laba bersih periode berjalan.
 
+### 2.7. Modul Biaya Operasional / Kas Keluar (Operational Expenses) [SELESAI - 100% HIJAU]
+- **Master Kategori Biaya (`ExpenseCategory` & `ExpenseCategoryController`)**:
+  - Klasifikasi beban operasional (Listrik, Air, Gaji Harian, Bensin, Pemeliharaan Toko) dengan pemetaan langsung ke Chart of Account (COA) tipe beban (`type = 'expense'` / kode 6xxx).
+  - Tampilan Backoffice: tabel riwayat kategori, status aktif, total transaksi terkait, modal create dan edit responsif Tailwind.
+  - Terisolasi multi-cabang melalui trait `HasBranchScope`.
+- **Pencatatan & Riwayat Biaya Operasional (`ExpenseController` & `ExpenseService`)**:
+  - Formulir kas keluar cepat terintegrasi dengan **Alpine.js**:
+    - Live Rupiah Formatter untuk nominal pengeluaran dengan tombol nominal instan (20rb, 50rb, 100rb, 250rb, 500rb).
+    - **Live Journal Preview**: Menampilkan secara transparan baris jurnal Debit Beban dan Kredit Kas/Bank sebelum disimpan.
+    - Catatan/Keterangan pengeluaran wajib untuk akuntabilitas kasir/staf.
+  - Tampilan Riwayat Kas Keluar: KPI card ringkasan, filter rentang tanggal, filter kategori biaya, pencarian keterangan, dan halaman detail voucher kas keluar (siap cetak fisik).
+- **Integrasi Jurnal Akuntansi Otomatis (`JournalPostingService`)**:
+  - Setiap pengeluaran biaya otomatis membukukan jurnal berpasangan yang seimbang secara mutlak:
+    - **Debit**: Akun Beban Operasional (`expense_categories.chart_of_account_id`)
+    - **Kredit**: Akun Kas / Bank Sumber Dana (`expenses.account_id`)
+    - Keterangan Jurnal: `"Biaya Operasional: [Nama Kategori] - [Catatan]"`
+  - Validasi ketat: Seluruh jurnal divalidasi `total_debit == total_credit` sebelum transaksi di-commit.
+
 ---
 
 ## 3. ANALISIS KESENJANGAN SISTEM (GAP ANALYSIS)
 
 Meskipun fondasi sistem sudah sangat kuat dan lulus uji 100%, penerapan di lingkungan retail dan operasional nyata membutuhkan kelengkapan fitur berikut untuk menutupi celah operasional:
 
-| Kategori | Fitur yang Belum Ada / Perlu Disempurnakan | Dampak Operasional & Risiko Bisnis | Tingkat Urgensi |
+| Kategori | Fitur yang Diperlukan | Dampak Operasional & Risiko Bisnis | Status / Urgensi |
 | :--- | :--- | :--- | :---: |
-| **Kasir & POS** | **Manajemen Shift Kasir & Uang Laci (Cash Drawer Settlement)** | Sulit membuktikan pertanggungjawaban fisik uang kas saat pergantian kasir; risiko kebocoran kas laci. | **Kritis (Tinggi)** |
-| **Keuangan** | **Kas Keluar Biaya Operasional (Operational Expense Outflow)** | Pembayaran listrik, air, sewa, ATK, dan konsumsi toko belum ada form entri khususnya, sehingga Laba Rugi belum mencerminkan biaya riil. | **Kritis (Tinggi)** |
+| **Kasir & POS** | **Manajemen Shift Kasir & Uang Laci (Cash Drawer Settlement)** | Mengunci laci, mencatat modal awal, auto-link transaksi tunai, rekonsiliasi selisih kas fisik. | **SELESAI (100% Hijau)** |
+| **Keuangan** | **Kas Keluar Biaya Operasional (Operational Expense Outflow)** | Form entri kas keluar dengan live currency formatter, live journal preview, dan posting otomatis. | **SELESAI (100% Hijau)** |
 | **Pengadaan** | **Retur Pembelian ke Supplier (Purchase Return)** | Barang cacat/rusak yang dikembalikan ke supplier belum memiliki alur formal untuk memotong hutang dagang atau meminta refund. | **Kritis (Tinggi)** |
 | **Penjualan** | **Retur Penjualan Konsumen (Sales Return & Refund)** | Kasir belum dapat membatalkan/meretur barang yang dikembalikan pelanggan secara tercatat di sistem stok dan jurnal. | **Tinggi** |
 | **Keuangan** | **Laporan Arus Kas (Cash Flow Statement)** | Manajemen belum memiliki laporan formal pemisahan kas dari aktivitas operasional, investasi, dan pendanaan. | **Sedang** |
@@ -150,33 +175,39 @@ Meskipun fondasi sistem sudah sangat kuat dan lulus uji 100%, penerapan di lingk
 
 ## 4. REKOMENDASI RENCANA AKSI PRIORITAS (NEXT ACTIONS)
 
-Untuk menjadikan ERP Maju Bersama **100% siap operasional di toko/cabang nyata**, berikut adalah **3 urutan prioritas teratas** yang direkomendasikan untuk segera dibangun pada tahap berikutnya:
+Untuk menjadikan ERP Maju Bersama **100% siap operasional di toko/cabang nyata**, berikut adalah status dan langkah aksi prioritas berikutnya:
 
 ```mermaid
 graph TD
-    P1["PRIORITAS 1<br><b>Shift Kasir & Kas Laci (Cash Drawer)</b><br>Kontrol fisik uang kasir & pencegahan selisih"] --> P2["PRIORITAS 2<br><b>Entri Biaya Operasional (Kas Keluar)</b><br>Beban listrik, sewa, gaji harian langsung memotong kas"]
-    P2 --> P3["PRIORITAS 3<br><b>Modul Retur Pembelian & Penjualan</b><br>Penanganan formal barang rusak/cacat & koreksi hutang/stok"]
+    P1["<s>PRIORITAS 1<br><b>Shift Kasir & Kas Laci (SELESAI)</b></s><br>Modal awal, proteksi transaksi & rekonsiliasi"] --> P2["<s>PRIORITAS 2<br><b>Biaya Operasional & Kas Keluar (SELESAI)</b></s><br>Form kas keluar, live preview & posting jurnal"]
+    P2 --> P3["PRIORITAS 3 (SELANJUTNYA)<br><b>Modul Retur Pembelian & Penjualan</b><br>Penanganan formal barang rusak/cacat & koreksi hutang/stok"]
 ```
 
-### Prioritas 1: Manajemen Shift Kasir & Rekonsiliasi Kas Laci (Cash Drawer & Shift Settlement)
-- **Tujuan**: Mengamankan penerimaan uang tunai di kasir toko dan mencegah selisih uang saat serah terima antar-kasir.
-- **Ruang Lingkup**:
-  1. Form *Buka Shift*: Kasir menginput modal awal kas di laci kasir (*opening float/cash drawer*).
-  2. Pelacakan transaksi tunai & nontunai selama shift aktif.
-  3. Form *Tutup Shift (End of Shift / X-Report & Z-Report)*: Kasir menghitung fisik uang tunai di laci, sistem mencocokkan dengan total penjualan, dan mencatat selisih (*cash over/short*) otomatis ke jurnal selisih kas.
-  4. Cetak ringkasan shift pada printer thermal kasir.
+### Prioritas 1: Manajemen Shift Kasir & Rekonsiliasi Kas Laci (SELESAI - 100% HIJAU)
+- [x] Model `CashRegister` & `CashRegisterShift` dengan trait multi-cabang `HasBranchScope`.
+- [x] Relasi `Sale` otomatis merekam `cash_register_shift_id` yang sedang aktif.
+- [x] Service `CashRegisterShiftService` (`openShift`, `calculateExpectedBalance`, `closeShift`).
+- [x] UI Modal Pemblokir Buka Shift (fullscreen tidak dapat di-bypass, realtime Rupiah formatting).
+- [x] UI Modal Tutup Shift dengan rekonsiliasi selisih uang fisik (surplus/defisit/seimbang).
+- [x] Test Suite: 139 Tests, 769 Assertions (100% Green).
 
-### Prioritas 2: Modul Pengeluaran Biaya Operasional / Kas Keluar (Expense & Cash Disbursement)
-- **Tujuan**: Melengkapi laporan Laba Rugi agar mencakup seluruh beban non-HPP toko sehingga angka laba bersih akurat 100%.
-- **Ruang Lingkup**:
-  1. Halaman Backoffice: *Pengeluaran Kas Operasional*.
-  2. Input: Tanggal, Kategori Biaya (misal: Beban Listrik, Air, Gaji Harian, Konsumsi, Pemeliharaan Toko), Sumber Dana (Kas Toko/Bank), Nominal, No. Bukti Nota, Keterangan.
-  3. Otomatisasi Jurnal Akuntansi:
-     - **Debit**: Akun Beban Operasional bersangkutan (`5110 Biaya Harian` atau sub-akun beban).
-     - **Kredit**: Akun Kas / Bank (`1110`).
-  4. Filter laporan pengeluaran operasional per cabang.
+### Prioritas 2: Modul Pengeluaran Biaya Operasional / Kas Keluar (SELESAI - 100% HIJAU)
+- [x] **Backend Architecture**:
+  - Migrasi `expense_categories` & `expenses`.
+  - Model `ExpenseCategory` & `Expense` dengan relasi ke Branch, ChartOfAccount, dan JournalHeader.
+  - Multi-tenancy isolation via trait `HasBranchScope`.
+  - Service `JournalPostingService` dengan validasi keseimbangan debit-kredit mutlak.
+  - Service `ExpenseService` (`recordExpense`) dengan wrapping transaksi database atomik dan posting jurnal otomatis.
+  - Test Suite: `Feature/ExpenseModelServiceTest` (9 tests, 42 assertions passing 100%).
+- [x] **UI & Controller Backoffice**:
+  - Routing `expense-categories` dan `expenses` terdaftar pada `routes/web.php`.
+  - Sidebar navigasi Backoffice diperbarui dengan menu Kategori Biaya dan Biaya Operasional.
+  - Controller `ExpenseCategoryController` (CRUD master kategori beban).
+  - Controller `ExpenseController` (Riwayat kas keluar, filter tanggal/kategori, voucher kas keluar).
+  - Form UI `create.blade.php` dengan Alpine.js (Live Rupiah Formatter, tombol nominal cepat, dan Live Journal Preview).
+  - Test Suite: `Feature/ExpenseWebTest` (7 tests, 49 assertions passing 100%).
 
-### Prioritas 3: Modul Retur Pembelian ke Supplier & Retur Penjualan Pelanggan
+### Prioritas 3 (Selanjutnya): Modul Retur Pembelian ke Supplier & Retur Penjualan Pelanggan
 - **Tujuan**: Menangani barang cacat, kedaluwarsa, atau salah kirim secara legal dan akuntabel tanpa memanipulasi stok manual.
 - **Ruang Lingkup**:
   1. **Retur Pembelian (Purchase Return)**:

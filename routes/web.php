@@ -25,6 +25,8 @@ Route::middleware('auth')->group(function () {
 	Route::get('/inventory', [InventoryController::class, 'index']);
 	Route::get('/inventory/transfer', [StockTransferController::class, 'index'])->name('stock-transfer');
 	Route::get('/pos', [PosController::class, 'index'])->name('pos');
+	Route::post('/pos/shift/open', [PosController::class, 'openShift'])->name('pos.shift.open');
+	Route::post('/pos/shift/close', [PosController::class, 'closeShift'])->name('pos.shift.close');
 	Route::get('/pos/receipt/{receipt_number}', [PosController::class, 'receipt'])->name('pos.receipt');
 	Route::get('/reports/journal', [ReportController::class, 'journal']);
 	Route::get('/reports/inventory/stock-card', [StockCardController::class, 'index'])->name('reports.inventory.stock-card');
@@ -76,6 +78,12 @@ Route::middleware('auth')->group(function () {
 
 		// Supplier Payments
 		Route::resource('supplier-payments', App\Http\Controllers\Web\SupplierPaymentController::class);
+
+		// Expense Categories (Master Data Beban)
+		Route::resource('expense-categories', App\Http\Controllers\Web\ExpenseCategoryController::class);
+
+		// Expenses (Biaya Operasional / Kas Keluar)
+		Route::resource('expenses', App\Http\Controllers\Web\ExpenseController::class);
 	});
 });
 
