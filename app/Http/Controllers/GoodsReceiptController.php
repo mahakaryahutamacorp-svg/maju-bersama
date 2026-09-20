@@ -117,12 +117,14 @@ class GoodsReceiptController extends Controller
             return [
                 'id'               => $po->id,
                 'reference_number' => $po->reference_number,
+                'supplier_id'      => $po->supplier_id,
                 'supplier_name'    => $po->supplier?->name ?? '',
                 'order_date'       => $po->order_date ? $po->order_date->format('d/m/Y') : '',
                 'status'           => $po->status,
                 'items'            => $po->items->map(function ($item) {
                     $remaining = max(0, (int) $item->quantity - (int) $item->received_quantity);
                     return [
+                        'id'                 => $item->id,
                         'product_id'         => $item->product_id,
                         'product_name'       => $item->product?->name ?? 'Produk #' . $item->product_id,
                         'sku'                => $item->product?->sku ?? '',
@@ -135,11 +137,15 @@ class GoodsReceiptController extends Controller
             ];
         })->values();
 
-        return view('purchases.goods-receipts.create', [
+        $viewName = view()->exists('backoffice.goods-receipts.create')
+            ? 'backoffice.goods-receipts.create'
+            : 'purchases.goods-receipts.create';
+
+        return view($viewName, [
             'currentUser'   => $user,
             'centralBranch' => $centralBranch,
             'products'      => $productsData,
-            'activePOs'     => $activePOs,
+            'activePOs'     => $activePOsData,
             'activePOsData' => $activePOsData,
             'todayDate'     => now()->toDateString(),
         ]);
