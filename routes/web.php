@@ -8,6 +8,7 @@ use App\Http\Controllers\PreviewController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\StockAdjustmentController;
 use App\Http\Controllers\StockCardController;
+use App\Http\Controllers\StockTransferPrintController;
 use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\InventoryController;
 use App\Http\Controllers\Web\StockTransferController;
@@ -102,6 +103,7 @@ Route::middleware('auth')->group(function () {
 		Route::get('transactions/{reference}/details', [App\Http\Controllers\TransactionViewerController::class, 'show'])->name('transactions.details');
 	});
 
+	Route::get('/backoffice/stock-transfers/{reference}/print', [StockTransferPrintController::class, 'print'])->name('stock-transfers.print');
 	Route::get('/backoffice/transactions/{reference}/details', [App\Http\Controllers\TransactionViewerController::class, 'show'])->name('transactions.details');
 });
 
