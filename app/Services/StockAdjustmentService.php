@@ -281,12 +281,14 @@ class StockAdjustmentService
                 'chart_of_account_id' => $expenseAccount->id,
                 'debit' => $totalLossValue,
                 'credit' => '0.00',
+                'memo' => 'Beban selisih rugi opname persediaan',
             ]);
 
             $journal->lines()->create([
                 'chart_of_account_id' => $inventoryAccount->id,
                 'debit' => '0.00',
                 'credit' => $totalLossValue,
+                'memo' => 'Pengurangan persediaan fisik opname',
             ]);
         }
 
@@ -296,12 +298,14 @@ class StockAdjustmentService
                 'chart_of_account_id' => $inventoryAccount->id,
                 'debit' => $totalGainValue,
                 'credit' => '0.00',
+                'memo' => 'Penambahan persediaan fisik opname',
             ]);
 
             $journal->lines()->create([
                 'chart_of_account_id' => $revenueAccount->id,
                 'debit' => '0.00',
                 'credit' => $totalGainValue,
+                'memo' => 'Pendapatan selisih lebih opname persediaan',
             ]);
         }
     }

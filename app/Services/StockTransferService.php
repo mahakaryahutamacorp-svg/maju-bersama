@@ -273,13 +273,13 @@ class StockTransferService
                 'chart_of_account_id' => $inventoryAccountId,
                 'debit' => $totalValue,
                 'credit' => 0,
-                'memo' => 'Inter-branch receivable '.$transfer->destinationBranch->name,
+                'memo' => 'Piutang antar-cabang '.$transfer->destinationBranch->name,
             ],
             [
                 'chart_of_account_id' => $inventoryAccountId,
                 'debit' => 0,
                 'credit' => $totalValue,
-                'memo' => 'Inventory shipped to '.$transfer->destinationBranch->name,
+                'memo' => 'Pengiriman persediaan ke '.$transfer->destinationBranch->name,
             ],
         ]);
 
@@ -296,13 +296,13 @@ class StockTransferService
                 'chart_of_account_id' => $inventoryAccountId,
                 'debit' => $totalValue,
                 'credit' => 0,
-                'memo' => 'Inventory received from '.$transfer->sourceBranch->name,
+                'memo' => 'Penerimaan persediaan dari '.$transfer->sourceBranch->name,
             ],
             [
                 'chart_of_account_id' => $inventoryAccountId,
                 'debit' => 0,
                 'credit' => $totalValue,
-                'memo' => 'Inter-branch payable '.$transfer->sourceBranch->name,
+                'memo' => 'Hutang antar-cabang '.$transfer->sourceBranch->name,
             ],
         ]);
     }

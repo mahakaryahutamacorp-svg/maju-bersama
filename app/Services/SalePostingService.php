@@ -141,13 +141,13 @@ class SalePostingService
                 'chart_of_account_id' => $accounts[self::ACCOUNT_CASH]->id,
                 'debit' => $total,
                 'credit' => 0,
-                'memo' => 'POS cash sale',
+                'memo' => 'Penjualan tunai POS',
             ],
             [
                 'chart_of_account_id' => $accounts[self::ACCOUNT_REVENUE]->id,
                 'debit' => 0,
                 'credit' => $total,
-                'memo' => 'POS sales revenue',
+                'memo' => 'Pendapatan penjualan POS',
             ],
         ];
 
@@ -158,14 +158,14 @@ class SalePostingService
                 'chart_of_account_id' => $accounts[self::ACCOUNT_COGS]->id,
                 'debit' => $cost,
                 'credit' => 0,
-                'memo' => 'Cost of goods sold',
+                'memo' => 'Harga pokok penjualan (HPP)',
             ];
 
             $lines[] = [
                 'chart_of_account_id' => $accounts[self::ACCOUNT_INVENTORY]->id,
                 'debit' => 0,
                 'credit' => $cost,
-                'memo' => 'Inventory released on sale',
+                'memo' => 'Barang keluar untuk penjualan',
             ];
         }
 
