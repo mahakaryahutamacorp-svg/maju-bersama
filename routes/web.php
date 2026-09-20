@@ -91,6 +91,11 @@ Route::middleware('auth')->group(function () {
 		// Opening Balances (Setup Saldo Awal Sistem)
 		Route::get('opening-balances', [App\Http\Controllers\Web\OpeningBalanceController::class, 'create'])->name('opening-balances.create');
 		Route::post('opening-balances', [App\Http\Controllers\Web\OpeningBalanceController::class, 'store'])->name('opening-balances.store');
+
+		// Universal Transaction Viewer (Modal)
+		Route::get('transactions/{reference}/details', [App\Http\Controllers\TransactionViewerController::class, 'show'])->name('transactions.details');
 	});
+
+	Route::get('/backoffice/transactions/{reference}/details', [App\Http\Controllers\TransactionViewerController::class, 'show'])->name('transactions.details');
 });
 

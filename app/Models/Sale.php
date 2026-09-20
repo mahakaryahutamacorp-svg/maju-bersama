@@ -43,6 +43,11 @@ class Sale extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function user(): BelongsTo
+    {
+        return $this->creator();
+    }
+
     public function items(): HasMany
     {
         return $this->hasMany(SaleItem::class);

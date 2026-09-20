@@ -30,14 +30,29 @@ class StockTransfer extends Model
         return $this->belongsTo(Branch::class, 'source_branch_id');
     }
 
+    public function fromBranch(): BelongsTo
+    {
+        return $this->sourceBranch();
+    }
+
     public function destinationBranch(): BelongsTo
     {
         return $this->belongsTo(Branch::class, 'destination_branch_id');
     }
 
+    public function toBranch(): BelongsTo
+    {
+        return $this->destinationBranch();
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->creator();
     }
 
     public function items(): HasMany

@@ -6,6 +6,7 @@
     <title>Jurnal Umum (General Ledger) | Maju Bersama POS &amp; Akuntansi</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>[x-cloak] { display: none !important; }</style>
 </head>
 <body x-data="journalLedger()" class="min-h-screen bg-slate-100 text-slate-900 antialiased">
     <header class="border-b border-slate-800 bg-slate-950 text-white">
@@ -63,7 +64,15 @@
                             <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-sm font-bold text-amber-400">JU</div>
                             <div>
                                 <div class="flex flex-wrap items-center gap-3">
-                                    <h3 class="font-mono text-sm font-bold text-sky-700">{{ $header->reference_number }}</h3>
+                                    <button type="button" 
+                                            @click="loadTransaction('{{ $header->reference_number }}')" 
+                                            class="group inline-flex items-center gap-1.5 font-mono text-sm font-bold text-sky-700 hover:text-sky-900 hover:underline focus:outline-none transition" 
+                                            title="Klik untuk melihat rincian transaksi lengkap">
+                                        <span>{{ $header->reference_number }}</span>
+                                        <svg class="h-3.5 w-3.5 text-sky-400 group-hover:text-sky-600 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                        </svg>
+                                    </button>
                                     <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">#{{ $header->id }}</span>
                                 </div>
                                 <p class="mt-2 text-lg font-semibold text-slate-950">{{ $header->description }}</p>
@@ -129,13 +138,124 @@
             @endforelse
         </div>
     </main>
+
+    <!-- Universal Transaction Viewer Modal -->
+    <div x-show="showModal" 
+         x-cloak 
+         class="fixed inset-0 z-50 overflow-y-auto" 
+         aria-labelledby="modal-title" 
+         role="dialog" 
+         aria-modal="true"
+         style="display: none;">
+        <!-- Backdrop -->
+        <div x-show="showModal"
+             x-transition:enter="ease-out duration-300"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="ease-in duration-200"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" 
+             @click="showModal = false"></div>
+
+        <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+            <!-- Modal Panel -->
+            <div x-show="showModal"
+                 x-transition:enter="ease-out duration-300"
+                 x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                 x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                 x-transition:leave="ease-in duration-200"
+                 x-transition:leave-start="opacity-100 translate-y-0 sm:scale-100"
+                 x-transition:leave-end="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
+                 @keydown.escape.window="showModal = false"
+                 class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-3xl border border-slate-200">
+                
+                <!-- Modal Header -->
+                <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-6 py-4">
+                    <div class="flex items-center gap-2.5">
+                        <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-100 text-sky-700 shadow-xs">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                        </span>
+                        <div>
+                            <h3 class="text-base font-bold text-slate-900" id="modal-title">Rincian Transaksi</h3>
+                            <p class="text-xs text-slate-500">Universal Transaction Viewer</p>
+                        </div>
+                    </div>
+                    <button type="button" 
+                            @click="showModal = false" 
+                            class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700 transition">
+                        <span class="sr-only">Tutup</span>
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+
+                <!-- Modal Body Content injected via HTML partial -->
+                <div class="p-6">
+                    <div x-html="transactionHtml"></div>
+                </div>
+
+                <!-- Modal Footer -->
+                <div class="border-t border-slate-100 bg-slate-50 px-6 py-3.5 flex justify-end">
+                    <button type="button" 
+                            @click="showModal = false" 
+                            class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 focus:outline-none transition">
+                        Tutup
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         function journalLedger() {
             return {
                 query: '',
+                showModal: false,
+                transactionHtml: '',
+                isLoading: false,
                 matches(value) {
                     return !this.query.trim() || value.includes(this.query.toLowerCase().trim());
                 },
+                async loadTransaction(ref) {
+                    if (!ref) return;
+                    this.isLoading = true;
+                    this.showModal = true;
+                    this.transactionHtml = `
+                        <div class="flex flex-col items-center justify-center py-12 text-slate-500">
+                            <svg class="h-8 w-8 animate-spin text-sky-600 mb-3" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                            </svg>
+                            <p class="text-sm font-medium">Memuat rincian transaksi...</p>
+                        </div>
+                    `;
+                    try {
+                        const res = await fetch('/backoffice/transactions/' + encodeURIComponent(ref) + '/details');
+                        if (res.ok) {
+                            this.transactionHtml = await res.text();
+                        } else {
+                            this.transactionHtml = `
+                                <div class="p-6 text-center text-rose-600">
+                                    <p class="font-bold">Gagal memuat rincian transaksi</p>
+                                    <p class="text-xs mt-1 text-slate-500">Kode respons server: ${res.status}</p>
+                                </div>
+                            `;
+                        }
+                    } catch (err) {
+                        this.transactionHtml = `
+                            <div class="p-6 text-center text-rose-600">
+                                <p class="font-bold">Terjadi kesalahan jaringan</p>
+                                <p class="text-xs mt-1 text-slate-500">Tidak dapat terhubung ke server saat memuat rincian transaksi.</p>
+                            </div>
+                        `;
+                    } finally {
+                        this.isLoading = false;
+                    }
+                }
             };
         }
     </script>

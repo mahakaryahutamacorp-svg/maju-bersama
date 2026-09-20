@@ -33,6 +33,11 @@ class StockTransferItem extends Model
         return $this->belongsTo(Product::class, 'source_product_id');
     }
 
+    public function product(): BelongsTo
+    {
+        return $this->sourceProduct();
+    }
+
     public function destinationProduct(): BelongsTo
     {
         return $this->belongsTo(Product::class, 'destination_product_id');
