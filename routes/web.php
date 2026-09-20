@@ -73,6 +73,9 @@ Route::middleware('auth')->group(function () {
 
 		// Purchase Orders
 		Route::resource('purchase-orders', App\Http\Controllers\Web\PurchaseOrderController::class);
+
+		// Supplier Payments
+		Route::resource('supplier-payments', App\Http\Controllers\Web\SupplierPaymentController::class);
 	});
 });
 
