@@ -66,6 +66,16 @@
                     <span class="text-[10px] bg-rose-400/20 text-rose-300 px-1.5 py-0.5 rounded">Beban</span>
                 </a>
 
+                <p class="px-3 pb-2 pt-5 text-xs font-semibold uppercase tracking-wider text-amber-400/90">Penjualan</p>
+                <a href="/pos" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
+                    <span>Kasir POS</span>
+                    <span class="text-[10px] bg-emerald-400/20 text-emerald-300 px-1.5 py-0.5 rounded">POS</span>
+                </a>
+                <a href="{{ route('backoffice.sales-returns.index') }}" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
+                    <span>Retur Penjualan</span>
+                    <span class="text-[10px] bg-rose-400/20 text-rose-300 px-1.5 py-0.5 rounded">Retur</span>
+                </a>
+
                 <p class="px-3 pb-2 pt-5 text-xs font-semibold uppercase tracking-wider text-amber-400/90">Pengadaan &amp; PO</p>
                 <a href="{{ route('backoffice.purchase-orders.index') }}" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
                     <span>Pembelian / PO</span>

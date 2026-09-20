@@ -67,6 +67,11 @@ class Product extends Model
         return $this->hasMany(PurchaseReturnItem::class);
     }
 
+    public function salesReturnItems(): HasMany
+    {
+        return $this->hasMany(SalesReturnItem::class);
+    }
+
     /**
      * The authoritative stock row for this product within its own branch.
      */

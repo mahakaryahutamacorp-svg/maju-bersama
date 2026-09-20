@@ -75,7 +75,16 @@ class CashRegisterShiftService
             return (float) ($sale->total_amount / 100);
         });
 
-        return (float) bcadd((string) $opening, (string) $totalCash, 2);
+        // Kurangi refund retur penjualan tunai pada shift ini
+        $cashRefunds = \App\Models\SalesReturn::withoutGlobalScopes()
+            ->where('cash_register_shift_id', $shift->id)
+            ->whereIn('refund_method', ['cash', 'Cash', 'tunai', 'Tunai'])
+            ->where('status', 'completed')
+            ->sum('total_amount');
+
+        $netCash = bcsub((string) $totalCash, (string) $cashRefunds, 2);
+
+        return (float) bcadd((string) $opening, (string) $netCash, 2);
     }
 
     /**

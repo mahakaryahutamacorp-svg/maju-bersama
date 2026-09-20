@@ -73,6 +73,9 @@ Route::middleware('auth')->group(function () {
 		// Suppliers
 		Route::resource('suppliers', App\Http\Controllers\Web\SupplierController::class);
 
+		// Sales Returns (Retur Penjualan Pelanggan)
+		Route::resource('sales-returns', App\Http\Controllers\Web\SalesReturnController::class);
+
 		// Purchase Orders
 		Route::resource('purchase-orders', App\Http\Controllers\Web\PurchaseOrderController::class);
 
