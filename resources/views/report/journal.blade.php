@@ -92,9 +92,20 @@
                             </thead>
                             <tbody class="divide-y divide-slate-100">
                                 @foreach ($header->journalLines as $line)
+                                    @php
+                                        $accountName = $line->chartOfAccount?->name ?? 'Akun Tidak Dikenal';
+                                        $description = $line->memo ?: $header->description;
+                                    @endphp
                                     <tr class="hover:bg-slate-50">
                                         <td class="whitespace-nowrap px-6 py-4 font-mono text-sm font-semibold text-sky-700">{{ $line->chartOfAccount?->code ?? '—' }}</td>
-                                        <td class="px-6 py-4 text-sm text-slate-700">{{ $line->chartOfAccount?->name ?? 'Akun Tidak Dikenal' }}<span class="ml-2 text-xs text-slate-400">{{ $line->memo }}</span></td>
+                                        <td class="px-6 py-4 text-sm">
+                                            <div class="flex flex-col">
+                                                <span class="font-bold text-gray-800">{{ $accountName }}</span>
+                                                <span class="text-xs text-gray-400 truncate max-w-xs" title="{{ $description }}">
+                                                    {{ $description }}
+                                                </span>
+                                            </div>
+                                        </td>
                                         <td class="whitespace-nowrap px-6 py-4 text-right text-sm {{ (float) $line->debit > 0 ? 'font-semibold text-slate-900' : 'text-slate-300' }}">{{ (float) $line->debit > 0 ? 'Rp '.number_format((float) $line->debit, 0, ',', '.') : '—' }}</td>
                                         <td class="whitespace-nowrap px-6 py-4 text-right text-sm {{ (float) $line->credit > 0 ? 'font-semibold text-slate-900' : 'text-slate-300' }}">{{ (float) $line->credit > 0 ? 'Rp '.number_format((float) $line->credit, 0, ',', '.') : '—' }}</td>
                                     </tr>
