@@ -47,6 +47,9 @@
                 <a href="{{ route('backoffice.expenses.create') }}" class="rounded-lg bg-amber-500 px-3.5 py-2 font-bold text-slate-950 shadow-xs">
                     + Catat Kas Keluar
                 </a>
+                <a href="{{ route('backoffice.cash-transfers.index') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+                    Mutasi Kas &amp; Bank
+                </a>
                 <a href="{{ route('backoffice.expense-categories.index') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
                     Kategori Biaya
                 </a>

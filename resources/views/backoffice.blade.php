@@ -80,6 +80,10 @@
                 </a>
 
                 <p class="px-3 pb-2 pt-5 text-xs font-semibold uppercase tracking-wider text-amber-400/90">Keuangan &amp; Akuntansi</p>
+                <a href="{{ route('backoffice.cash-transfers.index') }}" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
+                    <span>Mutasi Kas &amp; Bank</span>
+                    <span class="text-[10px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded">Mutasi</span>
+                </a>
                 <a href="{{ route('backoffice.expenses.index') }}" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
                     <span>Biaya Operasional</span>
                     <span class="text-[10px] bg-rose-400/20 text-rose-300 px-1.5 py-0.5 rounded">Kas Keluar</span>

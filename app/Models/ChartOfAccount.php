@@ -37,4 +37,14 @@ class ChartOfAccount extends Model
     {
         return $this->hasMany(JournalLine::class);
     }
+
+    public function outgoingTransfers(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(CashTransfer::class, 'from_account_id');
+    }
+
+    public function incomingTransfers(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(CashTransfer::class, 'to_account_id');
+    }
 }

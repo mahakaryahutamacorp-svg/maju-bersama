@@ -84,6 +84,9 @@ Route::middleware('auth')->group(function () {
 
 		// Expenses (Biaya Operasional / Kas Keluar)
 		Route::resource('expenses', App\Http\Controllers\Web\ExpenseController::class);
+
+		// Cash Transfers (Mutasi / Transfer Antar Kas & Bank)
+		Route::resource('cash-transfers', App\Http\Controllers\Web\CashTransferController::class);
 	});
 });
 
