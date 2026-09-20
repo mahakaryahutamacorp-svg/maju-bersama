@@ -87,6 +87,10 @@ Route::middleware('auth')->group(function () {
 
 		// Cash Transfers (Mutasi / Transfer Antar Kas & Bank)
 		Route::resource('cash-transfers', App\Http\Controllers\Web\CashTransferController::class);
+
+		// Opening Balances (Setup Saldo Awal Sistem)
+		Route::get('opening-balances', [App\Http\Controllers\Web\OpeningBalanceController::class, 'create'])->name('opening-balances.create');
+		Route::post('opening-balances', [App\Http\Controllers\Web\OpeningBalanceController::class, 'store'])->name('opening-balances.store');
 	});
 });
 

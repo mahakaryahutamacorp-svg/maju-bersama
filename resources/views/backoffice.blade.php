@@ -84,6 +84,20 @@
                     <span>Mutasi Kas &amp; Bank</span>
                     <span class="text-[10px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded">Mutasi</span>
                 </a>
+                @php
+                    $hasOB = \App\Services\OpeningBalanceService::hasOpeningBalance($currentUser->branch_id);
+                @endphp
+                @if (! $hasOB)
+                    <a href="{{ route('backoffice.opening-balances.create') }}" class="block rounded-lg px-3 py-2 text-sm font-medium text-amber-300 hover:bg-slate-800 hover:text-white flex items-center justify-between bg-amber-500/10 border border-amber-400/20">
+                        <span>Input Saldo Awal</span>
+                        <span class="text-[10px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded font-bold">Setup</span>
+                    </a>
+                @else
+                    <a href="{{ route('backoffice.opening-balances.create') }}" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-400 hover:bg-slate-800 hover:text-white flex items-center justify-between opacity-70">
+                        <span>Input Saldo Awal</span>
+                        <span class="text-[10px] bg-emerald-400/20 text-emerald-300 px-1.5 py-0.5 rounded">Tercatat</span>
+                    </a>
+                @endif
                 <a href="{{ route('backoffice.expenses.index') }}" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
                     <span>Biaya Operasional</span>
                     <span class="text-[10px] bg-rose-400/20 text-rose-300 px-1.5 py-0.5 rounded">Kas Keluar</span>
