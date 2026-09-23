@@ -8,6 +8,15 @@ use Illuminate\View\View;
 
 class ReportController extends Controller
 {
+    public function index(Request $request): View
+    {
+        $currentUser = $request->user();
+
+        return view('backoffice.reports.index', [
+            'currentUser' => $currentUser,
+        ]);
+    }
+
     public function journal(Request $request): View
     {
         $user = $request->user();
