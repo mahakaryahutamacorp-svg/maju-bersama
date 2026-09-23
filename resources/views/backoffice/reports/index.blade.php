@@ -244,7 +244,7 @@
                         <!-- Daftar Laporan Keuangan -->
                         <div class="grid gap-3">
                             <!-- 1. Laba Rugi Standar -->
-                            <a href="#" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
+                            <a href="{{ route('reports.income-statement') }}" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-start gap-3.5">
                                         <div class="rounded-lg bg-emerald-100 text-emerald-800 p-2.5 mt-0.5 group-hover:scale-105 transition-transform">

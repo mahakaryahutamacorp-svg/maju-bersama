@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Branch;
 use App\Models\JournalHeader;
+use App\Services\Reports\IncomeStatementService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -14,6 +16,39 @@ class ReportController extends Controller
 
         return view('backoffice.reports.index', [
             'currentUser' => $currentUser,
+        ]);
+    }
+
+    public function incomeStatement(Request $request, IncomeStatementService $service): View
+    {
+        $currentUser = $request->user();
+        $isMaster = $currentUser->isMaster()
+            || in_array($currentUser->role, ['admin', 'superadmin', 'master'], true)
+            || ($currentUser->branch && ($currentUser->branch->parent_id === null || $currentUser->branch->code === 'PUSAT'));
+
+        // Parameter start_date & end_date dari query string (default: bulan berjalan)
+        $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
+        $endDate = $request->input('end_date', now()->endOfMonth()->toDateString());
+
+        // Multi-tenancy branch enforcement
+        $branchId = $isMaster
+            ? ($request->filled('branch_id') ? (int) $request->input('branch_id') : null)
+            : (int) $currentUser->branch_id;
+
+        $report = $service->generate($startDate, $endDate, $branchId);
+
+        $branches = $isMaster
+            ? Branch::query()->orderBy('id')->get()
+            : Branch::query()->where('id', $currentUser->branch_id)->get();
+
+        return view('backoffice.reports.income-statement', [
+            'currentUser' => $currentUser->load('branch'),
+            'isMaster' => $isMaster,
+            'report' => $report,
+            'branches' => $branches,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'selectedBranchId' => $branchId,
         ]);
     }
 

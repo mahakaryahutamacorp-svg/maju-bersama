@@ -104,10 +104,12 @@ Route::middleware('auth')->group(function () {
 
 		// Report Center (Pusat Laporan)
 		Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+		Route::get('reports/income-statement', [ReportController::class, 'incomeStatement'])->name('reports.income-statement');
 	});
 
 	Route::get('/backoffice/stock-transfers/{reference}/print', [StockTransferPrintController::class, 'print'])->name('stock-transfers.print');
 	Route::get('/backoffice/transactions/{reference}/details', [App\Http\Controllers\TransactionViewerController::class, 'show'])->name('transactions.details');
 	Route::get('/backoffice/reports', [ReportController::class, 'index'])->name('reports.index');
+	Route::get('/backoffice/reports/income-statement', [ReportController::class, 'incomeStatement'])->name('reports.income-statement');
 });
 
