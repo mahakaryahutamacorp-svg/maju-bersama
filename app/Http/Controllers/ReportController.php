@@ -6,7 +6,11 @@ use App\Models\Branch;
 use App\Models\JournalHeader;
 use App\Services\Reports\BalanceSheetService;
 use App\Services\Reports\CashFlowService;
+use App\Services\Reports\FixedAssetReportService;
 use App\Services\Reports\IncomeStatementService;
+use App\Services\Reports\InventoryReportService;
+use App\Services\Reports\PurchaseReportService;
+use App\Services\Reports\SalesReportService;
 use App\Services\Reports\TrialBalanceService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -144,6 +148,128 @@ class ReportController extends Controller
             'branches' => $branches,
             'startDate' => $startDate,
             'endDate' => $endDate,
+            'selectedBranchId' => $branchId,
+        ]);
+    }
+
+    public function sales(Request $request, SalesReportService $service): View
+    {
+        $currentUser = $request->user();
+        $isMaster = $currentUser->isMaster()
+            || in_array($currentUser->role, ['admin', 'superadmin', 'master'], true)
+            || ($currentUser->branch && ($currentUser->branch->parent_id === null || $currentUser->branch->code === 'PUSAT'));
+
+        $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
+        $endDate = $request->input('end_date', now()->toDateString());
+
+        $branchId = $isMaster
+            ? ($request->filled('branch_id') ? (int) $request->input('branch_id') : null)
+            : (int) $currentUser->branch_id;
+
+        $report = $service->getSales($startDate, $endDate, $branchId);
+
+        $branches = $isMaster
+            ? Branch::query()->orderBy('id')->get()
+            : Branch::query()->where('id', $currentUser->branch_id)->get();
+
+        return view('backoffice.reports.sales-report', [
+            'currentUser' => $currentUser->load('branch'),
+            'isMaster' => $isMaster,
+            'report' => $report,
+            'branches' => $branches,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'selectedBranchId' => $branchId,
+        ]);
+    }
+
+    public function purchases(Request $request, PurchaseReportService $service): View
+    {
+        $currentUser = $request->user();
+        $isMaster = $currentUser->isMaster()
+            || in_array($currentUser->role, ['admin', 'superadmin', 'master'], true)
+            || ($currentUser->branch && ($currentUser->branch->parent_id === null || $currentUser->branch->code === 'PUSAT'));
+
+        $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
+        $endDate = $request->input('end_date', now()->toDateString());
+
+        $branchId = $isMaster
+            ? ($request->filled('branch_id') ? (int) $request->input('branch_id') : null)
+            : (int) $currentUser->branch_id;
+
+        $report = $service->getPurchases($startDate, $endDate, $branchId);
+
+        $branches = $isMaster
+            ? Branch::query()->orderBy('id')->get()
+            : Branch::query()->where('id', $currentUser->branch_id)->get();
+
+        return view('backoffice.reports.purchases-report', [
+            'currentUser' => $currentUser->load('branch'),
+            'isMaster' => $isMaster,
+            'report' => $report,
+            'branches' => $branches,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'selectedBranchId' => $branchId,
+        ]);
+    }
+
+    public function stockCard(Request $request, InventoryReportService $service): View
+    {
+        $currentUser = $request->user();
+        $isMaster = $currentUser->isMaster()
+            || in_array($currentUser->role, ['admin', 'superadmin', 'master'], true)
+            || ($currentUser->branch && ($currentUser->branch->parent_id === null || $currentUser->branch->code === 'PUSAT'));
+
+        $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
+        $endDate = $request->input('end_date', now()->toDateString());
+
+        $branchId = $isMaster
+            ? ($request->filled('branch_id') ? (int) $request->input('branch_id') : null)
+            : (int) $currentUser->branch_id;
+
+        $productId = $request->filled('product_id') ? (int) $request->input('product_id') : null;
+
+        $report = $service->getStockCard($startDate, $endDate, $branchId, $productId);
+
+        $branches = $isMaster
+            ? Branch::query()->orderBy('id')->get()
+            : Branch::query()->where('id', $currentUser->branch_id)->get();
+
+        return view('backoffice.reports.inventory-stock-card', [
+            'currentUser' => $currentUser->load('branch'),
+            'isMaster' => $isMaster,
+            'report' => $report,
+            'branches' => $branches,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'selectedBranchId' => $branchId,
+            'selectedProductId' => $productId ?? ($report['product']->id ?? null),
+        ]);
+    }
+
+    public function fixedAssets(Request $request, FixedAssetReportService $service): View
+    {
+        $currentUser = $request->user();
+        $isMaster = $currentUser->isMaster()
+            || in_array($currentUser->role, ['admin', 'superadmin', 'master'], true)
+            || ($currentUser->branch && ($currentUser->branch->parent_id === null || $currentUser->branch->code === 'PUSAT'));
+
+        $branchId = $isMaster
+            ? ($request->filled('branch_id') ? (int) $request->input('branch_id') : null)
+            : (int) $currentUser->branch_id;
+
+        $assets = $service->getAssets($branchId);
+
+        $branches = $isMaster
+            ? Branch::query()->orderBy('id')->get()
+            : Branch::query()->where('id', $currentUser->branch_id)->get();
+
+        return view('backoffice.reports.fixed-assets-report', [
+            'currentUser' => $currentUser->load('branch'),
+            'isMaster' => $isMaster,
+            'assets' => $assets,
+            'branches' => $branches,
             'selectedBranchId' => $branchId,
         ]);
     }

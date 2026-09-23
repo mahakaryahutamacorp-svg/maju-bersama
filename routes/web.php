@@ -108,6 +108,12 @@ Route::middleware('auth')->group(function () {
 		Route::get('reports/trial-balance', [ReportController::class, 'trialBalance'])->name('reports.trial-balance');
 		Route::get('reports/balance-sheet', [ReportController::class, 'balanceSheet'])->name('reports.balance-sheet');
 		Route::get('reports/cash-flow', [ReportController::class, 'cashFlow'])->name('reports.cash-flow');
+
+		// Operational Reports
+		Route::get('reports/sales', [ReportController::class, 'sales'])->name('reports.sales');
+		Route::get('reports/purchases', [ReportController::class, 'purchases'])->name('reports.purchases');
+		Route::get('reports/inventory/stock-card', [ReportController::class, 'stockCard'])->name('reports.stock-card');
+		Route::get('reports/fixed-assets', [ReportController::class, 'fixedAssets'])->name('reports.fixed-assets');
 	});
 
 	Route::get('/backoffice/stock-transfers/{reference}/print', [StockTransferPrintController::class, 'print'])->name('stock-transfers.print');
@@ -117,5 +123,12 @@ Route::middleware('auth')->group(function () {
 	Route::get('/backoffice/reports/trial-balance', [ReportController::class, 'trialBalance'])->name('reports.trial-balance');
 	Route::get('/backoffice/reports/balance-sheet', [ReportController::class, 'balanceSheet'])->name('reports.balance-sheet');
 	Route::get('/backoffice/reports/cash-flow', [ReportController::class, 'cashFlow'])->name('reports.cash-flow');
+
+	Route::prefix('/backoffice/reports')->group(function () {
+		Route::get('/sales', [ReportController::class, 'sales'])->name('reports.sales');
+		Route::get('/purchases', [ReportController::class, 'purchases'])->name('reports.purchases');
+		Route::get('/inventory/stock-card', [ReportController::class, 'stockCard'])->name('reports.stock-card');
+		Route::get('/fixed-assets', [ReportController::class, 'fixedAssets'])->name('reports.fixed-assets');
+	});
 });
 

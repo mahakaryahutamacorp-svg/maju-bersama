@@ -272,5 +272,147 @@ class ReportCenterWebTest extends TestCase
         $response->assertSee('550.000,00');
         $response->assertSee('SALDO AKHIR KAS &amp; BANK', false);
     }
+
+    public function test_report_center_links_to_operational_reports(): void
+    {
+        $response = $this->actingAs($this->user)->get(route('reports.index'));
+
+        $response->assertStatus(200);
+        $response->assertSee(route('reports.sales'), false);
+        $response->assertSee(route('reports.purchases'), false);
+        $response->assertSee(route('reports.stock-card'), false);
+        $response->assertSee(route('reports.fixed-assets'), false);
+    }
+
+    public function test_sales_report_renders_successfully(): void
+    {
+        $cat = \App\Models\Category::create(['name' => 'Pupuk']);
+        $product = \App\Models\Product::create([
+            'branch_id' => $this->branch->id,
+            'category_id' => $cat->id,
+            'sku' => 'PPK-001',
+            'name' => 'Pupuk NPK Mutiara 1kg',
+            'unit' => 'Bungkus',
+            'purchase_price' => 15000,
+            'selling_price' => 20000,
+            'stock' => 50,
+        ]);
+
+        $sale = \App\Models\Sale::create([
+            'branch_id' => $this->branch->id,
+            'receipt_number' => 'POS-20260923-0001',
+            'total_amount' => 40000,
+            'payment_method' => 'cash',
+            'status' => 'completed',
+            'created_by' => $this->user->id,
+        ]);
+
+        $sale->items()->create([
+            'product_id' => $product->id,
+            'quantity' => 2,
+            'price' => 20000,
+            'subtotal' => 40000,
+        ]);
+
+        $response = $this->actingAs($this->user)->get(route('reports.sales'));
+
+        $response->assertStatus(200);
+        $response->assertSee('Laporan Penjualan');
+        $response->assertSee('MAJU BERSAMA GRUP');
+        $response->assertSee('POS-20260923-0001');
+        $response->assertSee('40.000,00');
+        $response->assertSee('Pelanggan Umum (Walk-in)');
+    }
+
+    public function test_purchases_report_renders_successfully(): void
+    {
+        $supplier = \App\Models\Supplier::create([
+            'branch_id' => $this->branch->id,
+            'name' => 'PT Petrokimia Sentosa',
+            'is_active' => true,
+        ]);
+
+        $cat = \App\Models\Category::create(['name' => 'Bibit']);
+        $product = \App\Models\Product::create([
+            'branch_id' => $this->branch->id,
+            'category_id' => $cat->id,
+            'sku' => 'BBT-001',
+            'name' => 'Bibit Jagung Manis 500g',
+            'unit' => 'Pack',
+            'purchase_price' => 25000,
+            'selling_price' => 35000,
+            'stock' => 100,
+        ]);
+
+        $po = \App\Models\PurchaseOrder::create([
+            'branch_id' => $this->branch->id,
+            'supplier_id' => $supplier->id,
+            'reference_number' => 'PO-2026-0099',
+            'order_date' => now()->toDateString(),
+            'status' => 'completed',
+            'total_amount' => 250000,
+            'notes' => 'Pengadaan bibit jagung',
+        ]);
+
+        $po->items()->create([
+            'product_id' => $product->id,
+            'quantity' => 10,
+            'received_quantity' => 10,
+            'unit_price' => 25000,
+            'subtotal' => 250000,
+        ]);
+
+        $response = $this->actingAs($this->user)->get(route('reports.purchases'));
+
+        $response->assertStatus(200);
+        $response->assertSee('Laporan Pembelian');
+        $response->assertSee('MAJU BERSAMA GRUP');
+        $response->assertSee('PO-2026-0099');
+        $response->assertSee('PT Petrokimia Sentosa');
+        $response->assertSee('250.000,00');
+    }
+
+    public function test_inventory_stock_card_renders_successfully(): void
+    {
+        $cat = \App\Models\Category::create(['name' => 'Obat Hama']);
+        $product = \App\Models\Product::create([
+            'branch_id' => $this->branch->id,
+            'category_id' => $cat->id,
+            'sku' => 'OBT-001',
+            'name' => 'Insektisida Regent 50ml',
+            'unit' => 'Botol',
+            'purchase_price' => 18000,
+            'selling_price' => 25000,
+            'stock' => 30,
+        ]);
+
+        \App\Models\Inventory::create([
+            'branch_id' => $this->branch->id,
+            'product_id' => $product->id,
+            'quantity' => 30,
+        ]);
+
+        $response = $this->actingAs($this->user)->get(route('reports.stock-card', [
+            'product_id' => $product->id,
+            'branch_id' => $this->branch->id,
+        ]));
+
+        $response->assertStatus(200);
+        $response->assertSee('Kartu Stok &amp; Mutasi Barang', false);
+        $response->assertSee('MAJU BERSAMA GRUP');
+        $response->assertSee('Insektisida Regent 50ml');
+        $response->assertSee('OBT-001');
+    }
+
+    public function test_fixed_assets_report_renders_successfully(): void
+    {
+        $response = $this->actingAs($this->user)->get(route('reports.fixed-assets'));
+
+        $response->assertStatus(200);
+        $response->assertSee('Daftar Aktiva Tetap &amp; Inventaris', false);
+        $response->assertSee('MAJU BERSAMA GRUP');
+        $response->assertSee('Modul Harta Tetap &amp; Depresiasi Terproteksi', false);
+        $response->assertSee('Belum ada aset tetap yang tercatat');
+    }
 }
 

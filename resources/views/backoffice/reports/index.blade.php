@@ -382,7 +382,7 @@
 
                         <!-- Daftar Laporan Penjualan -->
                         <div class="grid gap-3">
-                            <a href="#" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
+                            <a href="{{ route('reports.sales') }}" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-start gap-3.5">
                                         <div class="rounded-lg bg-sky-100 text-sky-800 p-2.5 mt-0.5 group-hover:scale-105 transition-transform">
@@ -491,7 +491,7 @@
 
                         <!-- Daftar Laporan Pembelian -->
                         <div class="grid gap-3">
-                            <a href="#" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
+                            <a href="{{ route('reports.purchases') }}" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-start gap-3.5">
                                         <div class="rounded-lg bg-indigo-100 text-indigo-800 p-2.5 mt-0.5 group-hover:scale-105 transition-transform">
@@ -601,7 +601,7 @@
                         <!-- Daftar Laporan Persediaan -->
                         <div class="grid gap-3">
                             <!-- 1. Kartu Stok / Mutasi Barang -->
-                            <a href="#" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
+                            <a href="{{ route('reports.stock-card') }}" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-start gap-3.5">
                                         <div class="rounded-lg bg-emerald-100 text-emerald-800 p-2.5 mt-0.5 group-hover:scale-105 transition-transform">
@@ -685,7 +685,7 @@
 
                         <!-- Daftar Laporan Harta Tetap -->
                         <div class="grid gap-3">
-                            <a href="#" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
+                            <a href="{{ route('reports.fixed-assets') }}" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-start gap-3.5">
                                         <div class="rounded-lg bg-purple-100 text-purple-800 p-2.5 mt-0.5 group-hover:scale-105 transition-transform">
