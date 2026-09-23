@@ -5,10 +5,10 @@ namespace App\Services;
 use App\Models\Branch;
 use App\Models\ChartOfAccount;
 use App\Models\Inventory;
-use App\Models\JournalHeader;
 use App\Models\Product;
 use App\Models\StockAdjustment;
 use App\Models\StockAdjustmentItem;
+use App\Models\StockAdjustmentLine;
 use App\Models\User;
 use App\Models\Warehouse;
 use Illuminate\Support\Facades\DB;
@@ -18,9 +18,9 @@ use Illuminate\Validation\ValidationException;
  * Service to process stock adjustments (stock opname).
  *
  * Atomically:
- * 1. Creates StockAdjustment and StockAdjustmentItem records.
+ * 1. Creates StockAdjustment, StockAdjustmentLine, and StockAdjustmentItem records.
  * 2. Updates stock in inventories table and products cached stock with lockForUpdate().
- * 3. Records double-entry balanced accounting journal:
+ * 3. Records double-entry balanced accounting journal via JournalEntryService:
  *    - Loss (difference < 0): Dr 5120 Beban Selisih Persediaan, Cr 1210 Persediaan.
  *    - Gain (difference > 0): Dr 1210 Persediaan, Cr 4120 Pendapatan Lain-lain.
  */
@@ -30,33 +30,40 @@ class StockAdjustmentService
     public const ACCOUNT_EXPENSE_ADJUSTMENT = '5120';
     public const ACCOUNT_REVENUE_ADJUSTMENT = '4120';
 
+    public function __construct(
+        protected ?JournalEntryService $journalEntryService = null
+    ) {
+        $this->journalEntryService = $journalEntryService ?? app(JournalEntryService::class);
+    }
+
     /**
      * Process stock adjustment atomically.
+     * Supports both processAdjustment($data, $lines) and processAdjustment($data, $actor).
      *
-     * @param array{
-     *     branch_id?: int|null,
-     *     reference_number?: string|null,
-     *     date?: string|null,
-     *     notes?: string|null,
-     *     items: array<int, array{
-     *         product_id: int,
-     *         actual_qty: int,
-     *         expected_qty?: int|null,
-     *         unit_cost?: float|string|null
-     *     }>
-     * } $data
-     * @param User $actor
+     * @param array $data
+     * @param array|User|null $linesOrActor
+     * @param User|null $actor
      * @return StockAdjustment
+     * @throws ValidationException
      */
-    public function processAdjustment(array $data, User $actor): StockAdjustment
+    public function processAdjustment(array $data, array|User|null $linesOrActor = null, ?User $actor = null): StockAdjustment
     {
-        if (empty($data['items']) || ! is_array($data['items'])) {
+        if ($linesOrActor instanceof User) {
+            $actor = $linesOrActor;
+            $rawLines = $data['lines'] ?? $data['items'] ?? [];
+        } else {
+            $rawLines = is_array($linesOrActor) ? $linesOrActor : ($data['lines'] ?? $data['items'] ?? []);
+            $actor = $actor ?? auth()->user();
+        }
+
+        if (empty($rawLines) || ! is_array($rawLines)) {
             throw ValidationException::withMessages([
                 'items' => ['At least one adjustment item is required.'],
+                'lines' => ['Minimal satu produk penyesuaian stok harus dimasukkan.'],
             ]);
         }
 
-        return DB::transaction(function () use ($data, $actor): StockAdjustment {
+        return DB::transaction(function () use ($data, $rawLines, $actor): StockAdjustment {
             // Resolve branch
             $branch = $this->resolveBranch($data['branch_id'] ?? null, $actor);
 
@@ -65,20 +72,21 @@ class StockAdjustmentService
                 ? (string) $data['reference_number']
                 : $this->generateReferenceNumber();
 
-            $date = $data['date'] ?? now()->toDateString();
+            $date = $data['adjustment_date'] ?? $data['date'] ?? now()->toDateString();
 
             $totalLossValue = '0.00';
             $totalGainValue = '0.00';
-            $processedItems = [];
+            $processedLines = [];
 
-            // Lock and calculate items
-            foreach ($data['items'] as $index => $itemData) {
+            // Lock and calculate lines
+            foreach ($rawLines as $index => $itemData) {
                 $productId = (int) ($itemData['product_id'] ?? 0);
                 $actualQty = (int) ($itemData['actual_qty'] ?? 0);
 
                 if ($actualQty < 0) {
                     throw ValidationException::withMessages([
                         "items.{$index}.actual_qty" => ['Actual quantity cannot be negative.'],
+                        "lines.{$index}.actual_qty" => ['Stok fisik tidak boleh kurang dari 0.'],
                     ]);
                 }
 
@@ -90,29 +98,35 @@ class StockAdjustmentService
                 if (! $product) {
                     throw ValidationException::withMessages([
                         "items.{$index}.product_id" => ["Product ID {$productId} not found."],
+                        "lines.{$index}.product_id" => ["Produk ID {$productId} tidak ditemukan."],
                     ]);
                 }
 
                 // Lock inventory record for branch & product
                 $inventory = $this->lockInventory($branch->id, $product->id);
 
-                $expectedQty = isset($itemData['expected_qty'])
-                    ? (int) $itemData['expected_qty']
-                    : (int) $inventory->quantity;
+                $systemQty = isset($itemData['system_qty'])
+                    ? (int) $itemData['system_qty']
+                    : (isset($itemData['expected_qty']) ? (int) $itemData['expected_qty'] : (int) $inventory->quantity);
 
-                $differenceQty = $actualQty - $expectedQty;
+                $differenceQty = $actualQty - $systemQty;
 
-                // Determine unit cost (from input, purchase_price, or selling_price)
-                $unitCost = '0.00';
-                if (isset($itemData['unit_cost']) && is_numeric($itemData['unit_cost'])) {
-                    $unitCost = number_format((float) $itemData['unit_cost'], 2, '.', '');
-                } elseif ($product->purchase_price && (float) $product->purchase_price > 0) {
-                    $unitCost = number_format((float) $product->purchase_price, 2, '.', '');
-                } elseif ($product->selling_price && (float) $product->selling_price > 0) {
-                    $unitCost = number_format((float) $product->selling_price, 2, '.', '');
+                // Abaikan baris jika selisihnya 0 (kecuali jika hanya ada 1 baris yang dikirim dan nilainya 0)
+                if ($differenceQty === 0 && count($rawLines) > 1) {
+                    continue;
                 }
 
-                $subtotalValue = bcmul($unitCost, (string) $differenceQty, 2);
+                // Tentukan HPP (unit cost)
+                $unitCost = '0.00';
+                if (isset($itemData['unit_cost']) && is_numeric($itemData['unit_cost'])) {
+                    $unitCost = number_format((float) $itemData['unit_cost'], 4, '.', '');
+                } elseif ($product->purchase_price && (float) $product->purchase_price > 0) {
+                    $unitCost = number_format((float) $product->purchase_price, 4, '.', '');
+                } elseif ($product->selling_price && (float) $product->selling_price > 0) {
+                    $unitCost = number_format((float) $product->selling_price, 4, '.', '');
+                }
+
+                $subtotalCost = bcmul($unitCost, (string) $differenceQty, 4);
 
                 if ($differenceQty < 0) {
                     $loss = bcmul($unitCost, (string) abs($differenceQty), 2);
@@ -129,47 +143,69 @@ class StockAdjustmentService
                 // Synchronize product cached stock column
                 $product->increment('stock', $differenceQty);
 
-                $processedItems[] = [
-                    'product_id' => $product->id,
-                    'expected_qty' => $expectedQty,
-                    'actual_qty' => $actualQty,
+                $processedLines[] = [
+                    'product_id'     => $product->id,
+                    'system_qty'     => $systemQty,
+                    'actual_qty'     => $actualQty,
                     'difference_qty' => $differenceQty,
-                    'unit_cost' => $unitCost,
-                    'subtotal_value' => $subtotalValue,
+                    'unit_cost'      => $unitCost,
+                    'subtotal_cost'  => $subtotalCost,
+                    'reason'         => $itemData['reason'] ?? $data['notes'] ?? null,
                 ];
             }
 
             // Langkah A: Simpan master StockAdjustment
             $adjustment = StockAdjustment::create([
-                'branch_id' => $branch->id,
+                'branch_id'        => $branch->id,
                 'reference_number' => $referenceNumber,
-                'date' => $date,
-                'notes' => $data['notes'] ?? null,
+                'date'             => $date,
+                'adjustment_date'  => $date,
+                'notes'            => $data['notes'] ?? null,
                 'total_loss_value' => $totalLossValue,
                 'total_gain_value' => $totalGainValue,
             ]);
 
-            // Simpan items
-            foreach ($processedItems as $item) {
-                $adjustment->items()->create($item);
+            // Langkah B: Simpan ke stock_adjustment_lines & stock_adjustment_items
+            foreach ($processedLines as $pLine) {
+                // Enterprise detail lines
+                StockAdjustmentLine::create([
+                    'stock_adjustment_id' => $adjustment->id,
+                    'product_id'          => $pLine['product_id'],
+                    'system_qty'          => $pLine['system_qty'],
+                    'actual_qty'          => $pLine['actual_qty'],
+                    'difference_qty'      => $pLine['difference_qty'],
+                    'unit_cost'           => $pLine['unit_cost'],
+                    'subtotal_cost'       => $pLine['subtotal_cost'],
+                    'reason'              => $pLine['reason'],
+                ]);
+
+                // Backward-compatible items for StockCardService & existing tests
+                StockAdjustmentItem::create([
+                    'stock_adjustment_id' => $adjustment->id,
+                    'product_id'          => $pLine['product_id'],
+                    'expected_qty'        => $pLine['system_qty'],
+                    'actual_qty'          => $pLine['actual_qty'],
+                    'difference_qty'      => $pLine['difference_qty'],
+                    'unit_cost'           => number_format((float) $pLine['unit_cost'], 2, '.', ''),
+                    'subtotal_value'      => number_format((float) $pLine['subtotal_cost'], 2, '.', ''),
+                ]);
             }
 
-            // Langkah C: Buat Jurnal Ganda Otomatis
+            // Langkah C: Buat Jurnal Ganda Otomatis via JournalEntryService
             $this->recordJournal(
                 $adjustment,
                 $branch->id,
-                $actor->id,
+                $actor?->id ?? auth()->id() ?? User::value('id'),
                 $totalLossValue,
                 $totalGainValue
             );
 
-            return $adjustment->load(['items.product', 'branch']);
+            return $adjustment->load(['lines.product', 'items.product', 'branch', 'journal']);
         });
     }
 
     /**
      * Lock or create an inventory row for a branch and product.
-     * warehouse_id is populated for new rows (Phase-2 forward compat).
      */
     private function lockInventory(int $branchId, int $productId): Inventory
     {
@@ -189,7 +225,6 @@ class StockAdjustmentService
 
     /**
      * Resolve the "Gudang Utama" warehouse for a given branch.
-     * Returns null gracefully if no warehouse exists yet (e.g. in tests).
      */
     private function resolveWarehouseForBranch(int $branchId): ?Warehouse
     {
@@ -206,7 +241,7 @@ class StockAdjustmentService
     /**
      * Resolve the operating branch.
      */
-    private function resolveBranch(?int $branchId, User $actor): Branch
+    private function resolveBranch(?int $branchId, ?User $actor): Branch
     {
         if ($branchId) {
             $branch = Branch::find($branchId);
@@ -215,7 +250,7 @@ class StockAdjustmentService
             }
         }
 
-        if ($actor->branch_id) {
+        if ($actor?->branch_id) {
             $branch = Branch::find($actor->branch_id);
             if ($branch) {
                 return $branch;
@@ -239,13 +274,13 @@ class StockAdjustmentService
     }
 
     /**
-     * Create double-entry journal for stock adjustment.
+     * Create double-entry journal for stock adjustment via JournalEntryService.
      *
-     * If Loss > 0:
-     *   Dr. 5120 Beban Selisih Persediaan
+     * If Loss > 0 (Defisit):
+     *   Dr. 5120 Beban Penyesuaian Persediaan
      *     Cr. 1210 Persediaan
      *
-     * If Gain > 0:
+     * If Gain > 0 (Surplus):
      *   Dr. 1210 Persediaan
      *     Cr. 4120 Pendapatan Lain-lain
      */
@@ -267,47 +302,54 @@ class StockAdjustmentService
         $expenseAccount = $this->resolveAccount(self::ACCOUNT_EXPENSE_ADJUSTMENT, 'Beban Selisih Persediaan', 'expense');
         $revenueAccount = $this->resolveAccount(self::ACCOUNT_REVENUE_ADJUSTMENT, 'Pendapatan Lain-lain', 'revenue');
 
-        $journal = JournalHeader::create([
-            'branch_id' => $branchId,
-            'user_id' => $actorId,
-            'transaction_date' => $adjustment->date->format('Y-m-d'),
-            'reference_number' => $adjustment->reference_number,
-            'description' => "Penyesuaian Stok (Opname) #{$adjustment->reference_number}" . ($adjustment->notes ? " - {$adjustment->notes}" : ''),
-        ]);
+        $journalLines = [];
 
         // Loss journal entries: Dr Expense, Cr Inventory
         if ($hasLoss) {
-            $journal->lines()->create([
+            $journalLines[] = [
                 'chart_of_account_id' => $expenseAccount->id,
-                'debit' => $totalLossValue,
-                'credit' => '0.00',
-                'memo' => 'Beban selisih rugi opname persediaan',
-            ]);
+                'debit'               => (float) $totalLossValue,
+                'credit'              => 0,
+                'memo'                => 'Beban selisih rugi opname persediaan',
+            ];
 
-            $journal->lines()->create([
+            $journalLines[] = [
                 'chart_of_account_id' => $inventoryAccount->id,
-                'debit' => '0.00',
-                'credit' => $totalLossValue,
-                'memo' => 'Pengurangan persediaan fisik opname',
-            ]);
+                'debit'               => 0,
+                'credit'              => (float) $totalLossValue,
+                'memo'                => 'Pengurangan persediaan fisik opname',
+            ];
         }
 
         // Gain journal entries: Dr Inventory, Cr Revenue
         if ($hasGain) {
-            $journal->lines()->create([
+            $journalLines[] = [
                 'chart_of_account_id' => $inventoryAccount->id,
-                'debit' => $totalGainValue,
-                'credit' => '0.00',
-                'memo' => 'Penambahan persediaan fisik opname',
-            ]);
+                'debit'               => (float) $totalGainValue,
+                'credit'              => 0,
+                'memo'                => 'Penambahan persediaan fisik opname',
+            ];
 
-            $journal->lines()->create([
+            $journalLines[] = [
                 'chart_of_account_id' => $revenueAccount->id,
-                'debit' => '0.00',
-                'credit' => $totalGainValue,
-                'memo' => 'Pendapatan selisih lebih opname persediaan',
-            ]);
+                'debit'               => 0,
+                'credit'              => (float) $totalGainValue,
+                'memo'                => 'Pendapatan selisih lebih opname persediaan',
+            ];
         }
+
+        $description = "Penyesuaian Stok (Opname) #{$adjustment->reference_number}" . ($adjustment->notes ? " - {$adjustment->notes}" : '');
+
+        $journal = $this->journalEntryService->createEntry([
+            'branch_id'        => $branchId,
+            'user_id'          => $actorId,
+            'transaction_date' => $adjustment->date->format('Y-m-d'),
+            'reference_number' => $adjustment->reference_number,
+            'description'      => $description,
+            'lines'            => $journalLines,
+        ]);
+
+        $adjustment->update(['journal_header_id' => $journal->id]);
     }
 
     /**
@@ -322,11 +364,11 @@ class StockAdjustmentService
     }
 
     /**
-     * Generate unique reference number: ADJ-YYYYMMDD-XXXXX
+     * Generate unique reference number: SA-YYYYMMDD-XXXXX
      */
     private function generateReferenceNumber(): string
     {
-        $prefix = 'ADJ-' . now()->format('Ymd') . '-';
+        $prefix = 'SA-' . now()->format('Ymd') . '-';
         do {
             $candidate = $prefix . strtoupper(substr(bin2hex(random_bytes(3)), 0, 5));
         } while (StockAdjustment::where('reference_number', $candidate)->exists());

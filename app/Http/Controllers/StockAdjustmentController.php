@@ -135,15 +135,30 @@ class StockAdjustmentController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        $rawLines = $request->input('lines') ?? $request->input('items') ?? [];
+        if (! empty($rawLines) && is_array($rawLines)) {
+            $mapped = array_map(function ($item) {
+                if (isset($item['system_qty']) && ! isset($item['expected_qty'])) {
+                    $item['expected_qty'] = $item['system_qty'];
+                }
+                return $item;
+            }, $rawLines);
+            $request->merge(['items' => $mapped]);
+        }
+
         $validated = $request->validate([
             'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
             'date' => ['nullable', 'date'],
+            'adjustment_date' => ['nullable', 'date'],
+            'reference_number' => ['nullable', 'string', 'max:100'],
             'notes' => ['nullable', 'string', 'max:1000'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
             'items.*.actual_qty' => ['required', 'integer', 'min:0'],
             'items.*.expected_qty' => ['nullable', 'integer'],
+            'items.*.system_qty' => ['nullable', 'integer'],
             'items.*.unit_cost' => ['nullable', 'numeric', 'min:0'],
+            'items.*.reason' => ['nullable', 'string', 'max:255'],
         ], [
             'items.required' => 'Minimal satu produk wajib dimasukkan untuk penyesuaian stok.',
             'items.min' => 'Minimal satu produk wajib dimasukkan untuk penyesuaian stok.',
@@ -158,7 +173,7 @@ class StockAdjustmentController extends Controller
             $validated['branch_id'] = $user->branch_id;
         }
 
-        $adjustment = $this->stockAdjustmentService->processAdjustment($validated, $user);
+        $adjustment = $this->stockAdjustmentService->processAdjustment($validated, $validated['items'], $user);
 
         return redirect()
             ->route('inventory.adjustments.show', $adjustment->id)

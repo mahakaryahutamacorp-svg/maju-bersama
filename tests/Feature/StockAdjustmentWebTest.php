@@ -151,4 +151,146 @@ class StockAdjustmentWebTest extends TestCase
 
         $response->assertSessionHasErrors('items');
     }
+
+    /**
+     * Uji skenario stok bertambah (Surplus / Gain).
+     * Pastikan jurnal Debit Persediaan (1210) dan Kredit Pendapatan Lain-lain (4120) terbentuk seimbang.
+     */
+    public function test_user_can_submit_opname_with_surplus_gain_and_verify_journal(): void
+    {
+        $product = Product::create([
+            'branch_id'      => $this->branch->id,
+            'category_id'    => $this->category->id,
+            'sku'            => 'SKU-SURPLUS-01',
+            'name'           => 'Tepung Terigu 1kg',
+            'selling_price'  => 15000,
+            'purchase_price' => 12000,
+            'stock'          => 10,
+        ]);
+
+        Inventory::create([
+            'branch_id'  => $this->branch->id,
+            'product_id' => $product->id,
+            'quantity'   => 10,
+        ]);
+
+        // Hasil opname fisik: fisik 15 pack (surplus +5 pack, keuntungan 60.000)
+        $postData = [
+            'branch_id'       => $this->branch->id,
+            'adjustment_date' => '2026-09-24',
+            'notes'           => 'Audit Stok Tepung: Ditemukan 5 pack ekstra di rak belakang',
+            'lines'           => [
+                [
+                    'product_id' => $product->id,
+                    'system_qty' => 10,
+                    'actual_qty' => 15,
+                    'unit_cost'  => 12000,
+                    'reason'     => 'Temuan fisik belum tercatat',
+                ],
+            ],
+        ];
+
+        $response = $this->actingAs($this->user)->post('/inventory/adjustments', $postData);
+
+        $adjustment = StockAdjustment::where('notes', 'Audit Stok Tepung: Ditemukan 5 pack ekstra di rak belakang')->first();
+        $this->assertNotNull($adjustment);
+        $this->assertEquals('60000.00', $adjustment->total_gain_value);
+        $this->assertEquals('0.00', $adjustment->total_loss_value);
+        $this->assertNotNull($adjustment->journal_header_id);
+
+        $response->assertRedirect("/inventory/adjustments/{$adjustment->id}");
+        $response->assertSessionHas('success');
+
+        // 1. Verifikasi stock_adjustment_lines detail
+        $this->assertDatabaseHas('stock_adjustment_lines', [
+            'stock_adjustment_id' => $adjustment->id,
+            'product_id'          => $product->id,
+            'system_qty'          => 10,
+            'actual_qty'          => 15,
+            'difference_qty'      => 5,
+            'unit_cost'           => 12000.0000,
+        ]);
+
+        // 2. Verifikasi stok inventori bertambah menjadi 15
+        $inventory = Inventory::where('branch_id', $this->branch->id)->where('product_id', $product->id)->first();
+        $this->assertEquals(15, $inventory->quantity);
+
+        $product->refresh();
+        $this->assertEquals(15, $product->stock);
+
+        // 3. Verifikasi Jurnal Akuntansi Surplus:
+        // Debit: Persediaan (1210) senilai Rp60.000
+        // Kredit: Pendapatan Lain-lain (4120) senilai Rp60.000
+        $journal = \App\Models\JournalHeader::with('lines.chartOfAccount')->find($adjustment->journal_header_id);
+        $this->assertNotNull($journal);
+
+        $debitInventory = $journal->lines->firstWhere('chart_of_account_id', ChartOfAccount::where('code', '1210')->value('id'));
+        $creditRevenue = $journal->lines->firstWhere('chart_of_account_id', ChartOfAccount::where('code', '4120')->value('id'));
+
+        $this->assertNotNull($debitInventory, 'Baris Debit Persediaan harus ada.');
+        $this->assertNotNull($creditRevenue, 'Baris Kredit Pendapatan Lain-lain harus ada.');
+
+        $this->assertEquals(60000.00, (float) $debitInventory->debit);
+        $this->assertEquals(0.00, (float) $debitInventory->credit);
+
+        $this->assertEquals(0.00, (float) $creditRevenue->debit);
+        $this->assertEquals(60000.00, (float) $creditRevenue->credit);
+
+        // Keseimbangan Jurnal
+        $this->assertEquals(60000.00, (float) $journal->lines->sum('debit'));
+        $this->assertEquals(60000.00, (float) $journal->lines->sum('credit'));
+    }
+
+    /**
+     * Uji pemanggilan langsung method processAdjustment(array $data, array $lines) pada service.
+     */
+    public function test_service_process_adjustment_with_lines_array(): void
+    {
+        $product = Product::create([
+            'branch_id'      => $this->branch->id,
+            'category_id'    => $this->category->id,
+            'sku'            => 'SKU-SVC-01',
+            'name'           => 'Garam Dapur 500g',
+            'selling_price'  => 8000,
+            'purchase_price' => 5000,
+            'stock'          => 20,
+        ]);
+
+        Inventory::create([
+            'branch_id'  => $this->branch->id,
+            'product_id' => $product->id,
+            'quantity'   => 20,
+        ]);
+
+        $service = app(\App\Services\StockAdjustmentService::class);
+
+        $adjustment = $service->processAdjustment([
+            'branch_id'        => $this->branch->id,
+            'adjustment_date'  => '2026-09-24',
+            'reference_number' => 'SA-20260924120000',
+            'notes'            => 'Uji pemanggilan service langsung',
+        ], [
+            [
+                'product_id' => $product->id,
+                'system_qty' => 20,
+                'actual_qty' => 17, // Defisit 3 bungkus @ 5.000 = 15.000
+                'unit_cost'  => 5000,
+                'reason'     => 'Bungkus sobek',
+            ],
+        ], $this->user);
+
+        $this->assertInstanceOf(StockAdjustment::class, $adjustment);
+        $this->assertEquals('SA-20260924120000', $adjustment->reference_number);
+        $this->assertEquals('15000.00', $adjustment->total_loss_value);
+        $this->assertCount(1, $adjustment->lines);
+
+        $line = $adjustment->lines->first();
+        $this->assertEquals(-3, $line->difference_qty);
+        $this->assertEquals('Bungkus sobek', $line->reason);
+
+        // Verifikasi relasi journal
+        $this->assertNotNull($adjustment->journal);
+        $this->assertEquals('15000.00', (float) $adjustment->journal->lines->sum('debit'));
+        $this->assertEquals('15000.00', (float) $adjustment->journal->lines->sum('credit'));
+    }
 }

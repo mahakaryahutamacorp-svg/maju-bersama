@@ -31,7 +31,14 @@
                 <p class="px-3 pb-2 pt-1 text-xs font-semibold uppercase tracking-wider text-slate-500">Workspace</p>
                 <button @click="select('overview')" :class="active === 'overview' ? 'bg-sky-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'" class="w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium">Overview</button>
                 <a href="/pos" class="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white">Point of Sale</a>
-                <a href="/inventory" class="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white">Inventory</a>
+                <a href="/inventory" class="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
+                    <span>Inventory</span>
+                    <span class="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">Stok</span>
+                </a>
+                <a href="{{ route('inventory.adjustments.index') }}" class="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
+                    <span>Stock Opname</span>
+                    <span class="text-[10px] bg-teal-400/20 text-teal-300 px-1.5 py-0.5 rounded">Opname</span>
+                </a>
                 <a href="/reports/journal" class="block rounded-lg px-3 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white">Journal Ledger</a>
 
                 <p class="px-3 pb-2 pt-5 text-xs font-semibold uppercase tracking-wider text-amber-400/90">Master Data</p>

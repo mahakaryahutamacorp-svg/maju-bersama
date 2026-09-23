@@ -109,6 +109,14 @@ Route::middleware('auth')->group(function () {
 		Route::get('payments/payables/create', [App\Http\Controllers\Web\PaymentController::class, 'createAP'])->name('payments.payables.create');
 		Route::post('payments/payables', [App\Http\Controllers\Web\PaymentController::class, 'storeAP'])->name('payments.payables.store');
 
+		// Stock Opname (Penyesuaian Persediaan)
+		Route::prefix('inventory/adjustments')->group(function () {
+			Route::get('/', [StockAdjustmentController::class, 'index']);
+			Route::get('/create', [StockAdjustmentController::class, 'create']);
+			Route::post('/', [StockAdjustmentController::class, 'store']);
+			Route::get('/{id}', [StockAdjustmentController::class, 'show']);
+		});
+
 		// Universal Transaction Viewer (Modal)
 		Route::get('transactions/{reference}/details', [App\Http\Controllers\TransactionViewerController::class, 'show'])->name('transactions.details');
 
