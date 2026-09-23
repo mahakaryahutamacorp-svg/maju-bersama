@@ -102,6 +102,13 @@ Route::middleware('auth')->group(function () {
 		Route::get('opening-balances', [App\Http\Controllers\Web\OpeningBalanceController::class, 'create'])->name('opening-balances.create');
 		Route::post('opening-balances', [App\Http\Controllers\Web\OpeningBalanceController::class, 'store'])->name('opening-balances.store');
 
+		// AR & AP Payments (Pembayaran Piutang & Hutang)
+		Route::get('payments', [App\Http\Controllers\Web\PaymentController::class, 'index'])->name('payments.index');
+		Route::get('payments/receivables/create', [App\Http\Controllers\Web\PaymentController::class, 'createAR'])->name('payments.receivables.create');
+		Route::post('payments/receivables', [App\Http\Controllers\Web\PaymentController::class, 'storeAR'])->name('payments.receivables.store');
+		Route::get('payments/payables/create', [App\Http\Controllers\Web\PaymentController::class, 'createAP'])->name('payments.payables.create');
+		Route::post('payments/payables', [App\Http\Controllers\Web\PaymentController::class, 'storeAP'])->name('payments.payables.store');
+
 		// Universal Transaction Viewer (Modal)
 		Route::get('transactions/{reference}/details', [App\Http\Controllers\TransactionViewerController::class, 'show'])->name('transactions.details');
 

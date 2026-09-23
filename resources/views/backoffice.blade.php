@@ -75,6 +75,10 @@
                     <span>Retur Penjualan</span>
                     <span class="text-[10px] bg-rose-400/20 text-rose-300 px-1.5 py-0.5 rounded">Retur</span>
                 </a>
+                <a href="{{ route('backoffice.payments.receivables.create') }}" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
+                    <span>Pembayaran Piutang</span>
+                    <span class="text-[10px] bg-emerald-400/20 text-emerald-300 px-1.5 py-0.5 rounded">AR</span>
+                </a>
 
                 <p class="px-3 pb-2 pt-5 text-xs font-semibold uppercase tracking-wider text-amber-400/90">Pengadaan &amp; PO</p>
                 <a href="{{ route('backoffice.purchase-orders.index') }}" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
@@ -88,6 +92,10 @@
                 <a href="{{ route('backoffice.purchase-returns.index') }}" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
                     <span>Retur Pembelian</span>
                     <span class="text-[10px] bg-rose-400/20 text-rose-300 px-1.5 py-0.5 rounded">Retur</span>
+                </a>
+                <a href="{{ route('backoffice.payments.payables.create') }}" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
+                    <span>Pembayaran Hutang</span>
+                    <span class="text-[10px] bg-amber-400/20 text-amber-300 px-1.5 py-0.5 rounded">AP</span>
                 </a>
                 <a href="{{ route('backoffice.supplier-payments.index') }}" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
                     <span>Pembayaran Supplier</span>

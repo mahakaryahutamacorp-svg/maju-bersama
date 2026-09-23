@@ -7,30 +7,28 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class PurchaseOrder extends Model
+class Payment extends Model
 {
     use HasBranchScope;
 
     protected $fillable = [
         'branch_id',
+        'type',
+        'customer_id',
         'supplier_id',
+        'account_id',
+        'payment_date',
         'reference_number',
-        'order_date',
-        'expected_date',
-        'status',
-        'total_amount',
-        'paid_amount',
-        'payment_status',
+        'amount',
         'notes',
+        'journal_header_id',
     ];
 
     protected function casts(): array
     {
         return [
-            'order_date'   => 'date',
-            'expected_date' => 'date',
-            'total_amount' => 'decimal:2',
-            'paid_amount'  => 'decimal:4',
+            'payment_date' => 'date',
+            'amount'       => 'decimal:4',
         ];
     }
 
@@ -44,17 +42,17 @@ class PurchaseOrder extends Model
         return $this->belongsTo(Supplier::class);
     }
 
-    public function items(): HasMany
+    public function account(): BelongsTo
     {
-        return $this->hasMany(PurchaseOrderItem::class);
+        return $this->belongsTo(ChartOfAccount::class, 'account_id');
     }
 
-    public function goodsReceipts(): HasMany
+    public function journalHeader(): BelongsTo
     {
-        return $this->hasMany(GoodsReceipt::class);
+        return $this->belongsTo(JournalHeader::class);
     }
 
-    public function paymentAllocations(): HasMany
+    public function allocations(): HasMany
     {
         return $this->hasMany(PaymentAllocation::class);
     }

@@ -16,6 +16,8 @@ class Sale extends Model
         'cash_register_shift_id',
         'receipt_number',
         'total_amount',
+        'paid_amount',
+        'payment_status',
         'payment_method',
         'status',
         'created_by',
@@ -25,6 +27,7 @@ class Sale extends Model
     {
         return [
             'total_amount' => 'integer',
+            'paid_amount'  => 'decimal:4',
         ];
     }
 
@@ -56,5 +59,10 @@ class Sale extends Model
     public function salesReturns(): HasMany
     {
         return $this->hasMany(SalesReturn::class);
+    }
+
+    public function paymentAllocations(): HasMany
+    {
+        return $this->hasMany(PaymentAllocation::class);
     }
 }
