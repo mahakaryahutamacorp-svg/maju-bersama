@@ -271,7 +271,7 @@
                             </a>
 
                             <!-- 2. Neraca Saldo -->
-                            <a href="#" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
+                            <a href="{{ route('reports.trial-balance') }}" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-start gap-3.5">
                                         <div class="rounded-lg bg-sky-100 text-sky-800 p-2.5 mt-0.5 group-hover:scale-105 transition-transform">
@@ -298,7 +298,7 @@
                             </a>
 
                             <!-- 3. Neraca Standar -->
-                            <a href="#" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
+                            <a href="{{ route('reports.balance-sheet') }}" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-start gap-3.5">
                                         <div class="rounded-lg bg-indigo-100 text-indigo-800 p-2.5 mt-0.5 group-hover:scale-105 transition-transform">
@@ -325,7 +325,7 @@
                             </a>
 
                             <!-- 4. Arus Kas -->
-                            <a href="#" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
+                            <a href="{{ route('reports.cash-flow') }}" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-start gap-3.5">
                                         <div class="rounded-lg bg-teal-100 text-teal-800 p-2.5 mt-0.5 group-hover:scale-105 transition-transform">

@@ -105,11 +105,17 @@ Route::middleware('auth')->group(function () {
 		// Report Center (Pusat Laporan)
 		Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
 		Route::get('reports/income-statement', [ReportController::class, 'incomeStatement'])->name('reports.income-statement');
+		Route::get('reports/trial-balance', [ReportController::class, 'trialBalance'])->name('reports.trial-balance');
+		Route::get('reports/balance-sheet', [ReportController::class, 'balanceSheet'])->name('reports.balance-sheet');
+		Route::get('reports/cash-flow', [ReportController::class, 'cashFlow'])->name('reports.cash-flow');
 	});
 
 	Route::get('/backoffice/stock-transfers/{reference}/print', [StockTransferPrintController::class, 'print'])->name('stock-transfers.print');
 	Route::get('/backoffice/transactions/{reference}/details', [App\Http\Controllers\TransactionViewerController::class, 'show'])->name('transactions.details');
 	Route::get('/backoffice/reports', [ReportController::class, 'index'])->name('reports.index');
 	Route::get('/backoffice/reports/income-statement', [ReportController::class, 'incomeStatement'])->name('reports.income-statement');
+	Route::get('/backoffice/reports/trial-balance', [ReportController::class, 'trialBalance'])->name('reports.trial-balance');
+	Route::get('/backoffice/reports/balance-sheet', [ReportController::class, 'balanceSheet'])->name('reports.balance-sheet');
+	Route::get('/backoffice/reports/cash-flow', [ReportController::class, 'cashFlow'])->name('reports.cash-flow');
 });
 

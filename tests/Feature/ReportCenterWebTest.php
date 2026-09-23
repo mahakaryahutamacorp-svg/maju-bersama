@@ -156,4 +156,121 @@ class ReportCenterWebTest extends TestCase
         $response->assertSee('250.000,00');
         $response->assertSee('Surplus');
     }
+
+    public function test_report_center_links_to_all_financial_reports(): void
+    {
+        $response = $this->actingAs($this->user)->get(route('reports.index'));
+
+        $response->assertStatus(200);
+        $response->assertSee(route('reports.income-statement'), false);
+        $response->assertSee(route('reports.trial-balance'), false);
+        $response->assertSee(route('reports.balance-sheet'), false);
+        $response->assertSee(route('reports.cash-flow'), false);
+    }
+
+    public function test_trial_balance_renders_successfully(): void
+    {
+        $cash = \App\Models\ChartOfAccount::create(['code' => '1110', 'name' => 'Kas', 'type' => 'asset']);
+        $revenue = \App\Models\ChartOfAccount::create(['code' => '4110', 'name' => 'Pendapatan', 'type' => 'revenue']);
+
+        $j = \App\Models\JournalHeader::create([
+            'branch_id' => $this->branch->id,
+            'user_id' => $this->user->id,
+            'transaction_date' => now()->toDateString(),
+            'reference_number' => 'JRN-TB-001',
+            'description' => 'Test Trial Balance',
+        ]);
+
+        $j->journalLines()->createMany([
+            ['chart_of_account_id' => $cash->id, 'debit' => 500000, 'credit' => 0, 'memo' => 'Debit Kas'],
+            ['chart_of_account_id' => $revenue->id, 'debit' => 0, 'credit' => 500000, 'memo' => 'Credit Revenue'],
+        ]);
+
+        $response = $this->actingAs($this->user)->get(route('reports.trial-balance'));
+
+        $response->assertStatus(200);
+        $response->assertSee('Neraca Saldo (Trial Balance)');
+        $response->assertSee('MAJU BERSAMA GRUP');
+        $response->assertSee('SEIMBANG');
+        $response->assertSee('500.000,00');
+        $response->assertSee('window.print()', false);
+    }
+
+    public function test_balance_sheet_renders_successfully_with_net_income(): void
+    {
+        $cash = \App\Models\ChartOfAccount::create(['code' => '1110', 'name' => 'Kas', 'type' => 'asset']);
+        $capital = \App\Models\ChartOfAccount::create(['code' => '3110', 'name' => 'Modal Usaha', 'type' => 'equity']);
+        $revenue = \App\Models\ChartOfAccount::create(['code' => '4110', 'name' => 'Pendapatan', 'type' => 'revenue']);
+        $cogs = \App\Models\ChartOfAccount::create(['code' => '5100', 'name' => 'HPP', 'type' => 'expense']);
+
+        $j1 = \App\Models\JournalHeader::create([
+            'branch_id' => $this->branch->id,
+            'user_id' => $this->user->id,
+            'transaction_date' => now()->startOfYear()->toDateString(),
+            'reference_number' => 'JRN-BS-001',
+            'description' => 'Initial Capital',
+        ]);
+        $j1->journalLines()->createMany([
+            ['chart_of_account_id' => $cash->id, 'debit' => 2000000, 'credit' => 0, 'memo' => 'Setoran Modal'],
+            ['chart_of_account_id' => $capital->id, 'debit' => 0, 'credit' => 2000000, 'memo' => 'Modal Awal'],
+        ]);
+
+        $j2 = \App\Models\JournalHeader::create([
+            'branch_id' => $this->branch->id,
+            'user_id' => $this->user->id,
+            'transaction_date' => now()->toDateString(),
+            'reference_number' => 'JRN-BS-002',
+            'description' => 'Sales and COGS',
+        ]);
+        $j2->journalLines()->createMany([
+            ['chart_of_account_id' => $cash->id, 'debit' => 1000000, 'credit' => 0, 'memo' => 'Penjualan'],
+            ['chart_of_account_id' => $revenue->id, 'debit' => 0, 'credit' => 1000000, 'memo' => 'Pendapatan'],
+            ['chart_of_account_id' => $cogs->id, 'debit' => 400000, 'credit' => 0, 'memo' => 'Beban HPP'],
+            ['chart_of_account_id' => $cash->id, 'debit' => 0, 'credit' => 400000, 'memo' => 'Keluar Kas HPP'],
+        ]);
+
+        $response = $this->actingAs($this->user)->get(route('reports.balance-sheet'));
+
+        $response->assertStatus(200);
+        $response->assertSee('Neraca Standar (Balance Sheet)');
+        $response->assertSee('MAJU BERSAMA GRUP');
+        $response->assertSee('TOTAL AKTIVA (ASSETS)');
+        $response->assertSee('TOTAL KEWAJIBAN &amp; EKUITAS', false);
+        $response->assertSee('Laba Bersih Periode Berjalan');
+        $response->assertSee('SEIMBANG (BALANCED)');
+    }
+
+    public function test_cash_flow_renders_successfully(): void
+    {
+        $cash = \App\Models\ChartOfAccount::create(['code' => '1110', 'name' => 'Kas', 'type' => 'asset']);
+        $revenue = \App\Models\ChartOfAccount::create(['code' => '4110', 'name' => 'Pendapatan', 'type' => 'revenue']);
+        $expense = \App\Models\ChartOfAccount::create(['code' => '6100', 'name' => 'Beban Listrik', 'type' => 'expense']);
+
+        $j = \App\Models\JournalHeader::create([
+            'branch_id' => $this->branch->id,
+            'user_id' => $this->user->id,
+            'transaction_date' => now()->toDateString(),
+            'reference_number' => 'JRN-CF-001',
+            'description' => 'Test Cash Flow Transaction',
+        ]);
+        $j->journalLines()->createMany([
+            ['chart_of_account_id' => $cash->id, 'debit' => 750000, 'credit' => 0, 'memo' => 'Penerimaan Penjualan'],
+            ['chart_of_account_id' => $revenue->id, 'debit' => 0, 'credit' => 750000, 'memo' => 'Pendapatan'],
+            ['chart_of_account_id' => $expense->id, 'debit' => 200000, 'credit' => 0, 'memo' => 'Beban Listrik'],
+            ['chart_of_account_id' => $cash->id, 'debit' => 0, 'credit' => 200000, 'memo' => 'Pembayaran Listrik'],
+        ]);
+
+        $response = $this->actingAs($this->user)->get(route('reports.cash-flow'));
+
+        $response->assertStatus(200);
+        $response->assertSee('Laporan Arus Kas (Cash Flow)');
+        $response->assertSee('MAJU BERSAMA GRUP');
+        $response->assertSee('Total Penerimaan Kas');
+        $response->assertSee('Total Pengeluaran Kas');
+        $response->assertSee('750.000,00');
+        $response->assertSee('200.000,00');
+        $response->assertSee('550.000,00');
+        $response->assertSee('SALDO AKHIR KAS &amp; BANK', false);
+    }
 }
+
