@@ -3,7 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\Customer;
+use App\Models\PurchaseOrder;
+use App\Models\Sale;
+use App\Models\Supplier;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -413,6 +418,206 @@ class ReportCenterWebTest extends TestCase
         $response->assertSee('MAJU BERSAMA GRUP');
         $response->assertSee('Modul Harta Tetap &amp; Depresiasi Terproteksi', false);
         $response->assertSee('Belum ada aset tetap yang tercatat');
+    }
+
+    public function test_report_center_links_to_ar_and_ap_aging(): void
+    {
+        $response = $this->actingAs($this->user)->get(route('reports.index'));
+
+        $response->assertStatus(200);
+        $response->assertSee(route('reports.ar-aging'), false);
+        $response->assertSee(route('reports.ap-aging'), false);
+    }
+
+    public function test_ar_aging_report_renders_successfully_with_unpaid_sales_and_aging_buckets(): void
+    {
+        $customerA = Customer::create([
+            'branch_id' => $this->branch->id,
+            'name' => 'Kelompok Tani Makmur Sentosa',
+            'phone' => '081234567890',
+        ]);
+
+        $customerB = Customer::create([
+            'branch_id' => $this->branch->id,
+            'name' => 'Toko Subur Tani',
+            'phone' => '089876543210',
+        ]);
+
+        // Sale 1: Customer A, 15 hari lalu -> 0-30 Hari
+        Sale::create([
+            'branch_id'      => $this->branch->id,
+            'customer_id'    => $customerA->id,
+            'receipt_number' => 'INV-AR-001',
+            'total_amount'   => 1000000,
+            'paid_amount'    => 200000,
+            'payment_status' => 'PARTIAL',
+            'due_date'       => now()->subDays(15)->toDateString(),
+        ]);
+
+        // Sale 2: Customer A, 45 hari lalu -> 31-60 Hari
+        $sale2 = Sale::create([
+            'branch_id'      => $this->branch->id,
+            'customer_id'    => $customerA->id,
+            'receipt_number' => 'INV-AR-002',
+            'total_amount'   => 500000,
+            'paid_amount'    => 0,
+            'payment_status' => 'UNPAID',
+        ]);
+        $sale2->created_at = now()->subDays(45);
+        $sale2->saveQuietly();
+
+        // Sale 3: Customer B, 75 hari lalu -> 61-90 Hari
+        Sale::create([
+            'branch_id'      => $this->branch->id,
+            'customer_id'    => $customerB->id,
+            'receipt_number' => 'INV-AR-003',
+            'total_amount'   => 1200000,
+            'paid_amount'    => 0,
+            'payment_status' => 'UNPAID',
+            'due_date'       => now()->subDays(75)->toDateString(),
+        ]);
+
+        // Sale 4: Customer B, 110 hari lalu -> > 90 Hari
+        $sale4 = Sale::create([
+            'branch_id'      => $this->branch->id,
+            'customer_id'    => $customerB->id,
+            'receipt_number' => 'INV-AR-004',
+            'total_amount'   => 300000,
+            'paid_amount'    => 0,
+            'payment_status' => 'UNPAID',
+        ]);
+        $sale4->created_at = now()->subDays(110);
+        $sale4->saveQuietly();
+
+        // Sale 5: Lunas (PAID) -> Tidak boleh masuk hitungan
+        Sale::create([
+            'branch_id'      => $this->branch->id,
+            'customer_id'    => $customerA->id,
+            'receipt_number' => 'INV-AR-005',
+            'total_amount'   => 2000000,
+            'paid_amount'    => 2000000,
+            'payment_status' => 'PAID',
+            'due_date'       => now()->subDays(10)->toDateString(),
+        ]);
+
+        $response = $this->actingAs($this->user)->get(route('reports.ar-aging'));
+
+        $response->assertStatus(200);
+        $response->assertSee('Laporan Umur Piutang (AR Aging)');
+        $response->assertSee('MAJU BERSAMA GRUP');
+        $response->assertSee('Kelompok Tani Makmur Sentosa');
+        $response->assertSee('Toko Subur Tani');
+        $response->assertSee('Total Keseluruhan');
+
+        // Customer A: Sisa 800.000 (0-30) + 500.000 (31-60) = 1.300.000
+        $response->assertSee('Rp 1.300.000');
+        $response->assertSee('Rp 800.000');
+        $response->assertSee('Rp 500.000');
+
+        // Customer B: Sisa 1.200.000 (61-90) + 300.000 (>90) = 1.500.000
+        $response->assertSee('Rp 1.500.000');
+        $response->assertSee('Rp 1.200.000');
+        $response->assertSee('Rp 300.000');
+
+        // Grand Total: 1.300.000 + 1.500.000 = 2.800.000
+        $response->assertSee('Rp 2.800.000');
+    }
+
+    public function test_ap_aging_report_renders_successfully_with_unpaid_purchase_orders_and_aging_buckets(): void
+    {
+        $supplierA = Supplier::create([
+            'branch_id' => $this->branch->id,
+            'name'      => 'PT Petrokimia Kayaku',
+            'phone'     => '021-5551234',
+        ]);
+
+        $supplierB = Supplier::create([
+            'branch_id' => $this->branch->id,
+            'name'      => 'CV Benih Unggul Nusantara',
+            'phone'     => '0274-888999',
+        ]);
+
+        // PO 1: Supplier A, 10 hari lalu -> 0-30 Hari
+        PurchaseOrder::create([
+            'branch_id'        => $this->branch->id,
+            'supplier_id'      => $supplierA->id,
+            'reference_number' => 'PO-AP-001',
+            'order_date'       => now()->subDays(10)->toDateString(),
+            'total_amount'     => 2000000,
+            'paid_amount'      => 500000,
+            'payment_status'   => 'PARTIAL',
+            'status'           => 'completed',
+        ]);
+
+        // PO 2: Supplier A, 40 hari lalu -> 31-60 Hari
+        PurchaseOrder::create([
+            'branch_id'        => $this->branch->id,
+            'supplier_id'      => $supplierA->id,
+            'reference_number' => 'PO-AP-002',
+            'order_date'       => now()->subDays(40)->toDateString(),
+            'total_amount'     => 1000000,
+            'paid_amount'      => 0,
+            'payment_status'   => 'UNPAID',
+            'status'           => 'completed',
+        ]);
+
+        // PO 3: Supplier B, 70 hari lalu -> 61-90 Hari
+        PurchaseOrder::create([
+            'branch_id'        => $this->branch->id,
+            'supplier_id'      => $supplierB->id,
+            'reference_number' => 'PO-AP-003',
+            'order_date'       => now()->subDays(70)->toDateString(),
+            'total_amount'     => 3000000,
+            'paid_amount'      => 0,
+            'payment_status'   => 'UNPAID',
+            'status'           => 'completed',
+        ]);
+
+        // PO 4: Supplier B, 120 hari lalu -> > 90 Hari
+        PurchaseOrder::create([
+            'branch_id'        => $this->branch->id,
+            'supplier_id'      => $supplierB->id,
+            'reference_number' => 'PO-AP-004',
+            'order_date'       => now()->subDays(120)->toDateString(),
+            'total_amount'     => 800000,
+            'paid_amount'      => 0,
+            'payment_status'   => 'UNPAID',
+            'status'           => 'completed',
+        ]);
+
+        // PO 5: Lunas (PAID) -> Tidak boleh masuk hitungan
+        PurchaseOrder::create([
+            'branch_id'        => $this->branch->id,
+            'supplier_id'      => $supplierA->id,
+            'reference_number' => 'PO-AP-005',
+            'order_date'       => now()->subDays(5)->toDateString(),
+            'total_amount'     => 5000000,
+            'paid_amount'      => 5000000,
+            'payment_status'   => 'PAID',
+            'status'           => 'completed',
+        ]);
+
+        $response = $this->actingAs($this->user)->get(route('reports.ap-aging'));
+
+        $response->assertStatus(200);
+        $response->assertSee('Laporan Umur Hutang (AP Aging)');
+        $response->assertSee('MAJU BERSAMA GRUP');
+        $response->assertSee('PT Petrokimia Kayaku');
+        $response->assertSee('CV Benih Unggul Nusantara');
+        $response->assertSee('Total Keseluruhan');
+
+        // Supplier A: Sisa 1.500.000 (0-30) + 1.000.000 (31-60) = 2.500.000
+        $response->assertSee('Rp 2.500.000');
+        $response->assertSee('Rp 1.500.000');
+        $response->assertSee('Rp 1.000.000');
+
+        // Supplier B: Sisa 3.000.000 (61-90) + 800.000 (>90) = 3.800.000
+        $response->assertSee('Rp 3.800.000');
+        $response->assertSee('Rp 3.000.000');
+        $response->assertSee('Rp 800.000');
+
+        // Grand Total: 2.500.000 + 3.800.000 = 6.300.000
+        $response->assertSee('Rp 6.300.000');
     }
 }
 

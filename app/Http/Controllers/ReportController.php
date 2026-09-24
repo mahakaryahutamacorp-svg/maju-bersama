@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Branch;
 use App\Models\JournalHeader;
+use App\Services\Reports\AgingReportService;
 use App\Services\Reports\BalanceSheetService;
 use App\Services\Reports\CashFlowService;
 use App\Services\Reports\FixedAssetReportService;
@@ -270,6 +271,62 @@ class ReportController extends Controller
             'isMaster' => $isMaster,
             'assets' => $assets,
             'branches' => $branches,
+            'selectedBranchId' => $branchId,
+        ]);
+    }
+
+    public function arAging(Request $request, AgingReportService $service): View
+    {
+        $currentUser = $request->user();
+        $isMaster = $currentUser->isMaster()
+            || in_array($currentUser->role, ['admin', 'superadmin', 'master'], true)
+            || ($currentUser->branch && ($currentUser->branch->parent_id === null || $currentUser->branch->code === 'PUSAT'));
+
+        $branchId = $isMaster
+            ? ($request->filled('branch_id') ? (int) $request->input('branch_id') : null)
+            : (int) $currentUser->branch_id;
+
+        $report = $service->getArAging($branchId);
+
+        $branches = $isMaster
+            ? Branch::query()->orderBy('id')->get()
+            : Branch::query()->where('id', $currentUser->branch_id)->get();
+
+        return view('backoffice.reports.ar-aging', [
+            'currentUser'      => $currentUser->load('branch'),
+            'isMaster'         => $isMaster,
+            'report'           => $report,
+            'rows'             => $report['rows'],
+            'totals'           => $report['totals'],
+            'branches'         => $branches,
+            'selectedBranchId' => $branchId,
+        ]);
+    }
+
+    public function apAging(Request $request, AgingReportService $service): View
+    {
+        $currentUser = $request->user();
+        $isMaster = $currentUser->isMaster()
+            || in_array($currentUser->role, ['admin', 'superadmin', 'master'], true)
+            || ($currentUser->branch && ($currentUser->branch->parent_id === null || $currentUser->branch->code === 'PUSAT'));
+
+        $branchId = $isMaster
+            ? ($request->filled('branch_id') ? (int) $request->input('branch_id') : null)
+            : (int) $currentUser->branch_id;
+
+        $report = $service->getApAging($branchId);
+
+        $branches = $isMaster
+            ? Branch::query()->orderBy('id')->get()
+            : Branch::query()->where('id', $currentUser->branch_id)->get();
+
+        return view('backoffice.reports.ap-aging', [
+            'currentUser'      => $currentUser->load('branch'),
+            'isMaster'         => $isMaster,
+            'report'           => $report,
+            'rows'             => $report['rows'],
+            'totals'           => $report['totals'],
+            'branches'         => $branches,
             'selectedBranchId' => $branchId,
         ]);
     }

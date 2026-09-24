@@ -140,6 +140,8 @@ Route::middleware('auth')->group(function () {
 		Route::get('reports/purchases', [ReportController::class, 'purchases'])->name('reports.purchases');
 		Route::get('reports/inventory/stock-card', [ReportController::class, 'stockCard'])->name('reports.stock-card');
 		Route::get('reports/fixed-assets', [ReportController::class, 'fixedAssets'])->name('reports.fixed-assets');
+		Route::get('reports/ar-aging', [ReportController::class, 'arAging'])->name('reports.ar-aging');
+		Route::get('reports/ap-aging', [ReportController::class, 'apAging'])->name('reports.ap-aging');
 	});
 
 	Route::get('/backoffice/stock-transfers/{reference}/print', [StockTransferPrintController::class, 'print'])->name('stock-transfers.print');
@@ -155,6 +157,8 @@ Route::middleware('auth')->group(function () {
 		Route::get('/purchases', [ReportController::class, 'purchases'])->name('reports.purchases');
 		Route::get('/inventory/stock-card', [ReportController::class, 'stockCard'])->name('reports.stock-card');
 		Route::get('/fixed-assets', [ReportController::class, 'fixedAssets'])->name('reports.fixed-assets');
+		Route::get('/ar-aging', [ReportController::class, 'arAging'])->name('reports.ar-aging');
+		Route::get('/ap-aging', [ReportController::class, 'apAging'])->name('reports.ap-aging');
 	});
 });
 

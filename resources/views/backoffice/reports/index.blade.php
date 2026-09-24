@@ -408,7 +408,7 @@
                                 </div>
                             </a>
 
-                            <a href="#" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
+                            <a href="{{ route('reports.ar-aging') }}" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-start gap-3.5">
                                         <div class="rounded-lg bg-amber-100 text-amber-800 p-2.5 mt-0.5 group-hover:scale-105 transition-transform">
@@ -517,7 +517,7 @@
                                 </div>
                             </a>
 
-                            <a href="#" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
+                            <a href="{{ route('reports.ap-aging') }}" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-start gap-3.5">
                                         <div class="rounded-lg bg-amber-100 text-amber-800 p-2.5 mt-0.5 group-hover:scale-105 transition-transform">

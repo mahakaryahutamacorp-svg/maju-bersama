@@ -13,6 +13,7 @@ class Sale extends Model
 
     protected $fillable = [
         'branch_id',
+        'customer_id',
         'cash_register_shift_id',
         'receipt_number',
         'total_amount',
@@ -20,6 +21,7 @@ class Sale extends Model
         'payment_status',
         'payment_method',
         'status',
+        'due_date',
         'created_by',
     ];
 
@@ -28,7 +30,13 @@ class Sale extends Model
         return [
             'total_amount' => 'integer',
             'paid_amount'  => 'decimal:4',
+            'due_date'     => 'date',
         ];
+    }
+
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
     }
 
     public function branch(): BelongsTo

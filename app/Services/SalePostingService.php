@@ -103,6 +103,7 @@ class SalePostingService
 
             $sale = Sale::create([
                 'branch_id' => $actor->branch_id,
+                'customer_id' => $customerId,
                 'cash_register_shift_id' => $activeShift?->id ?? ($data['cash_register_shift_id'] ?? null),
                 'created_by' => $actor->id,
                 'receipt_number' => $receiptNumber,
