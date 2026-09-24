@@ -141,19 +141,24 @@
                 </div>
             </header>
 
-            <!-- Graceful Placeholder Notification Banner -->
-            <div class="mb-6 rounded-xl border border-purple-200 bg-purple-50/70 p-4 text-xs text-purple-900 flex items-start gap-3 no-print">
-                <div class="p-1 rounded bg-purple-200 text-purple-800 shrink-0 mt-0.5">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+            <!-- Active Status Banner -->
+            <div class="mb-6 rounded-xl border border-purple-200 bg-purple-50/70 p-4 text-xs text-purple-900 flex items-start justify-between gap-3 no-print">
+                <div class="flex items-start gap-3">
+                    <div class="p-1 rounded bg-purple-200 text-purple-800 shrink-0 mt-0.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-sm text-purple-950">Modul Harta Tetap &amp; Depresiasi Terproteksi</h3>
+                        <p class="mt-0.5 text-purple-700 leading-relaxed">
+                            Data aktiva tetap, akumulasi penyusutan metode garis lurus, dan nilai buku terhubung otomatis secara real-time dengan modul akuntansi dan jurnal umum.
+                        </p>
+                    </div>
                 </div>
-                <div>
-                    <h3 class="font-bold text-sm text-purple-950">Modul Harta Tetap &amp; Depresiasi Terproteksi</h3>
-                    <p class="mt-0.5 text-purple-700 leading-relaxed">
-                        Skema database Harta Tetap (Fixed Assets) sedang dalam tahap finalisasi implementasi. Tampilan ini berfungsi sebagai <em>Graceful Placeholder</em> agar seluruh alur pelaporan backoffice tetap berjalan tanpa hambatan teknis.
-                    </p>
-                </div>
+                <a href="{{ route('backoffice.fixed-assets.index') }}" class="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-purple-700 px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-purple-800 transition">
+                    Kelola Aset Tetap &rarr;
+                </a>
             </div>
 
             <!-- Summary KPI Cards -->

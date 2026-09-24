@@ -31,6 +31,7 @@ Route::middleware('auth')->group(function () {
 	Route::get('/pos/receipt/{receipt_number}', [PosController::class, 'receipt'])->name('pos.receipt');
 	Route::get('/reports/journal', [ReportController::class, 'journal']);
 	Route::get('/reports/inventory/stock-card', [StockCardController::class, 'index'])->name('reports.inventory.stock-card');
+	Route::post('/fixed-assets/run-depreciation', [App\Http\Controllers\Web\FixedAssetController::class, 'runDepreciation']);
 
 	Route::prefix('inventory/adjustments')->name('inventory.adjustments.')->group(function () {
 		Route::get('/', [StockAdjustmentController::class, 'index'])->name('index');
@@ -101,6 +102,10 @@ Route::middleware('auth')->group(function () {
 		// Opening Balances (Setup Saldo Awal Sistem)
 		Route::get('opening-balances', [App\Http\Controllers\Web\OpeningBalanceController::class, 'create'])->name('opening-balances.create');
 		Route::post('opening-balances', [App\Http\Controllers\Web\OpeningBalanceController::class, 'store'])->name('opening-balances.store');
+
+		// Fixed Assets (Harta Tetap & Depresiasi)
+		Route::post('fixed-assets/run-depreciation', [App\Http\Controllers\Web\FixedAssetController::class, 'runDepreciation'])->name('fixed-assets.run-depreciation');
+		Route::resource('fixed-assets', App\Http\Controllers\Web\FixedAssetController::class);
 
 		// AR & AP Payments (Pembayaran Piutang & Hutang)
 		Route::get('payments', [App\Http\Controllers\Web\PaymentController::class, 'index'])->name('payments.index');

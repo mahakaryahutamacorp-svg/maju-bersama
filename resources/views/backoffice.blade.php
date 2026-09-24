@@ -132,6 +132,10 @@
                     <span>Biaya Operasional</span>
                     <span class="text-[10px] bg-rose-400/20 text-rose-300 px-1.5 py-0.5 rounded">Kas Keluar</span>
                 </a>
+                <a href="{{ route('backoffice.fixed-assets.index') }}" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
+                    <span>Harta Tetap</span>
+                    <span class="text-[10px] bg-purple-400/20 text-purple-300 px-1.5 py-0.5 rounded">Aset</span>
+                </a>
                 <a href="/reports/accounting/ledger" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
                     <span>Buku Besar Akuntansi</span>
                     <span class="text-[10px] bg-sky-400/20 text-sky-300 px-1.5 py-0.5 rounded">Ledger</span>
@@ -405,7 +409,7 @@
                 { id: 'purchases', group: 'Purchases', name: 'Pembelian', status: 'planned', description: 'Kelola hutang usaha, pembayaran hutang, dan retur pembelian dari satu alur kerja.', actions: ['Hutang usaha', 'Pembayaran hutang usaha', 'Retur pembelian'] },
                 { id: 'sales', group: 'Sales', name: 'Penjualan', status: 'ready', description: 'Jalankan penjualan dari POS dan siapkan alur piutang serta retur penjualan.', actions: ['Piutang usaha', 'Pembayaran piutang usaha', 'Retur penjualan'] },
                 { id: 'cash', group: 'Treasury', name: 'Kas dan bank', status: 'planned', description: 'Pantau arus kas masuk, kas keluar, kas besar, kas kecil, dan kas bank.', actions: ['Kas masuk', 'Kas keluar', 'Kas besar', 'Kas kecil', 'Kas bank'] },
-                { id: 'assets', group: 'Assets', name: 'Harta tetap', status: 'planned', description: 'Catat total aset, umur manfaat, dan akumulasi penyusutan secara terkontrol.', actions: ['Daftar aset tetap', 'Penyusutan periodik', 'Akumulasi penyusutan'] },
+                { id: 'assets', group: 'Assets', name: 'Harta tetap', status: 'ready', description: 'Catat total aset, umur manfaat, dan akumulasi penyusutan secara terkontrol.', actions: ['Daftar aset tetap', 'Penyusutan periodik', 'Akumulasi penyusutan'] },
                 { id: 'inventory', group: 'Inventory', name: 'Persediaan', status: 'ready', description: 'Kelola stok branch dan siapkan klasifikasi produk berdasarkan kategori serta status pajak.', actions: ['Pupuk', 'Insektisida', 'Pestisida', 'Fungisida', 'Pakan', 'Penyesuaian persediaan'] },
                 { id: 'warehouses', group: 'Inventory', name: 'Multi gudang', status: 'planned', description: 'Pindahkan persediaan antar gudang dengan jejak transfer yang jelas.', actions: ['Daftar gudang', 'Transfer persediaan antar gudang', 'Riwayat transfer'] },
                 { id: 'pricing', group: 'Commercial', name: 'Multi price', status: 'planned', description: 'Sediakan harga berbeda untuk retailer dan petani dalam satu katalog produk.', actions: ['Harga retailer', 'Harga petani', 'Riwayat perubahan harga'] },
