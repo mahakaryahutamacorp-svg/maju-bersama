@@ -26,10 +26,11 @@ class SalePostingService
     private const ACCOUNT_CASH = '1110';
     private const ACCOUNT_INVENTORY = '1210';
     private const ACCOUNT_REVENUE = '4110';
+    private const ACCOUNT_DISCOUNT = '4130';
     private const ACCOUNT_COGS = '5100';
 
     /**
-     * @param  array{items:array<int,array{product_id:int,quantity:int}>,payment_method?:string|null,receipt_number?:string|null}  $data
+     * @param  array{items:array<int,array{product_id:int,quantity:int}>,payment_method?:string|null,receipt_number?:string|null,discount_amount?:float|int|numeric|null}  $data
      */
     public function post(array $data, User $actor): Sale
     {
@@ -95,6 +96,26 @@ class SalePostingService
                 ];
             }
 
+            // Validasi & kalkulasi diskon transaksi nominal
+            $subtotalCents = $totalCents;
+            $discountAmount = isset($data['discount_amount']) ? (float) $data['discount_amount'] : 0.0;
+
+            if ($discountAmount < 0) {
+                throw ValidationException::withMessages([
+                    'discount_amount' => ['Diskon tidak boleh bernilai negatif.'],
+                ]);
+            }
+
+            $discountCents = $this->toCents($discountAmount);
+
+            if ($discountCents > $subtotalCents) {
+                throw ValidationException::withMessages([
+                    'discount_amount' => ['Diskon tidak boleh lebih besar dari Subtotal.'],
+                ]);
+            }
+
+            $grandTotalCents = max(0, $subtotalCents - $discountCents);
+
             // Tautkan secara otomatis ke sesi shift kasir yang sedang aktif
             $activeShift = CashRegisterShift::where('user_id', $actor->id)
                 ->where('status', 'open')
@@ -107,14 +128,15 @@ class SalePostingService
                 'cash_register_shift_id' => $activeShift?->id ?? ($data['cash_register_shift_id'] ?? null),
                 'created_by' => $actor->id,
                 'receipt_number' => $receiptNumber,
-                'total_amount' => $totalCents,
+                'total_amount' => $grandTotalCents,
+                'discount_amount' => $discountAmount,
                 'payment_method' => $paymentMethod,
                 'status' => 'completed',
             ]);
 
             $sale->items()->createMany($saleItems);
 
-            $this->recordJournal($sale, $accounts, $totalCents, $costCents, $actor);
+            $this->recordJournal($sale, $accounts, $grandTotalCents, $discountCents, $subtotalCents, $costCents, $actor);
 
             return $sale->load('items.product');
         });
@@ -123,8 +145,9 @@ class SalePostingService
     /**
      * Write the four line entry that a retail sale produces:
      *
-     *   Dr Cash                 (asset increases by the amount collected)
-     *     Cr Revenue            (income earned)
+     *   Dr Cash                 (asset increases by the amount collected - Grand Total)
+     *   Dr Sales Discount       (contra-revenue recognised - discount amount)
+     *     Cr Revenue            (income earned - gross subtotal)
      *   Dr Cost of goods sold   (expense recognised)
      *     Cr Inventory          (asset released from the warehouse)
      *
@@ -133,7 +156,9 @@ class SalePostingService
     private function recordJournal(
         Sale $sale,
         Collection $accounts,
-        int $totalCents,
+        int $grandTotalCents,
+        int $discountCents,
+        int $subtotalCents,
         int $costCents,
         User $actor,
     ): void {
@@ -145,22 +170,36 @@ class SalePostingService
             'description' => 'POS Sale',
         ]);
 
-        $total = $this->fromCents($totalCents);
+        $grandTotal = $this->fromCents($grandTotalCents);
+        $subtotal = $this->fromCents($subtotalCents);
         $cost = $this->fromCents($costCents);
 
         $lines = [
             [
                 'chart_of_account_id' => $accounts[self::ACCOUNT_CASH]->id,
-                'debit' => $total,
+                'debit' => $grandTotal,
                 'credit' => 0,
                 'memo' => 'Penjualan tunai POS',
             ],
-            [
-                'chart_of_account_id' => $accounts[self::ACCOUNT_REVENUE]->id,
-                'debit' => 0,
-                'credit' => $total,
-                'memo' => 'Pendapatan penjualan POS',
-            ],
+        ];
+
+        // Jika ada diskon, debit akun Potongan Penjualan
+        if ($discountCents > 0) {
+            $discount = $this->fromCents($discountCents);
+            $lines[] = [
+                'chart_of_account_id' => $accounts[self::ACCOUNT_DISCOUNT]->id,
+                'debit' => $discount,
+                'credit' => 0,
+                'memo' => 'Potongan penjualan POS',
+            ];
+        }
+
+        // Kredit pendapatan penjualan sebesar subtotal kotor
+        $lines[] = [
+            'chart_of_account_id' => $accounts[self::ACCOUNT_REVENUE]->id,
+            'debit' => 0,
+            'credit' => $subtotal,
+            'memo' => 'Pendapatan penjualan POS',
         ];
 
         // A sale of zero-cost items still balances, but posting empty COGS lines only
@@ -196,8 +235,14 @@ class SalePostingService
             self::ACCOUNT_COGS,
         ];
 
+        // Pastikan akun Potongan Penjualan tersedia di sistem akuntansi
+        ChartOfAccount::firstOrCreate(
+            ['code' => self::ACCOUNT_DISCOUNT],
+            ['name' => 'Potongan Penjualan', 'type' => 'revenue']
+        );
+
         $accounts = ChartOfAccount::query()
-            ->whereIn('code', $required)
+            ->whereIn('code', [...$required, self::ACCOUNT_DISCOUNT])
             ->get()
             ->keyBy('code');
 

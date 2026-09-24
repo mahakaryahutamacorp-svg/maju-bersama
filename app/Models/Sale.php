@@ -17,6 +17,7 @@ class Sale extends Model
         'cash_register_shift_id',
         'receipt_number',
         'total_amount',
+        'discount_amount',
         'paid_amount',
         'payment_status',
         'payment_method',
@@ -28,9 +29,10 @@ class Sale extends Model
     protected function casts(): array
     {
         return [
-            'total_amount' => 'integer',
-            'paid_amount'  => 'decimal:4',
-            'due_date'     => 'date',
+            'total_amount'    => 'integer',
+            'discount_amount' => 'decimal:4',
+            'paid_amount'     => 'decimal:4',
+            'due_date'        => 'date',
         ];
     }
 

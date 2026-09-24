@@ -9,6 +9,8 @@ use App\Models\CustomerGroup;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Services\CashRegisterShiftService;
+use App\Services\SalePostingService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -18,6 +20,37 @@ class PosController extends Controller
     public function __construct(
         protected CashRegisterShiftService $shiftService
     ) {}
+
+    /**
+     * Record a POS sale transaction directly from the POS screen / web route.
+     */
+    public function store(Request $request, SalePostingService $salePostingService): JsonResponse|RedirectResponse
+    {
+        $validated = $request->validate([
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
+            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'customer_id' => ['nullable', 'integer'],
+            'payment_method' => ['nullable', 'string', 'max:255'],
+            'discount_amount' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $sale = $salePostingService->post(
+            $validated,
+            $request->user(),
+        );
+
+        if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+            return response()->json([
+                'message' => 'Checkout completed successfully.',
+                'status' => 'success',
+                'receipt_number' => $sale->receipt_number,
+                'sale' => $sale,
+            ], 201);
+        }
+
+        return redirect()->route('pos.receipt', $sale->receipt_number);
+    }
 
     /**
      * Display the POS cashier screen.

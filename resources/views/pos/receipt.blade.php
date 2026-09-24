@@ -180,7 +180,19 @@
             $realTotal = (int) ($sale->total_amount / 100);
             $cash = $cashTendered ? (int) $cashTendered : $realTotal;
             $change = $changeDue !== null ? (int) $changeDue : max(0, $cash - $realTotal);
+            $hasDiscount = !empty($sale->discount_amount) && (float) $sale->discount_amount > 0;
         @endphp
+
+        @if ($hasDiscount)
+            <div class="summary-row">
+                <span>SUBTOTAL:</span>
+                <span>Rp {{ number_format($calculatedTotal, 0, ',', '.') }}</span>
+            </div>
+            <div class="summary-row">
+                <span>DISKON:</span>
+                <span>- Rp {{ number_format((int) $sale->discount_amount, 0, ',', '.') }}</span>
+            </div>
+        @endif
 
         <div class="summary-row total-row">
             <span>TOTAL:</span>

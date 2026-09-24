@@ -26,6 +26,7 @@ class StoreCheckoutRequest extends FormRequest
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
             'customer_id' => ['sometimes', 'nullable', 'integer'],
+            'discount_amount' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'payment_method' => ['sometimes', 'nullable', 'string', 'max:255'],
         ];
     }

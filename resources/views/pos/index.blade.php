@@ -354,9 +354,51 @@
                 </div>
 
                 <!-- Ringkasan & Tombol Pembayaran -->
-                <div class="border-t border-slate-200 bg-slate-50/70 p-5 rounded-b-2xl">
-                    <div class="flex items-baseline justify-between">
-                        <span class="text-sm font-semibold text-slate-600">Total Akhir:</span>
+                <div class="border-t border-slate-200 bg-slate-50/70 p-5 rounded-b-2xl space-y-3">
+                    <!-- Subtotal Items -->
+                    <div class="flex items-center justify-between text-xs text-slate-600">
+                        <span>Subtotal:</span>
+                        <span class="font-bold text-slate-800 font-mono" x-text="formatRupiah(subtotal)"></span>
+                    </div>
+
+                    <!-- Input Diskon Nominal (Diskon Kekeluargaan Kasir) -->
+                    <div class="rounded-xl border border-rose-200 bg-rose-50/50 p-2.5">
+                        <div class="flex items-center justify-between mb-1">
+                            <label for="pos-discount-input" class="text-[11px] font-bold text-rose-800 flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                                </svg>
+                                <span>Diskon (Rp)</span>
+                            </label>
+                            <span class="text-[10px] text-rose-500 font-semibold">Potongan Langsung</span>
+                        </div>
+                        <div class="relative">
+                            <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-2.5">
+                                <span class="text-xs font-bold text-rose-400">Rp</span>
+                            </div>
+                            <input 
+                                type="number" 
+                                id="pos-discount-input"
+                                min="0" 
+                                :max="subtotal"
+                                step="any"
+                                x-model.number="discountAmount" 
+                                @input="validateDiscount()"
+                                placeholder="0" 
+                                class="w-full rounded-lg border border-rose-300 bg-white pl-8 pr-3 py-1.5 text-xs font-bold text-rose-900 focus:border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
+                            >
+                        </div>
+                        <template x-if="discountAmount > 0">
+                            <p class="text-[10px] text-rose-600 font-medium mt-1 flex justify-between">
+                                <span>Potongan:</span>
+                                <span class="font-bold font-mono" x-text="'- ' + formatRupiah(discountAmount)"></span>
+                            </p>
+                        </template>
+                    </div>
+
+                    <!-- Grand Total Display -->
+                    <div class="border-t border-slate-200 pt-2 flex items-baseline justify-between">
+                        <span class="text-sm font-semibold text-slate-700">Total Akhir:</span>
                         <span class="text-2xl font-black text-indigo-900 font-mono" x-text="formatRupiah(grandTotal)"></span>
                     </div>
 
@@ -364,7 +406,7 @@
                         type="button" 
                         @click="openPaymentModal()" 
                         :disabled="cart.length === 0 || isRecalculatingCart"
-                        class="mt-4 w-full rounded-xl bg-indigo-600 py-3.5 text-center text-sm font-bold text-white shadow-lg shadow-indigo-600/30 transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
+                        class="mt-2 w-full rounded-xl bg-indigo-600 py-3.5 text-center text-sm font-bold text-white shadow-lg shadow-indigo-600/30 transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
                     >
                         Pembayaran (F9) →
                     </button>
@@ -395,9 +437,21 @@
 
                 <div class="p-6 space-y-5">
                     <!-- Total Akhir Display -->
-                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 flex items-center justify-between">
-                        <span class="text-sm font-bold text-slate-700">Total Akhir:</span>
-                        <span class="text-2xl font-black text-indigo-700 font-mono" x-text="formatRupiah(grandTotal)"></span>
+                    <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 space-y-2">
+                        <div class="flex items-center justify-between text-xs text-slate-600">
+                            <span>Subtotal Barang:</span>
+                            <span class="font-bold text-slate-800 font-mono" x-text="formatRupiah(subtotal)"></span>
+                        </div>
+                        <template x-if="discountAmount > 0">
+                            <div class="flex items-center justify-between text-xs text-rose-600">
+                                <span>Diskon Kasir:</span>
+                                <span class="font-bold font-mono" x-text="'- ' + formatRupiah(discountAmount)"></span>
+                            </div>
+                        </template>
+                        <div class="flex items-center justify-between border-t border-slate-200 pt-2">
+                            <span class="text-sm font-bold text-slate-700">Total Akhir:</span>
+                            <span class="text-2xl font-black text-indigo-700 font-mono" x-text="formatRupiah(grandTotal)"></span>
+                        </div>
                     </div>
 
                     <!-- Metode Pembayaran -->
@@ -887,6 +941,7 @@
                 searchQuery: '',
                 scanNotification: '',
                 cart: [],
+                discountAmount: 0,
                 loading: false,
 
                 // Helper token API Sanctum
@@ -970,12 +1025,24 @@
                     return this.cart.reduce((sum, item) => sum + item.quantity, 0);
                 },
 
-                get grandTotal() {
+                get subtotal() {
                     return this.cart.reduce((sum, item) => sum + (Number(item.price || item.product?.selling_price || 0) * item.quantity), 0);
+                },
+
+                get grandTotal() {
+                    const disc = Math.max(0, Number(this.discountAmount || 0));
+                    return Math.max(0, this.subtotal - disc);
                 },
 
                 get changeDue() {
                     return (this.cashTendered || 0) - this.grandTotal;
+                },
+
+                validateDiscount() {
+                    if (this.discountAmount < 0) this.discountAmount = 0;
+                    if (this.subtotal > 0 && this.discountAmount > this.subtotal) {
+                        this.discountAmount = this.subtotal;
+                    }
                 },
 
                 // Fetch data katalog produk dari API dengan parameter pencarian dan customer_id / customer_group_id
@@ -1209,6 +1276,7 @@
                 clearCart() {
                     if (confirm('Apakah Anda yakin ingin mengosongkan rincian transaksi?')) {
                         this.cart = [];
+                        this.discountAmount = 0;
                     }
                 },
 
@@ -1260,16 +1328,22 @@
                     this.checkoutError = '';
 
                     try {
-                        const response = await fetch('/api/checkout', {
+                        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content 
+                            || document.querySelector('input[name="_token"]')?.value 
+                            || '';
+
+                        const response = await fetch('/pos', {
                             method: 'POST',
                             headers: {
                                 'Accept': 'application/json',
                                 'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken,
                                 'Authorization': 'Bearer ' + this.getApiToken(),
                             },
                             body: JSON.stringify({
                                 customer_id: this.customerId ? Number(this.customerId) : null,
                                 payment_method: this.paymentMethod,
+                                discount_amount: Number(this.discountAmount || 0),
                                 items: this.cart.map(i => ({ 
                                     product_id: i.id || i.product.id, 
                                     quantity: i.quantity 
@@ -1321,6 +1395,7 @@
                 resetAfterSale() {
                     this.receiptOpen = false;
                     this.cart = [];
+                    this.discountAmount = 0;
                     this.lastReceiptNumber = '';
                     this.lastSale = null;
                     this.searchQuery = '';

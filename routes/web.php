@@ -26,6 +26,7 @@ Route::middleware('auth')->group(function () {
 	Route::get('/inventory', [InventoryController::class, 'index']);
 	Route::get('/inventory/transfer', [StockTransferController::class, 'index'])->name('stock-transfer');
 	Route::get('/pos', [PosController::class, 'index'])->name('pos');
+	Route::post('/pos', [PosController::class, 'store'])->name('pos.store');
 	Route::post('/pos/shift/open', [PosController::class, 'openShift'])->name('pos.shift.open');
 	Route::post('/pos/shift/close', [PosController::class, 'closeShift'])->name('pos.shift.close');
 	Route::get('/pos/receipt/{receipt_number}', [PosController::class, 'receipt'])->name('pos.receipt');
