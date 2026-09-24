@@ -13,7 +13,7 @@
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
     <div 
-        x-data="posApp({{ Js::from($products) }}, {{ Js::from($categories) }}, { hasActiveShift: {{ $hasActiveShift ? 'true' : 'false' }}, expectedBalance: {{ (float) $expectedBalance }} }, {{ Js::from($customers ?? []) }})" 
+        x-data="posApp({{ Js::from($products) }}, {{ Js::from($categories) }}, { hasActiveShift: {{ $hasActiveShift ? 'true' : 'false' }}, expectedBalance: {{ (float) $expectedBalance }} }, {{ Js::from($customers ?? []) }}, {{ Js::from($customerGroups ?? []) }})" 
         class="min-h-screen flex flex-col"
         @keydown.window.escape="handleEscapeKey()"
     >
@@ -224,6 +224,34 @@
                     </button>
                 </div>
 
+                <!-- Dropdown Tipe Pelanggan (Customer Groups: Umum, Petani, Retailer) -->
+                <div class="p-3.5 bg-slate-50/90 border-b border-slate-200">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label for="pos-customer-group-select" class="text-[11px] font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                            <span>Tipe Pelanggan (Tingkat Harga)</span>
+                        </label>
+                        <span 
+                            x-show="customerGroupId" 
+                            x-text="customerGroupName"
+                            class="rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold"
+                        ></span>
+                    </div>
+                    <select 
+                        id="pos-customer-group-select"
+                        x-model="customerGroupId" 
+                        @change="onCustomerGroupChange()"
+                        class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    >
+                        <option value="">-- Umum / Standar --</option>
+                        <template x-for="g in customerGroups" :key="g.id">
+                            <option :value="g.id" x-text="g.name"></option>
+                        </template>
+                    </select>
+                </div>
+
                 <!-- Dropdown Pemilihan Pelanggan (Tiering Harga) -->
                 <div class="p-3.5 bg-slate-50/90 border-b border-slate-200">
                     <div class="flex items-center justify-between mb-1.5">
@@ -231,13 +259,8 @@
                             <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                             </svg>
-                            <span>Pelanggan (Tier Harga)</span>
+                            <span>Pilih Pelanggan Terdaftar (Opsional)</span>
                         </label>
-                        <span 
-                            x-show="customerGroupName" 
-                            x-text="customerGroupName"
-                            class="rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold"
-                        ></span>
                     </div>
                     <select 
                         id="pos-customer-select"
@@ -245,7 +268,7 @@
                         @change="onCustomerChange()"
                         class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                     >
-                        <option value="">-- Umum / Retail (Harga Dasar) --</option>
+                        <option value="">-- Pelanggan Umum (Tanpa Akun) --</option>
                         <template x-for="c in customers" :key="c.id">
                             <option :value="c.id" x-text="c.name + (c.customer_group ? ' [' + c.customer_group.name + ']' : '')"></option>
                         </template>
@@ -844,7 +867,7 @@
 
     <!-- Script Alpine.js Penjualan Kasir -->
     <script>
-        function posApp(initialProducts, initialCategories, shiftConfig = {}, initialCustomers = []) {
+        function posApp(initialProducts, initialCategories, shiftConfig = {}, initialCustomers = [], initialCustomerGroups = []) {
             return {
                 products: (initialProducts || []).map(p => ({
                     ...p,
@@ -854,7 +877,9 @@
                 })),
                 categories: initialCategories || [],
                 customers: initialCustomers || [],
+                customerGroups: initialCustomerGroups || [],
                 customerId: '',
+                customerGroupId: '',
                 customerName: '',
                 customerGroupName: '',
                 isRecalculatingCart: false,
@@ -953,7 +978,7 @@
                     return (this.cashTendered || 0) - this.grandTotal;
                 },
 
-                // Fetch data katalog produk dari API dengan parameter pencarian dan customer_id
+                // Fetch data katalog produk dari API dengan parameter pencarian dan customer_id / customer_group_id
                 async fetchProducts() {
                     try {
                         const params = new URLSearchParams();
@@ -962,6 +987,9 @@
                         }
                         if (this.customerId) {
                             params.append('customer_id', this.customerId);
+                        }
+                        if (this.customerGroupId) {
+                            params.append('customer_group_id', this.customerGroupId);
                         }
 
                         const url = '/api/products' + (params.toString() ? '?' + params.toString() : '');
@@ -987,55 +1015,77 @@
                     }
                 },
 
+                // Event ketika dropdown tipe pelanggan (customer group) berubah
+                async onCustomerGroupChange() {
+                    if (this.customerGroupId) {
+                        const selected = (this.customerGroups || []).find(g => String(g.id) === String(this.customerGroupId));
+                        this.customerGroupName = selected ? selected.name : '';
+                    } else {
+                        this.customerGroupName = '';
+                    }
+
+                    await this.fetchProducts();
+
+                    if (this.cart.length > 0) {
+                        await this.recalculateCartPrices();
+                    }
+                },
+
                 // Event ketika dropdown pelanggan berubah
                 async onCustomerChange() {
                     // Update label pelanggan & tier kelompok
                     if (this.customerId) {
                         const selected = (this.customers || []).find(c => String(c.id) === String(this.customerId));
                         this.customerName = selected ? selected.name : '';
-                        this.customerGroupName = selected?.customer_group?.name || '';
+                        if (selected && selected.customer_group_id) {
+                            this.customerGroupId = String(selected.customer_group_id);
+                            this.customerGroupName = selected?.customer_group?.name || '';
+                        }
                     } else {
                         this.customerName = '';
-                        this.customerGroupName = '';
                     }
 
-                    // Aksi 1: Panggil fetchProducts() agar harga produk di rak digital layar kasir langsung berubah
                     await this.fetchProducts();
 
-                    // Aksi 2: Looping pada isi keranjang saat ini (this.cart), fetch ulang harga tiap item
                     if (this.cart.length > 0) {
-                        this.isRecalculatingCart = true;
-                        try {
-                            await Promise.all(this.cart.map(async (item) => {
-                                const productId = item.id || item.product?.id;
-                                if (!productId) return;
+                        await this.recalculateCartPrices();
+                    }
+                },
 
-                                const res = await fetch(`/api/products/${productId}?customer_id=${this.customerId || ''}`, {
-                                    headers: {
-                                        'Accept': 'application/json',
-                                        'Authorization': 'Bearer ' + this.getApiToken(),
-                                    },
-                                });
+                // Looping pada isi keranjang saat ini, fetch ulang harga tiap item
+                async recalculateCartPrices() {
+                    this.isRecalculatingCart = true;
+                    try {
+                        await Promise.all(this.cart.map(async (item) => {
+                            const productId = item.id || item.product?.id;
+                            if (!productId) return;
 
-                                if (res.ok) {
-                                    const payload = await res.json();
-                                    const updated = payload.data;
-                                    if (updated) {
-                                        const newPrice = Number(updated.selling_price ?? updated.price ?? 0);
-                                        const basePrice = Number(updated.original_selling_price ?? updated.base_price ?? updated.selling_price ?? newPrice);
+                            const url = `/api/products/${productId}?customer_id=${this.customerId || ''}&customer_group_id=${this.customerGroupId || ''}`;
+                            const res = await fetch(url, {
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'Authorization': 'Bearer ' + this.getApiToken(),
+                                },
+                            });
 
-                                        item.product = updated;
-                                        item.price = newPrice;
-                                        item.base_price = basePrice;
-                                        item.subtotal = newPrice * item.quantity;
-                                    }
+                            if (res.ok) {
+                                const payload = await res.json();
+                                const updated = payload.data;
+                                if (updated) {
+                                    const newPrice = Number(updated.selling_price ?? updated.price ?? 0);
+                                    const basePrice = Number(updated.original_selling_price ?? updated.base_price ?? updated.selling_price ?? newPrice);
+
+                                    item.product = updated;
+                                    item.price = newPrice;
+                                    item.base_price = basePrice;
+                                    item.subtotal = newPrice * item.quantity;
                                 }
-                            }));
-                        } catch (err) {
-                            console.error('Gagal memperbarui harga keranjang:', err);
-                        } finally {
-                            this.isRecalculatingCart = false;
-                        }
+                            }
+                        }));
+                    } catch (err) {
+                        console.error('Gagal memperbarui harga keranjang:', err);
+                    } finally {
+                        this.isRecalculatingCart = false;
                     }
                 },
 
@@ -1052,7 +1102,7 @@
 
                     // Coba lookup barcode via API dengan parameter customer_id
                     try {
-                        const barcodeUrl = `/api/products/barcode/${encodeURIComponent(q)}?customer_id=${this.customerId || ''}`;
+                        const barcodeUrl = `/api/products/barcode/${encodeURIComponent(q)}?customer_id=${this.customerId || ''}&customer_group_id=${this.customerGroupId || ''}`;
                         const response = await fetch(barcodeUrl, {
                             headers: {
                                 'Accept': 'application/json',

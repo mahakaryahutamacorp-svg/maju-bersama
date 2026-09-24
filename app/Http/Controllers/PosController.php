@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CashRegister;
 use App\Models\CashRegisterShift;
 use App\Models\Category;
+use App\Models\CustomerGroup;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Services\CashRegisterShiftService;
@@ -53,16 +54,35 @@ class PosController extends Controller
             ? $this->shiftService->calculateExpectedBalance($activeShift)
             : 0;
 
-        $products = Product::with(['category', 'productPrices'])
-            ->orderBy('name')
-            ->get()
-            ->map(function (Product $product) {
-                $basePrice = (float) $product->selling_price;
-                $product->base_price = $basePrice;
-                $product->original_selling_price = $basePrice;
-                $product->price = $basePrice;
-                return $product;
-            });
+        $branchId = $user->branch_id;
+
+        if ($branchId) {
+            $centralBranchIds = \App\Models\Branch::whereNull('parent_id')->pluck('id')->toArray();
+            $allowedBranchIds = array_unique(array_filter([$branchId, ...$centralBranchIds]));
+
+            $products = Product::withoutGlobalScopes()
+                ->whereNull('deleted_at')
+                ->where(function ($q) use ($allowedBranchIds) {
+                    $q->whereIn('branch_id', $allowedBranchIds)
+                      ->orWhereNull('branch_id');
+                })
+                ->with(['category', 'productPrices', 'branchPrices'])
+                ->orderBy('name')
+                ->get();
+        } else {
+            $products = Product::with(['category', 'productPrices', 'branchPrices'])
+                ->orderBy('name')
+                ->get();
+        }
+
+        $products = $products->map(function (Product $product) use ($branchId) {
+            $basePrice = (float) $product->getPriceForBranch($branchId);
+            $product->base_price = $basePrice;
+            $product->original_selling_price = $basePrice;
+            $product->selling_price = $basePrice;
+            $product->price = $basePrice;
+            return $product;
+        });
 
         $categories = Category::orderBy('name')->get();
 
@@ -78,6 +98,7 @@ class PosController extends Controller
             'products'        => $products,
             'categories'      => $categories,
             'customers'       => $customers,
+            'customerGroups'  => CustomerGroup::orderBy('id')->get(),
             'previewToken'    => $token,
             'currentUser'     => $user,
             'activeShift'     => $activeShift,

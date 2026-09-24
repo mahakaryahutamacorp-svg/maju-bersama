@@ -38,6 +38,7 @@ class Product extends Model
     {
         static::deleting(function (Product $product) {
             $product->productPrices()->delete();
+            $product->branchPrices()->delete();
         });
     }
 
@@ -56,9 +57,19 @@ class Product extends Model
         return $this->hasMany(SaleItem::class);
     }
 
+    public function prices(): HasMany
+    {
+        return $this->hasMany(ProductPrice::class);
+    }
+
     public function productPrices(): HasMany
     {
         return $this->hasMany(ProductPrice::class);
+    }
+
+    public function branchPrices(): HasMany
+    {
+        return $this->hasMany(ProductBranchPrice::class);
     }
 
     /**
@@ -139,12 +150,42 @@ class Product extends Model
     public function getPriceForGroup(?int $groupId = null)
     {
         if ($groupId !== null) {
-            $productPrice = $this->relationLoaded('productPrices')
-                ? $this->productPrices->firstWhere('customer_group_id', $groupId)
-                : $this->productPrices()->where('customer_group_id', $groupId)->first();
+            $productPrice = null;
+
+            if ($this->relationLoaded('prices')) {
+                $productPrice = $this->prices->firstWhere('customer_group_id', $groupId);
+            } elseif ($this->relationLoaded('productPrices')) {
+                $productPrice = $this->productPrices->firstWhere('customer_group_id', $groupId);
+            } else {
+                $productPrice = $this->prices()->where('customer_group_id', $groupId)->first();
+            }
 
             if ($productPrice !== null && $productPrice->price !== null) {
                 return $productPrice->price;
+            }
+        }
+
+        return $this->price;
+    }
+
+    /**
+     * Helper untuk mengambil harga khusus cabang (Branch-Level Pricing).
+     * Cari harga di product_branch_prices untuk $branchId tersebut.
+     * Jika tidak ada, fallback ke $this->price (harga standar pusat).
+     */
+    public function getPriceForBranch(?int $branchId = null): float|int|string
+    {
+        if ($branchId !== null) {
+            $branchPrice = null;
+
+            if ($this->relationLoaded('branchPrices')) {
+                $branchPrice = $this->branchPrices->firstWhere('branch_id', $branchId);
+            } else {
+                $branchPrice = $this->branchPrices()->where('branch_id', $branchId)->first();
+            }
+
+            if ($branchPrice !== null && $branchPrice->price !== null) {
+                return $branchPrice->price;
             }
         }
 

@@ -8,6 +8,7 @@ use App\Models\Category;
 use App\Models\CustomerGroup;
 use App\Models\PriceLevel;
 use App\Models\Product;
+use App\Models\ProductBranchPrice;
 use App\Models\ProductPrice;
 use App\Services\ProductService;
 use Illuminate\Http\RedirectResponse;
@@ -71,6 +72,10 @@ class ProductController extends Controller
         $isMaster = $user->isMaster();
 
         $branches = $isMaster ? Branch::orderBy('name')->get() : collect([$user->branch]);
+        $allBranches = Branch::where('is_active', true)->orderBy('name')->get();
+        if ($allBranches->isEmpty()) {
+            $allBranches = Branch::orderBy('name')->get();
+        }
         $categories = Category::orderBy('name')->get();
         $customerGroups = CustomerGroup::orderBy('id')->get();
         $priceLevels = PriceLevel::where('is_active', true)
@@ -82,6 +87,7 @@ class ProductController extends Controller
             'currentUser' => $user,
             'isMaster' => $isMaster,
             'branches' => $branches,
+            'allBranches' => $allBranches,
             'categories' => $categories,
             'customerGroups' => $customerGroups,
             'priceLevels' => $priceLevels,
@@ -134,6 +140,8 @@ class ProductController extends Controller
             'customer_group_prices.*' => ['nullable', 'numeric', 'min:0'],
             'group_prices' => ['nullable', 'array'],
             'group_prices.*' => ['nullable', 'numeric', 'min:0'],
+            'branch_prices' => ['nullable', 'array'],
+            'branch_prices.*' => ['nullable', 'numeric', 'min:0'],
         ];
 
         if ($isMaster) {
@@ -155,6 +163,9 @@ class ProductController extends Controller
         // Sync CustomerGroup tiered prices
         $this->syncCustomerGroupPrices($product, $request->input('customer_group_prices', $request->input('group_prices', [])));
 
+        // Sync Branch-level price overrides
+        $this->syncBranchPrices($product, $request->input('branch_prices', []));
+
         return redirect()
             ->route('backoffice.products.index')
             ->with('success', "Produk '{$product->name}' (SKU: {$product->sku}) berhasil ditambahkan!");
@@ -168,7 +179,7 @@ class ProductController extends Controller
         $user = $request->user()->load('branch');
         $isMaster = $user->isMaster();
 
-        $product = Product::withoutGlobalScopes()->with(['category', 'branch', 'productPrices'])->findOrFail($id);
+        $product = Product::withoutGlobalScopes()->with(['category', 'branch', 'productPrices', 'branchPrices'])->findOrFail($id);
 
         // Security: Non-master cannot edit products belonging to other branches
         if (! $isMaster && (int) $product->branch_id !== (int) $user->branch_id) {
@@ -176,6 +187,10 @@ class ProductController extends Controller
         }
 
         $branches = $isMaster ? Branch::orderBy('name')->get() : collect([$product->branch]);
+        $allBranches = Branch::where('is_active', true)->orderBy('name')->get();
+        if ($allBranches->isEmpty()) {
+            $allBranches = Branch::orderBy('name')->get();
+        }
         $categories = Category::orderBy('name')->get();
         $customerGroups = CustomerGroup::orderBy('id')->get();
         $priceLevels = PriceLevel::where('is_active', true)
@@ -188,6 +203,7 @@ class ProductController extends Controller
             'isMaster' => $isMaster,
             'product' => $product,
             'branches' => $branches,
+            'allBranches' => $allBranches,
             'categories' => $categories,
             'customerGroups' => $customerGroups,
             'priceLevels' => $priceLevels,
@@ -235,6 +251,8 @@ class ProductController extends Controller
             'customer_group_prices.*' => ['nullable', 'numeric', 'min:0'],
             'group_prices' => ['nullable', 'array'],
             'group_prices.*' => ['nullable', 'numeric', 'min:0'],
+            'branch_prices' => ['nullable', 'array'],
+            'branch_prices.*' => ['nullable', 'numeric', 'min:0'],
         ];
 
         $validated = $request->validate($rules);
@@ -247,9 +265,37 @@ class ProductController extends Controller
         // Sync CustomerGroup tiered prices
         $this->syncCustomerGroupPrices($product, $request->input('customer_group_prices', $request->input('group_prices', [])));
 
+        // Sync Branch-level price overrides
+        $this->syncBranchPrices($product, $request->input('branch_prices', []));
+
         return redirect()
             ->route('backoffice.products.index')
             ->with('success', "Data produk '{$product->name}' berhasil diperbarui!");
+    }
+
+    /**
+     * Synchronize price overrides for branches.
+     */
+    protected function syncBranchPrices(Product $product, array $prices): void
+    {
+        foreach ($prices as $branchId => $price) {
+            $branchId = (int) $branchId;
+            if ($price !== null && $price !== '') {
+                ProductBranchPrice::updateOrCreate(
+                    [
+                        'product_id' => $product->id,
+                        'branch_id' => $branchId,
+                    ],
+                    [
+                        'price' => $price,
+                    ]
+                );
+            } else {
+                ProductBranchPrice::where('product_id', $product->id)
+                    ->where('branch_id', $branchId)
+                    ->delete();
+            }
+        }
     }
 
     /**
