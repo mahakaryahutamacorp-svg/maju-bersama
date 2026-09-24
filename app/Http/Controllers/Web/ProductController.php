@@ -324,17 +324,25 @@ class ProductController extends Controller
         $user = $request->user();
         $isMaster = $user->isMaster();
 
-        $product = Product::withoutGlobalScopes()->findOrFail($id);
+        try {
+            $product = Product::withoutGlobalScopes()->findOrFail($id);
 
-        if (! $isMaster && (int) $product->branch_id !== (int) $user->branch_id) {
-            abort(403, 'Anda tidak memiliki otorisasi untuk menghapus produk cabang lain.');
+            if (! $isMaster && (int) $product->branch_id !== (int) $user->branch_id) {
+                abort(403, 'Anda tidak memiliki otorisasi untuk menghapus produk cabang lain.');
+            }
+
+            $name = $product->name;
+            $product->delete();
+
+            return redirect()
+                ->route('backoffice.products.index')
+                ->with('success', "Produk '{$name}' berhasil dihapus!");
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('backoffice.products.index')
+                ->with('error', 'Terjadi kesalahan saat menghapus produk: ' . $e->getMessage());
         }
-
-        $name = $product->name;
-        $product->delete();
-
-        return redirect()
-            ->route('backoffice.products.index')
-            ->with('success', "Produk '{$name}' berhasil dihapus!");
     }
 }

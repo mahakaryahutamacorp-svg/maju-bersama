@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Models\Branch;
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\Sale;
+use App\Models\SaleItem;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -172,6 +174,44 @@ class MasterDataWebTest extends TestCase
         $product = Product::withoutGlobalScopes()->where('sku', 'FNG-001')->first();
         $this->assertNotNull($product);
         $this->assertEquals($this->branchB->id, $product->branch_id);
+    }
+
+    public function test_product_soft_delete_archives_product_without_fk_error_when_sales_exist(): void
+    {
+        // Create a sale item referencing product A (which would trigger FK violation on hard delete)
+        $sale = Sale::create([
+            'branch_id' => $this->branchA->id,
+            'receipt_number' => 'INV-TEST-SOFTDELETE-01',
+            'total_amount' => 50000,
+            'payment_method' => 'cash',
+            'status' => 'completed',
+            'created_by' => $this->adminA->id,
+        ]);
+
+        SaleItem::create([
+            'sale_id' => $sale->id,
+            'product_id' => $this->productA->id,
+            'quantity' => 1,
+            'price' => 50000,
+            'subtotal' => 50000,
+        ]);
+
+        // Branch Admin A deletes product A
+        $response = $this->actingAs($this->adminA)->delete(route('backoffice.products.destroy', $this->productA->id));
+
+        $response->assertRedirect(route('backoffice.products.index'));
+        $response->assertSessionHas('success');
+
+        // Product should be soft-deleted: not in default queries, but exists in database with deleted_at set
+        $this->assertNull(Product::find($this->productA->id));
+        $this->assertNotNull(Product::withTrashed()->find($this->productA->id));
+        $this->assertNotNull(Product::withTrashed()->find($this->productA->id)->deleted_at);
+        $this->assertDatabaseHas('products', [
+            'id' => $this->productA->id,
+        ]);
+        $this->assertDatabaseHas('sale_items', [
+            'product_id' => $this->productA->id,
+        ]);
     }
 
     // ==========================================

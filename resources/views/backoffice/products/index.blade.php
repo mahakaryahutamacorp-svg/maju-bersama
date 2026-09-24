@@ -200,7 +200,7 @@
                                         <a href="{{ route('backoffice.products.edit', $product->id) }}" class="rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100">
                                             Edit
                                         </a>
-                                        <form method="POST" action="{{ route('backoffice.products.destroy', $product->id) }}" onsubmit="return confirm('Apakah Anda yakin ingin menghapus produk \'{{ $product->name }}\'?');">
+                                        <form method="POST" action="{{ route('backoffice.products.destroy', $product->id) }}" onsubmit="return confirm('Apakah Anda yakin ingin mengarsipkan produk ini?');">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="rounded-lg bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100">

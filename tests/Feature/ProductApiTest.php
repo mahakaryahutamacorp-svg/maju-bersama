@@ -204,7 +204,7 @@ class ProductApiTest extends TestCase
         $response->assertOk()
             ->assertJsonPath('message', 'Product deleted successfully.');
 
-        $this->assertDatabaseMissing('products', [
+        $this->assertSoftDeleted('products', [
             'id' => $product->id,
         ]);
     }

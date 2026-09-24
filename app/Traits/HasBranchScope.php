@@ -13,7 +13,7 @@ trait HasBranchScope
      * Applies a global scope that filters results by the authenticated user's
      * branch, unless the user has a "master" role.
      */
-    protected static function booted(): void
+    public static function bootHasBranchScope(): void
     {
         static::addGlobalScope('branch', static function (Builder $builder): void {
             if (Auth::check()) {
@@ -27,5 +27,10 @@ trait HasBranchScope
                 }
             }
         });
+    }
+
+    protected static function booted(): void
+    {
+        static::bootHasBranchScope();
     }
 }

@@ -7,10 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
 {
     use HasBranchScope;
+    use SoftDeletes;
 
     protected $fillable = [
         'branch_id',
@@ -30,6 +32,13 @@ class Product extends Model
             'selling_price' => 'decimal:2',
             'stock' => 'integer',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::deleting(function (Product $product) {
+            $product->productPrices()->delete();
+        });
     }
 
     public function branch(): BelongsTo
