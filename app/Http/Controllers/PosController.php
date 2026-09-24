@@ -53,11 +53,22 @@ class PosController extends Controller
             ? $this->shiftService->calculateExpectedBalance($activeShift)
             : 0;
 
-        $products = Product::with('category')
+        $products = Product::with(['category', 'productPrices'])
             ->orderBy('name')
-            ->get();
+            ->get()
+            ->map(function (Product $product) {
+                $basePrice = (float) $product->selling_price;
+                $product->base_price = $basePrice;
+                $product->original_selling_price = $basePrice;
+                $product->price = $basePrice;
+                return $product;
+            });
 
         $categories = Category::orderBy('name')->get();
+
+        $customers = \App\Models\Customer::with('customerGroup')
+            ->orderBy('name')
+            ->get();
 
         $token = $user->createToken('pos_preview')->plainTextToken;
 
@@ -66,6 +77,7 @@ class PosController extends Controller
         return view($viewName, [
             'products'        => $products,
             'categories'      => $categories,
+            'customers'       => $customers,
             'previewToken'    => $token,
             'currentUser'     => $user,
             'activeShift'     => $activeShift,

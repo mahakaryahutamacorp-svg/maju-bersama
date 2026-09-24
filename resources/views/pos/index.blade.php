@@ -13,7 +13,7 @@
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
     <div 
-        x-data="posSystem({{ Js::from($products) }}, {{ Js::from($categories) }}, { hasActiveShift: {{ $hasActiveShift ? 'true' : 'false' }}, expectedBalance: {{ (float) $expectedBalance }} })" 
+        x-data="posApp({{ Js::from($products) }}, {{ Js::from($categories) }}, { hasActiveShift: {{ $hasActiveShift ? 'true' : 'false' }}, expectedBalance: {{ (float) $expectedBalance }} }, {{ Js::from($customers ?? []) }})" 
         class="min-h-screen flex flex-col"
         @keydown.window.escape="handleEscapeKey()"
     >
@@ -179,7 +179,12 @@
 
                             <div class="mt-3 flex items-end justify-between gap-2 border-t border-slate-100 pt-2.5">
                                 <div>
-                                    <p class="text-base font-black text-slate-900" x-text="formatRupiah(product.selling_price)"></p>
+                                    <div class="flex items-baseline gap-1.5 flex-wrap">
+                                        <template x-if="product.original_selling_price && product.selling_price < product.original_selling_price">
+                                            <span class="text-xs line-through text-slate-400 font-mono" x-text="formatRupiah(product.original_selling_price)"></span>
+                                        </template>
+                                        <p class="text-base font-black text-slate-900" :class="product.original_selling_price && product.selling_price < product.original_selling_price ? 'text-emerald-700' : ''" x-text="formatRupiah(product.selling_price)"></p>
+                                    </div>
                                     <p 
                                         class="text-[11px] font-semibold"
                                         :class="product.stock > 5 ? 'text-slate-500' : (product.stock > 0 ? 'text-amber-600 font-bold' : 'text-rose-600 font-bold')"
@@ -219,6 +224,50 @@
                     </button>
                 </div>
 
+                <!-- Dropdown Pemilihan Pelanggan (Tiering Harga) -->
+                <div class="p-3.5 bg-slate-50/90 border-b border-slate-200">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label for="pos-customer-select" class="text-[11px] font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            <span>Pelanggan (Tier Harga)</span>
+                        </label>
+                        <span 
+                            x-show="customerGroupName" 
+                            x-text="customerGroupName"
+                            class="rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 text-[10px] font-bold"
+                        ></span>
+                    </div>
+                    <select 
+                        id="pos-customer-select"
+                        x-model="customerId" 
+                        @change="onCustomerChange()"
+                        class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    >
+                        <option value="">-- Umum / Retail (Harga Dasar) --</option>
+                        <template x-for="c in customers" :key="c.id">
+                            <option :value="c.id" x-text="c.name + (c.customer_group ? ' [' + c.customer_group.name + ']' : '')"></option>
+                        </template>
+                    </select>
+                </div>
+
+                <!-- Status Overlay / Alert saat Rekalkulasi Harga Keranjang -->
+                <div 
+                    x-show="isRecalculatingCart" 
+                    x-cloak
+                    class="bg-amber-50 border-b border-amber-200 px-4 py-2 text-amber-800 text-xs flex items-center justify-between animate-pulse"
+                >
+                    <div class="flex items-center gap-2">
+                        <svg class="animate-spin h-3.5 w-3.5 text-amber-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                        </svg>
+                        <span class="font-bold text-[11px]">Memperbarui harga keranjang...</span>
+                    </div>
+                    <span class="text-[10px] text-amber-700 font-mono">Tier Sync</span>
+                </div>
+
                 <!-- Daftar Item di Rincian Transaksi -->
                 <div class="max-h-[min(52vh,480px)] overflow-y-auto px-5 divide-y divide-slate-100">
                     <template x-if="cart.length === 0">
@@ -235,7 +284,22 @@
                         <div class="py-3.5 flex gap-3 items-center">
                             <div class="min-w-0 flex-1">
                                 <p class="truncate text-xs font-bold text-slate-900" x-text="item.product.name"></p>
-                                <p class="text-[11px] text-slate-500 font-mono" x-text="formatRupiah(item.product.selling_price) + ' /pcs'"></p>
+                                
+                                <div class="mt-0.5 flex flex-wrap items-center gap-1.5">
+                                    <template x-if="item.price < item.base_price">
+                                        <div class="flex items-center gap-1">
+                                            <span class="line-through text-slate-400 text-[10px] font-mono" x-text="formatRupiah(item.base_price)"></span>
+                                            <span class="text-xs font-bold text-emerald-600 font-mono" x-text="formatRupiah(item.price) + ' /pcs'"></span>
+                                            <span 
+                                                class="rounded bg-emerald-100 text-emerald-800 text-[9px] font-bold px-1.5 py-0.5 border border-emerald-200" 
+                                                x-text="customerGroupName ? 'Harga Khusus ' + customerGroupName : 'Harga Khusus'"
+                                            ></span>
+                                        </div>
+                                    </template>
+                                    <template x-if="item.price >= item.base_price">
+                                        <p class="text-[11px] text-slate-500 font-mono" x-text="formatRupiah(item.price) + ' /pcs'"></p>
+                                    </template>
+                                </div>
 
                                 <div class="mt-2 flex items-center gap-1.5">
                                     <button 
@@ -253,7 +317,7 @@
                             </div>
 
                             <div class="text-right">
-                                <p class="text-xs font-black text-slate-900 font-mono" x-text="formatRupiah(item.product.selling_price * item.quantity)"></p>
+                                <p class="text-xs font-black text-slate-900 font-mono" x-text="formatRupiah(item.price * item.quantity)"></p>
                                 <button 
                                     type="button" 
                                     @click="removeFromCart(item.product.id)" 
@@ -270,13 +334,13 @@
                 <div class="border-t border-slate-200 bg-slate-50/70 p-5 rounded-b-2xl">
                     <div class="flex items-baseline justify-between">
                         <span class="text-sm font-semibold text-slate-600">Total Akhir:</span>
-                        <span class="text-2xl font-black text-indigo-900" x-text="formatRupiah(grandTotal)"></span>
+                        <span class="text-2xl font-black text-indigo-900 font-mono" x-text="formatRupiah(grandTotal)"></span>
                     </div>
 
                     <button 
                         type="button" 
                         @click="openPaymentModal()" 
-                        :disabled="cart.length === 0"
+                        :disabled="cart.length === 0 || isRecalculatingCart"
                         class="mt-4 w-full rounded-xl bg-indigo-600 py-3.5 text-center text-sm font-bold text-white shadow-lg shadow-indigo-600/30 transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
                     >
                         Pembayaran (F9) →
@@ -780,15 +844,31 @@
 
     <!-- Script Alpine.js Penjualan Kasir -->
     <script>
-        function posSystem(initialProducts, initialCategories, shiftConfig = {}) {
+        function posApp(initialProducts, initialCategories, shiftConfig = {}, initialCustomers = []) {
             return {
-                products: initialProducts || [],
+                products: (initialProducts || []).map(p => ({
+                    ...p,
+                    price: Number(p.price ?? p.selling_price ?? 0),
+                    base_price: Number(p.base_price ?? p.original_selling_price ?? p.selling_price ?? 0),
+                    original_selling_price: Number(p.original_selling_price ?? p.base_price ?? p.selling_price ?? 0),
+                })),
                 categories: initialCategories || [],
+                customers: initialCustomers || [],
+                customerId: '',
+                customerName: '',
+                customerGroupName: '',
+                isRecalculatingCart: false,
                 selectedCategory: null,
                 searchQuery: '',
                 scanNotification: '',
                 cart: [],
                 loading: false,
+
+                // Helper token API Sanctum
+                getApiToken() {
+                    const meta = document.querySelector('meta[name="pos-token"]');
+                    return meta ? meta.content : '';
+                },
 
                 // State Shift Kasir & Rekonsiliasi
                 hasActiveShift: shiftConfig.hasActiveShift ?? false,
@@ -866,15 +946,101 @@
                 },
 
                 get grandTotal() {
-                    return this.cart.reduce((sum, item) => sum + (Number(item.product.selling_price) * item.quantity), 0);
+                    return this.cart.reduce((sum, item) => sum + (Number(item.price || item.product?.selling_price || 0) * item.quantity), 0);
                 },
 
                 get changeDue() {
                     return (this.cashTendered || 0) - this.grandTotal;
                 },
 
-                // Scan Barcode / Quick Add via Enter
-                handleScanOrSearch() {
+                // Fetch data katalog produk dari API dengan parameter pencarian dan customer_id
+                async fetchProducts() {
+                    try {
+                        const params = new URLSearchParams();
+                        if (this.searchQuery && this.searchQuery.trim()) {
+                            params.append('search', this.searchQuery.trim());
+                        }
+                        if (this.customerId) {
+                            params.append('customer_id', this.customerId);
+                        }
+
+                        const url = '/api/products' + (params.toString() ? '?' + params.toString() : '');
+                        const response = await fetch(url, {
+                            headers: {
+                                'Accept': 'application/json',
+                                'Authorization': 'Bearer ' + this.getApiToken(),
+                            },
+                        });
+
+                        if (response.ok) {
+                            const payload = await response.json();
+                            const list = payload.data || [];
+                            this.products = list.map(p => ({
+                                ...p,
+                                price: Number(p.price ?? p.selling_price ?? 0),
+                                base_price: Number(p.base_price ?? p.original_selling_price ?? p.selling_price ?? 0),
+                                original_selling_price: Number(p.original_selling_price ?? p.base_price ?? p.selling_price ?? 0),
+                            }));
+                        }
+                    } catch (err) {
+                        console.error('Gagal mengambil daftar produk:', err);
+                    }
+                },
+
+                // Event ketika dropdown pelanggan berubah
+                async onCustomerChange() {
+                    // Update label pelanggan & tier kelompok
+                    if (this.customerId) {
+                        const selected = (this.customers || []).find(c => String(c.id) === String(this.customerId));
+                        this.customerName = selected ? selected.name : '';
+                        this.customerGroupName = selected?.customer_group?.name || '';
+                    } else {
+                        this.customerName = '';
+                        this.customerGroupName = '';
+                    }
+
+                    // Aksi 1: Panggil fetchProducts() agar harga produk di rak digital layar kasir langsung berubah
+                    await this.fetchProducts();
+
+                    // Aksi 2: Looping pada isi keranjang saat ini (this.cart), fetch ulang harga tiap item
+                    if (this.cart.length > 0) {
+                        this.isRecalculatingCart = true;
+                        try {
+                            await Promise.all(this.cart.map(async (item) => {
+                                const productId = item.id || item.product?.id;
+                                if (!productId) return;
+
+                                const res = await fetch(`/api/products/${productId}?customer_id=${this.customerId || ''}`, {
+                                    headers: {
+                                        'Accept': 'application/json',
+                                        'Authorization': 'Bearer ' + this.getApiToken(),
+                                    },
+                                });
+
+                                if (res.ok) {
+                                    const payload = await res.json();
+                                    const updated = payload.data;
+                                    if (updated) {
+                                        const newPrice = Number(updated.selling_price ?? updated.price ?? 0);
+                                        const basePrice = Number(updated.original_selling_price ?? updated.base_price ?? updated.selling_price ?? newPrice);
+
+                                        item.product = updated;
+                                        item.price = newPrice;
+                                        item.base_price = basePrice;
+                                        item.subtotal = newPrice * item.quantity;
+                                    }
+                                }
+                            }));
+                        } catch (err) {
+                            console.error('Gagal memperbarui harga keranjang:', err);
+                        } finally {
+                            this.isRecalculatingCart = false;
+                        }
+                    }
+                },
+
+                // Scan Barcode / Quick Add via Enter (menyertakan customer_id)
+                async handleScanOrSearch() {
                     if (!this.hasActiveShift) {
                         alert('Shift kasir belum dibuka! Silakan buka shift terlebih dahulu dengan memasukkan modal awal.');
                         return;
@@ -882,10 +1048,33 @@
 
                     if (!this.searchQuery.trim()) return;
 
-                    const q = this.searchQuery.trim().toLowerCase();
+                    const q = this.searchQuery.trim();
 
-                    // Cek exact match SKU
-                    const exactSku = this.products.find(p => p.sku.toLowerCase() === q);
+                    // Coba lookup barcode via API dengan parameter customer_id
+                    try {
+                        const barcodeUrl = `/api/products/barcode/${encodeURIComponent(q)}?customer_id=${this.customerId || ''}`;
+                        const response = await fetch(barcodeUrl, {
+                            headers: {
+                                'Accept': 'application/json',
+                                'Authorization': 'Bearer ' + this.getApiToken(),
+                            },
+                        });
+
+                        if (response.ok) {
+                            const payload = await response.json();
+                            if (payload.data) {
+                                this.addToCart(payload.data);
+                                this.notifyScan('✓ ' + payload.data.name + ' ditambahkan ke transaksi');
+                                this.searchQuery = '';
+                                return;
+                            }
+                        }
+                    } catch (err) {
+                        // Fallback ke pencarian lokal jika terjadi kegagalan jaringan
+                    }
+
+                    // Cek exact match SKU di list produk lokal
+                    const exactSku = this.products.find(p => p.sku.toLowerCase() === q.toLowerCase());
                     if (exactSku) {
                         this.addToCart(exactSku);
                         this.notifyScan('✓ ' + exactSku.name + ' ditambahkan ke transaksi');
@@ -893,7 +1082,7 @@
                         return;
                     }
 
-                    // Cek jika hanya ada 1 produk yang matching
+                    // Cek jika hanya ada 1 produk yang matching di filter lokal
                     const matches = this.filteredProducts;
                     if (matches.length === 1) {
                         this.addToCart(matches[0]);
@@ -918,24 +1107,35 @@
 
                     if (product.stock < 1) return;
 
-                    const existing = this.cart.find(item => item.product.id === product.id);
+                    const existing = this.cart.find(item => (item.id || item.product.id) === product.id);
                     if (existing) {
                         if (existing.quantity < product.stock) {
                             existing.quantity++;
+                            existing.subtotal = existing.price * existing.quantity;
                         } else {
                             alert('Jumlah melebihi stok barang yang tersedia (' + product.stock + ').');
                         }
                         return;
                     }
 
-                    this.cart.push({ product, quantity: 1 });
+                    const price = Number(product.selling_price ?? product.price ?? 0);
+                    const basePrice = Number(product.original_selling_price ?? product.base_price ?? product.selling_price ?? price);
+
+                    this.cart.push({
+                        id: product.id,
+                        product: product,
+                        price: price,
+                        base_price: basePrice,
+                        quantity: 1,
+                        subtotal: price * 1,
+                    });
                 },
 
                 changeQuantity(productId, amount) {
-                    const item = this.cart.find(i => i.product.id === productId);
+                    const item = this.cart.find(i => (i.id || i.product.id) === productId);
                     if (!item) return;
 
-                    const product = this.products.find(p => p.id === productId);
+                    const product = this.products.find(p => p.id === productId) || item.product;
                     const newQty = item.quantity + amount;
 
                     if (newQty <= 0) {
@@ -943,16 +1143,17 @@
                         return;
                     }
 
-                    if (newQty > product.stock) {
+                    if (product && newQty > product.stock) {
                         alert('Jumlah melebihi stok yang tersedia (' + product.stock + ').');
                         return;
                     }
 
                     item.quantity = newQty;
+                    item.subtotal = item.price * newQty;
                 },
 
                 removeFromCart(productId) {
-                    this.cart = this.cart.filter(i => i.product.id !== productId);
+                    this.cart = this.cart.filter(i => (i.id || i.product.id) !== productId);
                 },
 
                 clearCart() {
@@ -993,7 +1194,7 @@
                     return Math.ceil(total / 50000) * 50000;
                 },
 
-                // Proses Checkout ke API
+                // Proses Checkout ke API (menyertakan customer_id)
                 async processCheckout() {
                     if (!this.hasActiveShift) {
                         alert('Shift kasir belum dibuka! Silakan buka shift terlebih dahulu.');
@@ -1014,11 +1215,15 @@
                             headers: {
                                 'Accept': 'application/json',
                                 'Content-Type': 'application/json',
-                                'Authorization': 'Bearer ' + document.querySelector('meta[name="pos-token"]').content,
+                                'Authorization': 'Bearer ' + this.getApiToken(),
                             },
                             body: JSON.stringify({
+                                customer_id: this.customerId ? Number(this.customerId) : null,
                                 payment_method: this.paymentMethod,
-                                items: this.cart.map(i => ({ product_id: i.product.id, quantity: i.quantity })),
+                                items: this.cart.map(i => ({ 
+                                    product_id: i.id || i.product.id, 
+                                    quantity: i.quantity 
+                                })),
                             }),
                         });
 
@@ -1049,6 +1254,11 @@
                     } finally {
                         this.loading = false;
                     }
+                },
+
+                // Alias checkout() untuk kemudahan pemanggilan
+                async checkout() {
+                    return await this.processCheckout();
                 },
 
                 // Cetak Struk Thermal Pop-up Window
@@ -1086,6 +1296,10 @@
                 }
             };
         }
+
+        // Global aliases for Alpine.js
+        window.posApp = posApp;
+        window.posSystem = posApp;
     </script>
 </body>
 </html>

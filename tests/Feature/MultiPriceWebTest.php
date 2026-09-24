@@ -310,4 +310,34 @@ class MultiPriceWebTest extends TestCase
         $customer = Customer::where('name', 'Haji Mansur')->firstOrFail();
         $this->assertEquals($this->groupPetani->id, $customer->customerGroup->id);
     }
+
+    public function test_pos_view_renders_customer_tier_selector_and_alpine_state(): void
+    {
+        $response = $this->actingAs($this->user)->get('/pos');
+
+        $response->assertStatus(200);
+        $response->assertSee('posApp(');
+        $response->assertSee('pos-customer-select');
+        $response->assertSee('onCustomerChange()');
+        $response->assertSee('isRecalculatingCart');
+        $response->assertSee('Pak Joko Kelompok Tani');
+        $response->assertSee('Harga Khusus');
+    }
+
+    public function test_pos_single_product_api_with_customer_id(): void
+    {
+        Sanctum::actingAs($this->user);
+
+        // Fetch single product for Petani
+        $responsePetani = $this->getJson("/api/products/{$this->product->id}?customer_id={$this->customerPetani->id}");
+        $responsePetani->assertStatus(200);
+        $this->assertEquals(85000, (float) $responsePetani->json('data.selling_price'));
+        $this->assertEquals(100000, (float) $responsePetani->json('data.base_price'));
+
+        // Fetch single product for Umum
+        $responseUmum = $this->getJson("/api/products/{$this->product->id}?customer_id={$this->customerUmum->id}");
+        $responseUmum->assertStatus(200);
+        $this->assertEquals(100000, (float) $responseUmum->json('data.selling_price'));
+        $this->assertEquals(100000, (float) $responseUmum->json('data.base_price'));
+    }
 }

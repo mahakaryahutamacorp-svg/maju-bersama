@@ -47,12 +47,16 @@ class ProductController extends Controller
         }
 
         $products = $query->get()->map(function (Product $product) use ($customerGroupId) {
+            $basePrice = (float) $product->selling_price;
+            $product->base_price = $basePrice;
+            $product->original_selling_price = $basePrice;
+
             if ($customerGroupId !== null) {
-                $effectivePrice = $product->getPriceForGroup($customerGroupId);
+                $effectivePrice = (float) $product->getPriceForGroup($customerGroupId);
                 $product->selling_price = $effectivePrice;
                 $product->price = $effectivePrice;
             } else {
-                $product->price = $product->selling_price;
+                $product->price = $basePrice;
             }
             return $product;
         });
@@ -88,18 +92,22 @@ class ProductController extends Controller
     {
         $product->load(['category', 'branch', 'productPrices']);
 
+        $basePrice = (float) $product->selling_price;
+        $product->base_price = $basePrice;
+        $product->original_selling_price = $basePrice;
+
         $customerId = $request->input('customer_id');
         if ($customerId) {
             $customer = Customer::find($customerId);
             if ($customer && $customer->customer_group_id) {
-                $effectivePrice = $product->getPriceForGroup($customer->customer_group_id);
+                $effectivePrice = (float) $product->getPriceForGroup($customer->customer_group_id);
                 $product->selling_price = $effectivePrice;
                 $product->price = $effectivePrice;
             } else {
-                $product->price = $product->selling_price;
+                $product->price = $basePrice;
             }
         } else {
-            $product->price = $product->selling_price;
+            $product->price = $basePrice;
         }
 
         return response()->json([
@@ -116,18 +124,22 @@ class ProductController extends Controller
             ->where('sku', $barcode)
             ->firstOrFail();
 
+        $basePrice = (float) $product->selling_price;
+        $product->base_price = $basePrice;
+        $product->original_selling_price = $basePrice;
+
         $customerId = $request->input('customer_id');
         if ($customerId) {
             $customer = Customer::find($customerId);
             if ($customer && $customer->customer_group_id) {
-                $effectivePrice = $product->getPriceForGroup($customer->customer_group_id);
+                $effectivePrice = (float) $product->getPriceForGroup($customer->customer_group_id);
                 $product->selling_price = $effectivePrice;
                 $product->price = $effectivePrice;
             } else {
-                $product->price = $product->selling_price;
+                $product->price = $basePrice;
             }
         } else {
-            $product->price = $product->selling_price;
+            $product->price = $basePrice;
         }
 
         return response()->json([
