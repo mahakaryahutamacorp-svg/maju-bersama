@@ -12,7 +12,7 @@ return new class extends Migration
         Schema::create('product_prices', function (Blueprint $table) {
             $table->id();
             $table->foreignId('product_id')->constrained('products')->cascadeOnDelete();
-            $table->foreignId('price_level_id')->constrained('price_levels')->cascadeOnDelete();
+            $table->foreignId('price_level_id')->nullable()->constrained('price_levels')->cascadeOnDelete();
             $table->decimal('price', 15, 2);
             $table->timestamps();
 

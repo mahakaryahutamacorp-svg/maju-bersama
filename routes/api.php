@@ -21,6 +21,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Products CRUD (with branch isolation via HasBranchScope)
     Route::get('/products', [ProductController::class, 'index']);
+    Route::get('/products/barcode/{barcode}', [ProductController::class, 'byBarcode']);
     Route::post('/products', [ProductController::class, 'store']);
     Route::get('/products/{product}', [ProductController::class, 'show']);
     Route::put('/products/{product}', [ProductController::class, 'update']);

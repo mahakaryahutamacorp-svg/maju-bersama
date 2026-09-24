@@ -10,6 +10,7 @@ class ProductPrice extends Model
     protected $fillable = [
         'product_id',
         'price_level_id',
+        'customer_group_id',
         'price',
     ];
 
@@ -28,5 +29,10 @@ class ProductPrice extends Model
     public function priceLevel(): BelongsTo
     {
         return $this->belongsTo(PriceLevel::class);
+    }
+
+    public function customerGroup(): BelongsTo
+    {
+        return $this->belongsTo(CustomerGroup::class);
     }
 }

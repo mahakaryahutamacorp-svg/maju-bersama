@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\Category;
+use App\Models\CustomerGroup;
 use App\Models\PriceLevel;
 use App\Models\Product;
 use App\Models\ProductPrice;
@@ -71,6 +72,7 @@ class ProductController extends Controller
 
         $branches = $isMaster ? Branch::orderBy('name')->get() : collect([$user->branch]);
         $categories = Category::orderBy('name')->get();
+        $customerGroups = CustomerGroup::orderBy('id')->get();
         $priceLevels = PriceLevel::where('is_active', true)
             ->orderByDesc('is_default')
             ->orderBy('id')
@@ -81,6 +83,7 @@ class ProductController extends Controller
             'isMaster' => $isMaster,
             'branches' => $branches,
             'categories' => $categories,
+            'customerGroups' => $customerGroups,
             'priceLevels' => $priceLevels,
         ]);
     }
@@ -106,6 +109,17 @@ class ProductController extends Controller
             }
         }
 
+        // If customer_group_prices provided and selling_price not yet set
+        if (! $request->filled('selling_price')) {
+            $cgp = $request->input('customer_group_prices', $request->input('group_prices', []));
+            if (! empty($cgp)) {
+                $firstVal = collect($cgp)->filter(fn ($v) => $v !== null && $v !== '')->first();
+                if ($firstVal) {
+                    $request->merge(['selling_price' => $firstVal]);
+                }
+            }
+        }
+
         $rules = [
             'name' => ['required', 'string', 'max:255'],
             'sku' => ['nullable', 'string', 'max:50'],
@@ -116,6 +130,10 @@ class ProductController extends Controller
             'stock' => ['nullable', 'integer', 'min:0'],
             'prices' => ['nullable', 'array'],
             'prices.*' => ['nullable', 'numeric', 'min:0'],
+            'customer_group_prices' => ['nullable', 'array'],
+            'customer_group_prices.*' => ['nullable', 'numeric', 'min:0'],
+            'group_prices' => ['nullable', 'array'],
+            'group_prices.*' => ['nullable', 'numeric', 'min:0'],
         ];
 
         if ($isMaster) {
@@ -131,8 +149,11 @@ class ProductController extends Controller
 
         $product = $this->productService->createProduct($validated, $targetBranchId);
 
-        // Sync tiered product prices
+        // Sync tiered product prices (PriceLevel compatibility)
         $this->syncProductPrices($product, $request->input('prices', []));
+
+        // Sync CustomerGroup tiered prices
+        $this->syncCustomerGroupPrices($product, $request->input('customer_group_prices', $request->input('group_prices', [])));
 
         return redirect()
             ->route('backoffice.products.index')
@@ -156,6 +177,7 @@ class ProductController extends Controller
 
         $branches = $isMaster ? Branch::orderBy('name')->get() : collect([$product->branch]);
         $categories = Category::orderBy('name')->get();
+        $customerGroups = CustomerGroup::orderBy('id')->get();
         $priceLevels = PriceLevel::where('is_active', true)
             ->orderByDesc('is_default')
             ->orderBy('id')
@@ -167,6 +189,7 @@ class ProductController extends Controller
             'product' => $product,
             'branches' => $branches,
             'categories' => $categories,
+            'customerGroups' => $customerGroups,
             'priceLevels' => $priceLevels,
         ]);
     }
@@ -208,18 +231,50 @@ class ProductController extends Controller
             'selling_price' => ['required', 'numeric', 'min:0'],
             'prices' => ['nullable', 'array'],
             'prices.*' => ['nullable', 'numeric', 'min:0'],
+            'customer_group_prices' => ['nullable', 'array'],
+            'customer_group_prices.*' => ['nullable', 'numeric', 'min:0'],
+            'group_prices' => ['nullable', 'array'],
+            'group_prices.*' => ['nullable', 'numeric', 'min:0'],
         ];
 
         $validated = $request->validate($rules);
 
         $this->productService->updateProduct($product, $validated);
 
-        // Sync tiered product prices
+        // Sync tiered product prices (PriceLevel compatibility)
         $this->syncProductPrices($product, $request->input('prices', []));
+
+        // Sync CustomerGroup tiered prices
+        $this->syncCustomerGroupPrices($product, $request->input('customer_group_prices', $request->input('group_prices', [])));
 
         return redirect()
             ->route('backoffice.products.index')
             ->with('success', "Data produk '{$product->name}' berhasil diperbarui!");
+    }
+
+    /**
+     * Synchronize price tiers for customer groups.
+     */
+    protected function syncCustomerGroupPrices(Product $product, array $prices): void
+    {
+        foreach ($prices as $groupId => $price) {
+            $customerGroupId = (int) $groupId;
+            if ($price !== null && $price !== '') {
+                ProductPrice::updateOrCreate(
+                    [
+                        'product_id' => $product->id,
+                        'customer_group_id' => $customerGroupId,
+                    ],
+                    [
+                        'price' => $price,
+                    ]
+                );
+            } else {
+                ProductPrice::where('product_id', $product->id)
+                    ->where('customer_group_id', $customerGroupId)
+                    ->delete();
+            }
+        }
     }
 
     /**

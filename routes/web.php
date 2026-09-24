@@ -75,6 +75,9 @@ Route::middleware('auth')->group(function () {
 		// Suppliers
 		Route::resource('suppliers', App\Http\Controllers\Web\SupplierController::class);
 
+		// Customers (Pelanggan & Multi-Price)
+		Route::resource('customers', App\Http\Controllers\Web\CustomerController::class);
+
 		// Sales Returns (Retur Penjualan Pelanggan)
 		Route::resource('sales-returns', App\Http\Controllers\Web\SalesReturnController::class);
 

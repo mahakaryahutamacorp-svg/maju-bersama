@@ -96,6 +96,14 @@ class Product extends Model
     }
 
     /**
+     * Accessor agar $this->price mengembalikan nilai harga dasar (selling_price).
+     */
+    public function getPriceAttribute()
+    {
+        return $this->selling_price;
+    }
+
+    /**
      * Get the selling price for a given price level ID,
      * falling back to the legacy selling_price column if null or not found.
      */
@@ -112,5 +120,25 @@ class Product extends Model
         }
 
         return $this->selling_price;
+    }
+
+    /**
+     * Helper untuk mengambil harga khusus sesuai grup pelanggan (Pricing Tier).
+     * Jika $groupId ada dan memiliki record di product_prices, kembalikan harga khusus tersebut.
+     * Jika tidak, kembalikan $this->price (Harga Dasar/Umum).
+     */
+    public function getPriceForGroup(?int $groupId = null)
+    {
+        if ($groupId !== null) {
+            $productPrice = $this->relationLoaded('productPrices')
+                ? $this->productPrices->firstWhere('customer_group_id', $groupId)
+                : $this->productPrices()->where('customer_group_id', $groupId)->first();
+
+            if ($productPrice !== null && $productPrice->price !== null) {
+                return $productPrice->price;
+            }
+        }
+
+        return $this->price;
     }
 }

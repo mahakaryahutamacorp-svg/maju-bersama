@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call(ChartOfAccountSeeder::class);
+        $this->call(CustomerGroupSeeder::class);
 
         $branchId = DB::table('branches')->insertGetId([
             'code' => 'PUSAT',

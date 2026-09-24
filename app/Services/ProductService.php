@@ -71,6 +71,23 @@ class ProductService
     }
 
     /**
+     * Delete a product and its associated inventory.
+     *
+     * @param Product $product
+     * @return bool
+     */
+    public function deleteProduct(Product $product): bool
+    {
+        return DB::transaction(function () use ($product): bool {
+            Inventory::withoutGlobalScopes()
+                ->where('product_id', $product->id)
+                ->delete();
+
+            return (bool) $product->delete();
+        });
+    }
+
+    /**
      * Generate a unique SKU for a product.
      *
      * Format: BR{branch_id}-{random_6_chars}

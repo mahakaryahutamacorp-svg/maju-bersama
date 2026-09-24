@@ -37,7 +37,7 @@ class SalePostingService
         $paymentMethod = $data['payment_method'] ?? 'cash';
         $receiptNumber = $data['receipt_number'] ?? $this->generateReceiptNumber();
 
-        return DB::transaction(function () use ($items, $actor, $receiptNumber, $paymentMethod): Sale {
+        return DB::transaction(function () use ($items, $actor, $receiptNumber, $paymentMethod, $data): Sale {
             $accounts = $this->resolveAccounts();
 
             $products = Product::query()
@@ -56,6 +56,13 @@ class SalePostingService
             $costCents = 0;
             $saleItems = [];
 
+            $customerId = $data['customer_id'] ?? null;
+            $customerGroupId = null;
+            if ($customerId) {
+                $customer = \App\Models\Customer::find($customerId);
+                $customerGroupId = $customer?->customer_group_id;
+            }
+
             foreach ($items as $item) {
                 $product = $products->get($item['product_id']);
                 $inventory = $this->lockInventory((int) $product->branch_id, (int) $product->id, (int) $product->stock);
@@ -69,7 +76,11 @@ class SalePostingService
                 $inventory->decrement('quantity', $item['quantity']);
                 $product->decrement('stock', $item['quantity']);
 
-                $priceCents = $this->toCents($product->selling_price);
+                $unitPrice = $customerGroupId !== null
+                    ? $product->getPriceForGroup($customerGroupId)
+                    : $product->selling_price;
+
+                $priceCents = $this->toCents($unitPrice);
                 $unitCostCents = $this->toCents($product->purchase_price);
 
                 $subtotalCents = $priceCents * $item['quantity'];

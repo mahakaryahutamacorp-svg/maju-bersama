@@ -203,6 +203,59 @@
                     </div>
                 </div>
 
+                <!-- Section: Penetapan Harga Khusus Grup Pelanggan (Customer Groups: Retail, Petani, Grosir) -->
+                @if (isset($customerGroups) && $customerGroups->isNotEmpty())
+                    <div x-data="{ openGroupPrices: true }" class="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-5">
+                        <div class="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                            <div>
+                                <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                                    <span class="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-white text-[10px] font-bold">Rp</span>
+                                    Harga Khusus Grup Pelanggan (Pricing Tiers)
+                                </h3>
+                                <p class="text-xs text-slate-500 mt-0.5">Atur harga berbeda untuk Retail, Petani, dan Grosir. Jika dikosongkan, sistem otomatis memakai Harga Dasar.</p>
+                            </div>
+                            <span class="inline-flex self-start sm:self-auto items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800">
+                                Pricing Tiers
+                            </span>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            @foreach ($customerGroups as $cg)
+                                @php
+                                    $savedGroupPrice = $product->productPrices->firstWhere('customer_group_id', $cg->id)?->price;
+                                    $cgVal = old("customer_group_prices.{$cg->id}", $savedGroupPrice);
+                                @endphp
+                                <div class="rounded-xl border border-emerald-200 bg-white p-3.5 shadow-xs">
+                                    <div class="flex items-center justify-between mb-1.5">
+                                        <label for="cg_price_{{ $cg->id }}" class="text-xs font-bold text-slate-800">
+                                            {{ $cg->name }}
+                                        </label>
+                                        <span class="text-[10px] text-slate-400 font-medium">Khusus Grup</span>
+                                    </div>
+                                    <div class="relative mt-1">
+                                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                                            <span class="text-xs font-semibold text-slate-400">Rp</span>
+                                        </div>
+                                        <input
+                                            type="number"
+                                            step="any"
+                                            min="0"
+                                            id="cg_price_{{ $cg->id }}"
+                                            name="customer_group_prices[{{ $cg->id }}]"
+                                            value="{{ $cgVal }}"
+                                            placeholder="Sama dgn harga dasar"
+                                            class="w-full rounded-lg border border-slate-300 pl-9 pr-3 py-2 text-sm font-semibold text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                                        >
+                                    </div>
+                                    <p class="text-[10px] text-slate-400 mt-1">
+                                        {{ $cg->notes ?? 'Harga khusus anggota grup ' . $cg->name }}
+                                    </p>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
                 <!-- Action Buttons -->
                 <div class="flex items-center justify-end gap-3 border-t border-slate-100 pt-5">
                     <a href="{{ route('backoffice.products.index') }}" class="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">

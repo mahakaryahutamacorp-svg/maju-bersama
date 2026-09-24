@@ -54,6 +54,10 @@
                     <span>Data Supplier</span>
                     <span class="text-[10px] bg-indigo-400/20 text-indigo-300 px-1.5 py-0.5 rounded">Supplier</span>
                 </a>
+                <a href="{{ route('backoffice.customers.index') }}" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
+                    <span>Data Pelanggan</span>
+                    <span class="text-[10px] bg-emerald-400/20 text-emerald-300 px-1.5 py-0.5 rounded">Multi-Price</span>
+                </a>
                 <a href="/backoffice/users" class="block rounded-lg px-3 py-2 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white flex items-center justify-between">
                     <span>Staf &amp; Kasir</span>
                     <span class="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">Akun</span>
