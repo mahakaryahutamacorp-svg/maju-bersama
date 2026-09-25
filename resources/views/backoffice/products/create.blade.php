@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tambah Produk Baru | Maju Bersama ERP</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
     <!-- Header Utama -->
@@ -62,12 +63,82 @@
             <form method="POST" action="{{ route('backoffice.products.store') }}" class="space-y-6">
                 @csrf
 
-                <!-- Nama Produk -->
-                <div>
-                    <label for="name" class="block text-sm font-semibold text-slate-800">
-                        Nama Produk <span class="text-rose-500">*</span>
-                    </label>
-                    <input type="text" id="name" name="name" value="{{ old('name') }}" required placeholder="Contoh: Pupuk Urea Petro 50kg" class="mt-1.5 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
+                <!-- Nama Produk dengan Real-time Search & Duplicate Detection -->
+                <div x-data="{
+                    query: '{{ old('name') }}',
+                    matches: [],
+                    isLoading: false,
+                    hasChecked: false,
+                    checkDuplicates() {
+                        const q = (this.query || '').trim();
+                        if (q.length < 2) {
+                            this.matches = [];
+                            this.hasChecked = false;
+                            return;
+                        }
+                        this.isLoading = true;
+                        fetch('{{ route('backoffice.products.check-duplicate') }}?name=' + encodeURIComponent(q))
+                            .then(res => res.json())
+                            .then(data => {
+                                this.matches = data.matches || [];
+                                this.hasChecked = true;
+                            })
+                            .catch(() => { this.matches = []; })
+                            .finally(() => { this.isLoading = false; });
+                    }
+                }" class="relative">
+                    <div class="flex items-center justify-between">
+                        <label for="name" class="block text-sm font-semibold text-slate-800">
+                            Nama Produk <span class="text-rose-500">*</span>
+                        </label>
+                        <span x-show="isLoading" class="text-xs text-sky-600 font-medium animate-pulse" style="display: none;">
+                            Memeriksa ketersediaan nama...
+                        </span>
+                    </div>
+
+                    <div class="relative mt-1.5">
+                        <input
+                            type="text"
+                            id="name"
+                            name="name"
+                            x-model="query"
+                            @input.debounce.300ms="checkDuplicates()"
+                            required
+                            placeholder="Contoh: AM-500SC @1L atau Pupuk Urea 50kg"
+                            class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                        >
+                        <div x-show="matches.length > 0" class="absolute right-3 top-2.5 text-amber-500" style="display: none;" title="Produk dengan nama serupa ditemukan">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path></svg>
+                        </div>
+                    </div>
+
+                    <!-- Notifikasi Peringatan Produk Serupa / Pernah Didaftarkan -->
+                    <div x-show="matches.length > 0" x-cloak class="mt-2.5 rounded-xl border border-amber-300 bg-amber-50/90 p-3.5 shadow-sm text-xs text-amber-900" style="display: none;">
+                        <div class="flex items-center gap-1.5 font-bold text-amber-800 mb-2">
+                            <svg class="h-4 w-4 text-amber-600 shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                            <span>Perhatian: Ditemukan <span x-text="matches.length"></span> produk dengan nama serupa yang SUDAH PERNAH terdaftar:</span>
+                        </div>
+                        <ul class="space-y-1.5 divide-y divide-amber-200/60 max-h-48 overflow-y-auto pr-1">
+                            <template x-for="item in matches" :key="item.id">
+                                <li class="pt-1.5 flex items-center justify-between gap-2">
+                                    <div class="min-w-0">
+                                        <span class="font-bold text-slate-900" x-text="item.name"></span>
+                                        <span class="text-[11px] text-slate-600 font-mono" x-text="'(SKU: ' + item.sku + ' | ' + item.unit + ')'"></span>
+                                        <span class="text-[11px] text-amber-700 ml-1" x-text="'• ' + item.branch_name"></span>
+                                    </div>
+                                    <div class="flex items-center gap-2 shrink-0">
+                                        <span class="font-semibold text-emerald-700" x-text="'Rp ' + Number(item.selling_price).toLocaleString('id-ID')"></span>
+                                        <a :href="item.edit_url" target="_blank" class="rounded bg-amber-600 hover:bg-amber-700 px-2 py-1 text-[11px] font-bold text-white shadow-xs">
+                                            Edit Produk Ini ↗
+                                        </a>
+                                    </div>
+                                </li>
+                            </template>
+                        </ul>
+                        <p class="text-[11px] text-amber-700/80 mt-2 italic">
+                            💡 Tips: Jika Anda hanya ingin mengubah harga atau stok, klik tombol "Edit Produk Ini" di atas agar tidak terjadi duplikasi master data.
+                        </p>
+                    </div>
                 </div>
 
                 <!-- SKU / Barcode (Opsional Auto-generate) -->

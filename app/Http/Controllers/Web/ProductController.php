@@ -11,6 +11,7 @@ use App\Models\Product;
 use App\Models\ProductBranchPrice;
 use App\Models\ProductPrice;
 use App\Services\ProductService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -390,5 +391,40 @@ class ProductController extends Controller
                 ->route('backoffice.products.index')
                 ->with('error', 'Terjadi kesalahan saat menghapus produk: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Endpoint API untuk pengecekan cepat duplikasi nama / SKU produk saat input.
+     */
+    public function checkDuplicate(Request $request): JsonResponse
+    {
+        $query = trim((string) $request->input('name', $request->input('query', '')));
+
+        if (mb_strlen($query) < 2) {
+            return response()->json(['matches' => []]);
+        }
+
+        $matches = Product::withoutGlobalScopes()
+            ->with('branch:id,name,code')
+            ->where(function ($q) use ($query) {
+                $q->where('name', 'like', "%{$query}%")
+                  ->orWhere('sku', 'like', "%{$query}%");
+            })
+            ->limit(8)
+            ->get(['id', 'branch_id', 'sku', 'name', 'unit', 'purchase_price', 'selling_price'])
+            ->map(function ($p) {
+                return [
+                    'id' => $p->id,
+                    'name' => $p->name,
+                    'sku' => $p->sku,
+                    'unit' => $p->unit ?? 'PCS',
+                    'branch_name' => $p->branch?->name ?? 'Pusat',
+                    'purchase_price' => (float) $p->purchase_price,
+                    'selling_price' => (float) $p->selling_price,
+                    'edit_url' => route('backoffice.products.edit', $p->id),
+                ];
+            });
+
+        return response()->json(['matches' => $matches]);
     }
 }

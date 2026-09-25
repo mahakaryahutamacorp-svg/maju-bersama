@@ -56,6 +56,7 @@ Route::middleware('auth')->group(function () {
 
 	Route::prefix('backoffice')->name('backoffice.')->group(function () {
 		// Products
+		Route::get('products/check-duplicate', [App\Http\Controllers\Web\ProductController::class, 'checkDuplicate'])->name('products.check-duplicate');
 		Route::resource('products', App\Http\Controllers\Web\ProductController::class)->except(['show']);
 
 		// Categories
