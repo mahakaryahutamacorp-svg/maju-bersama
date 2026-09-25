@@ -30,6 +30,7 @@ Route::middleware('auth')->group(function () {
 	Route::post('/pos/shift/open', [PosController::class, 'openShift'])->name('pos.shift.open');
 	Route::post('/pos/shift/close', [PosController::class, 'closeShift'])->name('pos.shift.close');
 	Route::get('/pos/receipt/{receipt_number}', [PosController::class, 'receipt'])->name('pos.receipt');
+	Route::post('/pos/customers', [PosController::class, 'storeCustomer'])->name('pos.customers.store');
 	Route::get('/reports/journal', [ReportController::class, 'journal']);
 	Route::get('/reports/inventory/stock-card', [StockCardController::class, 'index'])->name('reports.inventory.stock-card');
 	Route::post('/fixed-assets/run-depreciation', [App\Http\Controllers\Web\FixedAssetController::class, 'runDepreciation']);

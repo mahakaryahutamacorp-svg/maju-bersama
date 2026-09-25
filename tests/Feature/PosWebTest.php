@@ -233,4 +233,67 @@ class PosWebTest extends TestCase
         $response->assertSee('TOTAL');
         $response->assertSee('25.000');
     }
+
+    public function test_cashier_can_create_customer_with_category_and_sync_to_pos(): void
+    {
+        $groupGrosir = \App\Models\CustomerGroup::firstOrCreate(
+            ['name' => 'Grosir'],
+            ['notes' => 'Pelanggan Grosir']
+        );
+
+        $response = $this->actingAs($this->cashier)->postJson('/pos/customers', [
+            'name' => 'Toko Tani Barokah',
+            'customer_group_id' => $groupGrosir->id,
+            'phone' => '08123456789',
+            'address' => 'Desa Makmur',
+        ]);
+
+        $response->assertStatus(201);
+        $response->assertJson([
+            'status' => 'success',
+            'customer' => [
+                'name' => 'Toko Tani Barokah',
+                'customer_group_id' => $groupGrosir->id,
+                'phone' => '08123456789',
+            ],
+        ]);
+
+        $this->assertDatabaseHas('customers', [
+            'name' => 'Toko Tani Barokah',
+            'branch_id' => $this->branch->id,
+            'customer_group_id' => $groupGrosir->id,
+        ]);
+    }
+
+    public function test_customer_created_by_branch_cashier_is_visible_to_central_admin(): void
+    {
+        // 1. Cabang Pusat
+        $centralBranch = \App\Models\Branch::create([
+            'name' => 'Kantor Pusat MB',
+            'code' => 'HQ-MB',
+            'parent_id' => null,
+            'is_active' => true,
+        ]);
+
+        $centralAdmin = \App\Models\User::factory()->create([
+            'branch_id' => $centralBranch->id,
+            'role' => 'admin',
+        ]);
+
+        $groupUmum = \App\Models\CustomerGroup::firstOrCreate(['name' => 'Umum/Retail']);
+
+        // 2. Kasir di cabang mendaftarkan pelanggan
+        $customer = \App\Models\Customer::create([
+            'branch_id' => $this->branch->id,
+            'name' => 'Pak Haji Subur',
+            'phone' => '0899999999',
+            'customer_group_id' => $groupUmum->id,
+        ]);
+
+        // 3. Admin Pusat membuka backoffice customers
+        $response = $this->actingAs($centralAdmin)->get('/backoffice/customers');
+        $response->assertOk();
+        $response->assertSee('Pak Haji Subur');
+        $response->assertSee($this->branch->name);
+    }
 }

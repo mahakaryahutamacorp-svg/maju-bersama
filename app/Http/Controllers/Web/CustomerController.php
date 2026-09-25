@@ -18,12 +18,12 @@ class CustomerController extends Controller
     public function index(Request $request): View
     {
         $user = $request->user()->load('branch');
-        $isMaster = $user->isMaster();
+        $isMaster = $user->isMaster() || $user->branch?->parent_id === null || in_array($user->role, ['admin', 'master', 'superadmin'], true);
         $search = $request->input('search');
         $selectedGroupId = $request->input('customer_group_id');
         $selectedBranchId = $isMaster ? $request->input('branch_id') : $user->branch_id;
 
-        $query = Customer::query()
+        $query = Customer::withoutGlobalScopes()
             ->with(['customerGroup', 'branch'])
             ->when(! $isMaster, fn ($q) => $q->where('branch_id', $user->branch_id))
             ->when($isMaster && $selectedBranchId, fn ($q) => $q->where('branch_id', $selectedBranchId))
@@ -113,7 +113,7 @@ class CustomerController extends Controller
     public function edit(Request $request, int $id): View
     {
         $user = $request->user()->load('branch');
-        $isMaster = $user->isMaster();
+        $isMaster = $user->isMaster() || $user->branch?->parent_id === null || in_array($user->role, ['admin', 'master', 'superadmin'], true);
 
         $customer = Customer::withoutGlobalScopes()->with(['customerGroup', 'branch'])->findOrFail($id);
 
@@ -139,7 +139,7 @@ class CustomerController extends Controller
     public function update(Request $request, int $id): RedirectResponse
     {
         $user = $request->user();
-        $isMaster = $user->isMaster();
+        $isMaster = $user->isMaster() || $user->branch?->parent_id === null || in_array($user->role, ['admin', 'master', 'superadmin'], true);
 
         $customer = Customer::withoutGlobalScopes()->findOrFail($id);
 

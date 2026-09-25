@@ -48,7 +48,7 @@
 
         <!-- Filter & Search -->
         <div class="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
-            <form method="GET" action="{{ route('backoffice.customers.index') }}" class="grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+            <form method="GET" action="{{ route('backoffice.customers.index') }}" class="grid grid-cols-1 {{ $isMaster && count($branches) > 1 ? 'sm:grid-cols-4' : 'sm:grid-cols-3' }} gap-3 items-end">
                 <div>
                     <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Cari Nama / Kontak</label>
                     <input type="text" name="search" value="{{ $search }}" placeholder="Ketik nama atau nomor telepon..." class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-sky-500">
@@ -64,11 +64,24 @@
                         @endforeach
                     </select>
                 </div>
+                @if ($isMaster && count($branches) > 1)
+                <div>
+                    <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Cabang Pendaftaran</label>
+                    <select name="branch_id" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-sky-500">
+                        <option value="">Semua Cabang</option>
+                        @foreach ($branches as $b)
+                            <option value="{{ $b->id }}" {{ (string)$selectedBranchId === (string)$b->id ? 'selected' : '' }}>
+                                {{ $b->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                @endif
                 <div class="flex items-center gap-2">
                     <button type="submit" class="w-full rounded-xl bg-slate-900 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-slate-800">
                         Filter
                     </button>
-                    @if ($search || $selectedGroupId)
+                    @if ($search || $selectedGroupId || ($isMaster && $selectedBranchId))
                         <a href="{{ route('backoffice.customers.index') }}" class="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100">
                             Reset
                         </a>

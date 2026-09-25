@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Branch;
 use App\Models\CashRegister;
 use App\Models\CashRegisterShift;
 use App\Models\Category;
+use App\Models\Customer;
 use App\Models\CustomerGroup;
 use App\Models\Product;
 use App\Models\Sale;
@@ -119,7 +121,8 @@ class PosController extends Controller
 
         $categories = Category::orderBy('name')->get();
 
-        $customers = \App\Models\Customer::with('customerGroup')
+        $customers = Customer::withoutGlobalScopes()
+            ->with(['customerGroup', 'branch'])
             ->orderBy('name')
             ->get();
 
@@ -218,5 +221,37 @@ class PosController extends Controller
             'cashTendered' => $cashTendered ? (float) $cashTendered : null,
             'changeDue'    => $changeDue ? (float) $changeDue : null,
         ]);
+    }
+
+    /**
+     * Daftarkan pelanggan baru secara cepat langsung dari layar POS Kasir.
+     */
+    public function storeCustomer(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'name'              => ['required', 'string', 'max:255'],
+            'customer_group_id' => ['required', 'integer', 'exists:customer_groups,id'],
+            'phone'             => ['nullable', 'string', 'max:50'],
+            'address'           => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $user = $request->user();
+        $branchId = $user->branch_id ?: Branch::whereNull('parent_id')->value('id') ?: Branch::value('id');
+
+        $customer = Customer::create([
+            'branch_id'         => $branchId,
+            'name'              => $validated['name'],
+            'customer_group_id' => $validated['customer_group_id'],
+            'phone'             => $validated['phone'] ?? null,
+            'address'           => $validated['address'] ?? null,
+        ]);
+
+        $customer->load(['customerGroup', 'branch']);
+
+        return response()->json([
+            'status'   => 'success',
+            'message'  => "Pelanggan '{$customer->name}' berhasil didaftarkan.",
+            'customer' => $customer,
+        ], 201);
     }
 }
