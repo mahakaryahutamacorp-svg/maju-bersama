@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="pos-token" content="{{ $previewToken }}">
     <title>Penjualan Kasir | Maju Bersama ERP</title>
     <style>
@@ -165,9 +166,11 @@
                     <template x-for="product in filteredProducts" :key="product.id">
                         <button 
                             type="button" 
+                            :id="'btn-product-' + product.id"
+                            :data-product-id="product.id"
                             @click="addToCart(product)" 
                             :disabled="product.stock < 1"
-                            class="group flex min-h-[140px] flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-400 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+                            class="group btn-add-product flex min-h-[140px] flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-400 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             <div>
                                 <div class="flex items-start justify-between gap-2">
@@ -413,6 +416,7 @@
 
                     <button 
                         type="button" 
+                        id="btn-open-payment"
                         @click="openPaymentModal()" 
                         :disabled="cart.length === 0 || isRecalculatingCart"
                         class="mt-2 w-full rounded-xl bg-indigo-600 py-3.5 text-center text-sm font-bold text-white shadow-lg shadow-indigo-600/30 transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:shadow-none"
@@ -466,7 +470,7 @@
                     <!-- Metode Pembayaran -->
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Metode Pembayaran</label>
-                        <div class="grid grid-cols-3 gap-2">
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
                             <button 
                                 type="button" 
                                 @click="paymentMethod = 'cash'" 
@@ -491,7 +495,53 @@
                             >
                                 💳 Transfer
                             </button>
+                            <button 
+                                type="button" 
+                                id="btn-payment-tempo"
+                                @click="paymentMethod = 'tempo'; if (cashTendered > grandTotal) cashTendered = 0" 
+                                class="rounded-lg border py-2 text-xs font-bold transition flex items-center justify-center gap-1"
+                                :class="paymentMethod === 'tempo' ? 'border-amber-600 bg-amber-50 text-amber-800 ring-2 ring-amber-500/20' : 'border-amber-300 bg-amber-50/50 text-amber-700 hover:bg-amber-100'"
+                            >
+                                <span>⏳ Tempo / Piutang</span>
+                            </button>
                         </div>
+
+                        <!-- Template Khusus Metode Pembayaran Tempo / Piutang -->
+                        <template x-if="paymentMethod === 'tempo'">
+                            <div class="mt-3.5 space-y-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3.5 text-xs animate-in fade-in duration-200">
+                                <!-- Alert Peringatan jika Belum Memilih Pelanggan -->
+                                <template x-if="!selectedCustomer">
+                                    <div class="rounded-lg border border-rose-300 bg-rose-50 p-2.5 text-xs font-bold text-rose-800 flex items-center gap-2 shadow-xs">
+                                        <svg class="h-4 w-4 text-rose-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                        </svg>
+                                        <span>Transaksi tempo wajib memilih Pelanggan terdaftar!</span>
+                                    </div>
+                                </template>
+
+                                <!-- Input Tanggal Jatuh Tempo -->
+                                <div>
+                                    <label for="pos-due-date" class="block font-bold text-slate-800 mb-1 flex items-center gap-1">
+                                        <span>Tanggal Jatuh Tempo</span>
+                                        <span class="text-rose-600 font-black">* (Wajib)</span>
+                                    </label>
+                                    <input 
+                                        type="date" 
+                                        id="pos-due-date" 
+                                        x-model="dueDate" 
+                                        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-xs focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                                    >
+                                </div>
+
+                                <!-- Teks Panduan Uang Muka (DP) -->
+                                <div class="rounded-lg bg-amber-100/80 p-2 text-[11px] font-medium text-amber-900 border border-amber-200/80 flex items-start gap-1.5">
+                                    <svg class="h-3.5 w-3.5 text-amber-700 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <span>Nominal uang tunai yang diisi di atas akan dihitung sebagai Uang Muka (DP). Isi 0 jika full piutang.</span>
+                                </div>
+                            </div>
+                        </template>
                     </div>
 
                     <!-- Input Tunai / Bayar -->
@@ -499,6 +549,7 @@
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Tunai / Bayar (Rp)</label>
                         <input 
                             type="number" 
+                            id="input-cash-tendered"
                             x-ref="cashInput"
                             x-model.number="cashTendered" 
                             placeholder="0"
@@ -509,6 +560,7 @@
                         <div class="mt-2.5 flex flex-wrap gap-2">
                             <button 
                                 type="button" 
+                                id="btn-uang-pas"
                                 @click="setCash(grandTotal)" 
                                 class="rounded-lg border border-slate-300 bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-800 hover:bg-slate-200"
                             >
@@ -595,6 +647,7 @@
                     </button>
                     <button 
                         type="button" 
+                        id="btn-process-checkout"
                         @click="processCheckout()" 
                         :disabled="loading || (paymentMethod === 'cash' && changeDue < 0)"
                         class="rounded-xl bg-indigo-600 px-6 py-2.5 text-xs font-bold text-white shadow-md transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-300"
@@ -610,6 +663,7 @@
         <!-- MODAL 2: SUKSES TRANSAKSI & PILIHAN CETAK STRUK THERMAL -->
         <!-- ======================================================== -->
         <div 
+            id="modal-receipt"
             x-show="receiptOpen" 
             x-cloak 
             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm"
@@ -1129,8 +1183,14 @@
                 // State Modal Pembayaran
                 paymentModalOpen: false,
                 paymentMethod: 'cash',
+                dueDate: '',
                 cashTendered: 0,
                 checkoutError: '',
+
+                // Helper selectedCustomer untuk validasi transaksi tempo
+                get selectedCustomer() {
+                    return Boolean(this.customerId);
+                },
 
                 // State Sukses Transaksi
                 receiptOpen: false,
@@ -1515,10 +1575,21 @@
                     return Math.ceil(total / 50000) * 50000;
                 },
 
-                // Proses Checkout ke API (menyertakan customer_id)
+                // Proses Checkout ke API (menyertakan customer_id & due_date untuk tempo)
                 async processCheckout() {
                     if (!this.hasActiveShift) {
                         alert('Shift kasir belum dibuka! Silakan buka shift terlebih dahulu.');
+                        return;
+                    }
+
+                    // Validasi khusus transaksi Tempo / Piutang
+                    if (this.paymentMethod === 'tempo' && !this.selectedCustomer) {
+                        alert('Gagal: Silakan pilih nama pelanggan terlebih dahulu!');
+                        return;
+                    }
+
+                    if (this.paymentMethod === 'tempo' && !this.dueDate) {
+                        alert('Gagal: Tanggal jatuh tempo wajib diisi!');
                         return;
                     }
 
@@ -1546,6 +1617,7 @@
                             body: JSON.stringify({
                                 customer_id: this.customerId ? Number(this.customerId) : null,
                                 payment_method: this.paymentMethod,
+                                due_date: this.dueDate || null,
                                 discount_amount: Number(this.discountAmount || 0),
                                 items: this.cart.map(i => ({ 
                                     product_id: i.id || i.product.id, 
@@ -1599,6 +1671,7 @@
                     this.receiptOpen = false;
                     this.cart = [];
                     this.discountAmount = 0;
+                    this.dueDate = '';
                     this.lastReceiptNumber = '';
                     this.lastSale = null;
                     this.searchQuery = '';

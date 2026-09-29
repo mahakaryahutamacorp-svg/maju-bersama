@@ -24,6 +24,7 @@ use Illuminate\Validation\ValidationException;
 class SalePostingService
 {
     private const ACCOUNT_CASH = '1110';
+    private const ACCOUNT_AR = '1130';
     private const ACCOUNT_INVENTORY = '1210';
     private const ACCOUNT_REVENUE = '4110';
     private const ACCOUNT_DISCOUNT = '4130';
@@ -122,6 +123,9 @@ class SalePostingService
                 ->latest('opened_at')
                 ->first();
 
+            $paymentStatus = in_array(strtolower($paymentMethod), ['tempo', 'piutang', 'kredit']) ? 'UNPAID' : 'PAID';
+            $paidAmount = $paymentStatus === 'PAID' ? $this->fromCents($grandTotalCents) : (isset($data['paid_amount']) ? (float) $data['paid_amount'] : 0.0);
+
             $sale = Sale::create([
                 'branch_id' => $actor->branch_id,
                 'customer_id' => $customerId,
@@ -130,7 +134,10 @@ class SalePostingService
                 'receipt_number' => $receiptNumber,
                 'total_amount' => $grandTotalCents,
                 'discount_amount' => $discountAmount,
+                'paid_amount' => $paidAmount,
+                'payment_status' => $paymentStatus,
                 'payment_method' => $paymentMethod,
+                'due_date' => $data['due_date'] ?? null,
                 'status' => 'completed',
             ]);
 
@@ -174,12 +181,16 @@ class SalePostingService
         $subtotal = $this->fromCents($subtotalCents);
         $cost = $this->fromCents($costCents);
 
+        $isTempo = in_array(strtolower($sale->payment_method ?? ''), ['tempo', 'piutang', 'kredit']);
+        $debitAccountId = $isTempo ? $accounts[self::ACCOUNT_AR]->id : $accounts[self::ACCOUNT_CASH]->id;
+        $debitMemo = $isTempo ? 'Piutang penjualan POS (Tempo)' : 'Penjualan tunai POS';
+
         $lines = [
             [
-                'chart_of_account_id' => $accounts[self::ACCOUNT_CASH]->id,
+                'chart_of_account_id' => $debitAccountId,
                 'debit' => $grandTotal,
                 'credit' => 0,
-                'memo' => 'Penjualan tunai POS',
+                'memo' => $debitMemo,
             ],
         ];
 
@@ -235,14 +246,19 @@ class SalePostingService
             self::ACCOUNT_COGS,
         ];
 
-        // Pastikan akun Potongan Penjualan tersedia di sistem akuntansi
+        // Pastikan akun Potongan Penjualan & Piutang Usaha tersedia di sistem akuntansi
         ChartOfAccount::firstOrCreate(
             ['code' => self::ACCOUNT_DISCOUNT],
             ['name' => 'Potongan Penjualan', 'type' => 'revenue']
         );
 
+        ChartOfAccount::firstOrCreate(
+            ['code' => self::ACCOUNT_AR],
+            ['name' => 'Piutang Usaha', 'type' => 'asset']
+        );
+
         $accounts = ChartOfAccount::query()
-            ->whereIn('code', [...$required, self::ACCOUNT_DISCOUNT])
+            ->whereIn('code', [...$required, self::ACCOUNT_DISCOUNT, self::ACCOUNT_AR])
             ->get()
             ->keyBy('code');
 

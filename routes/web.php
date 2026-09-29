@@ -23,6 +23,7 @@ Route::post('/login', [AuthController::class, 'store']);
 Route::middleware('auth')->group(function () {
 	Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
 	Route::get('/backoffice', [BackofficeController::class, 'index']);
+	Route::get('/dashboard', [BackofficeController::class, 'index'])->name('dashboard');
 	Route::get('/inventory', [InventoryController::class, 'index']);
 	Route::get('/inventory/transfer', [StockTransferController::class, 'index'])->name('stock-transfer');
 	Route::get('/pos', [PosController::class, 'index'])->name('pos');

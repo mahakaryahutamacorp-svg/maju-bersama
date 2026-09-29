@@ -35,6 +35,7 @@ class PosController extends Controller
             'customer_id' => ['nullable', 'integer'],
             'payment_method' => ['nullable', 'string', 'max:255'],
             'discount_amount' => ['nullable', 'numeric', 'min:0'],
+            'due_date' => ['nullable', 'date'],
         ]);
 
         $sale = $salePostingService->post(

@@ -296,4 +296,54 @@ class PosWebTest extends TestCase
         $response->assertSee('Pak Haji Subur');
         $response->assertSee($this->branch->name);
     }
+
+    public function test_cashier_can_checkout_with_tempo_and_due_date_and_debit_receivable_journal(): void
+    {
+        $customer = \App\Models\Customer::create([
+            'branch_id' => $this->branch->id,
+            'name' => 'Pak Joko Tempo',
+            'phone' => '081234567000',
+        ]);
+
+        $dueDate = now()->addDays(30)->toDateString();
+
+        $response = $this->actingAs($this->cashier)->postJson('/pos', [
+            'payment_method' => 'tempo',
+            'customer_id' => $customer->id,
+            'due_date' => $dueDate,
+            'discount_amount' => 0,
+            'items' => [
+                ['product_id' => $this->product->id, 'quantity' => 2],
+            ],
+        ]);
+
+        $response->assertCreated();
+        $response->assertJsonPath('status', 'success');
+
+        $receiptNumber = $response->json('receipt_number');
+        $sale = Sale::where('receipt_number', $receiptNumber)->firstOrFail();
+
+        // Verifikasi Sale terisi status UNPAID, tempo, due_date, dan customer_id
+        $this->assertEquals('tempo', $sale->payment_method);
+        $this->assertEquals('UNPAID', $sale->payment_status);
+        $this->assertEquals($customer->id, $sale->customer_id);
+        $this->assertEquals($dueDate, $sale->due_date->toDateString());
+        $this->assertEquals(3000000, $sale->total_amount); // 30.000 in cents
+
+        // Verifikasi Jurnal Akuntansi: Debit Piutang Usaha (1130) senilai 30.000
+        $journal = \App\Models\JournalHeader::where('reference_number', $receiptNumber)->firstOrFail();
+        $lines = $journal->journalLines;
+
+        $arLine = $lines->firstWhere('chart_of_account_id', \App\Models\ChartOfAccount::where('code', '1130')->value('id'));
+        $this->assertNotNull($arLine);
+        $this->assertEquals(30000, (float) $arLine->debit);
+        $this->assertEquals(0, (float) $arLine->credit);
+
+        // Kredit Pendapatan (4110)
+        $revenueLine = $lines->firstWhere('chart_of_account_id', \App\Models\ChartOfAccount::where('code', '4110')->value('id'));
+        $this->assertEquals(30000, (float) $revenueLine->credit);
+
+        // Seimbang
+        $this->assertEquals($lines->sum('debit'), $lines->sum('credit'));
+    }
 }
