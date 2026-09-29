@@ -149,14 +149,6 @@
                     <span class="text-[10px] bg-emerald-400/20 text-emerald-300 px-1.5 py-0.5 rounded">L/R</span>
                 </a>
 
-                <p class="px-3 pb-2 pt-5 text-xs font-semibold uppercase tracking-wider text-slate-500">Administration</p>
-                <template x-for="module in modules" :key="module.id">
-                    <button @click="select(module.id)" :class="active === module.id ? 'bg-slate-800 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'" class="flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm font-medium">
-                        <span x-text="module.name"></span>
-                        <span x-show="module.status === 'planned'" class="text-[10px] uppercase tracking-wider text-slate-500">Soon</span>
-                    </button>
-                </template>
-
                 <p class="px-3 pb-2 pt-5 text-xs font-semibold uppercase tracking-wider text-amber-400/90">Laporan</p>
                 <a href="{{ route('reports.index') }}" class="block rounded-lg px-3 py-2 text-sm font-medium text-amber-300 bg-amber-500/10 border border-amber-400/20 hover:bg-slate-800 hover:text-white flex items-center justify-between transition group">
                     <span class="flex items-center gap-2">
