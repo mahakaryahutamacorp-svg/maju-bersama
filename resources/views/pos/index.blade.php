@@ -516,7 +516,7 @@
 
                         <!-- Template Khusus Metode Pembayaran Tempo / Piutang -->
                         <template x-if="paymentMethod === 'tempo'">
-                            <div class="mt-3.5 space-y-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3.5 text-xs animate-in fade-in duration-200">
+                            <div class="mt-3.5 space-y-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3.5 text-xs transition duration-200">
                                 <!-- Alert Peringatan jika Belum Memilih Pelanggan -->
                                 <template x-if="!selectedCustomer">
                                     <div class="rounded-lg border border-rose-300 bg-rose-50 p-2.5 text-xs font-bold text-rose-800 flex items-center gap-2 shadow-xs">
@@ -735,7 +735,7 @@
             aria-modal="true"
             role="dialog"
         >
-            <div class="relative w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+            <div class="relative w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100 transition duration-200">
                 <!-- Header Modal Buka Shift -->
                 <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 px-8 py-7 text-white text-center">
                     <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-500/20 border border-indigo-400/30 text-indigo-400">

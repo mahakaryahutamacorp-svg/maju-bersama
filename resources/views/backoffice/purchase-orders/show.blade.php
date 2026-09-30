@@ -77,18 +77,27 @@
                     </p>
                 </div>
                 <div class="sm:text-right">
-                    @php
-                        $badgeClasses = match($purchaseOrder->status) {
-                            'completed' => 'bg-emerald-50 text-emerald-700 border-emerald-300',
-                            'partial'   => 'bg-blue-50 text-blue-700 border-blue-300',
-                            'pending'   => 'bg-amber-50 text-amber-700 border-amber-300',
-                            'cancelled' => 'bg-rose-50 text-rose-700 border-rose-300',
-                            default     => 'bg-slate-100 text-slate-700 border-slate-300',
-                        };
-                    @endphp
-                    <span class="inline-flex items-center rounded-full px-3.5 py-1 text-xs font-extrabold uppercase tracking-wider border {{ $badgeClasses }}">
-                        Status: {{ $purchaseOrder->status }}
-                    </span>
+                    @if ($purchaseOrder->status === 'completed')
+                        <span class="inline-flex items-center rounded-full px-3.5 py-1 text-xs font-extrabold uppercase tracking-wider border border-emerald-300 bg-emerald-50 text-emerald-700">
+                            Status: {{ $purchaseOrder->status }}
+                        </span>
+                    @elseif ($purchaseOrder->status === 'partial')
+                        <span class="inline-flex items-center rounded-full px-3.5 py-1 text-xs font-extrabold uppercase tracking-wider border border-blue-300 bg-blue-50 text-blue-700">
+                            Status: {{ $purchaseOrder->status }}
+                        </span>
+                    @elseif ($purchaseOrder->status === 'pending')
+                        <span class="inline-flex items-center rounded-full px-3.5 py-1 text-xs font-extrabold uppercase tracking-wider border border-amber-300 bg-amber-50 text-amber-700">
+                            Status: {{ $purchaseOrder->status }}
+                        </span>
+                    @elseif ($purchaseOrder->status === 'cancelled')
+                        <span class="inline-flex items-center rounded-full px-3.5 py-1 text-xs font-extrabold uppercase tracking-wider border border-rose-300 bg-rose-50 text-rose-700">
+                            Status: {{ $purchaseOrder->status }}
+                        </span>
+                    @else
+                        <span class="inline-flex items-center rounded-full px-3.5 py-1 text-xs font-extrabold uppercase tracking-wider border border-slate-300 bg-slate-100 text-slate-700">
+                            Status: {{ $purchaseOrder->status }}
+                        </span>
+                    @endif
                     <p class="mt-3 text-xs text-slate-500">Tanggal Order:</p>
                     <p class="font-mono text-sm font-bold text-slate-800">{{ $purchaseOrder->order_date ? $purchaseOrder->order_date->format('d F Y') : '-' }}</p>
                     @if ($purchaseOrder->expected_date)

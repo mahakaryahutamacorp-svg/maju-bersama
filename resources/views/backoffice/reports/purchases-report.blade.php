@@ -212,16 +212,24 @@
                                 <td class="py-2.5 px-3 text-center whitespace-nowrap">
                                     @php
                                         $st = strtolower($po->status ?? 'pending');
-                                        $badgeClass = match ($st) {
-                                            'completed', 'received', 'paid' => 'bg-emerald-100 text-emerald-800 border-emerald-200',
-                                            'ordered', 'approved' => 'bg-sky-100 text-sky-800 border-sky-200',
-                                            'cancelled' => 'bg-rose-100 text-rose-800 border-rose-200',
-                                            default => 'bg-amber-100 text-amber-800 border-amber-200',
-                                        };
                                     @endphp
-                                    <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border {{ $badgeClass }}">
-                                        {{ $po->status ?? 'pending' }}
-                                    </span>
+                                    @if (in_array($st, ['completed', 'received', 'paid'], true))
+                                        <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border border-emerald-200 bg-emerald-100 text-emerald-800">
+                                            {{ $po->status ?? 'pending' }}
+                                        </span>
+                                    @elseif (in_array($st, ['ordered', 'approved'], true))
+                                        <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border border-sky-200 bg-sky-100 text-sky-800">
+                                            {{ $po->status ?? 'pending' }}
+                                        </span>
+                                    @elseif ($st === 'cancelled')
+                                        <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border border-rose-200 bg-rose-100 text-rose-800">
+                                            {{ $po->status ?? 'pending' }}
+                                        </span>
+                                    @else
+                                        <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border border-amber-200 bg-amber-100 text-amber-800">
+                                            {{ $po->status ?? 'pending' }}
+                                        </span>
+                                    @endif
                                 </td>
                             </tr>
                         @empty

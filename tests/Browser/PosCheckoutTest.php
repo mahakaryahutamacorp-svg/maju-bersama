@@ -102,9 +102,15 @@ class PosCheckoutTest extends DuskTestCase
                 ->type('password', 'password')
                 ->press('Masuk');
 
-            // B. Akses Layar POS
+            // B. Akses Layar POS & Audit Layout Elemen Utama
             $browser->visit('/pos')
                 ->waitFor('#btn-product-' . $product->id, 5)
+                ->assertPresent('header')
+                ->assertSee('Kasir POS Multi-Store')
+                ->assertPresent('main')
+                ->assertPresent('aside')
+                ->assertPresent('#pos-customer-select')
+                ->assertPresent('#btn-open-payment')
                 ->assertSee($product->name);
 
             // C. Simulasikan klik pada produk dummy agar masuk ke keranjang belanja

@@ -159,7 +159,7 @@
                                 <td class="px-6 py-4">
                                     <div class="font-semibold text-slate-900">{{ $user->name }}</div>
                                     @if ($user->id === $currentUser->id)
-                                        <span class="inline-block mt-0.5 rounded bg-sky-100 px-1.5 py-0.2 text-[10px] font-bold text-sky-800">Akun Anda</span>
+                                        <span class="inline-block mt-0.5 rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-800">Akun Anda</span>
                                     @endif
                                 </td>
                                 <td class="px-6 py-4 font-mono text-xs text-slate-600">
