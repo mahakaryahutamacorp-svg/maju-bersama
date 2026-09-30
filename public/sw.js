@@ -2,7 +2,6 @@ const CACHE_NAME = 'pos-cache-v1';
 const PRECACHE_URLS = [
     '/pos',
     '/manifest.json',
-    'https://cdn.tailwindcss.com',
     'https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js',
     'https://cdn.jsdelivr.net/npm/dexie@3.2.4/dist/dexie.min.js'
 ];
