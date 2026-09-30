@@ -54,7 +54,7 @@
 
     <!-- Konten Utama Alpine.js -->
     <main 
-        class="mx-auto max-w-7xl px-6 py-8 lg:px-8" 
+        class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" 
         x-data="stockAdjustmentForm({{ Js::from($products) }}, {{ $currentBranch->id }})"
         x-cloak
     >
@@ -75,13 +75,13 @@
             </div>
         @endif
 
-        <form method="POST" action="{{ route('inventory.adjustments.store') }}" @submit="handleSubmit($event)">
+        <form method="POST" action="{{ route('inventory.adjustments.store') }}" @submit="handleSubmit($event)" class="w-full">
             @csrf
             <input type="hidden" name="branch_id" :value="branchId">
 
-            <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
+            <div class="w-full grid grid-cols-1 gap-8 lg:grid-cols-3">
                 <!-- Kolom Kiri & Tengah: Input Form & Tabel Item (Col Span 2) -->
-                <div class="space-y-6 lg:col-span-2">
+                <div class="w-full min-w-0 space-y-6 lg:col-span-2">
                     <!-- Kartu Informasi Dokumen -->
                     <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                         <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -216,7 +216,7 @@
                             </button>
                         </div>
 
-                        <div class="overflow-x-auto">
+                        <div class="w-full overflow-x-auto">
                             <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
                                 <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-600">
                                     <tr>
@@ -344,7 +344,7 @@
                 </div>
 
                 <!-- Kolom Kanan: Live Journal Preview & Ringkasan Eksekusi (Col Span 1) -->
-                <div class="space-y-6">
+                <div class="w-full min-w-0 space-y-6 lg:col-span-1">
                     <!-- Kartu Ringkasan Dampak Finansial Real-time -->
                     <div class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
                         <h3 class="text-sm font-bold text-slate-900 flex items-center justify-between">
