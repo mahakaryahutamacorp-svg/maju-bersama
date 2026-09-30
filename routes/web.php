@@ -10,6 +10,7 @@ use App\Http\Controllers\StockAdjustmentController;
 use App\Http\Controllers\StockCardController;
 use App\Http\Controllers\StockTransferPrintController;
 use App\Http\Controllers\Web\AuthController;
+use App\Http\Controllers\Web\BackupController;
 use App\Http\Controllers\Web\InventoryController;
 use App\Http\Controllers\Web\StockTransferController;
 use App\Http\Controllers\Web\WarehouseController;
@@ -146,6 +147,10 @@ Route::middleware('auth')->group(function () {
 		Route::get('reports/fixed-assets', [ReportController::class, 'fixedAssets'])->name('reports.fixed-assets');
 		Route::get('reports/ar-aging', [ReportController::class, 'arAging'])->name('reports.ar-aging');
 		Route::get('reports/ap-aging', [ReportController::class, 'apAging'])->name('reports.ap-aging');
+
+		// Database Backup
+		Route::post('backup/generate', [BackupController::class, 'generate'])->name('backup.generate');
+		Route::get('backup/download', [BackupController::class, 'download'])->name('backup.download');
 	});
 
 	Route::get('/backoffice/stock-transfers/{reference}/print', [StockTransferPrintController::class, 'print'])->name('stock-transfers.print');

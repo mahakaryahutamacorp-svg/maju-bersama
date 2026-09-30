@@ -42,6 +42,9 @@ return [
             'journal_mode' => null,
             'synchronous' => null,
             'transaction_mode' => 'DEFERRED',
+            'dump' => [
+                'dump_binary_path' => env('DB_DUMP_PATH', file_exists('C:\\xampp\\MercuryMail\\sqlite3.exe') ? 'C:\\xampp\\MercuryMail' : ''),
+            ],
         ],
 
         'mysql' => [
@@ -62,6 +65,9 @@ return [
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
+            'dump' => [
+                'dump_binary_path' => env('DB_DUMP_PATH', file_exists('C:\\xampp\\mysql\\bin\\mysqldump.exe') ? 'C:\\xampp\\mysql\\bin' : ''),
+            ],
         ],
 
         'mariadb' => [

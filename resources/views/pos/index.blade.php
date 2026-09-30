@@ -6,11 +6,14 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="pos-token" content="{{ $previewToken }}">
     <title>Penjualan Kasir | Maju Bersama ERP</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#020617">
     <style>
         [x-cloak] { display: none !important; }
     </style>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dexie@3.2.4/dist/dexie.min.js"></script>
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
     <div 
@@ -29,6 +32,11 @@
                             <span class="rounded bg-sky-500/20 px-2 py-0.5 text-xs text-sky-300 font-mono">{{ $currentUser->branch?->name ?? 'Cabang Pusat' }}</span>
                         </h1>
                     </a>
+                    <!-- Indikator Offline Mode -->
+                    <span x-show="!isOnline" x-cloak class="rounded-full bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold text-amber-300 border border-amber-500/30 flex items-center gap-1.5" title="Mode Offline (Tersimpan ke IndexedDB)">
+                        <span class="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+                        <span>Mode Offline</span>
+                    </span>
                 </div>
 
                 <div class="flex items-center gap-4">
@@ -664,7 +672,7 @@
         <!-- ======================================================== -->
         <div 
             id="modal-receipt"
-            x-show="receiptOpen" 
+            x-show="receiptOpen || showReceiptModal" 
             x-cloak 
             class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm"
         >
@@ -1135,6 +1143,28 @@
                 cart: [],
                 discountAmount: 0,
                 loading: false,
+                isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+                showReceiptModal: false,
+
+                // Inisialisasi awal Alpine.js
+                init() {
+                    // 1. Jalankan sinkronisasi awal jika online saat aplikasi dimuat
+                    if (navigator.onLine) {
+                        this.syncOfflineSales();
+                    }
+
+                    // 2. Jalankan sinkronisasi otomatis saat browser kembali online
+                    window.addEventListener('online', () => {
+                        this.isOnline = true;
+                        console.log('[PWA] Jaringan online terdeteksi. Memulai sinkronisasi transaksi offline...');
+                        this.syncOfflineSales();
+                    });
+
+                    window.addEventListener('offline', () => {
+                        this.isOnline = false;
+                        console.log('[PWA] Jaringan offline terdeteksi. Transaksi berikutnya akan disimpan di IndexedDB lokal.');
+                    });
+                },
 
                 // Helper token API Sanctum
                 getApiToken() {
@@ -1601,6 +1631,60 @@
                     this.loading = true;
                     this.checkoutError = '';
 
+                    // 1. Percabangan Jika Kondisi Offline
+                    if (!navigator.onLine) {
+                        const payload = {
+                            customer_id: this.customerId ? Number(this.customerId) : null,
+                            payment_method: this.paymentMethod,
+                            due_date: this.dueDate || null,
+                            discount_amount: Number(this.discountAmount || 0),
+                            items: this.cart.map(i => ({ 
+                                product_id: i.id || i.product.id, 
+                                quantity: i.quantity 
+                            })),
+                        };
+
+                        // Simpan payload transaksi ke Dexie IndexedDB
+                        if (window.posDB && window.posDB.sync_queue) {
+                            await window.posDB.sync_queue.add({
+                                payload: payload,
+                                status: 'pending',
+                                created_at: new Date().toISOString()
+                            });
+                            console.log('[POS Offline] Transaksi disimpan ke Dexie sync_queue:', payload);
+                        }
+
+                        // Buat nomor struk sementara
+                        const offlineReceiptNumber = 'OFFLINE-' + Date.now();
+
+                        // Kurangi stok produk lokal di UI
+                        this.products = this.products.map(p => {
+                            const soldItem = this.cart.find(ci => (ci.id || ci.product?.id) === p.id);
+                            return soldItem ? { ...p, stock: p.stock - soldItem.quantity } : p;
+                        });
+
+                        // Set info struk untuk tampilan modal
+                        this.lastReceiptNumber = offlineReceiptNumber;
+                        this.lastSale = { items: [...this.cart] };
+                        this.lastSaleTotal = this.grandTotal;
+                        this.lastCashTendered = this.cashTendered;
+                        this.lastChangeDue = Math.max(0, this.changeDue);
+
+                        // Tampilkan modal struk sukses
+                        this.paymentModalOpen = false;
+                        this.receiptOpen = true;
+                        this.showReceiptModal = true;
+
+                        // Kosongkan keranjang belanja
+                        this.cart = [];
+                        this.discountAmount = 0;
+                        this.dueDate = '';
+
+                        this.loading = false;
+                        return;
+                    }
+
+                    // 2. Alur Online Standar via Fetch / AJAX POST
                     try {
                         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content 
                             || document.querySelector('input[name="_token"]')?.value 
@@ -1647,11 +1731,73 @@
                         // Tutup modal bayar & buka modal sukses
                         this.paymentModalOpen = false;
                         this.receiptOpen = true;
+                        this.showReceiptModal = true;
 
                     } catch (err) {
                         this.checkoutError = err.message;
                     } finally {
                         this.loading = false;
+                    }
+                },
+
+                // Sinkronisasi Otomatis Transaksi Offline dari Dexie ke Server
+                async syncOfflineSales() {
+                    if (!navigator.onLine || !window.posDB || !window.posDB.sync_queue) {
+                        return;
+                    }
+
+                    try {
+                        const queue = await window.posDB.sync_queue.toArray();
+                        if (!queue || queue.length === 0) {
+                            return;
+                        }
+
+                        console.log(`[PWA Sync] Menemukan ${queue.length} transaksi offline di antrean. Memulai sinkronisasi...`);
+
+                        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content 
+                            || document.querySelector('input[name="_token"]')?.value 
+                            || '';
+
+                        let syncedCount = 0;
+
+                        for (const item of queue) {
+                            try {
+                                const response = await fetch('/pos', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Accept': 'application/json',
+                                        'Content-Type': 'application/json',
+                                        'X-CSRF-TOKEN': csrfToken,
+                                        'Authorization': 'Bearer ' + this.getApiToken(),
+                                    },
+                                    body: JSON.stringify(item.payload),
+                                });
+
+                                if (response.ok) {
+                                    await window.posDB.sync_queue.delete(item.id);
+                                    syncedCount++;
+                                    console.log(`[PWA Sync] Transaksi offline ID #${item.id} berhasil disinkronkan ke server.`);
+                                } else {
+                                    const errorPayload = await response.json().catch(() => ({}));
+                                    console.warn(`[PWA Sync] Gagal menyinkronkan transaksi offline ID #${item.id}:`, errorPayload.message || response.statusText);
+                                }
+                            } catch (itemErr) {
+                                console.warn(`[PWA Sync] Koneksi terputus saat sinkronisasi transaksi offline ID #${item.id}:`, itemErr);
+                                break;
+                            }
+                        }
+
+                        if (syncedCount > 0) {
+                            console.log(`[PWA Sync] Sinkronisasi selesai: ${syncedCount} transaksi berhasil disinkronkan ke server.`);
+                            this.scanNotification = `✓ Berhasil menyinkronkan ${syncedCount} transaksi offline ke server!`;
+                            setTimeout(() => {
+                                if (this.scanNotification.startsWith('✓ Berhasil')) {
+                                    this.scanNotification = '';
+                                }
+                            }, 5000);
+                        }
+                    } catch (err) {
+                        console.error('[PWA Sync] Kesalahan saat membaca antrean Dexie:', err);
                     }
                 },
 
@@ -1669,6 +1815,7 @@
                 // Reset untuk transaksi baru
                 resetAfterSale() {
                     this.receiptOpen = false;
+                    this.showReceiptModal = false;
                     this.cart = [];
                     this.discountAmount = 0;
                     this.dueDate = '';
@@ -1683,7 +1830,7 @@
                 },
 
                 handleEscapeKey() {
-                    if (this.receiptOpen) {
+                    if (this.receiptOpen || this.showReceiptModal) {
                         this.resetAfterSale();
                     } else if (this.paymentModalOpen) {
                         this.paymentModalOpen = false;
@@ -1701,6 +1848,25 @@
         // Global aliases for Alpine.js
         window.posApp = posApp;
         window.posSystem = posApp;
+
+        // Inisialisasi Database Offline Dexie
+        if (typeof Dexie !== 'undefined') {
+            window.posDB = new Dexie('MajuBersamaPOS');
+            window.posDB.version(1).stores({
+                sync_queue: '++id, payload, status, created_at'
+            });
+        }
+
+        // Registrasi Service Worker PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js').then((reg) => {
+                    console.log('[PWA] Service Worker terdaftar dengan scope:', reg.scope);
+                }).catch((err) => {
+                    console.warn('[PWA] Registrasi Service Worker gagal:', err);
+                });
+            });
+        }
     </script>
 </body>
 </html>

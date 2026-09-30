@@ -180,7 +180,106 @@
             </header>
 
             <div class="mx-auto max-w-7xl space-y-8 px-6 py-8 lg:px-10">
+                @if (session('success'))
+                    <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900 shadow-sm flex items-start gap-3">
+                        <svg class="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                        </svg>
+                        <div>
+                            <p class="text-sm font-semibold">Operasi Berhasil</p>
+                            <p class="text-xs text-emerald-700 mt-0.5">{{ session('success') }}</p>
+                        </div>
+                    </div>
+                @endif
+
+                @if (session('error'))
+                    <div class="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-rose-900 shadow-sm flex items-start gap-3">
+                        <svg class="h-5 w-5 text-rose-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div>
+                            <p class="text-sm font-semibold">Terjadi Kendala</p>
+                            <p class="text-xs text-rose-700 mt-0.5">{{ session('error') }}</p>
+                        </div>
+                    </div>
+                @endif
+
                 <section x-show="active === 'overview'" x-transition>
+                    @php
+                        $backupDisk = \Illuminate\Support\Facades\Storage::disk(config('backup.backup.destination.disks.0', 'local'));
+                        $backupName = config('backup.backup.name', config('app.name', 'Laravel'));
+                        $latestBackupFile = null;
+                        $latestBackupTime = null;
+                        try {
+                            $backupFiles = $backupDisk->allFiles($backupName);
+                            foreach ($backupFiles as $bf) {
+                                if (str_ends_with(strtolower($bf), '.zip')) {
+                                    $mtime = $backupDisk->lastModified($bf);
+                                    if (! $latestBackupTime || $mtime > $latestBackupTime) {
+                                        $latestBackupTime = $mtime;
+                                        $latestBackupFile = basename($bf);
+                                    }
+                                }
+                            }
+                        } catch (\Throwable $e) {}
+                    @endphp
+
+                    <!-- Card Sistem & Keamanan (Cadangan Database) -->
+                    <div class="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                        <div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="flex items-start gap-4">
+                                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600 border border-sky-100 shadow-xs">
+                                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-xs font-bold uppercase tracking-wider text-amber-600">Sistem &amp; Keamanan</span>
+                                        <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Backup Otomatis Siap</span>
+                                    </div>
+                                    <h2 class="mt-1 text-lg font-bold text-slate-950">Cadangan Database Sistem (Manual Backup)</h2>
+                                    <p class="mt-1 text-xs text-slate-500 max-w-2xl">
+                                        Amankan seluruh data transaksi, jurnal akuntansi, dan master data toko dengan membuat snapshot database (.zip) yang dapat diunduh langsung.
+                                    </p>
+                                    @if ($latestBackupFile)
+                                        <p class="mt-2 text-xs font-medium text-slate-600 flex items-center gap-1.5">
+                                            <span class="inline-block h-2 w-2 rounded-full bg-emerald-500"></span>
+                                            <span>Cadangan terakhir: <span class="font-mono text-slate-800 font-semibold">{{ $latestBackupFile }}</span> ({{ date('d M Y H:i', $latestBackupTime) }} WIB)</span>
+                                        </p>
+                                    @endif
+                                </div>
+                            </div>
+
+                            <!-- Tombol Aksi Backup -->
+                            <div class="flex flex-wrap items-center gap-3 sm:shrink-0" x-data="{ loading: false }">
+                                <form method="POST" action="/backoffice/backup/generate" @submit="loading = true">
+                                    @csrf
+                                    <button type="submit" 
+                                            :disabled="loading" 
+                                            class="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 active:bg-sky-800 disabled:opacity-60 disabled:cursor-not-allowed transition">
+                                        <svg x-show="!loading" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                        </svg>
+                                        <svg x-show="loading" x-cloak class="h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                                        </svg>
+                                        <span x-text="loading ? 'Sedang Mem-backup...' : 'Buat Backup Baru'">Buat Backup Baru</span>
+                                    </button>
+                                </form>
+
+                                <a href="/backoffice/backup/download" 
+                                   class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 active:bg-emerald-800 transition">
+                                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                    </svg>
+                                    <span>Unduh Backup Terakhir</span>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         <template x-for="stat in stats" :key="stat.label">
                             <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
