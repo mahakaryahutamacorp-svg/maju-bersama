@@ -3,6 +3,29 @@
 use Illuminate\Support\Str;
 use Pdo\Mysql;
 
+$defaultMysqlDumpPath = '';
+if (DIRECTORY_SEPARATOR === '\\') {
+    if (file_exists('C:\\xampp\\mysql\\bin\\mysqldump.exe')) {
+        $defaultMysqlDumpPath = 'C:\\xampp\\mysql\\bin';
+    } elseif (file_exists('D:\\xampp\\mysql\\bin\\mysqldump.exe')) {
+        $defaultMysqlDumpPath = 'D:\\xampp\\mysql\\bin';
+    }
+} else {
+    $candidatePaths = [
+        '/usr/bin',
+        '/usr/local/bin',
+        '/www/server/mysql/bin',
+        '/www/server/mariadb/bin',
+        '/usr/local/mysql/bin',
+    ];
+    foreach ($candidatePaths as $candidate) {
+        if (file_exists($candidate . '/mysqldump')) {
+            $defaultMysqlDumpPath = $candidate;
+            break;
+        }
+    }
+}
+
 return [
 
     /*
@@ -66,7 +89,12 @@ return [
                 (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
             'dump' => [
-                'dump_binary_path' => env('DB_DUMP_PATH', file_exists('C:\\xampp\\mysql\\bin\\mysqldump.exe') ? 'C:\\xampp\\mysql\\bin' : ''),
+                'dump_binary_path' => env('DB_DUMP_PATH', $defaultMysqlDumpPath),
+                'use_single_transaction' => true,
+                'skip_lock_tables' => true,
+                'do_not_use_column_statistics' => true,
+                'add_extra_option' => '--no-tablespaces',
+                'set_gtid_purged' => 'OFF',
             ],
         ],
 
@@ -88,6 +116,14 @@ return [
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
             ]) : [],
+            'dump' => [
+                'dump_binary_path' => env('DB_DUMP_PATH', $defaultMysqlDumpPath),
+                'use_single_transaction' => true,
+                'skip_lock_tables' => true,
+                'do_not_use_column_statistics' => true,
+                'add_extra_option' => '--no-tablespaces',
+                'set_gtid_purged' => 'OFF',
+            ],
         ],
 
         'pgsql' => [
