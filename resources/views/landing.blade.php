@@ -49,7 +49,6 @@
                     <a href="#keunggulan" class="hover:text-blue-600 transition-colors py-1">Keunggulan</a>
                     <a href="#harga" class="hover:text-blue-600 transition-colors py-1">Harga</a>
                     <a href="#kontak" class="hover:text-blue-600 transition-colors py-1">Kontak</a>
-                    <a href="/preview" class="text-amber-600 hover:text-amber-700 transition-colors py-1 font-semibold">Preview Data</a>
                 </nav>
 
                 <!-- Kanan: Tombol Masuk / Dashboard -->
@@ -85,7 +84,6 @@
             <a href="#keunggulan" @click="mobileMenuOpen = false" class="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:bg-slate-100 hover:text-blue-600">Keunggulan</a>
             <a href="#harga" @click="mobileMenuOpen = false" class="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:bg-slate-100 hover:text-blue-600">Harga</a>
             <a href="#kontak" @click="mobileMenuOpen = false" class="block px-3 py-2 rounded-md text-base font-medium text-slate-700 hover:bg-slate-100 hover:text-blue-600">Kontak</a>
-            <a href="/preview" @click="mobileMenuOpen = false" class="block px-3 py-2 rounded-md text-base font-medium text-amber-600 hover:bg-amber-50">Preview Data Sistem</a>
             <div class="pt-2">
                 @auth
                     <a href="{{ url('/backoffice') }}" class="w-full inline-flex items-center justify-center px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700">

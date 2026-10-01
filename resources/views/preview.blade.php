@@ -14,10 +14,10 @@
                 <h1 class="mt-1 text-2xl font-bold tracking-tight">Maju Bersama ERP</h1>
             </div>
             <nav class="flex items-center gap-4 text-sm text-slate-300">
-                <a href="/pos" class="hover:text-white">Kasir (POS)</a>
-                <a href="/inventory" class="hover:text-white">Persediaan</a>
-                <a href="/reports/journal" class="hover:text-white">Buku Jurnal</a>
-                <a href="/login" class="rounded-lg bg-sky-600 px-3 py-2 font-semibold text-white hover:bg-sky-500">Masuk</a>
+                <span class="rounded-full bg-amber-400/20 text-amber-300 px-3 py-1 text-xs font-bold border border-amber-400/30">Khusus Master</span>
+                <a href="/backoffice" class="rounded-lg bg-sky-600 px-3.5 py-2 font-semibold text-white hover:bg-sky-500 transition-colors">
+                    &larr; Kembali ke Backoffice
+                </a>
             </nav>
         </div>
     </header>
