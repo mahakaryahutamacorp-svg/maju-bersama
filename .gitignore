@@ -25,3 +25,8 @@ Thumbs.db
 # Junk Windows DB caches and agent workspace
 *.db
 .cline/
+
+# Frontend (Next.js)
+frontend/node_modules/
+frontend/.next/
+frontend/tsconfig.tsbuildinfo
