@@ -10,6 +10,9 @@ use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\StockTransferController;
 use App\Http\Controllers\AuthController;
 
+use App\Http\Controllers\Api\PurchaseController;
+use App\Http\Controllers\Api\PurchasePaymentController;
+
 Route::post('/login', [AuthController::class, 'login']);
 
 Route::middleware('auth:sanctum')->group(function () {
@@ -48,4 +51,13 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/journals', [JournalController::class, 'store']);
     Route::post('/checkout', [CheckoutController::class, 'store']);
+
+    // Purchases & Flexible Accounts Payable (Distributor)
+    Route::get('/purchases', [PurchaseController::class, 'index']);
+    Route::post('/purchases', [PurchaseController::class, 'store']);
+    Route::get('/purchases/{purchase}', [PurchaseController::class, 'show']);
+    Route::get('/purchase-payments', [PurchasePaymentController::class, 'index']);
+    Route::post('/purchase-payments', [PurchasePaymentController::class, 'store']);
+    Route::post('/purchases/{purchase}/payments', [PurchasePaymentController::class, 'store']);
 });
+

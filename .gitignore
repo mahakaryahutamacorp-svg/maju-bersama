@@ -30,3 +30,7 @@ Thumbs.db
 frontend/node_modules/
 frontend/.next/
 frontend/tsconfig.tsbuildinfo
+testsprite_tests/tmp/
+testsprite_tests/tmp/config.json
+.agents/
+

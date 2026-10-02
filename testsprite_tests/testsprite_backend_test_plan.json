@@ -1,0 +1,38 @@
+[
+  {
+    "id": "TC001",
+    "title": "postapicheckoutprocesspossale",
+    "description": "Test the POST /api/checkout endpoint to ensure it processes POS sale transactions correctly by validating cart items, deducting inventory stock, calculating totals, generating receipts, and creating accounting journal entries."
+  },
+  {
+    "id": "TC002",
+    "title": "postapistocktransfersmovement",
+    "description": "Test the POST /api/stock-transfers and GET /api/stock-transfers endpoints to verify inter-branch stock transfers, stock deduction at source branch, stock addition at destination branch, and insufficient stock validation (422)."
+  },
+  {
+    "id": "TC003",
+    "title": "postapijournalsaccountingentry",
+    "description": "Test the POST /api/journals endpoint to verify double-entry journal creation, ensuring balanced debit and credit amounts are accepted (201) and unbalanced entries are rejected with validation error (422)."
+  },
+  {
+    "id": "TC004",
+    "title": "getapiproductsbarcodelookup",
+    "description": "Test the GET /api/products/barcode/{barcode} endpoint to verify quick barcode scanner lookup for POS terminals, returning correct item metadata and price."
+  },
+  {
+    "id": "TC005",
+    "title": "crudbranchmanagementsuperadmin",
+    "description": "Test the GET /api/branches and POST /api/branches endpoints to verify branch listing, branch creation, and multi-store tenant isolation."
+  },
+  {
+    "id": "TC006",
+    "title": "multiroleposaccountingsimulation",
+    "description": "Full end-to-end multi-role retail & accounting simulation: Admin Pusat transfers stock to Cabang 1, Kasir Cabang 1 performs multiple POS sales with discount and normal items, and Accounting Ledger is audited to verify debit-credit balance, cash collected, COGS recognition, gross profit, and remaining inventory valuation."
+  },
+  {
+    "id": "TC007",
+    "title": "distributorpurchasepayablesimulation",
+    "description": "Flexible Distributor Accounts Payable simulation: Admin Pusat creates Purchase on credit (Rp 5.000.000), pays installment 1 (Rp 2.000.000), attempts invalid overpayment (rejected with 422), pays installment 2 (Rp 3.000.000), verifying dynamic status (unpaid -> partial -> paid), remaining debt calculation, and balanced double-entry accounting journals (Dr. 2110 Hutang Dagang, Cr. 1110/1120 Kas/Bank)."
+  }
+]
+

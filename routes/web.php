@@ -60,6 +60,13 @@ Route::middleware('auth')->group(function () {
 		Route::get('/{id}', [GoodsReceiptController::class, 'show'])->name('show');
 	});
 
+	// Hutang Distributor (Accounts Payable)
+	Route::prefix('purchases/payables')->name('purchases.payables')->group(function () {
+		Route::get('/', [App\Http\Controllers\Web\PurchasePayableController::class, 'index']);
+		Route::post('/{purchase}/payments', [App\Http\Controllers\Web\PurchasePayableController::class, 'storePayment'])->name('.payment');
+	});
+
+
 	Route::prefix('backoffice')->name('backoffice.')->group(function () {
 		// Products
 		Route::get('products/check-duplicate', [App\Http\Controllers\Web\ProductController::class, 'checkDuplicate'])->name('products.check-duplicate');
