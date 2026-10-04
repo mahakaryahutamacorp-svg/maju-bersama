@@ -341,8 +341,8 @@ class ReportController extends Controller
         ])
             ->when(! $user->isMaster(), fn ($query) => $query->where('branch_id', $user->branch_id))
             ->latest('transaction_date')
-            ->latest('id')
-            ->get();
+            ->paginate(20)
+            ->withQueryString();
 
         return view('report.journal', compact('headers'));
     }

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jurnal Umum (General Ledger) | Maju Bersama POS &amp; Akuntansi</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>[x-cloak] { display: none !important; }</style>
 </head>
@@ -25,7 +26,7 @@
                     <a href="/backoffice" class="hover:text-white">Panel Admin</a>
                 </nav>
                 <div class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200">
-                    {{ $headers->count() }} transaksi
+                    {{ $headers->total() }} transaksi
                 </div>
                 <form method="POST" action="/logout" class="hidden sm:block">
                     @csrf
@@ -35,108 +36,164 @@
         </div>
     </header>
 
-    <main class="mx-auto max-w-7xl space-y-8 px-6 py-10 lg:px-8">
+    <main class="mx-auto max-w-7xl space-y-6 px-6 py-8 lg:px-8">
+        <!-- Sub-header & Pencarian -->
         <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
                 <p class="text-sm font-medium text-amber-600">Pelaporan Keuangan &amp; Akuntansi</p>
-                <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-950">Buku Jurnal Umum</h2>
-                <p class="mt-2 text-slate-500">Seluruh mutasi debit dan kredit otomatis yang dihasilkan oleh transaksi operasional.</p>
+                <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Buku Jurnal Umum</h2>
+                <p class="mt-1 text-xs text-slate-500 sm:text-sm">Seluruh mutasi debit dan kredit otomatis yang dihasilkan oleh transaksi operasional.</p>
             </div>
-            <div class="flex flex-col gap-3 sm:items-end">
-                <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-right">
-                    <p class="text-xs font-semibold uppercase tracking-wider text-emerald-700">Integritas Jurnal</p>
-                    <p class="mt-1 text-sm font-bold text-emerald-800">Pembukuan Berpasangan</p>
+            <div class="flex items-center gap-3">
+                <div class="relative w-full sm:w-72">
+                    <input x-model="query" 
+                           type="search" 
+                           placeholder="Cari no. referensi atau keterangan..." 
+                           class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs sm:text-sm outline-none ring-sky-500 placeholder:text-slate-400 focus:border-sky-500 focus:ring-2 shadow-xs transition">
                 </div>
-                <input x-model="query" type="search" placeholder="Cari no. referensi atau keterangan..." class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none ring-sky-500 placeholder:text-slate-400 focus:ring-2">
             </div>
         </div>
 
-        <div class="space-y-6">
+        <!-- Daftar Transaksi Jurnal (Format Accordion Compact) -->
+        <div class="space-y-2">
             @forelse ($headers as $header)
                 @php
                     $totalDebit = $header->journalLines->sum(fn ($line) => (float) $line->debit);
-                    $totalCredit = $header->journalLines->sum(fn ($line) => (float) $line->credit);
-                    $isBalanced = abs($totalDebit - $totalCredit) < 0.005;
                 @endphp
-                <section x-show="matches('{{ strtolower($header->reference_number.' '.$header->description) }}')" class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <div class="flex flex-col gap-5 border-b border-slate-200 px-6 py-5 lg:flex-row lg:items-center lg:justify-between">
-                        <div class="flex items-start gap-4">
-                            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-sm font-bold text-amber-400">JU</div>
-                            <div>
-                                <div class="flex flex-wrap items-center gap-3">
-                                    <button type="button" 
-                                            @click="loadTransaction('{{ $header->reference_number }}')" 
-                                            class="group inline-flex items-center gap-1.5 font-mono text-sm font-bold text-sky-700 hover:text-sky-900 hover:underline focus:outline-none transition" 
-                                            title="Klik untuk melihat rincian transaksi lengkap">
-                                        <span>{{ $header->reference_number }}</span>
-                                        <svg class="h-3.5 w-3.5 text-sky-400 group-hover:text-sky-600 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                        </svg>
-                                    </button>
-                                    <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">#{{ $header->id }}</span>
-                                </div>
-                                <p class="mt-2 text-lg font-semibold text-slate-950">{{ $header->description }}</p>
-                                <p class="mt-1 text-sm text-slate-500">
+                <div x-data="{ expanded: false }" 
+                     x-show="matches('{{ strtolower($header->reference_number.' '.$header->description) }}')" 
+                     class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xs transition hover:border-slate-300">
+                    
+                    <!-- Baris Header (Selalu Tampil & Bisa Diklik) -->
+                    <div @click="expanded = !expanded" 
+                         class="group flex flex-col gap-2.5 px-4 py-3 cursor-pointer select-none transition-colors hover:bg-slate-50 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-5">
+                        
+                        <!-- Sisi Kiri: Ikon JU, No. Referensi, Deskripsi, Tanggal -->
+                        <div class="flex items-center gap-3 min-w-0 flex-1">
+                            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-xs font-bold text-amber-400 shadow-2xs">
+                                JU
+                            </span>
+                            
+                            <div class="flex items-center gap-2 min-w-0 flex-1 flex-wrap sm:flex-nowrap">
+                                <button type="button" 
+                                        @click.stop="loadTransaction('{{ $header->reference_number }}')" 
+                                        class="font-mono text-xs font-bold text-sky-700 hover:text-sky-900 hover:underline shrink-0" 
+                                        title="Buka Rincian Transaksi">
+                                    {{ $header->reference_number }}
+                                </button>
+                                
+                                <span class="text-slate-300 hidden sm:inline shrink-0">&middot;</span>
+                                
+                                <span class="text-xs sm:text-sm font-semibold text-slate-900 truncate" title="{{ $header->description }}">
+                                    {{ $header->description }}
+                                </span>
+                                
+                                <span class="text-slate-300 hidden md:inline shrink-0">&middot;</span>
+                                
+                                <span class="text-xs text-slate-500 hidden md:inline shrink-0">
                                     {{ $header->transaction_date->translatedFormat('d M Y') }}
-                                    <span class="mx-1 text-slate-300">&middot;</span>
-                                    {{ $header->user?->name ?? 'Sistem' }}
-                                </p>
+                                </span>
                             </div>
                         </div>
-                        <span class="inline-flex w-fit items-center gap-2 rounded-full px-3 py-1.5 text-xs font-bold {{ $isBalanced ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700' }}">
-                            <span class="h-2 w-2 rounded-full {{ $isBalanced ? 'bg-emerald-500' : 'bg-rose-500' }}"></span>
-                            {{ $isBalanced ? 'Seimbang (Balanced)' : 'Tidak Seimbang' }}
-                        </span>
+
+                        <!-- Sisi Kanan: Tanggal (Mobile), Total Nominal, Chevron -->
+                        <div class="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-1.5 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                            <span class="text-xs text-slate-400 md:hidden">
+                                {{ $header->transaction_date->translatedFormat('d M Y') }}
+                            </span>
+                            
+                            <div class="flex items-center gap-3">
+                                <span class="font-mono text-xs sm:text-sm font-bold text-slate-900">
+                                    Rp {{ number_format($totalDebit, 0, ',', '.') }}
+                                </span>
+                                
+                                <div class="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-500 transition-colors group-hover:bg-slate-200">
+                                    <svg :class="expanded ? 'rotate-180 text-amber-500' : 'text-slate-400'" 
+                                         class="h-3.5 w-3.5 transition-transform duration-200" 
+                                         fill="none" 
+                                         viewBox="0 0 24 24" 
+                                         stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-slate-200">
-                            <thead class="bg-slate-50">
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Kode Akun</th>
-                                    <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Nama Akun &amp; Keterangan</th>
-                                    <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Debit</th>
-                                    <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Kredit</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100">
-                                @foreach ($header->journalLines as $line)
-                                    @php
-                                        $accountName = $line->chartOfAccount?->name ?? 'Akun Tidak Dikenal';
-                                        $description = $line->memo ?: $header->description;
-                                    @endphp
-                                    <tr class="hover:bg-slate-50">
-                                        <td class="whitespace-nowrap px-6 py-4 font-mono text-sm font-semibold text-sky-700">{{ $line->chartOfAccount?->code ?? '—' }}</td>
-                                        <td class="px-6 py-4 text-sm">
-                                            <div class="flex flex-col">
-                                                <span class="font-bold text-gray-800">{{ $accountName }}</span>
-                                                <span class="text-xs text-gray-400 truncate max-w-xs" title="{{ $description }}">
-                                                    {{ $description }}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td class="whitespace-nowrap px-6 py-4 text-right text-sm {{ (float) $line->debit > 0 ? 'font-semibold text-slate-900' : 'text-slate-300' }}">{{ (float) $line->debit > 0 ? 'Rp '.number_format((float) $line->debit, 0, ',', '.') : '—' }}</td>
-                                        <td class="whitespace-nowrap px-6 py-4 text-right text-sm {{ (float) $line->credit > 0 ? 'font-semibold text-slate-900' : 'text-slate-300' }}">{{ (float) $line->credit > 0 ? 'Rp '.number_format((float) $line->credit, 0, ',', '.') : '—' }}</td>
+                    <!-- Bagian Detail (Rincian Akun Jurnal, Tersembunyi by default) -->
+                    <div x-show="expanded" 
+                         x-collapse 
+                         class="border-t border-slate-200 bg-slate-50/60">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-slate-200 text-xs sm:text-sm">
+                                <thead class="bg-slate-100/80 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                                    <tr>
+                                        <th class="px-4 py-2 sm:px-6 text-left">Kode Akun</th>
+                                        <th class="px-4 py-2 sm:px-6 text-left">Nama Akun &amp; Keterangan</th>
+                                        <th class="px-4 py-2 sm:px-6 text-right">Debit</th>
+                                        <th class="px-4 py-2 sm:px-6 text-right">Kredit</th>
                                     </tr>
-                                @endforeach
-                            </tbody>
-                            <tfoot class="border-t-2 border-slate-200 bg-slate-50">
-                                <tr>
-                                    <th colspan="2" class="px-6 py-4 text-left text-xs font-bold uppercase tracking-wider text-slate-600">Total Ayat Jurnal</th>
-                                    <th class="px-6 py-4 text-right text-sm font-bold text-slate-950">Rp {{ number_format($totalDebit, 0, ',', '.') }}</th>
-                                    <th class="px-6 py-4 text-right text-sm font-bold text-slate-950">Rp {{ number_format($totalCredit, 0, ',', '.') }}</th>
-                                </tr>
-                            </tfoot>
-                        </table>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 bg-white">
+                                    @foreach ($header->journalLines as $line)
+                                        @php
+                                            $accountName = $line->chartOfAccount?->name ?? 'Akun Tidak Dikenal';
+                                            $description = $line->memo ?: $header->description;
+                                        @endphp
+                                        <tr class="hover:bg-slate-50/70 transition-colors">
+                                            <td class="whitespace-nowrap px-4 py-2 sm:px-6 font-mono font-semibold text-sky-700">
+                                                {{ $line->chartOfAccount?->code ?? '—' }}
+                                            </td>
+                                            <td class="px-4 py-2 sm:px-6">
+                                                <div class="flex flex-col">
+                                                    <span class="font-medium text-slate-800">{{ $accountName }}</span>
+                                                    @if ($line->memo && $line->memo !== $header->description)
+                                                        <span class="text-xs text-slate-400 truncate max-w-md" title="{{ $description }}">
+                                                            {{ $description }}
+                                                        </span>
+                                                    @endif
+                                                </div>
+                                            </td>
+                                            <td class="whitespace-nowrap px-4 py-2 sm:px-6 text-right font-mono {{ (float) $line->debit > 0 ? 'font-semibold text-slate-900' : 'text-slate-300' }}">
+                                                {{ (float) $line->debit > 0 ? 'Rp '.number_format((float) $line->debit, 0, ',', '.') : '—' }}
+                                            </td>
+                                            <td class="whitespace-nowrap px-4 py-2 sm:px-6 text-right font-mono {{ (float) $line->credit > 0 ? 'font-semibold text-slate-900' : 'text-slate-300' }}">
+                                                {{ (float) $line->credit > 0 ? 'Rp '.number_format((float) $line->credit, 0, ',', '.') : '—' }}
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                                <tfoot class="border-t border-slate-200 bg-slate-50/90 font-semibold text-slate-700">
+                                    <tr>
+                                        <td colspan="2" class="px-4 py-2.5 sm:px-6 text-left text-xs uppercase tracking-wider text-slate-500">
+                                            Total Ayat Jurnal
+                                        </td>
+                                        <td class="whitespace-nowrap px-4 py-2.5 sm:px-6 text-right font-mono text-xs sm:text-sm font-bold text-slate-950">
+                                            Rp {{ number_format($totalDebit, 0, ',', '.') }}
+                                        </td>
+                                        <td class="whitespace-nowrap px-4 py-2.5 sm:px-6 text-right font-mono text-xs sm:text-sm font-bold text-slate-950">
+                                            Rp {{ number_format($totalDebit, 0, ',', '.') }}
+                                        </td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
                     </div>
-                </section>
+                </div>
             @empty
-                <section class="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
+                <div class="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
                     <p class="font-semibold text-slate-800">Belum ada transaksi jurnal tercatat</p>
-                    <p class="mt-2 text-sm text-slate-500">Lakukan transaksi di Kasir (POS) untuk melihat pencatatan ayat jurnal berpasangan otomatis.</p>
-                </section>
+                    <p class="mt-1 text-sm text-slate-500">Lakukan transaksi di Kasir (POS) atau modul operasional untuk melihat pencatatan ayat jurnal otomatis.</p>
+                </div>
             @endforelse
         </div>
+
+        <!-- Pagination Links -->
+        @if ($headers->hasPages())
+            <div class="pt-4">
+                {{ $headers->links() }}
+            </div>
+        @endif
     </main>
 
     <!-- Universal Transaction Viewer Modal -->
