@@ -165,6 +165,7 @@
                             :class="selectedCategory === cat.id ? 'bg-indigo-600 text-white shadow-indigo-200' : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200'"
                         >
                             <span x-text="cat.name"></span>
+                            <span class="ml-1 opacity-75" x-text="'(' + getCategoryCount(cat) + ')'"></span>
                         </button>
                     </template>
                 </div>
@@ -1273,10 +1274,20 @@
                     }
                 },
 
+                // Menghitung jumlah barang dengan stok > 0 untuk kelompok barang tertentu
+                getCategoryCount(cat) {
+                    if (!cat) return 0;
+                    if (this.products && Array.isArray(this.products)) {
+                        return this.products.filter(p => p.category_id === cat.id).length;
+                    }
+                    return cat.products_count ?? 0;
+                },
+
                 // Fetch data katalog produk dari API dengan parameter pencarian dan customer_id / customer_group_id
                 async fetchProducts() {
                     try {
                         const params = new URLSearchParams();
+                        params.append('in_stock', '1');
                         if (this.searchQuery && this.searchQuery.trim()) {
                             params.append('search', this.searchQuery.trim());
                         }

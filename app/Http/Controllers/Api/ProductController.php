@@ -40,6 +40,10 @@ class ProductController extends Controller
 
         $query = Product::with(['category', 'branch', 'productPrices', 'branchPrices']);
 
+        if ($request->boolean('in_stock') || ($request->user() && $request->user()->isCashier())) {
+            $query->where('stock', '>', 0);
+        }
+
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")

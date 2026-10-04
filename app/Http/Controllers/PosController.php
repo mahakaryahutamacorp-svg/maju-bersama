@@ -92,24 +92,18 @@ class PosController extends Controller
 
         $branchId = $user->branch_id;
 
-        if ($branchId) {
-            $centralBranchIds = \App\Models\Branch::whereNull('parent_id')->pluck('id')->toArray();
-            $allowedBranchIds = array_unique(array_filter([$branchId, ...$centralBranchIds]));
+        $productsQuery = Product::withoutGlobalScopes()
+            ->whereNull('deleted_at')
+            ->where('stock', '>', 0);
 
-            $products = Product::withoutGlobalScopes()
-                ->whereNull('deleted_at')
-                ->where(function ($q) use ($allowedBranchIds) {
-                    $q->whereIn('branch_id', $allowedBranchIds)
-                      ->orWhereNull('branch_id');
-                })
-                ->with(['category', 'productPrices', 'branchPrices'])
-                ->orderBy('name')
-                ->get();
-        } else {
-            $products = Product::with(['category', 'productPrices', 'branchPrices'])
-                ->orderBy('name')
-                ->get();
+        if ($branchId) {
+            $productsQuery->where('branch_id', $branchId);
         }
+
+        $products = $productsQuery
+            ->with(['category', 'productPrices', 'branchPrices'])
+            ->orderBy('name')
+            ->get();
 
         $products = $products->map(function (Product $product) use ($branchId) {
             $basePrice = (float) $product->getPriceForBranch($branchId);
@@ -120,7 +114,16 @@ class PosController extends Controller
             return $product;
         });
 
-        $categories = Category::orderBy('name')->get();
+        $categories = Category::withCount(['products' => function ($query) use ($branchId) {
+            $query->withoutGlobalScopes()
+                ->whereNull('deleted_at')
+                ->where('stock', '>', 0);
+            if ($branchId) {
+                $query->where('branch_id', $branchId);
+            }
+        }])
+        ->orderBy('name')
+        ->get();
 
         $customers = Customer::withoutGlobalScopes()
             ->with(['customerGroup', 'branch'])

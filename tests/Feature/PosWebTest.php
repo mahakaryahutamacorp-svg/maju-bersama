@@ -346,4 +346,133 @@ class PosWebTest extends TestCase
         // Seimbang
         $this->assertEquals($lines->sum('debit'), $lines->sum('credit'));
     }
+
+    public function test_pos_strictly_scopes_products_to_cashier_branch(): void
+    {
+        $otherBranch = Branch::create([
+            'name' => 'Cabang Lain Seberang',
+            'code' => 'CAB-LAIN-02',
+            'address' => 'Jl. Lain No. 99',
+            'phone' => '089988776655',
+        ]);
+
+        $otherProduct = Product::create([
+            'branch_id' => $otherBranch->id,
+            'category_id' => $this->category->id,
+            'sku' => 'SKU-OTHER-BRANCH',
+            'name' => 'Barang Khusus Cabang Seberang',
+            'selling_price' => 50000,
+            'purchase_price' => 35000,
+            'stock' => 50,
+        ]);
+
+        $response = $this->actingAs($this->cashier)->get('/pos');
+        $response->assertOk();
+
+        // Produk cabang sendiri harus ada
+        $response->assertSee('Keripik Singkong Balado');
+
+        // Produk cabang lain SAMA SEKALI tidak boleh muncul
+        $response->assertDontSee('Barang Khusus Cabang Seberang');
+        $response->assertDontSee('SKU-OTHER-BRANCH');
+
+        $viewProducts = $response->viewData('products');
+        $this->assertFalse($viewProducts->contains('id', $otherProduct->id));
+    }
+
+    public function test_pos_hides_zero_and_negative_stock_products(): void
+    {
+        $outOfStockProduct = Product::create([
+            'branch_id' => $this->branch->id,
+            'category_id' => $this->category->id,
+            'sku' => 'SKU-ZERO-01',
+            'name' => 'Biskuit Habis Total',
+            'selling_price' => 12000,
+            'purchase_price' => 8000,
+            'stock' => 0,
+        ]);
+
+        $negativeStockProduct = Product::create([
+            'branch_id' => $this->branch->id,
+            'category_id' => $this->category->id,
+            'sku' => 'SKU-MINUS-01',
+            'name' => 'Permen Minus Stok',
+            'selling_price' => 5000,
+            'purchase_price' => 3000,
+            'stock' => -3,
+        ]);
+
+        $response = $this->actingAs($this->cashier)->get('/pos');
+        $response->assertOk();
+
+        // Barang stok habis tidak boleh muncul di frontend kasir
+        $response->assertDontSee('Biskuit Habis Total');
+        $response->assertDontSee('SKU-ZERO-01');
+        $response->assertDontSee('Permen Minus Stok');
+        $response->assertDontSee('SKU-MINUS-01');
+
+        $viewProducts = $response->viewData('products');
+        $this->assertFalse($viewProducts->contains('id', $outOfStockProduct->id));
+        $this->assertFalse($viewProducts->contains('id', $negativeStockProduct->id));
+        $this->assertTrue($viewProducts->contains('id', $this->product->id));
+    }
+
+    public function test_pos_category_badge_counts_only_in_stock_products_for_branch(): void
+    {
+        // Category 1 ($this->category): memiliki 1 produk stok 25 ($this->product)
+        // Tambahkan produk stok 0 di category 1 -> tidak boleh menambah counter
+        Product::create([
+            'branch_id' => $this->branch->id,
+            'category_id' => $this->category->id,
+            'sku' => 'SKU-ZERO-CAT1',
+            'name' => 'Snack Kosong',
+            'selling_price' => 10000,
+            'purchase_price' => 6000,
+            'stock' => 0,
+        ]);
+
+        // Category 2: Minuman, ada 1 stok 15 di cabang ini, dan 1 stok 100 di cabang lain
+        $catBeverage = Category::create([
+            'branch_id' => $this->branch->id,
+            'name' => 'Minuman Segar',
+        ]);
+
+        $inStockBeverage = Product::create([
+            'branch_id' => $this->branch->id,
+            'category_id' => $catBeverage->id,
+            'sku' => 'SKU-BEV-01',
+            'name' => 'Teh Manis Dingin',
+            'selling_price' => 5000,
+            'purchase_price' => 2000,
+            'stock' => 15,
+        ]);
+
+        $otherBranch = Branch::create(['name' => 'Cabang Luar', 'code' => 'CAB-LUAR-03']);
+        Product::create([
+            'branch_id' => $otherBranch->id,
+            'category_id' => $catBeverage->id,
+            'sku' => 'SKU-BEV-OTHER',
+            'name' => 'Teh Luar Kota',
+            'selling_price' => 5000,
+            'purchase_price' => 2000,
+            'stock' => 100,
+        ]);
+
+        $response = $this->actingAs($this->cashier)->get('/pos');
+        $response->assertOk();
+
+        $viewCategories = $response->viewData('categories');
+        $viewProducts = $response->viewData('products');
+
+        // Total produk yang dikirim ke pos HANYA 2 (Keripik 25 pcs + Teh Manis 15 pcs)
+        $this->assertCount(2, $viewProducts);
+
+        // Kategori Makanan Ringan hanya menghitung 1 (karena produk satunya stok 0)
+        $cat1 = $viewCategories->firstWhere('id', $this->category->id);
+        $this->assertEquals(1, $cat1->products_count);
+
+        // Kategori Minuman hanya menghitung 1 (karena produk cabang lain tidak boleh dihitung)
+        $cat2 = $viewCategories->firstWhere('id', $catBeverage->id);
+        $this->assertEquals(1, $cat2->products_count);
+    }
 }

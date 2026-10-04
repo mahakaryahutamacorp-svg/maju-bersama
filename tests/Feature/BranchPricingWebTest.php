@@ -105,9 +105,9 @@ class BranchPricingWebTest extends TestCase
      */
     public function test_cashier_in_branch_a_loads_pos_with_branch_specific_price(): void
     {
-        // Buat Produk X dengan harga standar 10.000
-        $product = Product::withoutGlobalScopes()->create([
-            'branch_id' => $this->centralBranch->id,
+        // Buat Produk X di Cabang A dengan harga dasar 10.000
+        $productA = Product::withoutGlobalScopes()->create([
+            'branch_id' => $this->branchA->id,
             'category_id' => $this->category->id,
             'sku' => 'PROD-X-POS',
             'name' => 'Produk X Multi-Pricing',
@@ -119,7 +119,7 @@ class BranchPricingWebTest extends TestCase
 
         // Set harga override untuk Cabang A = 12.000
         ProductBranchPrice::create([
-            'product_id' => $product->id,
+            'product_id' => $productA->id,
             'branch_id' => $this->branchA->id,
             'price' => 12000,
         ]);
@@ -130,6 +130,18 @@ class BranchPricingWebTest extends TestCase
         $responseA->assertSee('Produk X Multi-Pricing');
         // Pastikan harga data yang dimuat ke state POS adalah 12000.00
         $responseA->assertSee('12000.00');
+
+        // Buat Produk untuk Cabang Pusat
+        $productCentral = Product::withoutGlobalScopes()->create([
+            'branch_id' => $this->centralBranch->id,
+            'category_id' => $this->category->id,
+            'sku' => 'PROD-X-POS-PST',
+            'name' => 'Produk X Multi-Pricing Pusat',
+            'unit' => 'pcs',
+            'purchase_price' => 8000,
+            'selling_price' => 10000,
+            'stock' => 50,
+        ]);
 
         // 2. Akses POS sebagai Kasir Pusat
         $cashierCentral = User::create([
@@ -142,7 +154,7 @@ class BranchPricingWebTest extends TestCase
 
         $responseCentral = $this->actingAs($cashierCentral)->get('/pos');
         $responseCentral->assertOk();
-        $responseCentral->assertSee('Produk X Multi-Pricing');
+        $responseCentral->assertSee('Produk X Multi-Pricing Pusat');
         $responseCentral->assertSee('10000.00');
     }
 
