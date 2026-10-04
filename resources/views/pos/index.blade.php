@@ -179,7 +179,8 @@
                             :data-product-id="product.id"
                             @click="addToCart(product)" 
                             :disabled="product.stock < 1"
-                            class="group btn-add-product flex min-h-[140px] flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-400 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+                            class="group btn-add-product flex min-h-[140px] flex-col justify-between rounded-2xl border border-slate-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-400 hover:shadow-md disabled:cursor-not-allowed"
+                            :class="product.stock < 1 ? 'bg-slate-50/70 border-slate-200' : ''"
                         >
                             <div>
                                 <div class="flex items-start justify-between gap-2">
@@ -203,10 +204,31 @@
                                         x-text="product.stock > 0 ? ('Stok: ' + product.stock) : 'Stok Habis'"
                                     ></p>
                                 </div>
-                                <span class="rounded-lg bg-slate-900 px-2.5 py-1.5 text-xs font-semibold text-white transition group-hover:bg-indigo-600">
-                                    + Tambah
+                                <span 
+                                    class="rounded-lg px-2.5 py-1.5 text-xs font-semibold transition"
+                                    :class="product.stock > 0 ? 'bg-slate-900 text-white group-hover:bg-indigo-600' : 'bg-slate-200 text-slate-400 cursor-not-allowed'"
+                                    x-text="product.stock > 0 ? '+ Tambah' : 'Habis'"
+                                >
                                 </span>
                             </div>
+
+                            <!-- Informasi Ketersediaan Lintas Cabang jika stok lokal habis -->
+                            <template x-if="product.stock <= 0">
+                                <div class="mt-2.5 w-full rounded-xl border p-2 text-[11px] leading-snug"
+                                     :class="product.other_branch_stock && product.other_branch_stock.length > 0 ? 'border-amber-200 bg-amber-50/80 text-amber-900' : 'border-slate-200 bg-slate-100 text-slate-500'">
+                                    <template x-if="product.other_branch_stock && product.other_branch_stock.length > 0">
+                                        <p class="font-medium">
+                                            <span>📍 Tersedia di: </span>
+                                            <span class="font-bold" x-text="formatOtherBranchStock(product.other_branch_stock)"></span>
+                                        </p>
+                                    </template>
+                                    <template x-if="!product.other_branch_stock || product.other_branch_stock.length === 0">
+                                        <p class="font-semibold text-rose-600">
+                                            ❌ Habis di seluruh cabang
+                                        </p>
+                                    </template>
+                                </div>
+                            </template>
                         </button>
                     </template>
                 </div>
@@ -1274,7 +1296,7 @@
                     }
                 },
 
-                // Menghitung jumlah barang dengan stok > 0 untuk kelompok barang tertentu
+                // Menghitung jumlah barang untuk kelompok barang tertentu
                 getCategoryCount(cat) {
                     if (!cat) return 0;
                     if (this.products && Array.isArray(this.products)) {
@@ -1283,11 +1305,16 @@
                     return cat.products_count ?? 0;
                 },
 
+                // Format teks ketersediaan stok di cabang lain
+                formatOtherBranchStock(list) {
+                    if (!list || !Array.isArray(list) || list.length === 0) return '';
+                    return list.map(item => `${item.branch_name} (${item.stock})`).join(', ');
+                },
+
                 // Fetch data katalog produk dari API dengan parameter pencarian dan customer_id / customer_group_id
                 async fetchProducts() {
                     try {
                         const params = new URLSearchParams();
-                        params.append('in_stock', '1');
                         if (this.searchQuery && this.searchQuery.trim()) {
                             params.append('search', this.searchQuery.trim());
                         }

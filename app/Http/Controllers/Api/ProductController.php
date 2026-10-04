@@ -40,10 +40,6 @@ class ProductController extends Controller
 
         $query = Product::with(['category', 'branch', 'productPrices', 'branchPrices']);
 
-        if ($request->boolean('in_stock') || ($request->user() && $request->user()->isCashier())) {
-            $query->where('stock', '>', 0);
-        }
-
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
@@ -51,7 +47,33 @@ class ProductController extends Controller
             });
         }
 
-        $products = $query->get()->map(function (Product $product) use ($customerGroupId, $branchId) {
+        $products = $query->get();
+
+        $skus = $products->pluck('sku')->filter()->unique()->values()->all();
+        $otherStockMap = [];
+        if (!empty($skus)) {
+            $otherBranchesQuery = Product::withoutGlobalScopes()
+                ->whereNull('deleted_at')
+                ->where('stock', '>', 0)
+                ->whereIn('sku', $skus)
+                ->with('branch:id,name');
+
+            if ($branchId) {
+                $otherBranchesQuery->where('branch_id', '!=', $branchId);
+            }
+
+            $otherProducts = $otherBranchesQuery->get(['id', 'branch_id', 'sku', 'stock']);
+
+            foreach ($otherProducts as $op) {
+                $branchName = $op->branch?->name ?? 'Cabang #' . $op->branch_id;
+                $otherStockMap[$op->sku][] = [
+                    'branch_name' => $branchName,
+                    'stock' => (int) $op->stock,
+                ];
+            }
+        }
+
+        $products = $products->map(function (Product $product) use ($customerGroupId, $branchId, $otherStockMap) {
             $basePrice = (float) $product->getPriceForBranch($branchId);
             $product->base_price = $basePrice;
             $product->original_selling_price = $basePrice;
@@ -64,6 +86,8 @@ class ProductController extends Controller
                 $product->selling_price = $basePrice;
                 $product->price = $basePrice;
             }
+
+            $product->other_branch_stock = $otherStockMap[$product->sku] ?? [];
             return $product;
         });
 
@@ -119,6 +143,19 @@ class ProductController extends Controller
             $product->price = $basePrice;
         }
 
+        $otherBranches = Product::withoutGlobalScopes()
+            ->whereNull('deleted_at')
+            ->where('stock', '>', 0)
+            ->where('sku', $product->sku)
+            ->when($branchId, fn($q) => $q->where('branch_id', '!=', $branchId))
+            ->with('branch:id,name')
+            ->get(['id', 'branch_id', 'sku', 'stock']);
+
+        $product->other_branch_stock = $otherBranches->map(fn($op) => [
+            'branch_name' => $op->branch?->name ?? 'Cabang #' . $op->branch_id,
+            'stock' => (int) $op->stock,
+        ])->values()->all();
+
         return response()->json([
             'data' => $product,
         ]);
@@ -153,6 +190,19 @@ class ProductController extends Controller
             $product->selling_price = $basePrice;
             $product->price = $basePrice;
         }
+
+        $otherBranches = Product::withoutGlobalScopes()
+            ->whereNull('deleted_at')
+            ->where('stock', '>', 0)
+            ->where('sku', $product->sku)
+            ->when($branchId, fn($q) => $q->where('branch_id', '!=', $branchId))
+            ->with('branch:id,name')
+            ->get(['id', 'branch_id', 'sku', 'stock']);
+
+        $product->other_branch_stock = $otherBranches->map(fn($op) => [
+            'branch_name' => $op->branch?->name ?? 'Cabang #' . $op->branch_id,
+            'stock' => (int) $op->stock,
+        ])->values()->all();
 
         return response()->json([
             'data' => $product,

@@ -93,8 +93,7 @@ class PosController extends Controller
         $branchId = $user->branch_id;
 
         $productsQuery = Product::withoutGlobalScopes()
-            ->whereNull('deleted_at')
-            ->where('stock', '>', 0);
+            ->whereNull('deleted_at');
 
         if ($branchId) {
             $productsQuery->where('branch_id', $branchId);
@@ -105,19 +104,43 @@ class PosController extends Controller
             ->orderBy('name')
             ->get();
 
-        $products = $products->map(function (Product $product) use ($branchId) {
+        $skus = $products->pluck('sku')->filter()->unique()->values()->all();
+        $otherStockMap = [];
+        if (!empty($skus)) {
+            $otherBranchesQuery = Product::withoutGlobalScopes()
+                ->whereNull('deleted_at')
+                ->where('stock', '>', 0)
+                ->whereIn('sku', $skus)
+                ->with('branch:id,name');
+
+            if ($branchId) {
+                $otherBranchesQuery->where('branch_id', '!=', $branchId);
+            }
+
+            $otherProducts = $otherBranchesQuery->get(['id', 'branch_id', 'sku', 'stock']);
+
+            foreach ($otherProducts as $op) {
+                $branchName = $op->branch?->name ?? 'Cabang #' . $op->branch_id;
+                $otherStockMap[$op->sku][] = [
+                    'branch_name' => $branchName,
+                    'stock' => (int) $op->stock,
+                ];
+            }
+        }
+
+        $products = $products->map(function (Product $product) use ($branchId, $otherStockMap) {
             $basePrice = (float) $product->getPriceForBranch($branchId);
             $product->base_price = $basePrice;
             $product->original_selling_price = $basePrice;
             $product->selling_price = $basePrice;
             $product->price = $basePrice;
+            $product->other_branch_stock = $otherStockMap[$product->sku] ?? [];
             return $product;
         });
 
         $categories = Category::withCount(['products' => function ($query) use ($branchId) {
             $query->withoutGlobalScopes()
-                ->whereNull('deleted_at')
-                ->where('stock', '>', 0);
+                ->whereNull('deleted_at');
             if ($branchId) {
                 $query->where('branch_id', $branchId);
             }

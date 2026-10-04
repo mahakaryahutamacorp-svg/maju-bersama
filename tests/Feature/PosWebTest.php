@@ -380,47 +380,92 @@ class PosWebTest extends TestCase
         $this->assertFalse($viewProducts->contains('id', $otherProduct->id));
     }
 
-    public function test_pos_hides_zero_and_negative_stock_products(): void
+    public function test_pos_shows_zero_stock_with_cross_branch_info(): void
     {
+        $branch2 = Branch::create(['name' => 'MB PUSAT', 'code' => 'MB-PST']);
+        $branch3 = Branch::create(['name' => 'ECERAN', 'code' => 'MB-ECR']);
+
+        // Produk di cabang kasir dengan stok 0
         $outOfStockProduct = Product::create([
             'branch_id' => $this->branch->id,
             'category_id' => $this->category->id,
-            'sku' => 'SKU-ZERO-01',
-            'name' => 'Biskuit Habis Total',
+            'sku' => 'SKU-CROSS-01',
+            'name' => 'Biskuit Cross Branch',
             'selling_price' => 12000,
             'purchase_price' => 8000,
             'stock' => 0,
         ]);
 
-        $negativeStockProduct = Product::create([
+        // Produk sama (SKU sama) di MB PUSAT dengan stok 5
+        Product::create([
+            'branch_id' => $branch2->id,
+            'category_id' => $this->category->id,
+            'sku' => 'SKU-CROSS-01',
+            'name' => 'Biskuit Cross Branch',
+            'selling_price' => 12000,
+            'purchase_price' => 8000,
+            'stock' => 5,
+        ]);
+
+        // Produk sama (SKU sama) di ECERAN dengan stok 2
+        Product::create([
+            'branch_id' => $branch3->id,
+            'category_id' => $this->category->id,
+            'sku' => 'SKU-CROSS-01',
+            'name' => 'Biskuit Cross Branch',
+            'selling_price' => 12000,
+            'purchase_price' => 8000,
+            'stock' => 2,
+        ]);
+
+        // Produk lain di cabang kasir yang stoknya 0 dan di cabang lain juga habis
+        $completelyOutOfStock = Product::create([
             'branch_id' => $this->branch->id,
             'category_id' => $this->category->id,
-            'sku' => 'SKU-MINUS-01',
-            'name' => 'Permen Minus Stok',
-            'selling_price' => 5000,
-            'purchase_price' => 3000,
-            'stock' => -3,
+            'sku' => 'SKU-EMPTY-ALL',
+            'name' => 'Barang Langka Total',
+            'selling_price' => 20000,
+            'purchase_price' => 15000,
+            'stock' => 0,
         ]);
 
         $response = $this->actingAs($this->cashier)->get('/pos');
         $response->assertOk();
 
-        // Barang stok habis tidak boleh muncul di frontend kasir
-        $response->assertDontSee('Biskuit Habis Total');
-        $response->assertDontSee('SKU-ZERO-01');
-        $response->assertDontSee('Permen Minus Stok');
-        $response->assertDontSee('SKU-MINUS-01');
+        // 1. Produk dengan stok 0 TETAP dikirim ke frontend POS
+        $response->assertSee('Biskuit Cross Branch');
+        $response->assertSee('Barang Langka Total');
+        $response->assertSee('Habis di seluruh cabang');
 
         $viewProducts = $response->viewData('products');
-        $this->assertFalse($viewProducts->contains('id', $outOfStockProduct->id));
-        $this->assertFalse($viewProducts->contains('id', $negativeStockProduct->id));
-        $this->assertTrue($viewProducts->contains('id', $this->product->id));
+        $this->assertTrue($viewProducts->contains('id', $outOfStockProduct->id));
+        $this->assertTrue($viewProducts->contains('id', $completelyOutOfStock->id));
+
+        // 2. Data other_branch_stock terisi dengan akurat
+        $loadedProduct = $viewProducts->firstWhere('id', $outOfStockProduct->id);
+        $this->assertNotEmpty($loadedProduct->other_branch_stock);
+        $this->assertEquals([
+            ['branch_name' => 'MB PUSAT', 'stock' => 5],
+            ['branch_name' => 'ECERAN', 'stock' => 2],
+        ], $loadedProduct->other_branch_stock);
+
+        $loadedEmpty = $viewProducts->firstWhere('id', $completelyOutOfStock->id);
+        $this->assertEmpty($loadedEmpty->other_branch_stock);
+
+        // 3. Produk berstok 0 TIDAK BISA di-checkout (validasi penambahan/checkout)
+        $checkoutResponse = $this->actingAs($this->cashier)->postJson('/pos', [
+            'payment_method' => 'cash',
+            'items' => [
+                ['product_id' => $outOfStockProduct->id, 'quantity' => 1],
+            ],
+        ]);
+        $checkoutResponse->assertStatus(422);
     }
 
-    public function test_pos_category_badge_counts_only_in_stock_products_for_branch(): void
+    public function test_pos_category_badge_counts_all_products_for_branch(): void
     {
         // Category 1 ($this->category): memiliki 1 produk stok 25 ($this->product)
-        // Tambahkan produk stok 0 di category 1 -> tidak boleh menambah counter
+        // Tambahkan produk stok 0 di category 1 -> tetap dihitung untuk cabang ini
         Product::create([
             'branch_id' => $this->branch->id,
             'category_id' => $this->category->id,
@@ -464,12 +509,13 @@ class PosWebTest extends TestCase
         $viewCategories = $response->viewData('categories');
         $viewProducts = $response->viewData('products');
 
-        // Total produk yang dikirim ke pos HANYA 2 (Keripik 25 pcs + Teh Manis 15 pcs)
-        $this->assertCount(2, $viewProducts);
+        // Total produk yang dikirim ke pos adalah 3 milik cabang ini (Keripik + Snack Kosong + Teh Manis)
+        // Produk Cabang Luar tidak boleh masuk
+        $this->assertCount(3, $viewProducts);
 
-        // Kategori Makanan Ringan hanya menghitung 1 (karena produk satunya stok 0)
+        // Kategori Makanan Ringan menghitung 2 produk di cabang ini
         $cat1 = $viewCategories->firstWhere('id', $this->category->id);
-        $this->assertEquals(1, $cat1->products_count);
+        $this->assertEquals(2, $cat1->products_count);
 
         // Kategori Minuman hanya menghitung 1 (karena produk cabang lain tidak boleh dihitung)
         $cat2 = $viewCategories->firstWhere('id', $catBeverage->id);
