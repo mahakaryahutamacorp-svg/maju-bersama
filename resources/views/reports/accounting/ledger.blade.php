@@ -8,12 +8,16 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
         body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+        [x-cloak] { display: none !important; }
         @media print {
             .no-print { display: none !important; }
             body { background: white !important; color: black !important; }
             .print-break { page-break-after: always; }
+            [x-cloak], [x-show] { display: block !important; height: auto !important; }
         }
     </style>
 </head>
@@ -207,38 +211,95 @@
             </form>
         </section>
 
-        <!-- Daftar Akun Buku Besar -->
-        <div class="space-y-8">
+        @php
+            $autoExpand = !empty($accountId) || request()->filled('account_id');
+        @endphp
+
+        <!-- Bar Kontrol Tampilan Daftar Akun (Accordion Controls) -->
+        <div class="flex items-center justify-between gap-4 pb-1">
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Daftar Akun Buku Besar</span>
+                <span class="text-xs text-slate-400">&bull;</span>
+                <span class="text-xs text-slate-500 hidden sm:inline">Klik baris akun untuk melihat rincian mutasi transaksi</span>
+            </div>
+            @if (count($report['accounts']) > 0)
+                <div class="flex items-center gap-2 no-print">
+                    <button 
+                        type="button" 
+                        @click="$dispatch('expand-all')" 
+                        class="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 shadow-2xs hover:bg-slate-50 hover:text-slate-900 transition"
+                    >
+                        <svg class="h-3.5 w-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 13l-7 7-7-7m14-8l-7 7-7-7"/></svg>
+                        Buka Semua
+                    </button>
+                    <button 
+                        type="button" 
+                        @click="$dispatch('collapse-all')" 
+                        class="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-600 shadow-2xs hover:bg-slate-50 hover:text-slate-900 transition"
+                    >
+                        <svg class="h-3.5 w-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 11l7-7 7 7M5 19l7-7 7 7"/></svg>
+                        Tutup Semua
+                    </button>
+                </div>
+            @endif
+        </div>
+
+        <!-- Daftar Akun Buku Besar (Accordion) -->
+        <div class="space-y-3">
             @forelse ($report['accounts'] as $item)
                 @php
                     $acc = $item['account'];
                 @endphp
-                <section class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-                    <!-- Header Akun (Flexbox Dua Sisi) -->
-                    <div class="flex flex-col gap-4 border-b border-gray-200 bg-slate-50/60 px-6 py-4 xl:flex-row xl:items-center xl:justify-between">
-                        <!-- Sisi Kiri -->
-                        <div class="flex items-start gap-3">
-                            <span class="inline-flex items-center rounded-md bg-slate-800 px-2 py-1 font-mono text-sm font-semibold text-white shadow-sm shrink-0">
+                <section 
+                    x-data="{ expanded: {{ $autoExpand ? 'true' : 'false' }} }" 
+                    @expand-all.window="expanded = true"
+                    @collapse-all.window="expanded = false"
+                    class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-2xs transition-all duration-150"
+                >
+                    <!-- Header Akun (Accordion Trigger Selalu Tampil) -->
+                    <div 
+                        @click="expanded = !expanded"
+                        class="group flex flex-col gap-3 px-5 py-3 cursor-pointer select-none transition-colors duration-150 xl:flex-row xl:items-center xl:justify-between"
+                        :class="expanded ? 'border-b border-gray-200 bg-slate-50/80 hover:bg-slate-100/90' : 'bg-white hover:bg-slate-50/80'"
+                    >
+                        <!-- Sisi Kiri (Ikon Chevron + Badge Kode + Nama + Status) -->
+                        <div class="flex items-center gap-3">
+                            <!-- Ikon Chevron Indikator -->
+                            <div 
+                                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white shadow-2xs transition-transform duration-200"
+                                :class="expanded ? 'rotate-180 bg-sky-50 text-sky-600 border-sky-200' : 'text-slate-400 group-hover:text-slate-600 group-hover:border-slate-300'"
+                            >
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </div>
+
+                            <span class="inline-flex items-center rounded-md bg-slate-800 px-2.5 py-1 font-mono text-xs sm:text-sm font-semibold text-white shadow-xs shrink-0">
                                 {{ $acc['code'] }}
                             </span>
+
                             <div>
                                 <div class="flex items-center gap-2 flex-wrap">
-                                    <h3 class="text-lg font-bold text-gray-900 leading-snug">{{ $acc['name'] }}</h3>
-                                    <span class="inline-block rounded border border-gray-200 bg-white px-2 py-0.5 text-[11px] font-medium text-gray-600 uppercase">
+                                    <h3 class="text-base sm:text-lg font-bold text-gray-900 leading-snug group-hover:text-sky-700 transition-colors">{{ $acc['name'] }}</h3>
+                                    <span class="inline-block rounded border border-gray-200 bg-white px-2 py-0.5 text-[10px] font-medium text-gray-600 uppercase">
                                         Saldo Normal: {{ $acc['normal_balance'] }}
                                     </span>
+                                    <span class="text-xs text-gray-400">&bull;</span>
+                                    <span class="text-xs text-gray-500 uppercase">
+                                        {{ $acc['type'] }}
+                                    </span>
+                                    <span class="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+                                        {{ count($item['lines']) }} transaksi
+                                    </span>
                                 </div>
-                                <p class="mt-0.5 text-xs text-gray-500">
-                                    Tipe Akun: <span class="font-medium text-gray-700 uppercase">{{ $acc['type'] }}</span>
-                                </p>
                             </div>
                         </div>
 
-                        <!-- Sisi Kanan (Mini Stats 4 Kolom) -->
-                        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+                        <!-- Sisi Kanan (Mini Stats 4 Kolom: Saldo Awal, Total Debit, Total Kredit, Saldo Akhir) -->
+                        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-2.5">
                             <!-- Saldo Awal -->
-                            <div class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-right shadow-xs">
-                                <span class="block text-[11px] font-medium uppercase tracking-wider text-gray-500">Saldo Awal</span>
+                            <div class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-right shadow-2xs">
+                                <span class="block text-[10px] font-medium uppercase tracking-wider text-gray-500">Saldo Awal</span>
                                 <span class="block text-xs font-semibold tabular-nums {{ $item['beginning_balance'] < 0 ? 'text-red-600' : 'text-gray-900' }}">
                                     @if ($item['beginning_balance'] < 0)
                                         (Rp {{ number_format(abs($item['beginning_balance']), 0, ',', '.') }})
@@ -249,24 +310,24 @@
                             </div>
 
                             <!-- Total Debit -->
-                            <div class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-right shadow-xs">
-                                <span class="block text-[11px] font-medium uppercase tracking-wider text-gray-500">Total Debit</span>
+                            <div class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-right shadow-2xs">
+                                <span class="block text-[10px] font-medium uppercase tracking-wider text-gray-500">Total Debit</span>
                                 <span class="block text-xs font-semibold tabular-nums text-sky-700">
                                     Rp {{ number_format($item['total_debit'], 0, ',', '.') }}
                                 </span>
                             </div>
 
                             <!-- Total Kredit -->
-                            <div class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-right shadow-xs">
-                                <span class="block text-[11px] font-medium uppercase tracking-wider text-gray-500">Total Kredit</span>
+                            <div class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-right shadow-2xs">
+                                <span class="block text-[10px] font-medium uppercase tracking-wider text-gray-500">Total Kredit</span>
                                 <span class="block text-xs font-semibold tabular-nums text-amber-700">
                                     Rp {{ number_format($item['total_credit'], 0, ',', '.') }}
                                 </span>
                             </div>
 
                             <!-- Saldo Akhir -->
-                            <div class="rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 text-right shadow-sm">
-                                <span class="block text-[11px] font-semibold uppercase tracking-wider text-blue-600">Saldo Akhir</span>
+                            <div class="rounded-lg border border-blue-200 bg-blue-50/70 px-3 py-1.5 text-right shadow-2xs">
+                                <span class="block text-[10px] font-semibold uppercase tracking-wider text-blue-600">Saldo Akhir</span>
                                 <span class="block text-xs font-bold tabular-nums {{ $item['ending_balance'] < 0 ? 'text-red-600' : 'text-blue-700' }}">
                                     @if ($item['ending_balance'] < 0)
                                         (Rp {{ number_format(abs($item['ending_balance']), 0, ',', '.') }})
@@ -278,105 +339,107 @@
                         </div>
                     </div>
 
-                    <!-- 3. Tabel Transaksi (Visual Grouping & Badge Cabang) -->
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200 text-left text-sm">
-                            <thead class="bg-gray-100 text-xs font-semibold uppercase tracking-wider text-gray-600 border-b border-gray-200">
-                                <tr>
-                                    <th class="whitespace-nowrap px-5 py-3.5">Tanggal</th>
-                                    <th class="whitespace-nowrap px-5 py-3.5">No. Referensi</th>
-                                    <th class="px-5 py-3.5">Keterangan</th>
-                                    <th class="px-5 py-3.5">Memo / Catatan</th>
-                                    <th class="whitespace-nowrap px-5 py-3.5">Cabang / Toko</th>
-                                    <th class="whitespace-nowrap px-5 py-3.5 text-right">Debit</th>
-                                    <th class="whitespace-nowrap px-5 py-3.5 text-right">Kredit</th>
-                                    <th class="whitespace-nowrap px-5 py-3.5 text-right">Saldo Berjalan</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-100 bg-white">
-                                <!-- Baris Saldo Awal -->
-                                <tr class="bg-amber-50/40 border-b border-gray-100 text-xs font-medium text-gray-600">
-                                    <td class="whitespace-nowrap px-5 py-3 font-mono tabular-nums">{{ $startDate ? \Carbon\Carbon::parse($startDate)->format('d/m/Y') : '-' }}</td>
-                                    <td class="px-5 py-3 font-mono text-gray-400">—</td>
-                                    <td colspan="3" class="px-5 py-3 font-semibold text-gray-800">
-                                        SALDO AWAL {{ $startDate ? '(SEBELUM ' . \Carbon\Carbon::parse($startDate)->format('d M Y') . ')' : '' }}
-                                    </td>
-                                    <td class="whitespace-nowrap px-5 py-3 text-right font-mono tabular-nums text-gray-400">—</td>
-                                    <td class="whitespace-nowrap px-5 py-3 text-right font-mono tabular-nums text-gray-400">—</td>
-                                    <td class="whitespace-nowrap px-5 py-3 text-right font-mono text-xs font-bold tabular-nums {{ $item['beginning_balance'] < 0 ? 'text-red-600' : 'text-gray-900' }}">
-                                        @if ($item['beginning_balance'] < 0)
-                                            (Rp {{ number_format(abs($item['beginning_balance']), 0, ',', '.') }})
-                                        @else
-                                            Rp {{ number_format($item['beginning_balance'], 0, ',', '.') }}
-                                        @endif
-                                    </td>
-                                </tr>
-
-                                @forelse ($item['lines'] as $line)
-                                    <tr class="border-b border-gray-100 transition hover:bg-gray-50 text-sm">
-                                        <td class="whitespace-nowrap px-5 py-3.5 font-mono text-xs text-gray-600 tabular-nums">
-                                            {{ \Carbon\Carbon::parse($line['date'])->format('d/m/Y') }}
+                    <!-- Tabel Transaksi & Total Mutasi (Disembunyikan by default, tampil dengan x-collapse) -->
+                    <div x-show="expanded" x-collapse x-cloak>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200 text-left text-xs">
+                                <thead class="bg-gray-50 text-[11px] font-semibold uppercase tracking-wider text-gray-600 border-b border-gray-200">
+                                    <tr>
+                                        <th class="whitespace-nowrap px-4 py-2">Tanggal</th>
+                                        <th class="whitespace-nowrap px-4 py-2">No. Referensi</th>
+                                        <th class="px-4 py-2">Keterangan</th>
+                                        <th class="px-4 py-2">Memo / Catatan</th>
+                                        <th class="whitespace-nowrap px-4 py-2">Cabang / Toko</th>
+                                        <th class="whitespace-nowrap px-4 py-2 text-right">Debit</th>
+                                        <th class="whitespace-nowrap px-4 py-2 text-right">Kredit</th>
+                                        <th class="whitespace-nowrap px-4 py-2 text-right">Saldo Berjalan</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100 bg-white">
+                                    <!-- Baris Saldo Awal -->
+                                    <tr class="bg-amber-50/30 border-b border-gray-100 text-xs font-medium text-gray-600">
+                                        <td class="whitespace-nowrap px-4 py-1.5 font-mono tabular-nums">{{ $startDate ? \Carbon\Carbon::parse($startDate)->format('d/m/Y') : '-' }}</td>
+                                        <td class="px-4 py-1.5 font-mono text-gray-400">—</td>
+                                        <td colspan="3" class="px-4 py-1.5 font-semibold text-gray-800">
+                                            SALDO AWAL {{ $startDate ? '(SEBELUM ' . \Carbon\Carbon::parse($startDate)->format('d M Y') . ')' : '' }}
                                         </td>
-                                        <td class="whitespace-nowrap px-5 py-3.5 font-mono text-xs font-semibold text-sky-700">
-                                            {{ $line['reference_number'] }}
-                                        </td>
-                                        <td class="px-5 py-3.5 text-gray-800 font-medium text-sm">
-                                            {{ $line['description'] }}
-                                        </td>
-                                        <td class="px-5 py-3.5 text-xs text-gray-500">
-                                            {{ $line['memo'] ?? '—' }}
-                                        </td>
-                                        <!-- Badge Cabang dengan identitas visual unik -->
-                                        <td class="whitespace-nowrap px-5 py-3.5 text-xs">
-                                            <span class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold shadow-xs {{ getBranchBadgeStyle($line['branch_name']) }}">
-                                                <span class="h-1.5 w-1.5 rounded-full bg-current opacity-70"></span>
-                                                {{ $line['branch_name'] }}
-                                            </span>
-                                        </td>
-                                        <td class="whitespace-nowrap px-5 py-3.5 text-right font-mono text-sm tabular-nums {{ $line['debit'] > 0 ? 'font-medium text-gray-900' : 'text-gray-300' }}">
-                                            {{ $line['debit'] > 0 ? 'Rp ' . number_format($line['debit'], 0, ',', '.') : '—' }}
-                                        </td>
-                                        <td class="whitespace-nowrap px-5 py-3.5 text-right font-mono text-sm tabular-nums {{ $line['credit'] > 0 ? 'font-medium text-gray-900' : 'text-gray-300' }}">
-                                            {{ $line['credit'] > 0 ? 'Rp ' . number_format($line['credit'], 0, ',', '.') : '—' }}
-                                        </td>
-                                        <td class="whitespace-nowrap px-5 py-3.5 text-right font-mono text-sm tabular-nums font-semibold {{ $line['balance'] < 0 ? 'text-red-600 font-bold' : 'text-gray-900' }}">
-                                            @if ($line['balance'] < 0)
-                                                (Rp {{ number_format(abs($line['balance']), 0, ',', '.') }})
+                                        <td class="whitespace-nowrap px-4 py-1.5 text-right font-mono tabular-nums text-gray-400">—</td>
+                                        <td class="whitespace-nowrap px-4 py-1.5 text-right font-mono tabular-nums text-gray-400">—</td>
+                                        <td class="whitespace-nowrap px-4 py-1.5 text-right font-mono text-xs font-bold tabular-nums {{ $item['beginning_balance'] < 0 ? 'text-red-600' : 'text-gray-900' }}">
+                                            @if ($item['beginning_balance'] < 0)
+                                                (Rp {{ number_format(abs($item['beginning_balance']), 0, ',', '.') }})
                                             @else
-                                                Rp {{ number_format($line['balance'], 0, ',', '.') }}
+                                                Rp {{ number_format($item['beginning_balance'], 0, ',', '.') }}
                                             @endif
                                         </td>
                                     </tr>
-                                @empty
+
+                                    @forelse ($item['lines'] as $line)
+                                        <tr class="border-b border-gray-100 transition hover:bg-slate-50/80 text-xs">
+                                            <td class="whitespace-nowrap px-4 py-1.5 font-mono text-gray-600 tabular-nums">
+                                                {{ \Carbon\Carbon::parse($line['date'])->format('d/m/Y') }}
+                                            </td>
+                                            <td class="whitespace-nowrap px-4 py-1.5 font-mono font-semibold text-sky-700">
+                                                {{ $line['reference_number'] }}
+                                            </td>
+                                            <td class="px-4 py-1.5 text-gray-800 font-medium">
+                                                {{ $line['description'] }}
+                                            </td>
+                                            <td class="px-4 py-1.5 text-gray-500">
+                                                {{ $line['memo'] ?? '—' }}
+                                            </td>
+                                            <!-- Badge Cabang dengan identitas visual unik -->
+                                            <td class="whitespace-nowrap px-4 py-1.5">
+                                                <span class="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-semibold {{ getBranchBadgeStyle($line['branch_name']) }}">
+                                                    <span class="h-1.5 w-1.5 rounded-full bg-current opacity-70"></span>
+                                                    {{ $line['branch_name'] }}
+                                                </span>
+                                            </td>
+                                            <td class="whitespace-nowrap px-4 py-1.5 text-right font-mono tabular-nums {{ $line['debit'] > 0 ? 'font-medium text-gray-900' : 'text-gray-300' }}">
+                                                {{ $line['debit'] > 0 ? 'Rp ' . number_format($line['debit'], 0, ',', '.') : '—' }}
+                                            </td>
+                                            <td class="whitespace-nowrap px-4 py-1.5 text-right font-mono tabular-nums {{ $line['credit'] > 0 ? 'font-medium text-gray-900' : 'text-gray-300' }}">
+                                                {{ $line['credit'] > 0 ? 'Rp ' . number_format($line['credit'], 0, ',', '.') : '—' }}
+                                            </td>
+                                            <td class="whitespace-nowrap px-4 py-1.5 text-right font-mono tabular-nums font-semibold {{ $line['balance'] < 0 ? 'text-red-600 font-bold' : 'text-gray-900' }}">
+                                                @if ($line['balance'] < 0)
+                                                    (Rp {{ number_format(abs($line['balance']), 0, ',', '.') }})
+                                                @else
+                                                    Rp {{ number_format($line['balance'], 0, ',', '.') }}
+                                                @endif
+                                            </td>
+                                        </tr>
+                                    @empty
+                                        <tr>
+                                            <td colspan="8" class="px-4 py-4 text-center text-xs text-gray-400 italic">
+                                                Tidak ada mutasi transaksi pada periode yang dipilih.
+                                            </td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                                <!-- Footer Ringkasan Akun -->
+                                <tfoot class="border-t border-gray-300 bg-slate-50 text-xs font-bold text-gray-900">
                                     <tr>
-                                        <td colspan="8" class="px-5 py-6 text-center text-xs text-gray-400 italic">
-                                            Tidak ada mutasi transaksi pada periode yang dipilih.
+                                        <td colspan="5" class="px-4 py-2 text-right uppercase tracking-wider text-gray-700">
+                                            TOTAL MUTASI &amp; SALDO AKHIR {{ $acc['name'] }}:
+                                        </td>
+                                        <td class="whitespace-nowrap px-4 py-2 text-right font-mono tabular-nums text-sky-800">
+                                            Rp {{ number_format($item['total_debit'], 0, ',', '.') }}
+                                        </td>
+                                        <td class="whitespace-nowrap px-4 py-2 text-right font-mono tabular-nums text-amber-800">
+                                            Rp {{ number_format($item['total_credit'], 0, ',', '.') }}
+                                        </td>
+                                        <td class="whitespace-nowrap px-4 py-2 text-right font-mono tabular-nums bg-gray-100 font-extrabold {{ $item['ending_balance'] < 0 ? 'text-red-600' : 'text-gray-900' }}">
+                                            @if ($item['ending_balance'] < 0)
+                                                (Rp {{ number_format(abs($item['ending_balance']), 0, ',', '.') }})
+                                            @else
+                                                Rp {{ number_format($item['ending_balance'], 0, ',', '.') }}
+                                            @endif
                                         </td>
                                     </tr>
-                                @endforelse
-                            </tbody>
-                            <!-- Footer Ringkasan Akun -->
-                            <tfoot class="border-t-2 border-gray-300 bg-slate-50 text-xs font-bold text-gray-900">
-                                <tr>
-                                    <td colspan="5" class="px-5 py-3.5 text-right uppercase tracking-wider text-gray-700">
-                                        TOTAL MUTASI &amp; SALDO AKHIR {{ $acc['name'] }}:
-                                    </td>
-                                    <td class="whitespace-nowrap px-5 py-3.5 text-right font-mono text-sm tabular-nums text-sky-800">
-                                        Rp {{ number_format($item['total_debit'], 0, ',', '.') }}
-                                    </td>
-                                    <td class="whitespace-nowrap px-5 py-3.5 text-right font-mono text-sm tabular-nums text-amber-800">
-                                        Rp {{ number_format($item['total_credit'], 0, ',', '.') }}
-                                    </td>
-                                    <td class="whitespace-nowrap px-5 py-3.5 text-right font-mono text-sm tabular-nums bg-gray-100 font-extrabold {{ $item['ending_balance'] < 0 ? 'text-red-600' : 'text-gray-900' }}">
-                                        @if ($item['ending_balance'] < 0)
-                                            (Rp {{ number_format(abs($item['ending_balance']), 0, ',', '.') }})
-                                        @else
-                                            Rp {{ number_format($item['ending_balance'], 0, ',', '.') }}
-                                        @endif
-                                    </td>
-                                </tr>
-                            </tfoot>
-                        </table>
+                                </tfoot>
+                            </table>
+                        </div>
                     </div>
                 </section>
             @empty

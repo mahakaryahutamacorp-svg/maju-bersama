@@ -75,7 +75,7 @@ class AccountingReportService
                     ->where('journal_lines.chart_of_account_id', $account->id)
                     ->whereNull('journal_headers.deleted_at')
                     ->when($branchId, fn ($q) => $q->where('journal_headers.branch_id', $branchId))
-                    ->where('journal_headers.transaction_date', '<', $startDate)
+                    ->whereDate('journal_headers.transaction_date', '<', $startDate)
                     ->selectRaw('COALESCE(SUM(journal_lines.debit), 0) as total_debit, COALESCE(SUM(journal_lines.credit), 0) as total_credit')
                     ->first();
 
@@ -94,8 +94,8 @@ class AccountingReportService
                 ->where('journal_lines.chart_of_account_id', $account->id)
                 ->whereNull('journal_headers.deleted_at')
                 ->when($branchId, fn ($q) => $q->where('journal_headers.branch_id', $branchId))
-                ->when($startDate, fn ($q) => $q->where('journal_headers.transaction_date', '>=', $startDate))
-                ->when($endDate, fn ($q) => $q->where('journal_headers.transaction_date', '<=', $endDate))
+                ->when($startDate, fn ($q) => $q->whereDate('journal_headers.transaction_date', '>=', $startDate))
+                ->when($endDate, fn ($q) => $q->whereDate('journal_headers.transaction_date', '<=', $endDate))
                 ->orderBy('journal_headers.transaction_date', 'asc')
                 ->orderBy('journal_headers.id', 'asc')
                 ->orderBy('journal_lines.id', 'asc')

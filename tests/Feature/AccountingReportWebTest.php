@@ -99,6 +99,12 @@ class AccountingReportWebTest extends TestCase
         $response->assertSee('Konsolidasi Seluruh Cabang');
         $response->assertSee('Semua Cabang (Konsolidasi)');
         $response->assertSee('Cabang / Toko');
+        $response->assertSee('x-data="{ expanded: false }"', false);
+        $response->assertSee('@click="expanded = !expanded"', false);
+        $response->assertSee('x-show="expanded"', false);
+        $response->assertSee('x-collapse', false);
+        $response->assertSee('Buka Semua');
+        $response->assertSee('Tutup Semua');
     }
 
     public function test_ledger_page_renders_filtered_by_branch(): void
@@ -109,5 +115,18 @@ class AccountingReportWebTest extends TestCase
         $response->assertSee('Buku Besar &mdash; <span class="text-sky-700 uppercase tracking-tight">' . $this->central->name . '</span>', false);
         $response->assertSee('Filter Toko: <strong class="uppercase">' . $this->central->name . '</strong>', false);
         $response->assertSee('Kas');
+        $response->assertSee('x-data="{ expanded: false }"', false);
+    }
+
+    public function test_ledger_page_auto_expands_when_filtered_by_account(): void
+    {
+        $cash = ChartOfAccount::where('code', '1110')->first();
+        $response = $this->actingAs($this->master)->get('/reports/accounting/ledger?account_id=' . $cash->id);
+
+        $response->assertStatus(200);
+        $response->assertSee('x-data="{ expanded: true }"', false);
+        $response->assertSee('Kas');
+        $response->assertDontSee('TOTAL MUTASI &amp; SALDO AKHIR Harga Pokok Penjualan', false);
     }
 }
+
