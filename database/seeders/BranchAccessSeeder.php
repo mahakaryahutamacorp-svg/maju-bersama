@@ -18,7 +18,7 @@ class BranchAccessSeeder extends Seeder
                 'branch_id' => $centralBranch->id,
                 'name' => 'Admin Pusat',
                 'password' => 'password',
-                'role' => 'admin',
+                'role' => 'master',
             ],
         );
 

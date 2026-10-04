@@ -23,6 +23,7 @@ class GoodsReceiptController extends Controller
     public function index(Request $request): View
     {
         $user = $request->user()->load('branch');
+        $isMaster = $user->isMaster();
 
         $startDate = $request->input('start_date');
         $endDate = $request->input('end_date');
@@ -30,6 +31,7 @@ class GoodsReceiptController extends Controller
         $search = $request->input('search');
 
         $query = GoodsReceipt::with(['branch', 'items.product', 'journalHeader'])
+            ->when(! $isMaster, fn ($q) => $q->where('branch_id', $user->branch_id))
             ->when($startDate, fn ($q) => $q->where('date', '>=', $startDate))
             ->when($endDate, fn ($q) => $q->where('date', '<=', $endDate))
             ->when($paymentType, fn ($q) => $q->where('payment_type', $paymentType))
@@ -71,15 +73,18 @@ class GoodsReceiptController extends Controller
     public function create(Request $request): View
     {
         $user = $request->user()->load('branch');
+        $isMaster = $user->isMaster();
 
-        // Resolve central branch
-        $centralBranch = Branch::whereNull('parent_id')->first()
-            ?? Branch::where('code', 'PUSAT')->first()
-            ?? Branch::first();
+        // Resolve branch for goods receipt
+        $targetBranchId = $isMaster ? ($request->input('branch_id') ?: null) : $user->branch_id;
 
-        // Fetch products available at central branch (or fallback to all products if central has none)
+        $targetBranch = $targetBranchId
+            ? Branch::find($targetBranchId)
+            : (Branch::whereNull('parent_id')->first() ?? Branch::where('code', 'PUSAT')->first() ?? Branch::first());
+
+        // Fetch products available at target branch (or fallback to all products if target branch has none)
         $products = Product::withoutGlobalScopes()
-            ->when($centralBranch, fn ($q) => $q->where('branch_id', $centralBranch->id))
+            ->when($targetBranch, fn ($q) => $q->where('branch_id', $targetBranch->id))
             ->orderBy('name')
             ->get();
 
@@ -99,12 +104,12 @@ class GoodsReceiptController extends Controller
         $activePOs = PurchaseOrder::withoutGlobalScopes()
             ->with(['supplier', 'items.product'])
             ->whereIn('status', ['pending', 'partial'])
-            ->when($centralBranch, fn ($q) => $q->where('branch_id', $centralBranch->id))
+            ->when($targetBranch, fn ($q) => $q->where('branch_id', $targetBranch->id))
             ->latest('order_date')
             ->latest('id')
             ->get();
 
-        if ($activePOs->isEmpty()) {
+        if ($activePOs->isEmpty() && $isMaster) {
             $activePOs = PurchaseOrder::withoutGlobalScopes()
                 ->with(['supplier', 'items.product'])
                 ->whereIn('status', ['pending', 'partial'])
@@ -143,7 +148,7 @@ class GoodsReceiptController extends Controller
 
         return view($viewName, [
             'currentUser'   => $user,
-            'centralBranch' => $centralBranch,
+            'centralBranch' => $targetBranch,
             'products'      => $productsData,
             'activePOs'     => $activePOsData,
             'activePOsData' => $activePOsData,
@@ -169,6 +174,11 @@ class GoodsReceiptController extends Controller
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],
         ]);
 
+        $user = $request->user();
+        if (! $user->isMaster()) {
+            $validated['branch_id'] = $user->branch_id;
+        }
+
         $receipt = $this->goodsReceiptService->processReceipt($validated, $request->user());
 
         return redirect()
@@ -188,6 +198,10 @@ class GoodsReceiptController extends Controller
             'items.product',
             'journalHeader.journalLines.chartOfAccount',
         ])->findOrFail($id);
+
+        if (! $user->isMaster() && (int) $receipt->branch_id !== (int) $user->branch_id) {
+            abort(403, 'Akses terbatas. Anda tidak memiliki akses ke penerimaan barang cabang lain.');
+        }
 
         return view('purchases.goods-receipts.show', [
             'currentUser' => $user,

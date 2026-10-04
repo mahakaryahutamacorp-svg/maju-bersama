@@ -48,7 +48,7 @@ class DatabaseSeeder extends Seeder
             'branch_id' => $branchId,
             'name' => 'Admin Pusat',
             'email' => 'admin@pusat.test',
-            'role' => 'admin',
+            'role' => 'master',
         ]);
 
         $this->call(BranchAccessSeeder::class);

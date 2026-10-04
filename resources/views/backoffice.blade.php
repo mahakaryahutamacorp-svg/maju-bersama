@@ -16,13 +16,13 @@
         <main class="min-w-0 flex-1">
             <header class="border-b border-slate-200 bg-white">
                 <div class="flex flex-col justify-between gap-4 px-6 py-5 sm:flex-row sm:items-center lg:px-10">
-                    <div>
+                    <div class="min-w-0">
                         <p class="text-sm font-medium text-amber-600">Operational control center</p>
-                        <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-950" x-text="pageTitle"></h1>
+                        <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 truncate" x-text="pageTitle"></h1>
                     </div>
-                    <div class="flex items-center gap-4">
+                    <div class="flex shrink-0 flex-wrap items-center gap-2 sm:flex-nowrap sm:gap-3">
                         @if ($isMaster)
-                            <a href="{{ route('preview') }}" class="hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1.5 rounded-lg hover:bg-amber-100 transition">
+                            <a href="{{ route('preview') }}" class="hidden sm:inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs font-semibold text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-1.5 rounded-lg hover:bg-amber-100 transition">
                                 <svg class="w-3.5 h-3.5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -30,10 +30,20 @@
                                 <span>Preview Data Sistem</span>
                             </a>
                         @endif
-                        <a href="/" target="_blank" class="text-sm text-slate-500 hover:text-slate-900">Lihat Website</a>
-                        <form method="POST" action="/logout">
+                        {{-- Tidak lagi terpotong: shrink-0 + whitespace-nowrap. Di layar kecil tampil sebagai ikon dengan tooltip. --}}
+                        <a href="/" target="_blank" rel="noopener noreferrer"
+                           id="btn-lihat-website"
+                           title="Lihat Website (tab baru)"
+                           aria-label="Lihat Website (buka di tab baru)"
+                           class="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-transparent px-2.5 py-2 text-sm font-medium text-slate-500 hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900 transition">
+                            <svg class="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                            <span class="hidden md:inline">Lihat Website</span>
+                        </a>
+                        <form method="POST" action="/logout" class="shrink-0">
                             @csrf
-                            <button type="submit" class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Logout</button>
+                            <button type="submit" class="whitespace-nowrap rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Logout</button>
                         </form>
                     </div>
                 </div>
@@ -65,6 +75,8 @@
                 @endif
 
                 <section x-show="active === 'overview'" x-transition>
+                    {{-- RBAC: Widget backup (dan scan storage-nya) HANYA dirender untuk role master. --}}
+                    @can('manage-system')
                     @php
                         $backupDisk = \Illuminate\Support\Facades\Storage::disk(config('backup.backup.destination.disks.0', 'local'));
                         $backupName = config('backup.backup.name', config('app.name', 'Laravel'));
@@ -139,6 +151,7 @@
                             </div>
                         </div>
                     </div>
+                    @endcan
 
                     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         <template x-for="stat in stats" :key="stat.label">
@@ -190,7 +203,9 @@
                                 <p class="text-sm font-medium text-amber-600">{{ $isMaster ? 'Cross-branch activity' : 'Aktivitas transaksi' }}</p>
                                 <h2 class="mt-1 text-xl font-bold text-slate-950">{{ $isMaster ? 'Transaksi terbaru seluruh branch' : 'Transaksi terbaru branch ini' }}</h2>
                             </div>
-                            <a href="/reports/journal" class="text-sm font-semibold text-sky-700 hover:text-sky-800">Buka ledger</a>
+                            @can('access-enterprise')
+                                <a href="/reports/journal" class="text-sm font-semibold text-sky-700 hover:text-sky-800">Buka ledger</a>
+                            @endcan
                         </div>
                             <div class="mt-5 overflow-x-auto">
                                 <table class="min-w-full divide-y divide-slate-200">
@@ -237,19 +252,29 @@
                                 </div>
                                 <span class="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Ready</span>
                             </div>
-                            <div class="mt-6 grid gap-3 sm:grid-cols-3">
+                            <div class="mt-6 grid gap-3 {{ auth()->user()?->can('access-inventory') ? 'sm:grid-cols-3' : 'sm:grid-cols-2' }}">
                                 <a href="/pos" class="rounded-xl border border-slate-200 p-4 transition hover:border-sky-300 hover:bg-sky-50">
                                     <p class="font-semibold text-slate-900">New sale</p>
                                     <p class="mt-1 text-xs text-slate-500">Open POS checkout</p>
                                 </a>
-                                <a href="/inventory" class="rounded-xl border border-slate-200 p-4 transition hover:border-sky-300 hover:bg-sky-50">
-                                    <p class="font-semibold text-slate-900">Check stock</p>
-                                    <p class="mt-1 text-xs text-slate-500">Review branch inventory</p>
-                                </a>
-                                <a href="/reports/journal" class="rounded-xl border border-slate-200 p-4 transition hover:border-sky-300 hover:bg-sky-50">
-                                    <p class="font-semibold text-slate-900">Review ledger</p>
-                                    <p class="mt-1 text-xs text-slate-500">Verify double-entry journals</p>
-                                </a>
+                                @can('access-inventory')
+                                    <a href="/inventory" class="rounded-xl border border-slate-200 p-4 transition hover:border-sky-300 hover:bg-sky-50">
+                                        <p class="font-semibold text-slate-900">Check stock</p>
+                                        <p class="mt-1 text-xs text-slate-500">Review branch inventory</p>
+                                    </a>
+                                @endcan
+                                {{-- Card ke-3 dinamis per role: master → Buku Besar; branch_admin/cashier → Shift Kasir (POS). --}}
+                                @can('access-enterprise')
+                                    <a href="/reports/journal" id="quick-action-ledger" class="rounded-xl border border-slate-200 p-4 transition hover:border-sky-300 hover:bg-sky-50">
+                                        <p class="font-semibold text-slate-900">Review ledger</p>
+                                        <p class="mt-1 text-xs text-slate-500">Verify double-entry journals (Buku Besar)</p>
+                                    </a>
+                                @else
+                                    <a href="{{ route('pos') }}" id="quick-action-shift" class="rounded-xl border border-slate-200 p-4 transition hover:border-sky-300 hover:bg-sky-50">
+                                        <p class="font-semibold text-slate-900">Shift Kasir</p>
+                                        <p class="mt-1 text-xs text-slate-500">Buka / tutup shift &amp; rekap kas laci</p>
+                                    </a>
+                                @endcan
                             </div>
                         </section>
                         <section class="rounded-2xl bg-slate-900 p-6 text-white shadow-sm">
@@ -280,7 +305,9 @@
                     <div class="mt-8 flex flex-wrap gap-3">
                         <a x-show="selectedModule.id === 'inventory'" href="/inventory" class="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-sky-700">Open inventory</a>
                         <a x-show="selectedModule.id === 'sales'" href="/pos" class="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-sky-700">Open POS</a>
-                        <a x-show="selectedModule.id === 'reports'" href="/reports/journal" class="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-sky-700">Open ledger</a>
+                        @can('access-enterprise')
+                            <a x-show="selectedModule.id === 'reports'" href="/reports/journal" class="rounded-lg bg-sky-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-sky-700">Open ledger</a>
+                        @endcan
                     </div>
                 </section>
             </div>

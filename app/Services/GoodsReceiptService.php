@@ -91,8 +91,8 @@ class GoodsReceiptService
         }
 
         return DB::transaction(function () use ($data, $actor, $paymentType, $purchaseOrder): GoodsReceipt {
-            // Resolve central branch
-            $branch = $this->resolveCentralBranch($data['branch_id'] ?? $purchaseOrder?->branch_id);
+            // Resolve branch (central branch or actor's own branch)
+            $branch = $this->resolveCentralBranch($data['branch_id'] ?? $purchaseOrder?->branch_id ?? ($actor->isMaster() ? null : $actor->branch_id));
 
             // Resolve accounting ledgers
             $inventoryAccount = $this->resolveInventoryAccount();

@@ -21,6 +21,7 @@ class WebAuthTest extends TestCase
             'branch_id' => $branch->id,
             'email' => 'admin1@majubersama.test',
             'password' => 'password',
+            'role' => 'admin',
         ]);
 
         $this->post('/login', [

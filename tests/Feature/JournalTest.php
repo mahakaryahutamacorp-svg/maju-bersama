@@ -56,10 +56,32 @@ class JournalTest extends TestCase
         $this->assertDatabaseCount('journal_headers', 0);
     }
 
+    public function test_cashier_and_branch_admin_cannot_post_journals_api(): void
+    {
+        $branch = Branch::create(['code' => 'PUSAT', 'name' => 'Pusat']);
+        $cash = ChartOfAccount::create(['code' => '1110', 'name' => 'Kas', 'type' => 'asset']);
+        $revenue = ChartOfAccount::create(['code' => '4110', 'name' => 'Pendapatan', 'type' => 'revenue']);
+
+        foreach (['kasir', 'branch_admin'] as $role) {
+            $user = User::factory()->create(['branch_id' => $branch->id, 'role' => $role]);
+            Sanctum::actingAs($user);
+
+            $this->postJson('/api/journals', [
+                'transaction_date' => '2026-09-11',
+                'reference_number' => 'JV-003',
+                'description' => 'Unauthorized journal',
+                'lines' => [
+                    ['chart_of_account_id' => $cash->id, 'debit' => 100, 'credit' => 0],
+                    ['chart_of_account_id' => $revenue->id, 'debit' => 0, 'credit' => 100],
+                ],
+            ])->assertForbidden();
+        }
+    }
+
     private function journalSetup(): array
     {
         $branch = Branch::create(['code' => 'PUSAT', 'name' => 'Pusat']);
-        $user = User::factory()->create(['branch_id' => $branch->id]);
+        $user = User::factory()->create(['branch_id' => $branch->id, 'role' => 'master']);
         $cash = ChartOfAccount::create(['code' => '1110', 'name' => 'Kas', 'type' => 'asset']);
         $revenue = ChartOfAccount::create(['code' => '4110', 'name' => 'Pendapatan', 'type' => 'revenue']);
 

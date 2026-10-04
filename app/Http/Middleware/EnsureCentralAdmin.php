@@ -22,11 +22,8 @@ class EnsureCentralAdmin
             abort(401);
         }
 
-        $branch = $user->branch;
-        $isCentral = $branch && ($branch->parent_id === null || $branch->code === 'PUSAT');
-
-        if (! $user->isMaster() && ! $isCentral) {
-            abort(403, 'Akses terbatas hanya untuk Master Administrator atau Staff Gudang Pusat.');
+        if (! $user->isMaster() && ! $user->isBranchAdmin()) {
+            abort(403, 'Akses terbatas hanya untuk Master Administrator atau Staf Pengelola Gudang.');
         }
 
         return $next($request);

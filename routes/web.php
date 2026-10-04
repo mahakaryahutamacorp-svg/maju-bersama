@@ -24,116 +24,152 @@ Route::get('/login', [AuthController::class, 'create'])->name('login');
 Route::post('/login', [AuthController::class, 'store']);
 
 Route::middleware('auth')->group(function () {
-	Route::get('/preview', [PreviewController::class, 'index'])->name('preview');
 	Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
 	Route::get('/backoffice', [BackofficeController::class, 'index']);
 	Route::get('/dashboard', [BackofficeController::class, 'index'])->name('dashboard');
-	Route::get('/inventory', [InventoryController::class, 'index']);
-	Route::get('/inventory/transfer', [StockTransferController::class, 'index'])->name('stock-transfer');
+
+	// POS Kasir Operasional (Semua role terotentikasi)
 	Route::get('/pos', [PosController::class, 'index'])->name('pos');
 	Route::post('/pos', [PosController::class, 'store'])->name('pos.store');
 	Route::post('/pos/shift/open', [PosController::class, 'openShift'])->name('pos.shift.open');
 	Route::post('/pos/shift/close', [PosController::class, 'closeShift'])->name('pos.shift.close');
 	Route::get('/pos/receipt/{receipt_number}', [PosController::class, 'receipt'])->name('pos.receipt');
 	Route::post('/pos/customers', [PosController::class, 'storeCustomer'])->name('pos.customers.store');
-	Route::get('/reports/journal', [ReportController::class, 'journal']);
-	Route::get('/reports/inventory/stock-card', [StockCardController::class, 'index'])->name('reports.inventory.stock-card');
-	Route::post('/fixed-assets/run-depreciation', [App\Http\Controllers\Web\FixedAssetController::class, 'runDepreciation']);
 
-	Route::prefix('inventory/adjustments')->name('inventory.adjustments.')->group(function () {
-		Route::get('/', [StockAdjustmentController::class, 'index'])->name('index');
-		Route::get('/create', [StockAdjustmentController::class, 'create'])->name('create');
-		Route::post('/', [StockAdjustmentController::class, 'store'])->name('store');
-		Route::get('/{id}', [StockAdjustmentController::class, 'show'])->name('show');
+	Route::middleware('can:manage-branch-operations')->group(function () {
+		Route::post('/fixed-assets/run-depreciation', [App\Http\Controllers\Web\FixedAssetController::class, 'runDepreciation']);
 	});
 
-	Route::prefix('reports/accounting')->name('reports.accounting.')->group(function () {
-		Route::get('/ledger', [AccountingReportController::class, 'ledger'])->name('ledger');
-		Route::get('/trial-balance', [AccountingReportController::class, 'trialBalance'])->name('trial-balance');
-		Route::get('/income-statement', [AccountingReportController::class, 'incomeStatement'])->name('income-statement');
+	// Divisi 2: Gudang & Inventaris (Master & Branch Admin)
+	Route::middleware('can:access-inventory')->group(function () {
+		Route::get('/inventory', [InventoryController::class, 'index']);
+		Route::get('/inventory/transfer', [StockTransferController::class, 'index'])->name('stock-transfer');
+
+		Route::prefix('inventory/adjustments')->name('inventory.adjustments.')->group(function () {
+			Route::get('/', [StockAdjustmentController::class, 'index'])->name('index');
+			Route::get('/create', [StockAdjustmentController::class, 'create'])->name('create');
+			Route::post('/', [StockAdjustmentController::class, 'store'])->name('store');
+			Route::get('/{id}', [StockAdjustmentController::class, 'show'])->name('show');
+		});
+
+		Route::prefix('purchases/goods-receipts')->name('purchases.goods-receipts.')->middleware(EnsureCentralAdmin::class)->group(function () {
+			Route::get('/', [GoodsReceiptController::class, 'index'])->name('index');
+			Route::get('/create', [GoodsReceiptController::class, 'create'])->name('create');
+			Route::post('/', [GoodsReceiptController::class, 'store'])->name('store');
+			Route::get('/{id}', [GoodsReceiptController::class, 'show'])->name('show');
+		});
 	});
 
-	Route::prefix('purchases/goods-receipts')->name('purchases.goods-receipts.')->middleware(EnsureCentralAdmin::class)->group(function () {
-		Route::get('/', [GoodsReceiptController::class, 'index'])->name('index');
-		Route::get('/create', [GoodsReceiptController::class, 'create'])->name('create');
-		Route::post('/', [GoodsReceiptController::class, 'store'])->name('store');
-		Route::get('/{id}', [GoodsReceiptController::class, 'show'])->name('show');
+	// Divisi Keuangan & Akuntansi Enterprise + Laporan Konsolidasi (HANYA Master)
+	Route::middleware('can:view-accounting')->group(function () {
+		Route::get('/reports/journal', [ReportController::class, 'journal']);
+		Route::get('/reports/inventory/stock-card', [StockCardController::class, 'index'])->name('reports.inventory.stock-card');
+
+		Route::prefix('reports/accounting')->name('reports.accounting.')->group(function () {
+			Route::get('/ledger', [AccountingReportController::class, 'ledger'])->name('ledger');
+			Route::get('/trial-balance', [AccountingReportController::class, 'trialBalance'])->name('trial-balance');
+			Route::get('/income-statement', [AccountingReportController::class, 'incomeStatement'])->name('income-statement');
+		});
+
+		// Hutang Distributor (Accounts Payable)
+		Route::prefix('purchases/payables')->name('purchases.payables')->group(function () {
+			Route::get('/', [App\Http\Controllers\Web\PurchasePayableController::class, 'index']);
+			Route::post('/{purchase}/payments', [App\Http\Controllers\Web\PurchasePayableController::class, 'storePayment'])->name('.payment');
+		});
 	});
 
-	// Hutang Distributor (Accounts Payable)
-	Route::prefix('purchases/payables')->name('purchases.payables')->group(function () {
-		Route::get('/', [App\Http\Controllers\Web\PurchasePayableController::class, 'index']);
-		Route::post('/{purchase}/payments', [App\Http\Controllers\Web\PurchasePayableController::class, 'storePayment'])->name('.payment');
+	// Pengaturan Sistem Tertinggi (HANYA Master)
+	Route::middleware('can:manage-system')->group(function () {
+		Route::get('/preview', [PreviewController::class, 'index'])->name('preview');
 	});
-
 
 	Route::prefix('backoffice')->name('backoffice.')->group(function () {
-		// Products
+		// Products (Katalog Produk)
 		Route::get('products/check-duplicate', [App\Http\Controllers\Web\ProductController::class, 'checkDuplicate'])->name('products.check-duplicate');
 		Route::resource('products', App\Http\Controllers\Web\ProductController::class)->except(['show']);
-
-		// Categories
-		Route::get('categories', [App\Http\Controllers\Web\CategoryController::class, 'index'])->name('categories.index');
-		Route::post('categories', [App\Http\Controllers\Web\CategoryController::class, 'store'])->name('categories.store');
-		Route::put('categories/{id}', [App\Http\Controllers\Web\CategoryController::class, 'update'])->name('categories.update');
-		Route::delete('categories/{id}', [App\Http\Controllers\Web\CategoryController::class, 'destroy'])->name('categories.destroy');
-
-		// Users & Cashiers
-		Route::resource('users', App\Http\Controllers\Web\UserController::class)->except(['show']);
-
-		// Branches (Strictly Master only)
-		Route::resource('branches', App\Http\Controllers\Web\BranchController::class)->except(['show']);
-
-		// Warehouses (Master: all branches, Branch Admin: own branch only)
-		Route::resource('warehouses', WarehouseController::class)->except(['show']);
-
-		// Suppliers
-		Route::resource('suppliers', App\Http\Controllers\Web\SupplierController::class);
 
 		// Customers (Pelanggan & Multi-Price)
 		Route::resource('customers', App\Http\Controllers\Web\CustomerController::class);
 
-		// Sales Returns (Retur Penjualan Pelanggan)
+		// Sales Returns (Retur Penjualan Pelanggan - kasir / counter)
 		Route::resource('sales-returns', App\Http\Controllers\Web\SalesReturnController::class);
 
-		// Purchase Orders
-		Route::resource('purchase-orders', App\Http\Controllers\Web\PurchaseOrderController::class);
+		// Operasional Gudang & Cabang (Master & Branch Admin)
+		Route::middleware('can:access-inventory')->group(function () {
+			Route::resource('warehouses', WarehouseController::class)->except(['show']);
+		});
 
-		// Purchase Returns (Retur Pembelian)
-		Route::resource('purchase-returns', App\Http\Controllers\Web\PurchaseReturnController::class);
+		// Operasional Keuangan Cabang & Pembelian Cabang (Master & Branch Admin)
+		Route::middleware('can:manage-branch-operations')->group(function () {
+			// Categories
+			Route::get('categories', [App\Http\Controllers\Web\CategoryController::class, 'index'])->name('categories.index');
+			Route::post('categories', [App\Http\Controllers\Web\CategoryController::class, 'store'])->name('categories.store');
+			Route::put('categories/{id}', [App\Http\Controllers\Web\CategoryController::class, 'update'])->name('categories.update');
+			Route::delete('categories/{id}', [App\Http\Controllers\Web\CategoryController::class, 'destroy'])->name('categories.destroy');
 
-		// Supplier Payments
-		Route::resource('supplier-payments', App\Http\Controllers\Web\SupplierPaymentController::class);
+			// Users & Cashiers
+			Route::resource('users', App\Http\Controllers\Web\UserController::class)->except(['show']);
 
-		// Expense Categories (Master Data Beban)
-		Route::resource('expense-categories', App\Http\Controllers\Web\ExpenseCategoryController::class);
+			// Suppliers
+			Route::resource('suppliers', App\Http\Controllers\Web\SupplierController::class);
 
-		// Expenses (Biaya Operasional / Kas Keluar)
-		Route::resource('expenses', App\Http\Controllers\Web\ExpenseController::class);
+			// Purchase Orders & Returns
+			Route::resource('purchase-orders', App\Http\Controllers\Web\PurchaseOrderController::class);
+			Route::resource('purchase-returns', App\Http\Controllers\Web\PurchaseReturnController::class);
 
-		// Cash Transfers (Mutasi / Transfer Antar Kas & Bank)
-		Route::resource('cash-transfers', App\Http\Controllers\Web\CashTransferController::class);
+			// Expense Categories & Expenses (Biaya Operasional Cabang)
+			Route::resource('expense-categories', App\Http\Controllers\Web\ExpenseCategoryController::class);
+			Route::resource('expenses', App\Http\Controllers\Web\ExpenseController::class);
 
-		// Cash Transactions (Mutasi Kas, Kas Masuk & Kas Keluar)
-		Route::resource('cash-transactions', App\Http\Controllers\Web\CashTransactionController::class);
+			// Cash Transfers & Transactions (Mutasi Kas Cabang)
+			Route::resource('cash-transfers', App\Http\Controllers\Web\CashTransferController::class);
+			Route::resource('cash-transactions', App\Http\Controllers\Web\CashTransactionController::class);
 
-		// Opening Balances (Setup Saldo Awal Sistem)
-		Route::get('opening-balances', [App\Http\Controllers\Web\OpeningBalanceController::class, 'create'])->name('opening-balances.create');
-		Route::post('opening-balances', [App\Http\Controllers\Web\OpeningBalanceController::class, 'store'])->name('opening-balances.store');
+			// Opening Balances (Setup Saldo Awal Cabang)
+			Route::get('opening-balances', [App\Http\Controllers\Web\OpeningBalanceController::class, 'create'])->name('opening-balances.create');
+			Route::post('opening-balances', [App\Http\Controllers\Web\OpeningBalanceController::class, 'store'])->name('opening-balances.store');
 
-		// Fixed Assets (Harta Tetap & Depresiasi)
-		Route::post('fixed-assets/run-depreciation', [App\Http\Controllers\Web\FixedAssetController::class, 'runDepreciation'])->name('fixed-assets.run-depreciation');
-		Route::resource('fixed-assets', App\Http\Controllers\Web\FixedAssetController::class);
+			// Fixed Assets (Harta Tetap Cabang)
+			Route::post('fixed-assets/run-depreciation', [App\Http\Controllers\Web\FixedAssetController::class, 'runDepreciation'])->name('fixed-assets.run-depreciation');
+			Route::resource('fixed-assets', App\Http\Controllers\Web\FixedAssetController::class);
+			Route::get('reports/fixed-assets', [ReportController::class, 'fixedAssets'])->name('reports.fixed-assets');
 
-		// AR & AP Payments (Pembayaran Piutang & Hutang)
-		Route::get('payments', [App\Http\Controllers\Web\PaymentController::class, 'index'])->name('payments.index');
-		Route::get('payments/receivables/create', [App\Http\Controllers\Web\PaymentController::class, 'createAR'])->name('payments.receivables.create');
-		Route::post('payments/receivables', [App\Http\Controllers\Web\PaymentController::class, 'storeAR'])->name('payments.receivables.store');
-		Route::get('payments/payables/create', [App\Http\Controllers\Web\PaymentController::class, 'createAP'])->name('payments.payables.create');
-		Route::post('payments/payables', [App\Http\Controllers\Web\PaymentController::class, 'storeAP'])->name('payments.payables.store');
+			// Payments (Pembayaran Piutang & Hutang Operasional)
+			Route::get('payments', [App\Http\Controllers\Web\PaymentController::class, 'index'])->name('payments.index');
+			Route::get('payments/receivables/create', [App\Http\Controllers\Web\PaymentController::class, 'createAR'])->name('payments.receivables.create');
+			Route::post('payments/receivables', [App\Http\Controllers\Web\PaymentController::class, 'storeAR'])->name('payments.receivables.store');
+			Route::get('payments/payables/create', [App\Http\Controllers\Web\PaymentController::class, 'createAP'])->name('payments.payables.create');
+			Route::post('payments/payables', [App\Http\Controllers\Web\PaymentController::class, 'storeAP'])->name('payments.payables.store');
+		});
 
-		// Stock Opname (Penyesuaian Persediaan)
-		Route::prefix('inventory/adjustments')->group(function () {
+		// Modul Enterprise (HANYA Master)
+		Route::middleware('can:view-accounting')->group(function () {
+			Route::resource('supplier-payments', App\Http\Controllers\Web\SupplierPaymentController::class);
+
+			// Report Center (Pusat Laporan)
+			Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+			Route::get('reports/income-statement', [ReportController::class, 'incomeStatement'])->name('reports.income-statement');
+			Route::get('reports/trial-balance', [ReportController::class, 'trialBalance'])->name('reports.trial-balance');
+			Route::get('reports/balance-sheet', [ReportController::class, 'balanceSheet'])->name('reports.balance-sheet');
+			Route::get('reports/cash-flow', [ReportController::class, 'cashFlow'])->name('reports.cash-flow');
+
+			// Operational Reports
+			Route::get('reports/sales', [ReportController::class, 'sales'])->name('reports.sales');
+			Route::get('reports/purchases', [ReportController::class, 'purchases'])->name('reports.purchases');
+			Route::get('reports/inventory/stock-card', [ReportController::class, 'stockCard'])->name('reports.stock-card');
+			Route::get('reports/ar-aging', [ReportController::class, 'arAging'])->name('reports.ar-aging');
+			Route::get('reports/ap-aging', [ReportController::class, 'apAging'])->name('reports.ap-aging');
+		});
+
+		// Pengaturan Sistem (HANYA Master)
+		Route::middleware('can:manage-system')->group(function () {
+			Route::resource('branches', App\Http\Controllers\Web\BranchController::class)->except(['show']);
+			Route::post('backup/generate', [BackupController::class, 'generate'])->name('backup.generate');
+			Route::get('backup/download', [BackupController::class, 'download'])->name('backup.download');
+		});
+
+		// Stock Opname
+		Route::prefix('inventory/adjustments')->middleware('can:access-inventory')->group(function () {
 			Route::get('/', [StockAdjustmentController::class, 'index']);
 			Route::get('/create', [StockAdjustmentController::class, 'create']);
 			Route::post('/', [StockAdjustmentController::class, 'store']);
@@ -142,42 +178,29 @@ Route::middleware('auth')->group(function () {
 
 		// Universal Transaction Viewer (Modal)
 		Route::get('transactions/{reference}/details', [App\Http\Controllers\TransactionViewerController::class, 'show'])->name('transactions.details');
-
-		// Report Center (Pusat Laporan)
-		Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
-		Route::get('reports/income-statement', [ReportController::class, 'incomeStatement'])->name('reports.income-statement');
-		Route::get('reports/trial-balance', [ReportController::class, 'trialBalance'])->name('reports.trial-balance');
-		Route::get('reports/balance-sheet', [ReportController::class, 'balanceSheet'])->name('reports.balance-sheet');
-		Route::get('reports/cash-flow', [ReportController::class, 'cashFlow'])->name('reports.cash-flow');
-
-		// Operational Reports
-		Route::get('reports/sales', [ReportController::class, 'sales'])->name('reports.sales');
-		Route::get('reports/purchases', [ReportController::class, 'purchases'])->name('reports.purchases');
-		Route::get('reports/inventory/stock-card', [ReportController::class, 'stockCard'])->name('reports.stock-card');
-		Route::get('reports/fixed-assets', [ReportController::class, 'fixedAssets'])->name('reports.fixed-assets');
-		Route::get('reports/ar-aging', [ReportController::class, 'arAging'])->name('reports.ar-aging');
-		Route::get('reports/ap-aging', [ReportController::class, 'apAging'])->name('reports.ap-aging');
-
-		// Database Backup
-		Route::post('backup/generate', [BackupController::class, 'generate'])->name('backup.generate');
-		Route::get('backup/download', [BackupController::class, 'download'])->name('backup.download');
 	});
 
 	Route::get('/backoffice/stock-transfers/{reference}/print', [StockTransferPrintController::class, 'print'])->name('stock-transfers.print');
 	Route::get('/backoffice/transactions/{reference}/details', [App\Http\Controllers\TransactionViewerController::class, 'show'])->name('transactions.details');
-	Route::get('/backoffice/reports', [ReportController::class, 'index'])->name('reports.index');
-	Route::get('/backoffice/reports/income-statement', [ReportController::class, 'incomeStatement'])->name('reports.income-statement');
-	Route::get('/backoffice/reports/trial-balance', [ReportController::class, 'trialBalance'])->name('reports.trial-balance');
-	Route::get('/backoffice/reports/balance-sheet', [ReportController::class, 'balanceSheet'])->name('reports.balance-sheet');
-	Route::get('/backoffice/reports/cash-flow', [ReportController::class, 'cashFlow'])->name('reports.cash-flow');
 
-	Route::prefix('/backoffice/reports')->group(function () {
-		Route::get('/sales', [ReportController::class, 'sales'])->name('reports.sales');
-		Route::get('/purchases', [ReportController::class, 'purchases'])->name('reports.purchases');
-		Route::get('/inventory/stock-card', [ReportController::class, 'stockCard'])->name('reports.stock-card');
-		Route::get('/fixed-assets', [ReportController::class, 'fixedAssets'])->name('reports.fixed-assets');
-		Route::get('/ar-aging', [ReportController::class, 'arAging'])->name('reports.ar-aging');
-		Route::get('/ap-aging', [ReportController::class, 'apAging'])->name('reports.ap-aging');
+	Route::middleware('can:manage-branch-operations')->group(function () {
+		Route::get('/backoffice/reports/fixed-assets', [ReportController::class, 'fixedAssets'])->name('reports.fixed-assets');
+	});
+
+	Route::middleware('can:view-accounting')->group(function () {
+		Route::get('/backoffice/reports', [ReportController::class, 'index'])->name('reports.index');
+		Route::get('/backoffice/reports/income-statement', [ReportController::class, 'incomeStatement'])->name('reports.income-statement');
+		Route::get('/backoffice/reports/trial-balance', [ReportController::class, 'trialBalance'])->name('reports.trial-balance');
+		Route::get('/backoffice/reports/balance-sheet', [ReportController::class, 'balanceSheet'])->name('reports.balance-sheet');
+		Route::get('/backoffice/reports/cash-flow', [ReportController::class, 'cashFlow'])->name('reports.cash-flow');
+
+		Route::prefix('/backoffice/reports')->group(function () {
+			Route::get('/sales', [ReportController::class, 'sales'])->name('reports.sales');
+			Route::get('/purchases', [ReportController::class, 'purchases'])->name('reports.purchases');
+			Route::get('/inventory/stock-card', [ReportController::class, 'stockCard'])->name('reports.stock-card');
+			Route::get('/ar-aging', [ReportController::class, 'arAging'])->name('reports.ar-aging');
+			Route::get('/ap-aging', [ReportController::class, 'apAging'])->name('reports.ap-aging');
+		});
 	});
 });
 

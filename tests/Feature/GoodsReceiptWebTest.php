@@ -155,4 +155,78 @@ class GoodsReceiptWebTest extends TestCase
         $poItem->refresh();
         $this->assertEquals(6, $poItem->received_quantity);
     }
+
+    public function test_branch_admin_can_access_goods_receipts_for_own_branch(): void
+    {
+        $branchAdmin = User::factory()->create([
+            'branch_id' => $this->branchOne->id,
+            'role' => 'branch_admin',
+        ]);
+
+        $productBranchOne = Product::create([
+            'branch_id' => $this->branchOne->id,
+            'category_id' => $this->product->category_id,
+            'sku' => 'PRD-BR1-01',
+            'name' => 'Produk Cabang Satu',
+            'purchase_price' => 30000,
+            'selling_price' => 45000,
+            'stock' => 5,
+        ]);
+
+        // 1. Can view index and create page
+        $indexResponse = $this->actingAs($branchAdmin)->get('/purchases/goods-receipts');
+        $indexResponse->assertStatus(200);
+
+        $createResponse = $this->actingAs($branchAdmin)->get('/purchases/goods-receipts/create');
+        $createResponse->assertStatus(200);
+        $createResponse->assertSee('Produk Cabang Satu');
+
+        // 2. Can store goods receipt for own branch
+        $payload = [
+            'supplier_name' => 'Supplier Lokal Cabang 1',
+            'date' => now()->toDateString(),
+            'payment_type' => 'cash',
+            'reference_number' => 'GR-BR1-001',
+            'items' => [
+                [
+                    'product_id' => $productBranchOne->id,
+                    'quantity' => 10,
+                    'unit_price' => 30000,
+                ],
+            ],
+        ];
+
+        $postResponse = $this->actingAs($branchAdmin)->post('/purchases/goods-receipts', $payload);
+        $postResponse->assertSessionHasNoErrors();
+        $postResponse->assertRedirect();
+
+        $receipt = \App\Models\GoodsReceipt::where('reference_number', 'GR-BR1-001')->firstOrFail();
+        $this->assertEquals($this->branchOne->id, $receipt->branch_id);
+
+        // 3. Can view own branch show slip
+        $showResponse = $this->actingAs($branchAdmin)->get(route('purchases.goods-receipts.show', $receipt->id));
+        $showResponse->assertStatus(200);
+        $showResponse->assertSee('GR-BR1-001');
+    }
+
+    public function test_branch_admin_cannot_view_goods_receipt_of_another_branch(): void
+    {
+        $branchAdmin = User::factory()->create([
+            'branch_id' => $this->branchOne->id,
+            'role' => 'branch_admin',
+        ]);
+
+        // Receipt belonging to central
+        $centralReceipt = \App\Models\GoodsReceipt::create([
+            'branch_id' => $this->central->id,
+            'reference_number' => 'GR-CENTRAL-999',
+            'supplier_name' => 'Pusat Supplier',
+            'date' => now()->toDateString(),
+            'total_amount' => 100000,
+            'payment_type' => 'cash',
+        ]);
+
+        $response = $this->actingAs($branchAdmin)->get(route('purchases.goods-receipts.show', $centralReceipt->id));
+        $response->assertStatus(403);
+    }
 }

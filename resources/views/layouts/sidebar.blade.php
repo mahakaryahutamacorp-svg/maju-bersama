@@ -130,6 +130,8 @@
             </div>
         </div>
 
+        {{-- RBAC: Divisi 2 & 3 hanya untuk master + branch_admin. Kasir tidak menerima markup ini sama sekali. --}}
+        @can('access-inventory')
         <!-- DIVISI 2: 📦 Gudang & Inventaris -->
         <div x-data="{ open: {{ $isGudangOpen ? 'true' : 'false' }} }" class="rounded-xl border border-slate-800/80 bg-slate-900/40 overflow-hidden">
             <button type="button" 
@@ -199,44 +201,54 @@
                  x-transition:leave-start="opacity-100 translate-y-0"
                  x-transition:leave-end="opacity-0 -translate-y-1"
                  class="space-y-0.5 px-1 py-1 border-t border-slate-800/60 bg-slate-950/40">
-                <a href="/backoffice/products" 
-                   class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isProductsActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
-                    Katalog Produk
-                </a>
-                <a href="/backoffice/categories" 
-                   class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isCategoriesActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
-                    Kategori Produk
-                </a>
-                <a href="{{ route('backoffice.suppliers.index') }}" 
-                   class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isSuppliersActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
-                    Data Supplier
-                </a>
-                <a href="{{ route('backoffice.customers.index') }}" 
-                   class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isCustomersActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
-                    Data Pelanggan
-                </a>
-                <a href="/backoffice/users" 
-                   class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isUsersActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
-                    Staf &amp; Kasir
-                </a>
-                @if ($sidebarIsMaster)
+                {{-- Sebagian Master Data: master + branch_admin --}}
+                @can('manage-catalog')
+                    <a href="/backoffice/products" 
+                       class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isProductsActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
+                        Katalog Produk
+                    </a>
+                @endcan
+                @can('manage-system')
+                    <a href="/backoffice/categories" 
+                       class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isCategoriesActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
+                        Kategori Produk
+                    </a>
+                    <a href="{{ route('backoffice.suppliers.index') }}" 
+                       class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isSuppliersActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
+                        Data Supplier
+                    </a>
+                @endcan
+                @can('manage-catalog')
+                    <a href="{{ route('backoffice.customers.index') }}" 
+                       class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isCustomersActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
+                        Data Pelanggan
+                    </a>
+                @endcan
+                {{-- Pengaturan master: HANYA master --}}
+                @can('manage-system')
+                    <a href="/backoffice/users" 
+                       class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isUsersActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
+                        Staf &amp; Kasir
+                    </a>
                     <a href="/backoffice/branches" 
                        class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isBranchesActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
                         Manajemen Cabang
                     </a>
-                @endif
-                <a href="{{ route('backoffice.expense-categories.index') }}" 
-                   class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isExpenseCatActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
-                    Kategori Biaya
-                </a>
-                @if ($sidebarIsMaster)
+                    <a href="{{ route('backoffice.expense-categories.index') }}" 
+                       class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isExpenseCatActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
+                        Kategori Biaya
+                    </a>
                     <a href="{{ route('preview') }}" 
                        class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isPreviewActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
                         Preview Data Sistem
                     </a>
-                @endif
+                @endcan
             </div>
         </div>
+        @endcan
+
+        {{-- RBAC: Divisi 4, 5, 6 & Pusat Laporan = modul Enterprise, HANYA role master. --}}
+        @can('access-enterprise')
 
         <!-- DIVISI 4: 🛒 Penjualan & Piutang (AR) -->
         <div x-data="{ open: {{ $isPenjualanOpen ? 'true' : 'false' }} }" class="rounded-xl border border-slate-800/80 bg-slate-900/40 overflow-hidden">
@@ -376,6 +388,7 @@
                 <span class="rounded bg-amber-400/20 px-1.5 py-0.5 text-[9px] font-bold text-amber-300">Report Center</span>
             </a>
         </div>
+        @endcan
     </nav>
 </aside>
 

@@ -72,7 +72,26 @@ class User extends Authenticatable
 
     public function isMaster(): bool
     {
-        return in_array($this->role, ['master', 'superadmin', 'admin'], true);
+        return in_array($this->role, ['master', 'superadmin'], true);
+    }
+
+    /**
+     * Admin level cabang: boleh mengelola gudang/inventaris & sebagian master data,
+     * tetapi TIDAK boleh mengakses modul Enterprise (AR, AP, Keuangan & Akuntansi).
+     */
+    public function isBranchAdmin(): bool
+    {
+        return ! $this->isMaster()
+            && in_array($this->role, ['admin', 'branch_admin', 'manager', 'central_admin'], true);
+    }
+
+    /**
+     * Kasir / level terendah. Role yang tidak dikenali otomatis diperlakukan
+     * sebagai kasir (prinsip least privilege / default-deny).
+     */
+    public function isCashier(): bool
+    {
+        return ! $this->isMaster() && ! $this->isBranchAdmin();
     }
 
 }

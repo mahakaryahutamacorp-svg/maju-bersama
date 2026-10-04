@@ -49,15 +49,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/stock-transfers', [StockTransferController::class, 'store']);
     Route::get('/stock-transfers/{stockTransfer}', [StockTransferController::class, 'show']);
 
-    Route::post('/journals', [JournalController::class, 'store']);
     Route::post('/checkout', [CheckoutController::class, 'store']);
 
-    // Purchases & Flexible Accounts Payable (Distributor)
-    Route::get('/purchases', [PurchaseController::class, 'index']);
-    Route::post('/purchases', [PurchaseController::class, 'store']);
-    Route::get('/purchases/{purchase}', [PurchaseController::class, 'show']);
-    Route::get('/purchase-payments', [PurchasePaymentController::class, 'index']);
-    Route::post('/purchase-payments', [PurchasePaymentController::class, 'store']);
-    Route::post('/purchases/{purchase}/payments', [PurchasePaymentController::class, 'store']);
+    // Enterprise Accounting & AP (Strictly Master only)
+    Route::middleware('can:view-accounting')->group(function () {
+        Route::post('/journals', [JournalController::class, 'store']);
+
+        // Purchases & Flexible Accounts Payable (Distributor)
+        Route::get('/purchases', [PurchaseController::class, 'index']);
+        Route::post('/purchases', [PurchaseController::class, 'store']);
+        Route::get('/purchases/{purchase}', [PurchaseController::class, 'show']);
+        Route::get('/purchase-payments', [PurchasePaymentController::class, 'index']);
+        Route::post('/purchase-payments', [PurchasePaymentController::class, 'store']);
+        Route::post('/purchases/{purchase}/payments', [PurchasePaymentController::class, 'store']);
+    });
 });
 
