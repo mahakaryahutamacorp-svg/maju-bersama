@@ -7,6 +7,7 @@ use App\Models\ChartOfAccount;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
 use App\Services\ExpenseService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -20,7 +21,7 @@ class ExpenseController extends Controller
     /**
      * Tampilkan riwayat pengeluaran kas biaya operasional.
      */
-    public function index(Request $request): View
+    public function index(Request $request): View|JsonResponse
     {
         $user = $request->user()->load('branch');
         $search = $request->input('search');
@@ -51,16 +52,25 @@ class ExpenseController extends Controller
 
         $categories = ExpenseCategory::orderBy('name')->get();
 
+        if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'data' => $expenses->items(),
+                'total' => $expenses->total(),
+                'totalExpenses' => $totalExpenses,
+            ]);
+        }
+
         return view('backoffice.expenses.index', [
-            'currentUser'        => $user,
-            'isMaster'           => $user->isMaster(),
-            'expenses'           => $expenses,
-            'totalExpenses'      => $totalExpenses,
-            'expenseCount'       => $expenseCount,
-            'categories'         => $categories,
-            'search'             => $search,
-            'startDate'          => $startDate,
-            'endDate'            => $endDate,
+            'currentUser' => $user,
+            'isMaster' => $user->isMaster(),
+            'expenses' => $expenses,
+            'totalExpenses' => $totalExpenses,
+            'expenseCount' => $expenseCount,
+            'categories' => $categories,
+            'search' => $search,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
             'selectedCategoryId' => $categoryId,
         ]);
     }
@@ -82,8 +92,8 @@ class ExpenseController extends Controller
         $accounts = ChartOfAccount::where('type', 'asset')
             ->where(function ($q) {
                 $q->where('code', 'like', '11%')
-                  ->orWhere('name', 'like', '%kas%')
-                  ->orWhere('name', 'like', '%bank%');
+                    ->orWhere('name', 'like', '%kas%')
+                    ->orWhere('name', 'like', '%bank%');
             })
             ->orderBy('code')
             ->get();
@@ -94,40 +104,48 @@ class ExpenseController extends Controller
 
         return view('backoffice.expenses.create', [
             'currentUser' => $user,
-            'isMaster'    => $user->isMaster(),
-            'categories'  => $categories,
-            'accounts'    => $accounts,
-            'todayDate'   => now()->toDateString(),
+            'isMaster' => $user->isMaster(),
+            'categories' => $categories,
+            'accounts' => $accounts,
+            'todayDate' => now()->toDateString(),
         ]);
     }
 
     /**
      * Simpan transaksi kas keluar dan posting jurnal akuntansi otomatis.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
             'expense_category_id' => ['required', 'integer', 'exists:expense_categories,id'],
-            'account_id'          => ['required', 'integer', 'exists:chart_of_accounts,id'],
-            'amount'              => ['required', 'numeric', 'min:0.01'],
-            'expense_date'        => ['required', 'date'],
-            'reference_number'    => ['nullable', 'string', 'max:100'],
-            'notes'               => ['required', 'string', 'max:1000'],
+            'account_id' => ['required', 'integer', 'exists:chart_of_accounts,id'],
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'expense_date' => ['required', 'date'],
+            'reference_number' => ['nullable', 'string', 'max:100'],
+            'notes' => ['required', 'string', 'max:1000'],
         ]);
 
         $expense = $this->expenseService->recordExpense([
-            'branch_id'           => $request->user()->branch_id,
-            'user_id'             => $request->user()->id,
+            'branch_id' => $request->user()->branch_id,
+            'user_id' => $request->user()->id,
             'expense_category_id' => (int) $validated['expense_category_id'],
-            'account_id'          => (int) $validated['account_id'],
-            'amount'              => $validated['amount'],
-            'expense_date'        => $validated['expense_date'],
-            'reference_number'    => $validated['reference_number'] ?: null,
-            'notes'               => $validated['notes'],
+            'account_id' => (int) $validated['account_id'],
+            'amount' => $validated['amount'],
+            'expense_date' => $validated['expense_date'],
+            'reference_number' => $validated['reference_number'] ?: null,
+            'notes' => $validated['notes'],
         ]);
 
-        $formattedAmount = 'Rp ' . number_format((float) $expense->amount, 0, ',', '.');
+        $formattedAmount = 'Rp '.number_format((float) $expense->amount, 0, ',', '.');
         $catName = $expense->expenseCategory?->name ?? 'Biaya';
+
+        if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => "Pengeluaran kas {$formattedAmount} untuk {$catName} berhasil dibukukan.",
+                'data' => $expense->load(['expenseCategory.chartOfAccount', 'chartOfAccount', 'journalHeader.journalLines']),
+            ], 201);
+        }
 
         return redirect()
             ->route('backoffice.expenses.index')
@@ -150,8 +168,8 @@ class ExpenseController extends Controller
 
         return view('backoffice.expenses.show', [
             'currentUser' => $user,
-            'isMaster'    => $user->isMaster(),
-            'expense'     => $expense,
+            'isMaster' => $user->isMaster(),
+            'expense' => $expense,
         ]);
     }
 }

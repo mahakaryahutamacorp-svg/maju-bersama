@@ -4,12 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\Branch;
 use App\Models\CashRegister;
-use App\Models\CashRegisterShift;
 use App\Models\Category;
 use App\Models\ChartOfAccount;
 use App\Models\Inventory;
 use App\Models\Product;
-use App\Models\Sale;
 use App\Models\User;
 use App\Services\CashRegisterShiftService;
 use App\Services\SalePostingService;
@@ -21,10 +19,15 @@ class PosShiftWebTest extends TestCase
     use RefreshDatabase;
 
     private Branch $branch;
+
     private User $cashier;
+
     private CashRegister $register;
+
     private Category $category;
+
     private Product $product;
+
     private CashRegisterShiftService $shiftService;
 
     protected function setUp(): void

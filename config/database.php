@@ -19,7 +19,7 @@ if (DIRECTORY_SEPARATOR === '\\') {
         '/usr/local/mysql/bin',
     ];
     foreach ($candidatePaths as $candidate) {
-        if (file_exists($candidate . '/mysqldump')) {
+        if (file_exists($candidate.'/mysqldump')) {
             $defaultMysqlDumpPath = $candidate;
             break;
         }

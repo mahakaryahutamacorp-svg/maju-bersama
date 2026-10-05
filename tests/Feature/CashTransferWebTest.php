@@ -16,8 +16,11 @@ class CashTransferWebTest extends TestCase
     use RefreshDatabase;
 
     private Branch $branch;
+
     private User $user;
+
     private ChartOfAccount $cashAccount;
+
     private ChartOfAccount $bankAccount;
 
     protected function setUp(): void
@@ -25,31 +28,31 @@ class CashTransferWebTest extends TestCase
         parent::setUp();
 
         $this->branch = Branch::create([
-            'name'    => 'Cabang Jakarta Pusat',
-            'code'    => 'JKT-01',
+            'name' => 'Cabang Jakarta Pusat',
+            'code' => 'JKT-01',
             'address' => 'Jl. Thamrin No. 1',
-            'phone'   => '0811001122',
+            'phone' => '0811001122',
         ]);
 
         $this->user = User::create([
-            'name'      => 'Admin Kasir JKT',
-            'email'     => 'kasir.jkt@example.com',
-            'password'  => bcrypt('password'),
-            'role'      => 'branch_admin',
+            'name' => 'Admin Kasir JKT',
+            'email' => 'kasir.jkt@example.com',
+            'password' => bcrypt('password'),
+            'role' => 'branch_admin',
             'branch_id' => $this->branch->id,
         ]);
 
         $this->cashAccount = ChartOfAccount::create([
-            'code'      => '1110',
-            'name'      => 'Kas Toko Utama',
-            'type'      => 'asset',
+            'code' => '1110',
+            'name' => 'Kas Toko Utama',
+            'type' => 'asset',
             'is_active' => true,
         ]);
 
         $this->bankAccount = ChartOfAccount::create([
-            'code'      => '1120',
-            'name'      => 'Rekening Bank BCA',
-            'type'      => 'asset',
+            'code' => '1120',
+            'name' => 'Rekening Bank BCA',
+            'type' => 'asset',
             'is_active' => true,
         ]);
     }
@@ -87,12 +90,12 @@ class CashTransferWebTest extends TestCase
         $this->actingAs($this->user);
 
         $data = [
-            'from_account_id'  => $this->cashAccount->id,
-            'to_account_id'    => $this->bankAccount->id,
-            'amount'           => 1250000,
-            'transfer_date'    => '2026-09-20',
+            'from_account_id' => $this->cashAccount->id,
+            'to_account_id' => $this->bankAccount->id,
+            'amount' => 1250000,
+            'transfer_date' => '2026-09-20',
             'reference_number' => 'TRF-TEST-WEB-01',
-            'notes'            => 'Setoran kas operasional harian ke BCA',
+            'notes' => 'Setoran kas operasional harian ke BCA',
         ];
 
         $response = $this->post(route('backoffice.cash-transfers.store'), $data);
@@ -101,12 +104,12 @@ class CashTransferWebTest extends TestCase
             ->assertSessionHas('success');
 
         $this->assertDatabaseHas('cash_transfers', [
-            'branch_id'        => $this->branch->id,
-            'from_account_id'  => $this->cashAccount->id,
-            'to_account_id'    => $this->bankAccount->id,
-            'amount'           => 1250000.00,
+            'branch_id' => $this->branch->id,
+            'from_account_id' => $this->cashAccount->id,
+            'to_account_id' => $this->bankAccount->id,
+            'amount' => 1250000.00,
             'reference_number' => 'TRF-TEST-WEB-01',
-            'notes'            => 'Setoran kas operasional harian ke BCA',
+            'notes' => 'Setoran kas operasional harian ke BCA',
         ]);
 
         $transfer = CashTransfer::where('reference_number', 'TRF-TEST-WEB-01')->first();
@@ -136,9 +139,9 @@ class CashTransferWebTest extends TestCase
 
         $response = $this->post(route('backoffice.cash-transfers.store'), [
             'from_account_id' => $this->cashAccount->id,
-            'to_account_id'   => $this->cashAccount->id, // Sama persis
-            'amount'          => 500000,
-            'transfer_date'   => '2026-09-20',
+            'to_account_id' => $this->cashAccount->id, // Sama persis
+            'amount' => 500000,
+            'transfer_date' => '2026-09-20',
         ]);
 
         $response->assertSessionHasErrors(['to_account_id']);
@@ -151,9 +154,9 @@ class CashTransferWebTest extends TestCase
 
         $response = $this->post(route('backoffice.cash-transfers.store'), [
             'from_account_id' => $this->cashAccount->id,
-            'to_account_id'   => $this->bankAccount->id,
-            'amount'          => 0,
-            'transfer_date'   => '2026-09-20',
+            'to_account_id' => $this->bankAccount->id,
+            'amount' => 0,
+            'transfer_date' => '2026-09-20',
         ]);
 
         $response->assertSessionHasErrors(['amount']);
@@ -166,13 +169,13 @@ class CashTransferWebTest extends TestCase
 
         $service = app(CashTransferService::class);
         $transfer = $service->processTransfer([
-            'branch_id'        => $this->branch->id,
-            'from_account_id'  => $this->cashAccount->id,
-            'to_account_id'    => $this->bankAccount->id,
-            'amount'           => 350000,
-            'transfer_date'    => '2026-09-20',
+            'branch_id' => $this->branch->id,
+            'from_account_id' => $this->cashAccount->id,
+            'to_account_id' => $this->bankAccount->id,
+            'amount' => 350000,
+            'transfer_date' => '2026-09-20',
             'reference_number' => 'TRF-VOUCHER-01',
-            'notes'            => 'Uji tampilan voucher',
+            'notes' => 'Uji tampilan voucher',
         ]);
 
         $response = $this->get(route('backoffice.cash-transfers.show', $transfer->id));

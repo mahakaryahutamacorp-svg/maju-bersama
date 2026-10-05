@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Branch;
 use App\Models\Category;
-use App\Models\ChartOfAccount;
 use App\Models\GoodsReceipt;
 use App\Models\Inventory;
 use App\Models\Product;
@@ -22,13 +21,21 @@ class PurchaseReturnServiceTest extends TestCase
     use RefreshDatabase;
 
     private Branch $branchA;
+
     private Branch $branchB;
+
     private User $userA;
+
     private User $masterUser;
+
     private Supplier $supplier;
+
     private Category $category;
+
     private Product $productA;
+
     private Product $productB;
+
     private PurchaseReturnService $service;
 
     protected function setUp(): void

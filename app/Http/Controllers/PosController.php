@@ -79,7 +79,7 @@ class PosController extends Controller
         if ($registers->isEmpty()) {
             $defaultRegister = CashRegister::create([
                 'branch_id' => $user->branch_id,
-                'name'      => 'Kasir Utama',
+                'name' => 'Kasir Utama',
                 'is_active' => true,
             ]);
             $registers = collect([$defaultRegister]);
@@ -106,7 +106,7 @@ class PosController extends Controller
 
         $skus = $products->pluck('sku')->filter()->unique()->values()->all();
         $otherStockMap = [];
-        if (!empty($skus)) {
+        if (! empty($skus)) {
             $otherBranchesQuery = Product::withoutGlobalScopes()
                 ->whereNull('deleted_at')
                 ->where('stock', '>', 0)
@@ -120,7 +120,7 @@ class PosController extends Controller
             $otherProducts = $otherBranchesQuery->get(['id', 'branch_id', 'sku', 'stock']);
 
             foreach ($otherProducts as $op) {
-                $branchName = $op->branch?->name ?? 'Cabang #' . $op->branch_id;
+                $branchName = $op->branch?->name ?? 'Cabang #'.$op->branch_id;
                 $otherStockMap[$op->sku][] = [
                     'branch_name' => $branchName,
                     'stock' => (int) $op->stock,
@@ -135,6 +135,7 @@ class PosController extends Controller
             $product->selling_price = $basePrice;
             $product->price = $basePrice;
             $product->other_branch_stock = $otherStockMap[$product->sku] ?? [];
+
             return $product;
         });
 
@@ -145,8 +146,8 @@ class PosController extends Controller
                 $query->where('branch_id', $branchId);
             }
         }])
-        ->orderBy('name')
-        ->get();
+            ->orderBy('name')
+            ->get();
 
         $customers = Customer::withoutGlobalScopes()
             ->with(['customerGroup', 'branch'])
@@ -158,15 +159,15 @@ class PosController extends Controller
         $viewName = view()->exists('pos.index') ? 'pos.index' : 'pos';
 
         return view($viewName, [
-            'products'        => $products,
-            'categories'      => $categories,
-            'customers'       => $customers,
-            'customerGroups'  => CustomerGroup::orderBy('id')->get(),
-            'previewToken'    => $token,
-            'currentUser'     => $user,
-            'activeShift'     => $activeShift,
-            'hasActiveShift'  => $activeShift !== null,
-            'registers'       => $registers,
+            'products' => $products,
+            'categories' => $categories,
+            'customers' => $customers,
+            'customerGroups' => CustomerGroup::orderBy('id')->get(),
+            'previewToken' => $token,
+            'currentUser' => $user,
+            'activeShift' => $activeShift,
+            'hasActiveShift' => $activeShift !== null,
+            'registers' => $registers,
             'expectedBalance' => $expectedBalance,
         ]);
     }
@@ -178,8 +179,8 @@ class PosController extends Controller
     {
         $validated = $request->validate([
             'cash_register_id' => ['required', 'integer', 'exists:cash_registers,id'],
-            'opening_balance'  => ['required', 'numeric', 'min:0'],
-            'notes'            => ['nullable', 'string', 'max:500'],
+            'opening_balance' => ['required', 'numeric', 'min:0'],
+            'notes' => ['nullable', 'string', 'max:500'],
         ]);
 
         $shift = $this->shiftService->openShift(
@@ -189,7 +190,7 @@ class PosController extends Controller
             $validated['notes'] ?? null
         );
 
-        $formatted = 'Rp ' . number_format($shift->opening_balance, 0, ',', '.');
+        $formatted = 'Rp '.number_format($shift->opening_balance, 0, ',', '.');
 
         return redirect()
             ->route('pos')
@@ -213,7 +214,7 @@ class PosController extends Controller
 
         $validated = $request->validate([
             'actual_closing_balance' => ['required', 'numeric', 'min:0'],
-            'notes'                  => ['nullable', 'string', 'max:1000'],
+            'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $shift = $this->shiftService->closeShift(
@@ -222,9 +223,9 @@ class PosController extends Controller
             $validated['notes'] ?? null
         );
 
-        $actualFormatted = 'Rp ' . number_format($shift->actual_closing_balance, 0, ',', '.');
-        $diffFormatted = 'Rp ' . number_format(abs($shift->difference), 0, ',', '.');
-        $diffLabel = $shift->difference > 0 ? "Surplus {$diffFormatted}" : ($shift->difference < 0 ? "Defisit {$diffFormatted}" : "Seimbang (Rp 0)");
+        $actualFormatted = 'Rp '.number_format($shift->actual_closing_balance, 0, ',', '.');
+        $diffFormatted = 'Rp '.number_format(abs($shift->difference), 0, ',', '.');
+        $diffLabel = $shift->difference > 0 ? "Surplus {$diffFormatted}" : ($shift->difference < 0 ? "Defisit {$diffFormatted}" : 'Seimbang (Rp 0)');
 
         return redirect()
             ->route('pos')
@@ -244,9 +245,9 @@ class PosController extends Controller
         $changeDue = $request->query('change');
 
         return view('pos.receipt', [
-            'sale'         => $sale,
+            'sale' => $sale,
             'cashTendered' => $cashTendered ? (float) $cashTendered : null,
-            'changeDue'    => $changeDue ? (float) $changeDue : null,
+            'changeDue' => $changeDue ? (float) $changeDue : null,
         ]);
     }
 
@@ -256,28 +257,28 @@ class PosController extends Controller
     public function storeCustomer(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'name'              => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
             'customer_group_id' => ['required', 'integer', 'exists:customer_groups,id'],
-            'phone'             => ['nullable', 'string', 'max:50'],
-            'address'           => ['nullable', 'string', 'max:500'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'address' => ['nullable', 'string', 'max:500'],
         ]);
 
         $user = $request->user();
         $branchId = $user->branch_id ?: Branch::whereNull('parent_id')->value('id') ?: Branch::value('id');
 
         $customer = Customer::create([
-            'branch_id'         => $branchId,
-            'name'              => $validated['name'],
+            'branch_id' => $branchId,
+            'name' => $validated['name'],
             'customer_group_id' => $validated['customer_group_id'],
-            'phone'             => $validated['phone'] ?? null,
-            'address'           => $validated['address'] ?? null,
+            'phone' => $validated['phone'] ?? null,
+            'address' => $validated['address'] ?? null,
         ]);
 
         $customer->load(['customerGroup', 'branch']);
 
         return response()->json([
-            'status'   => 'success',
-            'message'  => "Pelanggan '{$customer->name}' berhasil didaftarkan.",
+            'status' => 'success',
+            'message' => "Pelanggan '{$customer->name}' berhasil didaftarkan.",
             'customer' => $customer,
         ], 201);
     }

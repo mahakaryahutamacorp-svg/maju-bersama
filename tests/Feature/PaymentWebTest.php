@@ -19,11 +19,17 @@ class PaymentWebTest extends TestCase
     use RefreshDatabase;
 
     private Branch $branch;
+
     private User $user;
+
     private ChartOfAccount $kasAccount;
+
     private ChartOfAccount $bankAccount;
+
     private ChartOfAccount $arAccount;
+
     private ChartOfAccount $apAccount;
+
     private Supplier $supplier;
 
     protected function setUp(): void
@@ -31,57 +37,57 @@ class PaymentWebTest extends TestCase
         parent::setUp();
 
         $this->branch = Branch::create([
-            'name'    => 'Cabang Utama Bandung',
-            'code'    => 'BDG-01',
+            'name' => 'Cabang Utama Bandung',
+            'code' => 'BDG-01',
             'address' => 'Jl. Asia Afrika No. 10',
-            'phone'   => '0812345678',
+            'phone' => '0812345678',
         ]);
 
         $this->user = User::create([
-            'name'      => 'Finance Officer',
-            'email'     => 'finance@example.com',
-            'password'  => bcrypt('password'),
-            'role'      => 'branch_admin',
+            'name' => 'Finance Officer',
+            'email' => 'finance@example.com',
+            'password' => bcrypt('password'),
+            'role' => 'branch_admin',
             'branch_id' => $this->branch->id,
         ]);
 
         // Akun Kas & Bank
         $this->kasAccount = ChartOfAccount::create([
-            'code'      => '1110',
-            'name'      => 'Kas Toko',
-            'type'      => 'asset',
+            'code' => '1110',
+            'name' => 'Kas Toko',
+            'type' => 'asset',
             'is_active' => true,
         ]);
 
         $this->bankAccount = ChartOfAccount::create([
-            'code'      => '1120',
-            'name'      => 'Bank BCA Operasional',
-            'type'      => 'asset',
+            'code' => '1120',
+            'name' => 'Bank BCA Operasional',
+            'type' => 'asset',
             'is_active' => true,
         ]);
 
         // Akun Piutang & Hutang
         $this->arAccount = ChartOfAccount::create([
-            'code'      => '1130',
-            'name'      => 'Piutang Usaha',
-            'type'      => 'asset',
+            'code' => '1130',
+            'name' => 'Piutang Usaha',
+            'type' => 'asset',
             'is_active' => true,
         ]);
 
         $this->apAccount = ChartOfAccount::create([
-            'code'      => '2110',
-            'name'      => 'Hutang Dagang',
-            'type'      => 'liability',
+            'code' => '2110',
+            'name' => 'Hutang Dagang',
+            'type' => 'liability',
             'is_active' => true,
         ]);
 
         $this->supplier = Supplier::create([
-            'branch_id'      => $this->branch->id,
-            'name'           => 'PT Distribusi Pangan Jaya',
+            'branch_id' => $this->branch->id,
+            'name' => 'PT Distribusi Pangan Jaya',
             'contact_person' => 'Budi Santoso',
-            'phone'          => '08198765432',
-            'address'        => 'Kawasan Industri Rancaekek',
-            'is_active'      => true,
+            'phone' => '08198765432',
+            'address' => 'Kawasan Industri Rancaekek',
+            'is_active' => true,
         ]);
     }
 
@@ -123,14 +129,14 @@ class PaymentWebTest extends TestCase
 
         // Buat faktur penjualan bernilai Rp1.000.000 dengan status UNPAID
         $sale = Sale::create([
-            'branch_id'      => $this->branch->id,
+            'branch_id' => $this->branch->id,
             'receipt_number' => 'INV-TEST-AR-001',
-            'total_amount'   => 1000000,
-            'paid_amount'    => 0,
+            'total_amount' => 1000000,
+            'paid_amount' => 0,
             'payment_status' => 'UNPAID',
             'payment_method' => 'credit',
-            'status'         => 'completed',
-            'created_by'     => $this->user->id,
+            'status' => 'completed',
+            'created_by' => $this->user->id,
         ]);
 
         $this->assertEquals('UNPAID', $sale->payment_status);
@@ -138,14 +144,14 @@ class PaymentWebTest extends TestCase
 
         // Bayar cicilan pertama senilai Rp400.000 via Bank BCA
         $paymentData = [
-            'account_id'       => $this->bankAccount->id,
-            'amount'           => 400000,
-            'payment_date'     => '2026-09-24',
+            'account_id' => $this->bankAccount->id,
+            'amount' => 400000,
+            'payment_date' => '2026-09-24',
             'reference_number' => 'AR-PAY-TEST-01',
-            'notes'            => 'Cicilan 1 faktur INV-TEST-AR-001',
-            'allocations'      => [
+            'notes' => 'Cicilan 1 faktur INV-TEST-AR-001',
+            'allocations' => [
                 [
-                    'sale_id'          => $sale->id,
+                    'sale_id' => $sale->id,
                     'allocated_amount' => 400000,
                 ],
             ],
@@ -158,10 +164,10 @@ class PaymentWebTest extends TestCase
 
         // 1. Verifikasi rekaman payments & allocations
         $this->assertDatabaseHas('payments', [
-            'branch_id'        => $this->branch->id,
-            'type'             => 'AR',
-            'account_id'       => $this->bankAccount->id,
-            'amount'           => 400000.0000,
+            'branch_id' => $this->branch->id,
+            'type' => 'AR',
+            'account_id' => $this->bankAccount->id,
+            'amount' => 400000.0000,
             'reference_number' => 'AR-PAY-TEST-01',
         ]);
 
@@ -169,8 +175,8 @@ class PaymentWebTest extends TestCase
         $this->assertNotNull($payment);
 
         $this->assertDatabaseHas('payment_allocations', [
-            'payment_id'       => $payment->id,
-            'sale_id'          => $sale->id,
+            'payment_id' => $payment->id,
+            'sale_id' => $sale->id,
             'allocated_amount' => 400000.0000,
         ]);
 
@@ -211,31 +217,31 @@ class PaymentWebTest extends TestCase
 
         // Buat Purchase Order bernilai Rp2.500.000
         $po = PurchaseOrder::create([
-            'branch_id'        => $this->branch->id,
-            'supplier_id'      => $this->supplier->id,
+            'branch_id' => $this->branch->id,
+            'supplier_id' => $this->supplier->id,
             'reference_number' => 'PO-TEST-AP-001',
-            'order_date'       => '2026-09-20',
-            'status'           => 'completed',
-            'total_amount'     => 2500000,
-            'paid_amount'      => 0,
-            'payment_status'   => 'UNPAID',
-            'notes'            => 'Order beras super',
+            'order_date' => '2026-09-20',
+            'status' => 'completed',
+            'total_amount' => 2500000,
+            'paid_amount' => 0,
+            'payment_status' => 'UNPAID',
+            'notes' => 'Order beras super',
         ]);
 
         $this->assertEquals('UNPAID', $po->payment_status);
 
         // Pelunasan penuh Rp2.500.000 dari Kas Toko
         $paymentData = [
-            'supplier_id'      => $this->supplier->id,
-            'account_id'       => $this->kasAccount->id,
-            'amount'           => 2500000,
-            'payment_date'     => '2026-09-24',
+            'supplier_id' => $this->supplier->id,
+            'account_id' => $this->kasAccount->id,
+            'amount' => 2500000,
+            'payment_date' => '2026-09-24',
             'reference_number' => 'AP-PAY-FULL-01',
-            'notes'            => 'Pelunasan penuh PO-TEST-AP-001',
-            'allocations'      => [
+            'notes' => 'Pelunasan penuh PO-TEST-AP-001',
+            'allocations' => [
                 [
                     'purchase_order_id' => $po->id,
-                    'allocated_amount'  => 2500000,
+                    'allocated_amount' => 2500000,
                 ],
             ],
         ];
@@ -247,11 +253,11 @@ class PaymentWebTest extends TestCase
 
         // 1. Verifikasi rekaman payments
         $this->assertDatabaseHas('payments', [
-            'branch_id'        => $this->branch->id,
-            'type'             => 'AP',
-            'supplier_id'      => $this->supplier->id,
-            'account_id'       => $this->kasAccount->id,
-            'amount'           => 2500000.0000,
+            'branch_id' => $this->branch->id,
+            'type' => 'AP',
+            'supplier_id' => $this->supplier->id,
+            'account_id' => $this->kasAccount->id,
+            'amount' => 2500000.0000,
             'reference_number' => 'AP-PAY-FULL-01',
         ]);
 
@@ -292,33 +298,33 @@ class PaymentWebTest extends TestCase
         $service = app(ARAPPaymentService::class);
 
         $sale1 = Sale::create([
-            'branch_id'      => $this->branch->id,
+            'branch_id' => $this->branch->id,
             'receipt_number' => 'INV-MULTI-01',
-            'total_amount'   => 500000,
-            'paid_amount'    => 0,
+            'total_amount' => 500000,
+            'paid_amount' => 0,
             'payment_status' => 'UNPAID',
             'payment_method' => 'credit',
-            'status'         => 'completed',
+            'status' => 'completed',
         ]);
 
         $sale2 = Sale::create([
-            'branch_id'      => $this->branch->id,
+            'branch_id' => $this->branch->id,
             'receipt_number' => 'INV-MULTI-02',
-            'total_amount'   => 800000,
-            'paid_amount'    => 0,
+            'total_amount' => 800000,
+            'paid_amount' => 0,
             'payment_status' => 'UNPAID',
             'payment_method' => 'credit',
-            'status'         => 'completed',
+            'status' => 'completed',
         ]);
 
         // Bayar total Rp900.000: Rp500.000 untuk sale1 (lunas) dan Rp400.000 untuk sale2 (parsial)
         $payment = $service->processARPayment([
-            'branch_id'        => $this->branch->id,
-            'account_id'       => $this->bankAccount->id,
-            'amount'           => 900000,
-            'payment_date'     => '2026-09-24',
+            'branch_id' => $this->branch->id,
+            'account_id' => $this->bankAccount->id,
+            'amount' => 900000,
+            'payment_date' => '2026-09-24',
             'reference_number' => 'AR-MULTI-TEST',
-            'notes'            => 'Multi-invoice payment',
+            'notes' => 'Multi-invoice payment',
         ], [
             ['sale_id' => $sale1->id, 'allocated_amount' => 500000],
             ['sale_id' => $sale2->id, 'allocated_amount' => 400000],
@@ -342,10 +348,10 @@ class PaymentWebTest extends TestCase
         $this->actingAs($this->user);
 
         $response = $this->post(route('backoffice.payments.receivables.store'), [
-            'account_id'   => $this->bankAccount->id,
-            'amount'       => 0, // Nilai 0
+            'account_id' => $this->bankAccount->id,
+            'amount' => 0, // Nilai 0
             'payment_date' => '2026-09-24',
-            'allocations'  => [],
+            'allocations' => [],
         ]);
 
         $response->assertSessionHasErrors(['amount', 'allocations']);

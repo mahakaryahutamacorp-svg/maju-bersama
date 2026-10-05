@@ -32,6 +32,7 @@ class CashTransactionService
      *     description?: string|null,
      *     user_id?: int|null
      * } $data
+     *
      * @throws ValidationException
      */
     public function storeTransfer(array $data): CashTransfer
@@ -69,8 +70,8 @@ class CashTransactionService
                 ?? auth()->user()?->branch_id
                 ?? Branch::value('id');
 
-            $date = $data['transaction_date'] 
-                ?? $data['transfer_date'] 
+            $date = $data['transaction_date']
+                ?? $data['transfer_date']
                 ?? now()->toDateString();
 
             $referenceNumber = ! empty($data['reference_number'])
@@ -88,36 +89,36 @@ class CashTransactionService
 
             // 1. Simpan rekaman mutasi kas
             $cashTransfer = CashTransfer::create([
-                'branch_id'        => $branchId,
-                'from_account_id'  => $fromAccount->id,
-                'to_account_id'    => $toAccount->id,
-                'amount'           => $amount,
-                'transfer_date'    => $date,
+                'branch_id' => $branchId,
+                'from_account_id' => $fromAccount->id,
+                'to_account_id' => $toAccount->id,
+                'amount' => $amount,
+                'transfer_date' => $date,
                 'reference_number' => $referenceNumber,
-                'notes'            => $notes,
+                'notes' => $notes,
             ]);
 
             // 2. Integrasi Jurnal Transfer: Panggil JournalEntryService
             // - Debit: Akun Tujuan (Ke) senilai Nominal Transfer
             // - Kredit: Akun Sumber (Dari) senilai Nominal Transfer
             $journal = $this->journalEntryService->createEntry([
-                'branch_id'        => $branchId,
-                'user_id'          => $data['user_id'] ?? auth()->id(),
+                'branch_id' => $branchId,
+                'user_id' => $data['user_id'] ?? auth()->id(),
                 'transaction_date' => $date,
                 'reference_number' => $referenceNumber,
-                'description'      => $description,
-                'lines'            => [
+                'description' => $description,
+                'lines' => [
                     [
                         'chart_of_account_id' => $toAccount->id,
-                        'debit'               => $amount,
-                        'credit'              => 0,
-                        'memo'                => "Debit Akun Tujuan: {$toAccount->name}",
+                        'debit' => $amount,
+                        'credit' => 0,
+                        'memo' => "Debit Akun Tujuan: {$toAccount->name}",
                     ],
                     [
                         'chart_of_account_id' => $fromAccount->id,
-                        'debit'               => 0,
-                        'credit'              => $amount,
-                        'memo'                => "Kredit Akun Sumber: {$fromAccount->name}",
+                        'debit' => 0,
+                        'credit' => $amount,
+                        'memo' => "Kredit Akun Sumber: {$fromAccount->name}",
                     ],
                 ],
             ]);
@@ -130,10 +131,6 @@ class CashTransactionService
 
     /**
      * Menyimpan transaksi kas umum (IN / OUT / TRANSFER).
-     *
-     * @param array $data
-     * @param array $lines
-     * @return mixed
      */
     public function storeTransaction(array $data, array $lines = []): mixed
     {
@@ -164,23 +161,23 @@ class CashTransactionService
                 $lineAmount = (float) ($line['amount'] ?? 0);
                 $totalAmount += $lineAmount;
                 $oppAccountId = (int) ($line['chart_of_account_id'] ?? $line['account_id']);
-                $lineMemo = $line['memo'] ?? $notes ?? "Baris transaksi kas";
+                $lineMemo = $line['memo'] ?? $notes ?? 'Baris transaksi kas';
 
                 if ($type === 'IN') {
                     // Kas Masuk: Akun Lawan di Kredit
                     $journalLines[] = [
                         'chart_of_account_id' => $oppAccountId,
-                        'debit'               => 0,
-                        'credit'              => $lineAmount,
-                        'memo'                => $lineMemo,
+                        'debit' => 0,
+                        'credit' => $lineAmount,
+                        'memo' => $lineMemo,
                     ];
                 } else {
                     // Kas Keluar: Akun Lawan di Debit
                     $journalLines[] = [
                         'chart_of_account_id' => $oppAccountId,
-                        'debit'               => $lineAmount,
-                        'credit'              => 0,
-                        'memo'                => $lineMemo,
+                        'debit' => $lineAmount,
+                        'credit' => 0,
+                        'memo' => $lineMemo,
                     ];
                 }
             }
@@ -189,32 +186,32 @@ class CashTransactionService
                 // Kas Masuk: Kas Utama di Debit
                 array_unshift($journalLines, [
                     'chart_of_account_id' => $mainAccount->id,
-                    'debit'               => $totalAmount,
-                    'credit'              => 0,
-                    'memo'                => "Penerimaan Kas - {$mainAccount->name}",
+                    'debit' => $totalAmount,
+                    'credit' => 0,
+                    'memo' => "Penerimaan Kas - {$mainAccount->name}",
                 ]);
             } else {
                 // Kas Keluar: Kas Utama di Kredit
                 $journalLines[] = [
                     'chart_of_account_id' => $mainAccount->id,
-                    'debit'               => 0,
-                    'credit'              => $totalAmount,
-                    'memo'                => "Pengeluaran Kas - {$mainAccount->name}",
+                    'debit' => 0,
+                    'credit' => $totalAmount,
+                    'memo' => "Pengeluaran Kas - {$mainAccount->name}",
                 ];
             }
 
-            $description = ($type === 'IN' ? 'Kas Masuk' : 'Kas Keluar') . ": {$mainAccount->name}";
+            $description = ($type === 'IN' ? 'Kas Masuk' : 'Kas Keluar').": {$mainAccount->name}";
             if ($notes) {
                 $description .= " - {$notes}";
             }
 
             return $this->journalEntryService->createEntry([
-                'branch_id'        => $branchId,
-                'user_id'          => $data['user_id'] ?? auth()->id(),
+                'branch_id' => $branchId,
+                'user_id' => $data['user_id'] ?? auth()->id(),
                 'transaction_date' => $date,
                 'reference_number' => $referenceNumber,
-                'description'      => $description,
-                'lines'            => $journalLines,
+                'description' => $description,
+                'lines' => $journalLines,
             ]);
         });
     }
@@ -226,6 +223,7 @@ class CashTransactionService
     {
         $date = now()->format('Ymd');
         $random = strtoupper(bin2hex(random_bytes(3)));
+
         return "{$prefix}-{$date}-{$random}";
     }
 }

@@ -37,21 +37,19 @@ class SupplierPaymentService
      *     reference_number?: string|null,
      *     notes?: string|null
      * } $data
-     * @param User|null $actor
-     * @return SupplierPayment
      */
     public function processPayment(array $data, ?User $actor = null): SupplierPayment
     {
         return DB::transaction(function () use ($data, $actor): SupplierPayment {
             $supplier = Supplier::withoutGlobalScopes()->findOrFail($data['supplier_id']);
             $account = ChartOfAccount::findOrFail($data['chart_of_account_id']);
-            
+
             $payableAccount = ChartOfAccount::where('code', self::ACCOUNT_PAYABLE)->first()
                 ?? ChartOfAccount::firstOrCreate(['code' => self::ACCOUNT_PAYABLE], ['name' => 'Hutang Dagang', 'type' => 'liability']);
 
-            $branchId = $data['branch_id'] 
-                ?? $actor?->branch_id 
-                ?? $supplier->branch_id 
+            $branchId = $data['branch_id']
+                ?? $actor?->branch_id
+                ?? $supplier->branch_id
                 ?? Branch::first()?->id;
 
             $amount = (string) $data['amount'];
@@ -64,18 +62,18 @@ class SupplierPaymentService
 
             $referenceNumber = ! empty($data['reference_number'])
                 ? $data['reference_number']
-                : ('PAY-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -4)));
+                : ('PAY-'.date('Ymd').'-'.strtoupper(substr(uniqid(), -4)));
 
             $payment = SupplierPayment::create([
-                'branch_id'           => $branchId,
-                'user_id'             => $actor?->id,
-                'supplier_id'         => $supplier->id,
+                'branch_id' => $branchId,
+                'user_id' => $actor?->id,
+                'supplier_id' => $supplier->id,
                 'chart_of_account_id' => $account->id,
-                'payment_date'        => $data['payment_date'],
-                'payment_method'      => $data['payment_method'],
-                'amount'              => $amount,
-                'reference_number'    => $referenceNumber,
-                'notes'               => $data['notes'] ?? null,
+                'payment_date' => $data['payment_date'],
+                'payment_method' => $data['payment_method'],
+                'amount' => $amount,
+                'reference_number' => $referenceNumber,
+                'notes' => $data['notes'] ?? null,
             ]);
 
             // Create balanced double-entry journal
@@ -83,25 +81,25 @@ class SupplierPaymentService
             $description = "Pembayaran Hutang Supplier: {$supplier->name} via {$account->name} [{$methodLabel}]";
 
             $journal = JournalHeader::create([
-                'branch_id'        => $branchId,
-                'user_id'          => $actor?->id,
+                'branch_id' => $branchId,
+                'user_id' => $actor?->id,
                 'transaction_date' => $payment->payment_date,
                 'reference_number' => $payment->reference_number,
-                'description'      => $description,
+                'description' => $description,
             ]);
 
             $journal->journalLines()->createMany([
                 [
                     'chart_of_account_id' => $payableAccount->id,
-                    'debit'               => $amount,
-                    'credit'              => 0,
-                    'memo'                => "Pelunasan hutang dagang kepada supplier {$supplier->name}",
+                    'debit' => $amount,
+                    'credit' => 0,
+                    'memo' => "Pelunasan hutang dagang kepada supplier {$supplier->name}",
                 ],
                 [
                     'chart_of_account_id' => $account->id,
-                    'debit'               => 0,
-                    'credit'              => $amount,
-                    'memo'                => "Pengeluaran dana pembayaran via {$account->name}",
+                    'debit' => 0,
+                    'credit' => $amount,
+                    'memo' => "Pengeluaran dana pembayaran via {$account->name}",
                 ],
             ]);
 

@@ -7,6 +7,8 @@ use App\Models\Category;
 use App\Models\PriceLevel;
 use App\Models\Product;
 use App\Models\ProductPrice;
+use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -99,7 +101,7 @@ class MultiPriceTest extends TestCase
             'price' => 20000,
         ]);
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         ProductPrice::create([
             'product_id' => $product->id,
@@ -147,7 +149,7 @@ class MultiPriceTest extends TestCase
     {
         $branch = Branch::create(['name' => 'Branch Test', 'code' => 'BT4']);
         $category = Category::create(['name' => 'General']);
-        $admin = \App\Models\User::factory()->create([
+        $admin = User::factory()->create([
             'branch_id' => $branch->id,
             'role' => 'admin',
         ]);
@@ -180,7 +182,7 @@ class MultiPriceTest extends TestCase
     {
         $branch = Branch::create(['name' => 'Branch Test', 'code' => 'BT5']);
         $category = Category::create(['name' => 'General']);
-        $admin = \App\Models\User::factory()->create([
+        $admin = User::factory()->create([
             'branch_id' => $branch->id,
             'role' => 'admin',
         ]);
@@ -236,7 +238,7 @@ class MultiPriceTest extends TestCase
     {
         $branch = Branch::create(['name' => 'Branch Test', 'code' => 'BT6']);
         $category = Category::create(['name' => 'General']);
-        $admin = \App\Models\User::factory()->create([
+        $admin = User::factory()->create([
             'branch_id' => $branch->id,
             'role' => 'admin',
         ]);
@@ -291,7 +293,7 @@ class MultiPriceTest extends TestCase
     {
         $branch = Branch::create(['name' => 'Branch Test', 'code' => 'BT7']);
         $category = Category::create(['name' => 'General']);
-        $admin = \App\Models\User::factory()->create([
+        $admin = User::factory()->create([
             'branch_id' => $branch->id,
             'role' => 'admin',
         ]);

@@ -10,6 +10,18 @@ use Illuminate\Support\Facades\DB;
 
 class JournalController extends Controller
 {
+    public function index(): JsonResponse
+    {
+        $journals = JournalHeader::with(['journalLines.chartOfAccount', 'branch'])
+            ->latest('id')
+            ->get();
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $journals,
+        ]);
+    }
+
     public function store(StoreJournalRequest $request): JsonResponse
     {
         $validated = $request->validated();

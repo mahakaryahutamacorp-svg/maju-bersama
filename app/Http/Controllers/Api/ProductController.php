@@ -8,8 +8,8 @@ use App\Http\Requests\UpdateProductRequest;
 use App\Models\Customer;
 use App\Models\Product;
 use App\Services\ProductService;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class ProductController extends Controller
 {
@@ -40,10 +40,15 @@ class ProductController extends Controller
 
         $query = Product::with(['category', 'branch', 'productPrices', 'branchPrices']);
 
+        $requestedBranchId = $request->input('branch_id');
+        if ($requestedBranchId) {
+            $query->where('branch_id', $requestedBranchId);
+        }
+
         if ($search) {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('sku', 'like', "%{$search}%");
+                    ->orWhere('sku', 'like', "%{$search}%");
             });
         }
 
@@ -51,7 +56,7 @@ class ProductController extends Controller
 
         $skus = $products->pluck('sku')->filter()->unique()->values()->all();
         $otherStockMap = [];
-        if (!empty($skus)) {
+        if (! empty($skus)) {
             $otherBranchesQuery = Product::withoutGlobalScopes()
                 ->whereNull('deleted_at')
                 ->where('stock', '>', 0)
@@ -65,7 +70,7 @@ class ProductController extends Controller
             $otherProducts = $otherBranchesQuery->get(['id', 'branch_id', 'sku', 'stock']);
 
             foreach ($otherProducts as $op) {
-                $branchName = $op->branch?->name ?? 'Cabang #' . $op->branch_id;
+                $branchName = $op->branch?->name ?? 'Cabang #'.$op->branch_id;
                 $otherStockMap[$op->sku][] = [
                     'branch_name' => $branchName,
                     'stock' => (int) $op->stock,
@@ -88,6 +93,7 @@ class ProductController extends Controller
             }
 
             $product->other_branch_stock = $otherStockMap[$product->sku] ?? [];
+
             return $product;
         });
 
@@ -147,12 +153,12 @@ class ProductController extends Controller
             ->whereNull('deleted_at')
             ->where('stock', '>', 0)
             ->where('sku', $product->sku)
-            ->when($branchId, fn($q) => $q->where('branch_id', '!=', $branchId))
+            ->when($branchId, fn ($q) => $q->where('branch_id', '!=', $branchId))
             ->with('branch:id,name')
             ->get(['id', 'branch_id', 'sku', 'stock']);
 
-        $product->other_branch_stock = $otherBranches->map(fn($op) => [
-            'branch_name' => $op->branch?->name ?? 'Cabang #' . $op->branch_id,
+        $product->other_branch_stock = $otherBranches->map(fn ($op) => [
+            'branch_name' => $op->branch?->name ?? 'Cabang #'.$op->branch_id,
             'stock' => (int) $op->stock,
         ])->values()->all();
 
@@ -195,12 +201,12 @@ class ProductController extends Controller
             ->whereNull('deleted_at')
             ->where('stock', '>', 0)
             ->where('sku', $product->sku)
-            ->when($branchId, fn($q) => $q->where('branch_id', '!=', $branchId))
+            ->when($branchId, fn ($q) => $q->where('branch_id', '!=', $branchId))
             ->with('branch:id,name')
             ->get(['id', 'branch_id', 'sku', 'stock']);
 
-        $product->other_branch_stock = $otherBranches->map(fn($op) => [
-            'branch_name' => $op->branch?->name ?? 'Cabang #' . $op->branch_id,
+        $product->other_branch_stock = $otherBranches->map(fn ($op) => [
+            'branch_name' => $op->branch?->name ?? 'Cabang #'.$op->branch_id,
             'stock' => (int) $op->stock,
         ])->values()->all();
 

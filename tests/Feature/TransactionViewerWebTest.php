@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\CashRegister;
 use App\Models\CashRegisterShift;
 use App\Models\CashTransfer;
 use App\Models\Category;
@@ -24,7 +25,9 @@ class TransactionViewerWebTest extends TestCase
     use RefreshDatabase;
 
     private Branch $branch1;
+
     private Branch $branch2;
+
     private User $user;
 
     protected function setUp(): void
@@ -32,24 +35,24 @@ class TransactionViewerWebTest extends TestCase
         parent::setUp();
 
         $this->branch1 = Branch::create([
-            'name'    => 'Cabang Jakarta Pusat',
-            'code'    => 'JKT-01',
+            'name' => 'Cabang Jakarta Pusat',
+            'code' => 'JKT-01',
             'address' => 'Jl. Thamrin No. 1',
-            'phone'   => '0811001122',
+            'phone' => '0811001122',
         ]);
 
         $this->branch2 = Branch::create([
-            'name'    => 'Cabang Surabaya',
-            'code'    => 'SBY-01',
+            'name' => 'Cabang Surabaya',
+            'code' => 'SBY-01',
             'address' => 'Jl. Basuki Rahmat No. 2',
-            'phone'   => '0811001133',
+            'phone' => '0811001133',
         ]);
 
         $this->user = User::create([
-            'name'      => 'Admin Utama',
-            'email'     => 'admin@example.com',
-            'password'  => bcrypt('password'),
-            'role'      => 'central_admin',
+            'name' => 'Admin Utama',
+            'email' => 'admin@example.com',
+            'password' => bcrypt('password'),
+            'role' => 'central_admin',
             'branch_id' => $this->branch1->id,
         ]);
     }
@@ -68,19 +71,19 @@ class TransactionViewerWebTest extends TestCase
         ]);
 
         $product = Product::create([
-            'name'           => 'Pupuk Urea Petro 50kg',
-            'sku'            => 'PUP-UREA-50',
-            'category_id'    => $category->id,
-            'branch_id'      => $this->branch1->id,
-            'unit'           => 'sak',
+            'name' => 'Pupuk Urea Petro 50kg',
+            'sku' => 'PUP-UREA-50',
+            'category_id' => $category->id,
+            'branch_id' => $this->branch1->id,
+            'unit' => 'sak',
             'purchase_price' => 120000,
-            'selling_price'  => 150000,
-            'stock'          => 100,
+            'selling_price' => 150000,
+            'stock' => 100,
         ]);
 
-        $register = \App\Models\CashRegister::create([
+        $register = CashRegister::create([
             'branch_id' => $this->branch1->id,
-            'name'      => 'Kasir Utama',
+            'name' => 'Kasir Utama',
             'is_active' => true,
         ]);
 
@@ -131,14 +134,14 @@ class TransactionViewerWebTest extends TestCase
         ]);
 
         $product = Product::create([
-            'name'           => 'Insektisida Curacron 500EC',
-            'sku'            => 'INS-CUR-500',
-            'category_id'    => $category->id,
-            'branch_id'      => $this->branch1->id,
-            'unit'           => 'botol',
+            'name' => 'Insektisida Curacron 500EC',
+            'sku' => 'INS-CUR-500',
+            'category_id' => $category->id,
+            'branch_id' => $this->branch1->id,
+            'unit' => 'botol',
             'purchase_price' => 50000,
-            'selling_price'  => 75000,
-            'stock'          => 50,
+            'selling_price' => 75000,
+            'stock' => 50,
         ]);
 
         $transfer = StockTransfer::create([

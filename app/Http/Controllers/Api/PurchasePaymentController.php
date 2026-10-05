@@ -15,7 +15,9 @@ use Illuminate\Validation\ValidationException;
 class PurchasePaymentController extends Controller
 {
     private const ACCOUNT_CASH = '1110';
+
     private const ACCOUNT_BANK = '1120';
+
     private const ACCOUNT_PAYABLE = '2110';
 
     /**
@@ -52,7 +54,7 @@ class PurchasePaymentController extends Controller
         $amount = round((float) $validated['amount'], 2);
         $paymentMethod = strtolower($validated['payment_method'] ?? 'cash');
         $paymentDate = $validated['payment_date'] ?? now()->toDateString();
-        $refNumber = $validated['reference_number'] ?? ('PAY-' . now()->format('Ymd') . '-' . str_pad((string) random_int(1, 9999), 4, '0', STR_PAD_LEFT));
+        $refNumber = $validated['reference_number'] ?? ('PAY-'.now()->format('Ymd').'-'.str_pad((string) random_int(1, 9999), 4, '0', STR_PAD_LEFT));
 
         $result = DB::transaction(function () use ($purchaseId, $amount, $paymentDate, $paymentMethod, $refNumber, $validated, $user) {
             /** @var Purchase $lockedPurchase */
@@ -84,7 +86,7 @@ class PurchasePaymentController extends Controller
                 'payment_date' => $paymentDate,
                 'payment_method' => $paymentMethod,
                 'reference_number' => $refNumber,
-                'notes' => $validated['notes'] ?? ('Pembayaran cicilan hutang distributor faktur ' . $lockedPurchase->invoice_number),
+                'notes' => $validated['notes'] ?? ('Pembayaran cicilan hutang distributor faktur '.$lockedPurchase->invoice_number),
                 'created_by' => $user->id,
             ]);
 
@@ -126,7 +128,7 @@ class PurchasePaymentController extends Controller
                 'user_id' => $user->id,
                 'transaction_date' => $paymentDate,
                 'reference_number' => $refNumber,
-                'description' => 'Pembayaran Hutang Distributor (Faktur: ' . $lockedPurchase->invoice_number . ')',
+                'description' => 'Pembayaran Hutang Distributor (Faktur: '.$lockedPurchase->invoice_number.')',
             ]);
 
             $formattedAmount = number_format($amount, 2, '.', '');
@@ -136,13 +138,13 @@ class PurchasePaymentController extends Controller
                     'chart_of_account_id' => $payableAccount->id,
                     'debit' => $formattedAmount,
                     'credit' => '0.00',
-                    'memo' => 'Pelunasan/Cicilan Hutang Dagang ' . $lockedPurchase->invoice_number,
+                    'memo' => 'Pelunasan/Cicilan Hutang Dagang '.$lockedPurchase->invoice_number,
                 ],
                 [
                     'chart_of_account_id' => $cashOrBankAccount->id,
                     'debit' => '0.00',
                     'credit' => $formattedAmount,
-                    'memo' => 'Pengeluaran ' . $creditAccountName . ' untuk bayar hutang distributor',
+                    'memo' => 'Pengeluaran '.$creditAccountName.' untuk bayar hutang distributor',
                 ],
             ]);
 

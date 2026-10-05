@@ -9,6 +9,7 @@ use App\Models\PurchaseOrder;
 use App\Models\Sale;
 use App\Models\Supplier;
 use App\Services\ARAPPaymentService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -50,10 +51,10 @@ class PaymentController extends Controller
 
         return view('backoffice.payments.index', [
             'currentUser' => $user,
-            'isMaster'    => $user->isMaster(),
-            'payments'    => $payments,
-            'activeType'  => $type,
-            'search'      => $search,
+            'isMaster' => $user->isMaster(),
+            'payments' => $payments,
+            'activeType' => $type,
+            'search' => $search,
         ]);
     }
 
@@ -69,8 +70,8 @@ class PaymentController extends Controller
             ->where('is_active', true)
             ->where(function ($q) {
                 $q->where('code', 'like', '11%')
-                  ->orWhere('name', 'like', '%kas%')
-                  ->orWhere('name', 'like', '%bank%');
+                    ->orWhere('name', 'like', '%kas%')
+                    ->orWhere('name', 'like', '%bank%');
             })
             ->orderBy('code')
             ->get();
@@ -82,11 +83,11 @@ class PaymentController extends Controller
             ->get();
 
         return view('backoffice.payments.create-ar', [
-            'currentUser'      => $user,
-            'isMaster'         => $user->isMaster(),
+            'currentUser' => $user,
+            'isMaster' => $user->isMaster(),
             'cashBankAccounts' => $cashBankAccounts,
-            'unpaidSales'      => $unpaidSales,
-            'todayDate'        => now()->toDateString(),
+            'unpaidSales' => $unpaidSales,
+            'todayDate' => now()->toDateString(),
         ]);
     }
 
@@ -96,29 +97,30 @@ class PaymentController extends Controller
     public function storeAR(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'account_id'       => ['required', 'integer', 'exists:chart_of_accounts,id'],
-            'amount'           => ['required', 'numeric', 'min:0.01'],
-            'payment_date'     => ['required', 'date'],
+            'account_id' => ['required', 'integer', 'exists:chart_of_accounts,id'],
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'payment_date' => ['required', 'date'],
             'reference_number' => ['nullable', 'string', 'max:100'],
-            'notes'            => ['nullable', 'string', 'max:1000'],
-            'allocations'      => ['required', 'array', 'min:1'],
-            'allocations.*.sale_id'          => ['required', 'integer', 'exists:sales,id'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+            'allocations' => ['required', 'array', 'min:1'],
+            'allocations.*.sale_id' => ['required', 'integer', 'exists:sales,id'],
             'allocations.*.allocated_amount' => ['required', 'numeric', 'min:0.01'],
         ], [
-            'amount.min'          => 'Nominal pembayaran piutang harus lebih besar dari 0.',
-            'allocations.required'=> 'Pilih minimal satu faktur penjualan yang akan dialokasikan pembayarannya.',
+            'amount.min' => 'Nominal pembayaran piutang harus lebih besar dari 0.',
+            'allocations.required' => 'Pilih minimal satu faktur penjualan yang akan dialokasikan pembayarannya.',
         ]);
 
         $payment = $this->arapPaymentService->processARPayment([
-            'branch_id'        => $request->user()->branch_id,
-            'account_id'       => (int) $validated['account_id'],
-            'amount'           => $validated['amount'],
-            'payment_date'     => $validated['payment_date'],
+            'branch_id' => $request->user()->branch_id,
+            'account_id' => (int) $validated['account_id'],
+            'amount' => $validated['amount'],
+            'payment_date' => $validated['payment_date'],
             'reference_number' => $validated['reference_number'] ?? null,
-            'notes'            => $validated['notes'] ?? null,
+            'notes' => $validated['notes'] ?? null,
         ], $validated['allocations'], $request->user());
 
-        $formattedAmount = 'Rp ' . number_format((float) $payment->amount, 0, ',', '.');
+        $formattedAmount = 'Rp '.number_format((float) $payment->amount, 0, ',', '.');
+
         return redirect()
             ->route('backoffice.payments.index')
             ->with('success', "Penerimaan pembayaran piutang senilai {$formattedAmount} berhasil dibukukan dengan ref: {$payment->reference_number}.");
@@ -136,8 +138,8 @@ class PaymentController extends Controller
             ->where('is_active', true)
             ->where(function ($q) {
                 $q->where('code', 'like', '11%')
-                  ->orWhere('name', 'like', '%kas%')
-                  ->orWhere('name', 'like', '%bank%');
+                    ->orWhere('name', 'like', '%kas%')
+                    ->orWhere('name', 'like', '%bank%');
             })
             ->orderBy('code')
             ->get();
@@ -155,47 +157,55 @@ class PaymentController extends Controller
             ->get();
 
         return view('backoffice.payments.create-ap', [
-            'currentUser'      => $user,
-            'isMaster'         => $user->isMaster(),
+            'currentUser' => $user,
+            'isMaster' => $user->isMaster(),
             'cashBankAccounts' => $cashBankAccounts,
-            'suppliers'        => $suppliers,
-            'unpaidPOs'        => $unpaidPOs,
+            'suppliers' => $suppliers,
+            'unpaidPOs' => $unpaidPOs,
             'selectedSupplierId' => $supplierId,
-            'todayDate'        => now()->toDateString(),
+            'todayDate' => now()->toDateString(),
         ]);
     }
 
     /**
      * Simpan Pelunasan Pembayaran Hutang Supplier (AP).
      */
-    public function storeAP(Request $request): RedirectResponse
+    public function storeAP(Request $request): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
-            'supplier_id'      => ['nullable', 'integer', 'exists:suppliers,id'],
-            'account_id'       => ['required', 'integer', 'exists:chart_of_accounts,id'],
-            'amount'           => ['required', 'numeric', 'min:0.01'],
-            'payment_date'     => ['required', 'date'],
+            'supplier_id' => ['nullable', 'integer', 'exists:suppliers,id'],
+            'account_id' => ['required', 'integer', 'exists:chart_of_accounts,id'],
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'payment_date' => ['required', 'date'],
             'reference_number' => ['nullable', 'string', 'max:100'],
-            'notes'            => ['nullable', 'string', 'max:1000'],
-            'allocations'      => ['required', 'array', 'min:1'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+            'allocations' => ['required', 'array', 'min:1'],
             'allocations.*.purchase_order_id' => ['required', 'integer', 'exists:purchase_orders,id'],
-            'allocations.*.allocated_amount'  => ['required', 'numeric', 'min:0.01'],
+            'allocations.*.allocated_amount' => ['required', 'numeric', 'min:0.01'],
         ], [
-            'amount.min'          => 'Nominal pembayaran hutang harus lebih besar dari 0.',
-            'allocations.required'=> 'Pilih minimal satu Purchase Order yang akan dialokasikan pembayarannya.',
+            'amount.min' => 'Nominal pembayaran hutang harus lebih besar dari 0.',
+            'allocations.required' => 'Pilih minimal satu Purchase Order yang akan dialokasikan pembayarannya.',
         ]);
 
         $payment = $this->arapPaymentService->processAPPayment([
-            'branch_id'        => $request->user()->branch_id,
-            'supplier_id'      => $validated['supplier_id'] ?? null,
-            'account_id'       => (int) $validated['account_id'],
-            'amount'           => $validated['amount'],
-            'payment_date'     => $validated['payment_date'],
+            'branch_id' => $request->user()->branch_id,
+            'supplier_id' => $validated['supplier_id'] ?? null,
+            'account_id' => (int) $validated['account_id'],
+            'amount' => $validated['amount'],
+            'payment_date' => $validated['payment_date'],
             'reference_number' => $validated['reference_number'] ?? null,
-            'notes'            => $validated['notes'] ?? null,
+            'notes' => $validated['notes'] ?? null,
         ], $validated['allocations'], $request->user());
 
-        $formattedAmount = 'Rp ' . number_format((float) $payment->amount, 0, ',', '.');
+        $formattedAmount = 'Rp '.number_format((float) $payment->amount, 0, ',', '.');
+        if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => "Pelunasan pembayaran hutang senilai {$formattedAmount} berhasil dibukukan.",
+                'data' => $payment->load(['allocations.purchaseOrder', 'account', 'journalHeader.journalLines']),
+            ], 201);
+        }
+
         return redirect()
             ->route('backoffice.payments.index')
             ->with('success', "Pelunasan pembayaran hutang senilai {$formattedAmount} berhasil dibukukan dengan ref: {$payment->reference_number}.");

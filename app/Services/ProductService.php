@@ -7,17 +7,13 @@ use App\Models\Product;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
-use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Collection;
-
 class ProductService
 {
     /**
      * Create a new product with auto-generated SKU if not provided.
      *
-     * @param array $data Validated product data
-     * @param int $branchId Branch ID from authenticated user
-     * @return Product
+     * @param  array  $data  Validated product data
+     * @param  int  $branchId  Branch ID from authenticated user
      */
     public function createProduct(array $data, int $branchId): Product
     {
@@ -30,7 +26,7 @@ class ProductService
         $data['branch_id'] = $branchId;
 
         // Set default stock to 0 if not provided
-        if (!isset($data['stock'])) {
+        if (! isset($data['stock'])) {
             $data['stock'] = 0;
         }
 
@@ -50,9 +46,8 @@ class ProductService
     /**
      * Update an existing product.
      *
-     * @param Product $product Product instance
-     * @param array $data Validated update data
-     * @return Product
+     * @param  Product  $product  Product instance
+     * @param  array  $data  Validated update data
      */
     public function updateProduct(Product $product, array $data): Product
     {
@@ -72,9 +67,6 @@ class ProductService
 
     /**
      * Delete a product and its associated inventory.
-     *
-     * @param Product $product
-     * @return bool
      */
     public function deleteProduct(Product $product): bool
     {
@@ -92,14 +84,11 @@ class ProductService
      *
      * Format: BR{branch_id}-{random_6_chars}
      * Example: BR1-A3F9K2
-     *
-     * @param int $branchId
-     * @return string
      */
     private function generateSku(int $branchId): string
     {
         do {
-            $sku = 'BR' . $branchId . '-' . strtoupper(Str::random(6));
+            $sku = 'BR'.$branchId.'-'.strtoupper(Str::random(6));
         } while (Product::where('sku', $sku)->exists());
 
         return $sku;

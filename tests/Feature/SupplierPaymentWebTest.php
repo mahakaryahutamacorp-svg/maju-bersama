@@ -16,9 +16,13 @@ class SupplierPaymentWebTest extends TestCase
     use RefreshDatabase;
 
     private Branch $branch;
+
     private User $user;
+
     private Supplier $supplier;
+
     private ChartOfAccount $cashAccount;
+
     private ChartOfAccount $payableAccount;
 
     protected function setUp(): void
@@ -26,22 +30,22 @@ class SupplierPaymentWebTest extends TestCase
         parent::setUp();
 
         $this->branch = Branch::create([
-            'name'      => 'Gudang Pusat',
-            'code'      => 'PUSAT',
+            'name' => 'Gudang Pusat',
+            'code' => 'PUSAT',
             'is_active' => true,
         ]);
 
         $this->user = User::factory()->create([
             'branch_id' => $this->branch->id,
-            'role'      => 'master',
+            'role' => 'master',
         ]);
 
         $this->supplier = Supplier::withoutGlobalScopes()->create([
-            'branch_id'      => $this->branch->id,
-            'name'           => 'PT Pupuk Nusantara',
+            'branch_id' => $this->branch->id,
+            'name' => 'PT Pupuk Nusantara',
             'contact_person' => 'Budi Santoso',
-            'phone'          => '081234567890',
-            'is_active'      => true,
+            'phone' => '081234567890',
+            'is_active' => true,
         ]);
 
         $this->cashAccount = ChartOfAccount::create([
@@ -81,13 +85,13 @@ class SupplierPaymentWebTest extends TestCase
     public function test_user_can_store_supplier_payment_with_journal_entry(): void
     {
         $payload = [
-            'supplier_id'         => $this->supplier->id,
+            'supplier_id' => $this->supplier->id,
             'chart_of_account_id' => $this->cashAccount->id,
-            'payment_date'        => now()->toDateString(),
-            'payment_method'      => 'Transfer',
-            'amount'              => 2500000,
-            'reference_number'    => 'TRF-PAY-001',
-            'notes'               => 'Pelunasan invoice PO bahan pupuk',
+            'payment_date' => now()->toDateString(),
+            'payment_method' => 'Transfer',
+            'amount' => 2500000,
+            'reference_number' => 'TRF-PAY-001',
+            'notes' => 'Pelunasan invoice PO bahan pupuk',
         ];
 
         $postResponse = $this->actingAs($this->user)->post('/backoffice/supplier-payments', $payload);
@@ -97,11 +101,11 @@ class SupplierPaymentWebTest extends TestCase
 
         // Assert record created in supplier_payments
         $this->assertDatabaseHas('supplier_payments', [
-            'supplier_id'         => $this->supplier->id,
+            'supplier_id' => $this->supplier->id,
             'chart_of_account_id' => $this->cashAccount->id,
-            'payment_method'      => 'Transfer',
-            'amount'              => '2500000.00',
-            'reference_number'    => 'TRF-PAY-001',
+            'payment_method' => 'Transfer',
+            'amount' => '2500000.00',
+            'reference_number' => 'TRF-PAY-001',
         ]);
 
         $payment = SupplierPayment::first();
@@ -129,11 +133,11 @@ class SupplierPaymentWebTest extends TestCase
     public function test_store_validation_fails_for_invalid_input(): void
     {
         $response = $this->actingAs($this->user)->post('/backoffice/supplier-payments', [
-            'supplier_id'         => 99999, // non-existent
+            'supplier_id' => 99999, // non-existent
             'chart_of_account_id' => 99999,
-            'payment_date'        => 'not-a-date',
-            'payment_method'      => 'Bitcoin', // invalid enum
-            'amount'              => -500, // negative
+            'payment_date' => 'not-a-date',
+            'payment_method' => 'Bitcoin', // invalid enum
+            'amount' => -500, // negative
         ]);
 
         $response->assertSessionHasErrors([

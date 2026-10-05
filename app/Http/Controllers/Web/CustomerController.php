@@ -42,13 +42,13 @@ class CustomerController extends Controller
         $branches = $isMaster ? Branch::orderBy('name')->get() : collect([$user->branch]);
 
         return view('backoffice.customers.index', [
-            'currentUser'      => $user,
-            'isMaster'         => $isMaster,
-            'customers'        => $customers,
-            'customerGroups'   => $customerGroups,
-            'branches'         => $branches,
-            'search'           => $search,
-            'selectedGroupId'  => $selectedGroupId,
+            'currentUser' => $user,
+            'isMaster' => $isMaster,
+            'customers' => $customers,
+            'customerGroups' => $customerGroups,
+            'branches' => $branches,
+            'search' => $search,
+            'selectedGroupId' => $selectedGroupId,
             'selectedBranchId' => $selectedBranchId,
         ]);
     }
@@ -65,10 +65,10 @@ class CustomerController extends Controller
         $branches = $isMaster ? Branch::orderBy('name')->get() : collect([$user->branch]);
 
         return view('backoffice.customers.create', [
-            'currentUser'    => $user,
-            'isMaster'       => $isMaster,
+            'currentUser' => $user,
+            'isMaster' => $isMaster,
             'customerGroups' => $customerGroups,
-            'branches'       => $branches,
+            'branches' => $branches,
         ]);
     }
 
@@ -81,12 +81,12 @@ class CustomerController extends Controller
         $isMaster = $user->isMaster();
 
         $validated = $request->validate([
-            'name'              => ['required', 'string', 'max:255'],
-            'phone'             => ['nullable', 'string', 'max:50'],
-            'email'             => ['nullable', 'email', 'max:255'],
-            'address'           => ['nullable', 'string', 'max:500'],
+            'name' => ['required', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'address' => ['nullable', 'string', 'max:500'],
             'customer_group_id' => ['nullable', 'integer', 'exists:customer_groups,id'],
-            'branch_id'         => ['nullable', 'integer', 'exists:branches,id'],
+            'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
         ]);
 
         $branchId = $isMaster && ! empty($validated['branch_id'])
@@ -94,11 +94,11 @@ class CustomerController extends Controller
             : ($user->branch_id ?: Branch::value('id'));
 
         $customer = Customer::create([
-            'branch_id'         => $branchId,
-            'name'              => $validated['name'],
-            'phone'             => $validated['phone'] ?? null,
-            'email'             => $validated['email'] ?? null,
-            'address'           => $validated['address'] ?? null,
+            'branch_id' => $branchId,
+            'name' => $validated['name'],
+            'phone' => $validated['phone'] ?? null,
+            'email' => $validated['email'] ?? null,
+            'address' => $validated['address'] ?? null,
             'customer_group_id' => $validated['customer_group_id'] ?? null,
         ]);
 
@@ -125,11 +125,11 @@ class CustomerController extends Controller
         $branches = $isMaster ? Branch::orderBy('name')->get() : collect([$customer->branch]);
 
         return view('backoffice.customers.edit', [
-            'currentUser'    => $user,
-            'isMaster'       => $isMaster,
-            'customer'       => $customer,
+            'currentUser' => $user,
+            'isMaster' => $isMaster,
+            'customer' => $customer,
             'customerGroups' => $customerGroups,
-            'branches'       => $branches,
+            'branches' => $branches,
         ]);
     }
 
@@ -148,12 +148,12 @@ class CustomerController extends Controller
         }
 
         $validated = $request->validate([
-            'name'              => ['required', 'string', 'max:255'],
-            'phone'             => ['nullable', 'string', 'max:50'],
-            'email'             => ['nullable', 'email', 'max:255'],
-            'address'           => ['nullable', 'string', 'max:500'],
+            'name' => ['required', 'string', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'email' => ['nullable', 'email', 'max:255'],
+            'address' => ['nullable', 'string', 'max:500'],
             'customer_group_id' => ['nullable', 'integer', 'exists:customer_groups,id'],
-            'branch_id'         => ['nullable', 'integer', 'exists:branches,id'],
+            'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
         ]);
 
         if ($isMaster && ! empty($validated['branch_id'])) {
@@ -161,10 +161,10 @@ class CustomerController extends Controller
         }
 
         $customer->update([
-            'name'              => $validated['name'],
-            'phone'             => $validated['phone'] ?? null,
-            'email'             => $validated['email'] ?? null,
-            'address'           => $validated['address'] ?? null,
+            'name' => $validated['name'],
+            'phone' => $validated['phone'] ?? null,
+            'email' => $validated['email'] ?? null,
+            'address' => $validated['address'] ?? null,
             'customer_group_id' => $validated['customer_group_id'] ?? null,
         ]);
 

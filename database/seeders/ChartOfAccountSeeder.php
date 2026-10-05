@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\ChartOfAccount;
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class ChartOfAccountSeeder extends Seeder
@@ -15,16 +14,20 @@ class ChartOfAccountSeeder extends Seeder
     {
         $accounts = [
             ['code' => '1110', 'name' => 'Kas', 'type' => 'asset'],
+            ['code' => '1120', 'name' => 'Bank', 'type' => 'asset'],
+            ['code' => '1130', 'name' => 'Piutang Usaha', 'type' => 'asset'],
             ['code' => '1210', 'name' => 'Persediaan', 'type' => 'asset'],
             ['code' => '2110', 'name' => 'Hutang Dagang', 'type' => 'liability'],
             ['code' => '3110', 'name' => 'Modal', 'type' => 'equity'],
             ['code' => '4110', 'name' => 'Pendapatan', 'type' => 'revenue'],
             ['code' => '4120', 'name' => 'Pendapatan Lain-lain', 'type' => 'revenue'],
+            ['code' => '4130', 'name' => 'Potongan Penjualan', 'type' => 'revenue'],
             // Cost of goods sold, required so that every POS sale can be recorded as a
             // four line entry (cash, revenue, COGS, inventory).
             ['code' => '5100', 'name' => 'Harga Pokok Penjualan', 'type' => 'expense'],
             ['code' => '5110', 'name' => 'Biaya Harian', 'type' => 'expense'],
             ['code' => '5120', 'name' => 'Beban Selisih Persediaan', 'type' => 'expense'],
+            ['code' => '6100', 'name' => 'Beban Operasional', 'type' => 'expense'],
         ];
 
         foreach ($accounts as $account) {

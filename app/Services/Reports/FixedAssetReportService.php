@@ -9,9 +9,6 @@ class FixedAssetReportService
 {
     /**
      * Get fixed assets list with accumulated depreciation and book values.
-     *
-     * @param int|null $branchId
-     * @return Collection
      */
     public function getAssets(?int $branchId = null): Collection
     {

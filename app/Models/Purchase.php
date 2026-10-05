@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Purchase extends Model
 {
-    use HasFactory, HasBranchScope;
+    use HasBranchScope, HasFactory;
 
     protected $fillable = [
         'branch_id',
@@ -66,6 +66,7 @@ class Purchase extends Model
     {
         $total = (float) $this->total_amount;
         $paid = (float) $this->paid_amount;
+
         return max(0.0, round($total - $paid, 2));
     }
 

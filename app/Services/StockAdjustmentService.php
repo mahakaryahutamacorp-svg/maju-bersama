@@ -27,7 +27,9 @@ use Illuminate\Validation\ValidationException;
 class StockAdjustmentService
 {
     public const ACCOUNT_INVENTORY = '1210';
+
     public const ACCOUNT_EXPENSE_ADJUSTMENT = '5120';
+
     public const ACCOUNT_REVENUE_ADJUSTMENT = '4120';
 
     public function __construct(
@@ -40,10 +42,6 @@ class StockAdjustmentService
      * Process stock adjustment atomically.
      * Supports both processAdjustment($data, $lines) and processAdjustment($data, $actor).
      *
-     * @param array $data
-     * @param array|User|null $linesOrActor
-     * @param User|null $actor
-     * @return StockAdjustment
      * @throws ValidationException
      */
     public function processAdjustment(array $data, array|User|null $linesOrActor = null, ?User $actor = null): StockAdjustment
@@ -144,23 +142,23 @@ class StockAdjustmentService
                 $product->increment('stock', $differenceQty);
 
                 $processedLines[] = [
-                    'product_id'     => $product->id,
-                    'system_qty'     => $systemQty,
-                    'actual_qty'     => $actualQty,
+                    'product_id' => $product->id,
+                    'system_qty' => $systemQty,
+                    'actual_qty' => $actualQty,
                     'difference_qty' => $differenceQty,
-                    'unit_cost'      => $unitCost,
-                    'subtotal_cost'  => $subtotalCost,
-                    'reason'         => $itemData['reason'] ?? $data['notes'] ?? null,
+                    'unit_cost' => $unitCost,
+                    'subtotal_cost' => $subtotalCost,
+                    'reason' => $itemData['reason'] ?? $data['notes'] ?? null,
                 ];
             }
 
             // Langkah A: Simpan master StockAdjustment
             $adjustment = StockAdjustment::create([
-                'branch_id'        => $branch->id,
+                'branch_id' => $branch->id,
                 'reference_number' => $referenceNumber,
-                'date'             => $date,
-                'adjustment_date'  => $date,
-                'notes'            => $data['notes'] ?? null,
+                'date' => $date,
+                'adjustment_date' => $date,
+                'notes' => $data['notes'] ?? null,
                 'total_loss_value' => $totalLossValue,
                 'total_gain_value' => $totalGainValue,
             ]);
@@ -170,24 +168,24 @@ class StockAdjustmentService
                 // Enterprise detail lines
                 StockAdjustmentLine::create([
                     'stock_adjustment_id' => $adjustment->id,
-                    'product_id'          => $pLine['product_id'],
-                    'system_qty'          => $pLine['system_qty'],
-                    'actual_qty'          => $pLine['actual_qty'],
-                    'difference_qty'      => $pLine['difference_qty'],
-                    'unit_cost'           => $pLine['unit_cost'],
-                    'subtotal_cost'       => $pLine['subtotal_cost'],
-                    'reason'              => $pLine['reason'],
+                    'product_id' => $pLine['product_id'],
+                    'system_qty' => $pLine['system_qty'],
+                    'actual_qty' => $pLine['actual_qty'],
+                    'difference_qty' => $pLine['difference_qty'],
+                    'unit_cost' => $pLine['unit_cost'],
+                    'subtotal_cost' => $pLine['subtotal_cost'],
+                    'reason' => $pLine['reason'],
                 ]);
 
                 // Backward-compatible items for StockCardService & existing tests
                 StockAdjustmentItem::create([
                     'stock_adjustment_id' => $adjustment->id,
-                    'product_id'          => $pLine['product_id'],
-                    'expected_qty'        => $pLine['system_qty'],
-                    'actual_qty'          => $pLine['actual_qty'],
-                    'difference_qty'      => $pLine['difference_qty'],
-                    'unit_cost'           => number_format((float) $pLine['unit_cost'], 2, '.', ''),
-                    'subtotal_value'      => number_format((float) $pLine['subtotal_cost'], 2, '.', ''),
+                    'product_id' => $pLine['product_id'],
+                    'expected_qty' => $pLine['system_qty'],
+                    'actual_qty' => $pLine['actual_qty'],
+                    'difference_qty' => $pLine['difference_qty'],
+                    'unit_cost' => number_format((float) $pLine['unit_cost'], 2, '.', ''),
+                    'subtotal_value' => number_format((float) $pLine['subtotal_cost'], 2, '.', ''),
                 ]);
             }
 
@@ -308,16 +306,16 @@ class StockAdjustmentService
         if ($hasLoss) {
             $journalLines[] = [
                 'chart_of_account_id' => $expenseAccount->id,
-                'debit'               => (float) $totalLossValue,
-                'credit'              => 0,
-                'memo'                => 'Beban selisih rugi opname persediaan',
+                'debit' => (float) $totalLossValue,
+                'credit' => 0,
+                'memo' => 'Beban selisih rugi opname persediaan',
             ];
 
             $journalLines[] = [
                 'chart_of_account_id' => $inventoryAccount->id,
-                'debit'               => 0,
-                'credit'              => (float) $totalLossValue,
-                'memo'                => 'Pengurangan persediaan fisik opname',
+                'debit' => 0,
+                'credit' => (float) $totalLossValue,
+                'memo' => 'Pengurangan persediaan fisik opname',
             ];
         }
 
@@ -325,28 +323,28 @@ class StockAdjustmentService
         if ($hasGain) {
             $journalLines[] = [
                 'chart_of_account_id' => $inventoryAccount->id,
-                'debit'               => (float) $totalGainValue,
-                'credit'              => 0,
-                'memo'                => 'Penambahan persediaan fisik opname',
+                'debit' => (float) $totalGainValue,
+                'credit' => 0,
+                'memo' => 'Penambahan persediaan fisik opname',
             ];
 
             $journalLines[] = [
                 'chart_of_account_id' => $revenueAccount->id,
-                'debit'               => 0,
-                'credit'              => (float) $totalGainValue,
-                'memo'                => 'Pendapatan selisih lebih opname persediaan',
+                'debit' => 0,
+                'credit' => (float) $totalGainValue,
+                'memo' => 'Pendapatan selisih lebih opname persediaan',
             ];
         }
 
-        $description = "Penyesuaian Stok (Opname) #{$adjustment->reference_number}" . ($adjustment->notes ? " - {$adjustment->notes}" : '');
+        $description = "Penyesuaian Stok (Opname) #{$adjustment->reference_number}".($adjustment->notes ? " - {$adjustment->notes}" : '');
 
         $journal = $this->journalEntryService->createEntry([
-            'branch_id'        => $branchId,
-            'user_id'          => $actorId,
+            'branch_id' => $branchId,
+            'user_id' => $actorId,
             'transaction_date' => $adjustment->date->format('Y-m-d'),
             'reference_number' => $adjustment->reference_number,
-            'description'      => $description,
-            'lines'            => $journalLines,
+            'description' => $description,
+            'lines' => $journalLines,
         ]);
 
         $adjustment->update(['journal_header_id' => $journal->id]);
@@ -368,9 +366,9 @@ class StockAdjustmentService
      */
     private function generateReferenceNumber(): string
     {
-        $prefix = 'SA-' . now()->format('Ymd') . '-';
+        $prefix = 'SA-'.now()->format('Ymd').'-';
         do {
-            $candidate = $prefix . strtoupper(substr(bin2hex(random_bytes(3)), 0, 5));
+            $candidate = $prefix.strtoupper(substr(bin2hex(random_bytes(3)), 0, 5));
         } while (StockAdjustment::where('reference_number', $candidate)->exists());
 
         return $candidate;

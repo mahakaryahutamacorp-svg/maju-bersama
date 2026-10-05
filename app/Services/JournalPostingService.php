@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\JournalHeader;
+use App\Models\User;
 use Illuminate\Validation\ValidationException;
 
 class JournalPostingService
@@ -23,6 +24,7 @@ class JournalPostingService
      *         memo?: string|null
      *     }>
      * } $data
+     *
      * @throws ValidationException
      */
     public function post(array $data): JournalHeader
@@ -41,17 +43,17 @@ class JournalPostingService
             ]);
         }
 
-        $userId = $data['user_id'] 
-            ?? auth()->id() 
-            ?? \App\Models\User::where('branch_id', $data['branch_id'])->value('id') 
-            ?? \App\Models\User::value('id');
+        $userId = $data['user_id']
+            ?? auth()->id()
+            ?? User::where('branch_id', $data['branch_id'])->value('id')
+            ?? User::value('id');
 
         $header = JournalHeader::create([
-            'branch_id'        => $data['branch_id'],
-            'user_id'          => $userId,
+            'branch_id' => $data['branch_id'],
+            'user_id' => $userId,
             'transaction_date' => $data['transaction_date'],
             'reference_number' => $data['reference_number'],
-            'description'      => $data['description'],
+            'description' => $data['description'],
         ]);
 
         $header->journalLines()->createMany($data['lines']);

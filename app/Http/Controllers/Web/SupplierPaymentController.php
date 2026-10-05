@@ -51,17 +51,17 @@ class SupplierPaymentController extends Controller
         $totalCash = (float) $allFiltered->whereIn('payment_method', ['Cash', 'cash'])->sum('amount');
 
         return view('backoffice.supplier-payments.index', [
-            'currentUser'    => $user,
-            'isMaster'       => $user->isMaster(),
-            'payments'       => $payments,
-            'totalPayments'  => $totalPayments,
-            'totalCount'     => $totalCount,
-            'totalTransfer'  => $totalTransfer,
-            'totalCash'      => $totalCash,
-            'search'         => $search,
-            'startDate'      => $startDate,
-            'endDate'        => $endDate,
-            'paymentMethod'  => $paymentMethod,
+            'currentUser' => $user,
+            'isMaster' => $user->isMaster(),
+            'payments' => $payments,
+            'totalPayments' => $totalPayments,
+            'totalCount' => $totalCount,
+            'totalTransfer' => $totalTransfer,
+            'totalCash' => $totalCash,
+            'search' => $search,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'paymentMethod' => $paymentMethod,
         ]);
     }
 
@@ -79,8 +79,8 @@ class SupplierPaymentController extends Controller
         $accounts = ChartOfAccount::where('type', 'asset')
             ->where(function ($q) {
                 $q->where('code', 'like', '11%')
-                  ->orWhere('name', 'like', '%kas%')
-                  ->orWhere('name', 'like', '%bank%');
+                    ->orWhere('name', 'like', '%kas%')
+                    ->orWhere('name', 'like', '%bank%');
             })
             ->orderBy('code')
             ->get();
@@ -91,10 +91,10 @@ class SupplierPaymentController extends Controller
 
         return view('backoffice.supplier-payments.create', [
             'currentUser' => $user,
-            'isMaster'    => $user->isMaster(),
-            'suppliers'   => $suppliers,
-            'accounts'    => $accounts,
-            'todayDate'   => now()->toDateString(),
+            'isMaster' => $user->isMaster(),
+            'suppliers' => $suppliers,
+            'accounts' => $accounts,
+            'todayDate' => now()->toDateString(),
         ]);
     }
 
@@ -104,18 +104,18 @@ class SupplierPaymentController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'supplier_id'         => ['required', 'integer', 'exists:suppliers,id'],
+            'supplier_id' => ['required', 'integer', 'exists:suppliers,id'],
             'chart_of_account_id' => ['required', 'integer', 'exists:chart_of_accounts,id'],
-            'payment_date'        => ['required', 'date'],
-            'payment_method'      => ['required', 'string', 'in:Transfer,Cash,Giro,transfer,cash,giro'],
-            'amount'              => ['required', 'numeric', 'min:0.01'],
-            'reference_number'    => ['nullable', 'string', 'max:100'],
-            'notes'               => ['nullable', 'string', 'max:1000'],
+            'payment_date' => ['required', 'date'],
+            'payment_method' => ['required', 'string', 'in:Transfer,Cash,Giro,transfer,cash,giro'],
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'reference_number' => ['nullable', 'string', 'max:100'],
+            'notes' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $payment = $this->paymentService->processPayment($validated, $request->user());
 
-        $formattedAmount = 'Rp ' . number_format((float) $payment->amount, 0, ',', '.');
+        $formattedAmount = 'Rp '.number_format((float) $payment->amount, 0, ',', '.');
         $supplierName = $payment->supplier?->name ?? 'Supplier';
 
         return redirect()
@@ -140,8 +140,8 @@ class SupplierPaymentController extends Controller
 
         return view('backoffice.supplier-payments.show', [
             'currentUser' => $user,
-            'isMaster'    => $user->isMaster(),
-            'payment'     => $payment,
+            'isMaster' => $user->isMaster(),
+            'payment' => $payment,
         ]);
     }
 }

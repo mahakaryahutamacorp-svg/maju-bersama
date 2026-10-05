@@ -20,10 +20,10 @@ class SalesReturnItem extends Model
     protected function casts(): array
     {
         return [
-            'quantity'      => 'integer',
-            'unit_price'    => 'decimal:2',
-            'unit_cost'     => 'decimal:2',
-            'subtotal'      => 'decimal:2',
+            'quantity' => 'integer',
+            'unit_price' => 'decimal:2',
+            'unit_cost' => 'decimal:2',
+            'subtotal' => 'decimal:2',
             'subtotal_cost' => 'decimal:2',
         ];
     }

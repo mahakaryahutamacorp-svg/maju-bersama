@@ -4,12 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\Branch;
 use App\Models\CashRegister;
-use App\Models\CashRegisterShift;
 use App\Models\Category;
 use App\Models\ChartOfAccount;
 use App\Models\Inventory;
 use App\Models\Product;
-use App\Models\Sale;
 use App\Models\SalesReturn;
 use App\Models\User;
 use App\Services\CashRegisterShiftService;
@@ -22,11 +20,17 @@ class SalesReturnWebTest extends TestCase
     use RefreshDatabase;
 
     private Branch $branch;
+
     private User $cashier;
+
     private Category $category;
+
     private Product $productA;
+
     private Product $productB;
+
     private ChartOfAccount $cashAccount;
+
     private ChartOfAccount $bankAccount;
 
     protected function setUp(): void

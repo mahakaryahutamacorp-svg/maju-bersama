@@ -12,8 +12,11 @@ use Tests\TestCase;
 class CategoryApiTest extends TestCase
 {
     private Branch $branch;
+
     private User $regularUser;
+
     private User $superadmin;
+
     private Category $category;
 
     protected function setUp(): void

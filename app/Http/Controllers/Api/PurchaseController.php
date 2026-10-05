@@ -9,11 +9,11 @@ use App\Models\Purchase;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 
 class PurchaseController extends Controller
 {
     private const ACCOUNT_INVENTORY = '1210';
+
     private const ACCOUNT_PAYABLE = '2110';
 
     /**
@@ -79,7 +79,7 @@ class PurchaseController extends Controller
                 'user_id' => $user->id,
                 'transaction_date' => now()->toDateString(),
                 'reference_number' => $purchase->invoice_number,
-                'description' => 'Pembelian Barang dari Distributor (Kredit) - ' . $purchase->invoice_number,
+                'description' => 'Pembelian Barang dari Distributor (Kredit) - '.$purchase->invoice_number,
             ]);
 
             $totalAmountFormatted = number_format((float) $purchase->total_amount, 2, '.', '');
@@ -89,13 +89,13 @@ class PurchaseController extends Controller
                     'chart_of_account_id' => $inventoryAccount->id,
                     'debit' => $totalAmountFormatted,
                     'credit' => '0.00',
-                    'memo' => 'Persediaan masuk pembelian ' . $purchase->invoice_number,
+                    'memo' => 'Persediaan masuk pembelian '.$purchase->invoice_number,
                 ],
                 [
                     'chart_of_account_id' => $payableAccount->id,
                     'debit' => '0.00',
                     'credit' => $totalAmountFormatted,
-                    'memo' => 'Hutang dagang pembelian ' . $purchase->invoice_number,
+                    'memo' => 'Hutang dagang pembelian '.$purchase->invoice_number,
                 ],
             ]);
 

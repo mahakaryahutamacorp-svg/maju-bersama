@@ -12,9 +12,13 @@ use Illuminate\Validation\ValidationException;
 class OpeningBalanceService
 {
     public const CODE_CASH = '1110';
+
     public const CODE_BANK = '1120';
+
     public const CODE_INVENTORY = '1210';
+
     public const CODE_PAYABLE = '2110';
+
     public const CODE_EQUITY = '3110';
 
     public function __construct(
@@ -33,7 +37,7 @@ class OpeningBalanceService
         return JournalHeader::where('branch_id', $branchId)
             ->where(function ($q) {
                 $q->where('description', 'like', '%Saldo Awal%')
-                  ->orWhere('reference_number', 'like', 'OB-%');
+                    ->orWhere('reference_number', 'like', 'OB-%');
             })
             ->exists();
     }
@@ -51,7 +55,7 @@ class OpeningBalanceService
             ->where('branch_id', $branchId)
             ->where(function ($q) {
                 $q->where('description', 'like', '%Saldo Awal%')
-                  ->orWhere('reference_number', 'like', 'OB-%');
+                    ->orWhere('reference_number', 'like', 'OB-%');
             })
             ->latest('id')
             ->first();
@@ -81,14 +85,15 @@ class OpeningBalanceService
      *     payable_account_id?: int|null,
      *     equity_account_id?: int|null
      * } $data
+     *
      * @throws ValidationException
      */
     public function postOpeningBalance(array $data, ?User $actor = null): JournalHeader
     {
         return DB::transaction(function () use ($data, $actor): JournalHeader {
-            $branchId = $data['branch_id'] 
-                ?? $actor?->branch_id 
-                ?? auth()->user()?->branch_id 
+            $branchId = $data['branch_id']
+                ?? $actor?->branch_id
+                ?? auth()->user()?->branch_id
                 ?? Branch::value('id');
 
             // Cek apakah cabang sudah pernah input saldo awal
@@ -100,8 +105,8 @@ class OpeningBalanceService
 
             $cashVal = max(0, (float) ($data['cash_in_drawer'] ?? 0));
             $bankVal = max(0, (float) ($data['bank_bca'] ?? 0));
-            $invVal  = max(0, (float) ($data['inventory'] ?? 0));
-            $payVal  = max(0, (float) ($data['payable'] ?? 0));
+            $invVal = max(0, (float) ($data['inventory'] ?? 0));
+            $payVal = max(0, (float) ($data['payable'] ?? 0));
 
             $totalAssets = $cashVal + $bankVal + $invVal;
             $totalLiabilities = $payVal;
@@ -142,27 +147,27 @@ class OpeningBalanceService
             if ($cashVal > 0) {
                 $lines[] = [
                     'chart_of_account_id' => $cashAccount->id,
-                    'debit'               => $cashVal,
-                    'credit'              => 0,
-                    'memo'                => 'Saldo awal kas laci / kasir',
+                    'debit' => $cashVal,
+                    'credit' => 0,
+                    'memo' => 'Saldo awal kas laci / kasir',
                 ];
             }
 
             if ($bankVal > 0) {
                 $lines[] = [
                     'chart_of_account_id' => $bankAccount->id,
-                    'debit'               => $bankVal,
-                    'credit'              => 0,
-                    'memo'                => 'Saldo awal rekening bank BCA',
+                    'debit' => $bankVal,
+                    'credit' => 0,
+                    'memo' => 'Saldo awal rekening bank BCA',
                 ];
             }
 
             if ($invVal > 0) {
                 $lines[] = [
                     'chart_of_account_id' => $invAccount->id,
-                    'debit'               => $invVal,
-                    'credit'              => 0,
-                    'memo'                => 'Saldo awal nilai persediaan barang dagang',
+                    'debit' => $invVal,
+                    'credit' => 0,
+                    'memo' => 'Saldo awal nilai persediaan barang dagang',
                 ];
             }
 
@@ -170,9 +175,9 @@ class OpeningBalanceService
             if ($payVal > 0) {
                 $lines[] = [
                     'chart_of_account_id' => $payAccount->id,
-                    'debit'               => 0,
-                    'credit'              => $payVal,
-                    'memo'                => 'Saldo awal hutang kepada supplier',
+                    'debit' => 0,
+                    'credit' => $payVal,
+                    'memo' => 'Saldo awal hutang kepada supplier',
                 ];
             }
 
@@ -180,34 +185,34 @@ class OpeningBalanceService
             if ($netEquity > 0) {
                 $lines[] = [
                     'chart_of_account_id' => $equityAccount->id,
-                    'debit'               => 0,
-                    'credit'              => $netEquity,
-                    'memo'                => 'Modal awal bersih (penyeimbang aset dan kewajiban)',
+                    'debit' => 0,
+                    'credit' => $netEquity,
+                    'memo' => 'Modal awal bersih (penyeimbang aset dan kewajiban)',
                 ];
             } elseif ($netEquity < 0) {
                 $lines[] = [
                     'chart_of_account_id' => $equityAccount->id,
-                    'debit'               => abs($netEquity),
-                    'credit'              => 0,
-                    'memo'                => 'Defisit ekuitas saldo awal (kewajiban melebihi aset)',
+                    'debit' => abs($netEquity),
+                    'credit' => 0,
+                    'memo' => 'Defisit ekuitas saldo awal (kewajiban melebihi aset)',
                 ];
             }
 
             $date = $data['transaction_date'] ?? now()->toDateString();
             $referenceNumber = ! empty($data['reference_number'])
                 ? trim($data['reference_number'])
-                : ('OB-' . now()->format('Ymd') . '-' . strtoupper(bin2hex(random_bytes(2))));
+                : ('OB-'.now()->format('Ymd').'-'.strtoupper(bin2hex(random_bytes(2))));
 
             $notes = ! empty($data['notes']) ? trim($data['notes']) : null;
-            $description = 'Setor Saldo Awal Sistem' . ($notes ? " - {$notes}" : '');
+            $description = 'Setor Saldo Awal Sistem'.($notes ? " - {$notes}" : '');
 
             return $this->journalPostingService->post([
-                'branch_id'        => $branchId,
-                'user_id'          => $data['user_id'] ?? $actor?->id ?? auth()->id(),
+                'branch_id' => $branchId,
+                'user_id' => $data['user_id'] ?? $actor?->id ?? auth()->id(),
                 'transaction_date' => $date,
                 'reference_number' => $referenceNumber,
-                'description'      => $description,
-                'lines'            => $lines,
+                'description' => $description,
+                'lines' => $lines,
             ]);
         });
     }
@@ -223,9 +228,9 @@ class OpeningBalanceService
         }
 
         return ChartOfAccount::create([
-            'code'      => $code,
-            'name'      => $name,
-            'type'      => $type,
+            'code' => $code,
+            'name' => $name,
+            'type' => $type,
             'is_active' => true,
         ]);
     }

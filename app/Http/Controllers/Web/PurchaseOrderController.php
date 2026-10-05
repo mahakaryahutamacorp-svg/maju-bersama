@@ -7,6 +7,7 @@ use App\Models\Branch;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\Supplier;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +19,7 @@ class PurchaseOrderController extends Controller
     /**
      * Display a listing of purchase orders.
      */
-    public function index(Request $request): View
+    public function index(Request $request): View|JsonResponse
     {
         $user = $request->user()->load('branch');
         $search = $request->input('search');
@@ -50,23 +51,32 @@ class PurchaseOrderController extends Controller
         // Metrics for summary cards
         $allPOs = (clone $query)->get();
         $metrics = [
-            'total'     => $allPOs->count(),
-            'pending'   => $allPOs->where('status', 'pending')->count(),
+            'total' => $allPOs->count(),
+            'pending' => $allPOs->where('status', 'pending')->count(),
             'completed' => $allPOs->where('status', 'completed')->count(),
-            'amount'    => (float) $allPOs->sum('total_amount'),
+            'amount' => (float) $allPOs->sum('total_amount'),
         ];
 
+        if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'data' => $purchaseOrders->items(),
+                'metrics' => $metrics,
+                'total' => $purchaseOrders->total(),
+            ]);
+        }
+
         return view('backoffice.purchase-orders.index', [
-            'currentUser'    => $user,
-            'isMaster'       => $user->isMaster(),
+            'currentUser' => $user,
+            'isMaster' => $user->isMaster(),
             'purchaseOrders' => $purchaseOrders,
-            'branches'       => $branches,
-            'metrics'        => $metrics,
-            'search'         => $search,
-            'status'         => $status,
-            'filterBranch'   => $filterBranch,
-            'startDate'      => $startDate,
-            'endDate'        => $endDate,
+            'branches' => $branches,
+            'metrics' => $metrics,
+            'search' => $search,
+            'status' => $status,
+            'filterBranch' => $filterBranch,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
         ]);
     }
 
@@ -87,11 +97,11 @@ class PurchaseOrderController extends Controller
             ->get(['id', 'sku', 'name', 'purchase_price', 'stock']);
 
         $productsData = $products->map(fn (Product $p) => [
-            'id'             => $p->id,
-            'sku'            => $p->sku,
-            'name'           => $p->name,
+            'id' => $p->id,
+            'sku' => $p->sku,
+            'name' => $p->name,
             'purchase_price' => (float) $p->purchase_price,
-            'stock'          => (int) $p->stock,
+            'stock' => (int) $p->stock,
         ]);
 
         $branches = $user->isMaster()
@@ -99,37 +109,37 @@ class PurchaseOrderController extends Controller
             : collect();
 
         return view('backoffice.purchase-orders.create', [
-            'currentUser'  => $user,
-            'isMaster'     => $user->isMaster(),
-            'suppliers'    => $suppliers,
-            'products'     => $productsData,
-            'branches'     => $branches,
-            'today'        => now()->format('Y-m-d'),
+            'currentUser' => $user,
+            'isMaster' => $user->isMaster(),
+            'suppliers' => $suppliers,
+            'products' => $productsData,
+            'branches' => $branches,
+            'today' => now()->format('Y-m-d'),
         ]);
     }
 
     /**
      * Store a newly created purchase order in storage.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
         $user = $request->user();
 
         $validated = $request->validate([
-            'supplier_id'         => ['required', 'exists:suppliers,id'],
-            'order_date'          => ['required', 'date'],
-            'expected_date'       => ['nullable', 'date'],
-            'notes'               => ['nullable', 'string', 'max:2000'],
-            'branch_id'           => ['nullable', 'exists:branches,id'],
-            'items'               => ['required', 'array', 'min:1'],
-            'items.*.product_id'  => ['required', 'exists:products,id'],
-            'items.*.quantity'    => ['required', 'integer', 'min:1'],
-            'items.*.unit_price'  => ['required', 'numeric', 'min:0'],
+            'supplier_id' => ['required', 'exists:suppliers,id'],
+            'order_date' => ['required', 'date'],
+            'expected_date' => ['nullable', 'date'],
+            'notes' => ['nullable', 'string', 'max:2000'],
+            'branch_id' => ['nullable', 'exists:branches,id'],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.product_id' => ['required', 'exists:products,id'],
+            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.unit_price' => ['required', 'numeric', 'min:0'],
         ], [
-            'items.required'      => 'Minimal harus memasukkan satu item produk dalam Purchase Order.',
-            'items.min'           => 'Minimal harus memasukkan satu item produk dalam Purchase Order.',
+            'items.required' => 'Minimal harus memasukkan satu item produk dalam Purchase Order.',
+            'items.min' => 'Minimal harus memasukkan satu item produk dalam Purchase Order.',
             'items.*.product_id.required' => 'Pilih produk untuk setiap baris pemesanan.',
-            'items.*.quantity.min'        => 'Kuantitas minimal adalah 1.',
+            'items.*.quantity.min' => 'Kuantitas minimal adalah 1.',
         ]);
 
         $po = DB::transaction(function () use ($user, $validated) {
@@ -150,11 +160,11 @@ class PurchaseOrderController extends Controller
             $countToday = PurchaseOrder::withoutGlobalScopes()
                 ->whereDate('created_at', today())
                 ->count() + 1;
-            $referenceNumber = 'PO-' . $datePrefix . '-' . str_pad($countToday, 4, '0', STR_PAD_LEFT);
+            $referenceNumber = 'PO-'.$datePrefix.'-'.str_pad($countToday, 4, '0', STR_PAD_LEFT);
 
             // Double check uniqueness
             while (PurchaseOrder::withoutGlobalScopes()->where('reference_number', $referenceNumber)->exists()) {
-                $referenceNumber = 'PO-' . $datePrefix . '-' . strtoupper(Str::random(4));
+                $referenceNumber = 'PO-'.$datePrefix.'-'.strtoupper(Str::random(4));
             }
 
             // Calculate total amount from items
@@ -167,24 +177,24 @@ class PurchaseOrderController extends Controller
                 $totalAmount += $subtotal;
 
                 $itemsData[] = [
-                    'product_id'        => $item['product_id'],
-                    'quantity'          => $qty,
+                    'product_id' => $item['product_id'],
+                    'quantity' => $qty,
                     'received_quantity' => 0,
-                    'unit_price'        => $unitPrice,
-                    'subtotal'          => $subtotal,
+                    'unit_price' => $unitPrice,
+                    'subtotal' => $subtotal,
                 ];
             }
 
             // Create Main Purchase Order record with default status 'pending'
             $purchaseOrder = PurchaseOrder::create([
-                'branch_id'        => $branchId,
-                'supplier_id'      => $validated['supplier_id'],
+                'branch_id' => $branchId,
+                'supplier_id' => $validated['supplier_id'],
                 'reference_number' => $referenceNumber,
-                'order_date'       => $validated['order_date'],
-                'expected_date'    => $validated['expected_date'] ?? null,
-                'status'           => 'pending',
-                'total_amount'     => $totalAmount,
-                'notes'            => $validated['notes'] ?? null,
+                'order_date' => $validated['order_date'],
+                'expected_date' => $validated['expected_date'] ?? null,
+                'status' => 'pending',
+                'total_amount' => $totalAmount,
+                'notes' => $validated['notes'] ?? null,
             ]);
 
             // Create Purchase Order Items
@@ -195,6 +205,14 @@ class PurchaseOrderController extends Controller
             return $purchaseOrder;
         });
 
+        if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => "Purchase Order '{$po->reference_number}' berhasil diterbitkan dengan status 'Pending'.",
+                'data' => $po->load(['items.product', 'supplier', 'branch']),
+            ], 201);
+        }
+
         return redirect()
             ->route('backoffice.purchase-orders.show', $po->id)
             ->with('success', "Purchase Order '{$po->reference_number}' berhasil diterbitkan dengan status 'Pending'.");
@@ -203,16 +221,23 @@ class PurchaseOrderController extends Controller
     /**
      * Display the specified purchase order details and slip.
      */
-    public function show(Request $request, int $id): View
+    public function show(Request $request, int $id): View|JsonResponse
     {
         $user = $request->user()->load('branch');
 
         $purchaseOrder = PurchaseOrder::with(['branch', 'supplier', 'items.product', 'goodsReceipts'])
             ->findOrFail($id);
 
+        if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'data' => $purchaseOrder,
+            ]);
+        }
+
         return view('backoffice.purchase-orders.show', [
-            'currentUser'   => $user,
-            'isMaster'      => $user->isMaster(),
+            'currentUser' => $user,
+            'isMaster' => $user->isMaster(),
             'purchaseOrder' => $purchaseOrder,
         ]);
     }

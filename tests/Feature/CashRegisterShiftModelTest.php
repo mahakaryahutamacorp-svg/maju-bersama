@@ -15,9 +15,13 @@ class CashRegisterShiftModelTest extends TestCase
     use RefreshDatabase;
 
     private Branch $branchOne;
+
     private Branch $branchTwo;
+
     private User $cashierOne;
+
     private User $cashierTwo;
+
     private User $masterUser;
 
     protected function setUp(): void
@@ -25,30 +29,30 @@ class CashRegisterShiftModelTest extends TestCase
         parent::setUp();
 
         $this->branchOne = Branch::create([
-            'name'      => 'Cabang Jakarta Pusat',
-            'code'      => 'JKT01',
+            'name' => 'Cabang Jakarta Pusat',
+            'code' => 'JKT01',
             'is_active' => true,
         ]);
 
         $this->branchTwo = Branch::create([
-            'name'      => 'Cabang Bandung',
-            'code'      => 'BDG01',
+            'name' => 'Cabang Bandung',
+            'code' => 'BDG01',
             'is_active' => true,
         ]);
 
         $this->cashierOne = User::factory()->create([
             'branch_id' => $this->branchOne->id,
-            'role'      => 'cashier',
+            'role' => 'cashier',
         ]);
 
         $this->cashierTwo = User::factory()->create([
             'branch_id' => $this->branchTwo->id,
-            'role'      => 'cashier',
+            'role' => 'cashier',
         ]);
 
         $this->masterUser = User::factory()->create([
             'branch_id' => $this->branchOne->id,
-            'role'      => 'master',
+            'role' => 'master',
         ]);
     }
 
@@ -56,14 +60,14 @@ class CashRegisterShiftModelTest extends TestCase
     {
         $register = CashRegister::create([
             'branch_id' => $this->branchOne->id,
-            'name'      => 'Kasir Utama 01',
+            'name' => 'Kasir Utama 01',
             'is_active' => true,
         ]);
 
         $this->assertDatabaseHas('cash_registers', [
-            'id'        => $register->id,
+            'id' => $register->id,
             'branch_id' => $this->branchOne->id,
-            'name'      => 'Kasir Utama 01',
+            'name' => 'Kasir Utama 01',
             'is_active' => 1,
         ]);
 
@@ -76,12 +80,12 @@ class CashRegisterShiftModelTest extends TestCase
     {
         CashRegister::create([
             'branch_id' => $this->branchOne->id,
-            'name'      => 'Laci JKT 1',
+            'name' => 'Laci JKT 1',
         ]);
 
         CashRegister::create([
             'branch_id' => $this->branchTwo->id,
-            'name'      => 'Laci BDG 1',
+            'name' => 'Laci BDG 1',
         ]);
 
         // Cashier One should only see Branch One register
@@ -106,22 +110,22 @@ class CashRegisterShiftModelTest extends TestCase
     {
         $register = CashRegister::create([
             'branch_id' => $this->branchOne->id,
-            'name'      => 'Kasir 01',
+            'name' => 'Kasir 01',
         ]);
 
         // 1. Open shift
         $openedAt = now()->subHours(8);
         $shift = CashRegisterShift::create([
-            'branch_id'                => $this->branchOne->id,
-            'cash_register_id'         => $register->id,
-            'user_id'                  => $this->cashierOne->id,
-            'opened_at'                => $openedAt,
-            'opening_balance'          => 200000.00,
+            'branch_id' => $this->branchOne->id,
+            'cash_register_id' => $register->id,
+            'user_id' => $this->cashierOne->id,
+            'opened_at' => $openedAt,
+            'opening_balance' => 200000.00,
             'expected_closing_balance' => 0.00,
-            'actual_closing_balance'   => 0.00,
-            'difference'               => 0.00,
-            'status'                   => 'open',
-            'notes'                    => 'Shift Pagi',
+            'actual_closing_balance' => 0.00,
+            'difference' => 0.00,
+            'status' => 'open',
+            'notes' => 'Shift Pagi',
         ]);
 
         $this->assertTrue($shift->isOpen());
@@ -132,12 +136,12 @@ class CashRegisterShiftModelTest extends TestCase
         // 2. Close shift with settlement
         $closedAt = now();
         $shift->update([
-            'closed_at'                => $closedAt,
+            'closed_at' => $closedAt,
             'expected_closing_balance' => 1500000.00,
-            'actual_closing_balance'   => 1520000.00,
-            'difference'               => 20000.00, // surplus
-            'status'                   => 'closed',
-            'notes'                    => 'Shift Pagi selesai. Selisih lebih Rp 20.000',
+            'actual_closing_balance' => 1520000.00,
+            'difference' => 20000.00, // surplus
+            'status' => 'closed',
+            'notes' => 'Shift Pagi selesai. Selisih lebih Rp 20.000',
         ]);
 
         $shift->refresh();
@@ -153,27 +157,27 @@ class CashRegisterShiftModelTest extends TestCase
     {
         $register = CashRegister::create([
             'branch_id' => $this->branchOne->id,
-            'name'      => 'Kasir Utama',
+            'name' => 'Kasir Utama',
         ]);
 
         $shift = CashRegisterShift::create([
-            'branch_id'        => $this->branchOne->id,
+            'branch_id' => $this->branchOne->id,
             'cash_register_id' => $register->id,
-            'user_id'          => $this->cashierOne->id,
-            'opened_at'        => now(),
-            'opening_balance'  => 100000.00,
-            'status'           => 'open',
+            'user_id' => $this->cashierOne->id,
+            'opened_at' => now(),
+            'opening_balance' => 100000.00,
+            'status' => 'open',
         ]);
 
         // Link Sale to Shift
         $sale = Sale::withoutGlobalScopes()->create([
-            'branch_id'              => $this->branchOne->id,
+            'branch_id' => $this->branchOne->id,
             'cash_register_shift_id' => $shift->id,
-            'receipt_number'         => 'INV-SHIFT-001',
-            'total_amount'           => 75000,
-            'payment_method'         => 'cash',
-            'status'                 => 'completed',
-            'created_by'             => $this->cashierOne->id,
+            'receipt_number' => 'INV-SHIFT-001',
+            'total_amount' => 75000,
+            'payment_method' => 'cash',
+            'status' => 'completed',
+            'created_by' => $this->cashierOne->id,
         ]);
 
         // Verify shift relations
@@ -199,30 +203,30 @@ class CashRegisterShiftModelTest extends TestCase
     {
         $regOne = CashRegister::create([
             'branch_id' => $this->branchOne->id,
-            'name'      => 'Kasir 1 JKT',
+            'name' => 'Kasir 1 JKT',
         ]);
 
         $regTwo = CashRegister::create([
             'branch_id' => $this->branchTwo->id,
-            'name'      => 'Kasir 1 BDG',
+            'name' => 'Kasir 1 BDG',
         ]);
 
         CashRegisterShift::create([
-            'branch_id'        => $this->branchOne->id,
+            'branch_id' => $this->branchOne->id,
             'cash_register_id' => $regOne->id,
-            'user_id'          => $this->cashierOne->id,
-            'opened_at'        => now(),
-            'opening_balance'  => 100000.00,
-            'status'           => 'open',
+            'user_id' => $this->cashierOne->id,
+            'opened_at' => now(),
+            'opening_balance' => 100000.00,
+            'status' => 'open',
         ]);
 
         CashRegisterShift::create([
-            'branch_id'        => $this->branchTwo->id,
+            'branch_id' => $this->branchTwo->id,
             'cash_register_id' => $regTwo->id,
-            'user_id'          => $this->cashierTwo->id,
-            'opened_at'        => now(),
-            'opening_balance'  => 150000.00,
-            'status'           => 'open',
+            'user_id' => $this->cashierTwo->id,
+            'opened_at' => now(),
+            'opening_balance' => 150000.00,
+            'status' => 'open',
         ]);
 
         // Cashier 1 should only see Branch 1 shift

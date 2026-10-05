@@ -18,6 +18,7 @@ class LayoutAuditTest extends TestCase
     use RefreshDatabase;
 
     protected User $masterUser;
+
     protected Branch $branch;
 
     protected function setUp(): void
@@ -97,12 +98,12 @@ class LayoutAuditTest extends TestCase
             $response = $this->get($url);
             $response->assertStatus(200);
             $response->assertSee($expectedText);
-            
+
             $html = $response->getContent();
             $this->assertStringContainsString('<!DOCTYPE html>', $html, "Missing DOCTYPE in {$url}");
             $this->assertStringContainsString('<head>', $html, "Missing <head> in {$url}");
             $this->assertTrue(
-                str_contains($html, 'build/assets/') || str_contains($html, '.css'), 
+                str_contains($html, 'build/assets/') || str_contains($html, '.css'),
                 "Missing compiled Vite CSS asset in {$url}"
             );
             $this->assertStringContainsString('min-h-screen', $html, "Missing min-h-screen container class in {$url}");
@@ -128,7 +129,7 @@ class LayoutAuditTest extends TestCase
             '/backoffice/suppliers' => 'Supplier',
             '/backoffice/customers' => 'Pelanggan',
             '/backoffice/customers/create' => 'Tambah Pelanggan',
-            
+
             // Pengadaan & Transaksi
             '/backoffice/purchase-orders' => 'Pembelian / PO',
             '/backoffice/purchase-orders/create' => 'Buat Purchase Order',
@@ -170,10 +171,10 @@ class LayoutAuditTest extends TestCase
 
         foreach ($routes as $url => $keyword) {
             $response = $this->actingAs($this->masterUser)->get($url);
-            
+
             $this->assertEquals(
-                200, 
-                $response->status(), 
+                200,
+                $response->status(),
                 "Route {$url} failed with status {$response->status()}."
             );
 
@@ -183,10 +184,10 @@ class LayoutAuditTest extends TestCase
             $this->assertStringContainsString('<!DOCTYPE html>', $html, "Route {$url} is missing <!DOCTYPE html>");
             $this->assertStringContainsString('<head>', $html, "Route {$url} is missing <head>");
             $this->assertTrue(
-                str_contains($html, 'build/assets/') || str_contains($html, '.css'), 
+                str_contains($html, 'build/assets/') || str_contains($html, '.css'),
                 "Route {$url} is missing Vite CSS bundle"
             );
-            
+
             // Verifikasi tag pembungkus utama memiliki kelas layout kontainer
             $this->assertStringContainsString('min-h-screen', $html, "Route {$url} is missing min-h-screen container");
         }

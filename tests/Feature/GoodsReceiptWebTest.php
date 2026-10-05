@@ -5,16 +5,24 @@ namespace Tests\Feature;
 use App\Models\Branch;
 use App\Models\Category;
 use App\Models\ChartOfAccount;
+use App\Models\GoodsReceipt;
 use App\Models\Product;
+use App\Models\PurchaseOrder;
+use App\Models\PurchaseOrderItem;
+use App\Models\Supplier;
 use App\Models\User;
 use Tests\TestCase;
 
 class GoodsReceiptWebTest extends TestCase
 {
     private Branch $central;
+
     private Branch $branchOne;
+
     private User $master;
+
     private User $branchCashier;
+
     private Product $product;
 
     protected function setUp(): void
@@ -98,13 +106,13 @@ class GoodsReceiptWebTest extends TestCase
 
     public function test_master_can_pull_po_and_store_goods_receipt(): void
     {
-        $supplier = \App\Models\Supplier::withoutGlobalScopes()->create([
+        $supplier = Supplier::withoutGlobalScopes()->create([
             'branch_id' => $this->central->id,
             'name' => 'PT Pangan Sumber Utama',
             'is_active' => true,
         ]);
 
-        $po = \App\Models\PurchaseOrder::withoutGlobalScopes()->create([
+        $po = PurchaseOrder::withoutGlobalScopes()->create([
             'branch_id' => $this->central->id,
             'supplier_id' => $supplier->id,
             'reference_number' => 'PO-TEST-WEB-01',
@@ -113,7 +121,7 @@ class GoodsReceiptWebTest extends TestCase
             'total_amount' => 500000.00,
         ]);
 
-        $poItem = \App\Models\PurchaseOrderItem::create([
+        $poItem = PurchaseOrderItem::create([
             'purchase_order_id' => $po->id,
             'product_id' => $this->product->id,
             'quantity' => 10,
@@ -200,7 +208,7 @@ class GoodsReceiptWebTest extends TestCase
         $postResponse->assertSessionHasNoErrors();
         $postResponse->assertRedirect();
 
-        $receipt = \App\Models\GoodsReceipt::where('reference_number', 'GR-BR1-001')->firstOrFail();
+        $receipt = GoodsReceipt::where('reference_number', 'GR-BR1-001')->firstOrFail();
         $this->assertEquals($this->branchOne->id, $receipt->branch_id);
 
         // 3. Can view own branch show slip
@@ -217,7 +225,7 @@ class GoodsReceiptWebTest extends TestCase
         ]);
 
         // Receipt belonging to central
-        $centralReceipt = \App\Models\GoodsReceipt::create([
+        $centralReceipt = GoodsReceipt::create([
             'branch_id' => $this->central->id,
             'reference_number' => 'GR-CENTRAL-999',
             'supplier_name' => 'Pusat Supplier',

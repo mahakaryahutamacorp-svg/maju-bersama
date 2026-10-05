@@ -6,7 +6,6 @@ use App\Models\Branch;
 use App\Models\CashRegister;
 use App\Models\CashRegisterShift;
 use App\Models\Category;
-use App\Models\ChartOfAccount;
 use App\Models\Customer;
 use App\Models\CustomerGroup;
 use App\Models\Product;
@@ -23,13 +22,21 @@ class MultiPriceWebTest extends TestCase
     use RefreshDatabase;
 
     private Branch $branch;
+
     private User $user;
+
     private Category $category;
+
     private CustomerGroup $groupUmum;
+
     private CustomerGroup $groupPetani;
+
     private CustomerGroup $groupGrosir;
+
     private Customer $customerUmum;
+
     private Customer $customerPetani;
+
     private Product $product;
 
     protected function setUp(): void

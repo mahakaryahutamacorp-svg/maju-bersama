@@ -40,11 +40,11 @@ class WarehouseController extends Controller
             : collect();
 
         return view('backoffice.warehouses.index', [
-            'currentUser'  => $user,
-            'isMaster'     => $user->isMaster(),
-            'warehouses'   => $warehouses,
-            'branches'     => $branches,
-            'search'       => $search,
+            'currentUser' => $user,
+            'isMaster' => $user->isMaster(),
+            'warehouses' => $warehouses,
+            'branches' => $branches,
+            'search' => $search,
             'filterBranch' => $filterBranch,
         ]);
     }
@@ -63,8 +63,8 @@ class WarehouseController extends Controller
 
         return view('backoffice.warehouses.create', [
             'currentUser' => $user,
-            'isMaster'    => $user->isMaster(),
-            'branches'    => $branches,
+            'isMaster' => $user->isMaster(),
+            'branches' => $branches,
         ]);
     }
 
@@ -82,21 +82,21 @@ class WarehouseController extends Controller
 
         $validated = $request->validate([
             'branch_id' => ['required', 'integer', 'exists:branches,id'],
-            'code'      => [
+            'code' => [
                 'required', 'string', 'max:20',
                 Rule::unique('warehouses', 'code')->where('branch_id', $allowedBranchId),
             ],
-            'name'      => ['required', 'string', 'max:100'],
+            'name' => ['required', 'string', 'max:100'],
         ], [
             'branch_id.required' => 'Cabang wajib dipilih.',
-            'code.required'      => 'Kode gudang wajib diisi.',
-            'code.unique'        => 'Kode gudang ini sudah digunakan pada cabang tersebut.',
-            'name.required'      => 'Nama gudang wajib diisi.',
+            'code.required' => 'Kode gudang wajib diisi.',
+            'code.unique' => 'Kode gudang ini sudah digunakan pada cabang tersebut.',
+            'name.required' => 'Nama gudang wajib diisi.',
         ]);
 
         // Enforce branch scope for non-master users
         $validated['branch_id'] = $allowedBranchId;
-        $validated['code']      = strtoupper(trim($validated['code']));
+        $validated['code'] = strtoupper(trim($validated['code']));
         $validated['is_active'] = true;
 
         $warehouse = Warehouse::create($validated);
@@ -124,9 +124,9 @@ class WarehouseController extends Controller
 
         return view('backoffice.warehouses.edit', [
             'currentUser' => $user,
-            'isMaster'    => $user->isMaster(),
-            'warehouse'   => $warehouse,
-            'branches'    => $branches,
+            'isMaster' => $user->isMaster(),
+            'warehouse' => $warehouse,
+            'branches' => $branches,
         ]);
     }
 
@@ -147,23 +147,23 @@ class WarehouseController extends Controller
 
         $validated = $request->validate([
             'branch_id' => ['required', 'integer', 'exists:branches,id'],
-            'code'      => [
+            'code' => [
                 'required', 'string', 'max:20',
                 Rule::unique('warehouses', 'code')
                     ->where('branch_id', $allowedBranchId)
                     ->ignore($warehouse->id),
             ],
-            'name'      => ['required', 'string', 'max:100'],
+            'name' => ['required', 'string', 'max:100'],
             'is_active' => ['nullable', 'boolean'],
         ], [
             'branch_id.required' => 'Cabang wajib dipilih.',
-            'code.required'      => 'Kode gudang wajib diisi.',
-            'code.unique'        => 'Kode gudang ini sudah digunakan pada cabang tersebut.',
-            'name.required'      => 'Nama gudang wajib diisi.',
+            'code.required' => 'Kode gudang wajib diisi.',
+            'code.unique' => 'Kode gudang ini sudah digunakan pada cabang tersebut.',
+            'name.required' => 'Nama gudang wajib diisi.',
         ]);
 
         $validated['branch_id'] = $allowedBranchId;
-        $validated['code']      = strtoupper(trim($validated['code']));
+        $validated['code'] = strtoupper(trim($validated['code']));
         $validated['is_active'] = $request->has('is_active')
             ? (bool) $request->input('is_active')
             : $warehouse->is_active;

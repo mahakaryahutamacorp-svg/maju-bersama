@@ -16,8 +16,11 @@ class CashTransactionWebTest extends TestCase
     use RefreshDatabase;
 
     private Branch $branch;
+
     private User $user;
+
     private ChartOfAccount $kasTunai;
+
     private ChartOfAccount $bankBca;
 
     protected function setUp(): void
@@ -25,33 +28,33 @@ class CashTransactionWebTest extends TestCase
         parent::setUp();
 
         $this->branch = Branch::create([
-            'name'    => 'Cabang Jakarta Pusat',
-            'code'    => 'JKT-01',
+            'name' => 'Cabang Jakarta Pusat',
+            'code' => 'JKT-01',
             'address' => 'Jl. Thamrin No. 1',
-            'phone'   => '0811001122',
+            'phone' => '0811001122',
         ]);
 
         $this->user = User::create([
-            'name'      => 'Admin Kasir JKT',
-            'email'     => 'kasir.jkt@example.com',
-            'password'  => bcrypt('password'),
-            'role'      => 'branch_admin',
+            'name' => 'Admin Kasir JKT',
+            'email' => 'kasir.jkt@example.com',
+            'password' => bcrypt('password'),
+            'role' => 'branch_admin',
             'branch_id' => $this->branch->id,
         ]);
 
         // Kas Tunai / Laci Kasir (1110)
         $this->kasTunai = ChartOfAccount::create([
-            'code'      => '1110',
-            'name'      => 'Kas Tunai Laci Kasir',
-            'type'      => 'asset',
+            'code' => '1110',
+            'name' => 'Kas Tunai Laci Kasir',
+            'type' => 'asset',
             'is_active' => true,
         ]);
 
         // Rekening Bank BCA (1120)
         $this->bankBca = ChartOfAccount::create([
-            'code'      => '1120',
-            'name'      => 'Rekening Bank BCA',
-            'type'      => 'asset',
+            'code' => '1120',
+            'name' => 'Rekening Bank BCA',
+            'type' => 'asset',
             'is_active' => true,
         ]);
     }
@@ -90,13 +93,13 @@ class CashTransactionWebTest extends TestCase
         $this->actingAs($this->user);
 
         $transferData = [
-            'type'             => 'TRANSFER',
-            'from_account_id'  => $this->kasTunai->id,
-            'to_account_id'    => $this->bankBca->id,
-            'amount'           => 1000000,
+            'type' => 'TRANSFER',
+            'from_account_id' => $this->kasTunai->id,
+            'to_account_id' => $this->bankBca->id,
+            'amount' => 1000000,
             'transaction_date' => '2026-09-24',
             'reference_number' => 'TRF-TEST-1M-01',
-            'notes'            => 'Setoran kas laci kasir ke rekening Bank BCA operasional',
+            'notes' => 'Setoran kas laci kasir ke rekening Bank BCA operasional',
         ];
 
         $response = $this->post(route('backoffice.cash-transactions.store'), $transferData);
@@ -107,10 +110,10 @@ class CashTransactionWebTest extends TestCase
 
         // 2. Verifikasi data tersimpan di tabel cash_transfers
         $this->assertDatabaseHas('cash_transfers', [
-            'branch_id'        => $this->branch->id,
-            'from_account_id'  => $this->kasTunai->id,
-            'to_account_id'    => $this->bankBca->id,
-            'amount'           => 1000000.00,
+            'branch_id' => $this->branch->id,
+            'from_account_id' => $this->kasTunai->id,
+            'to_account_id' => $this->bankBca->id,
+            'amount' => 1000000.00,
             'reference_number' => 'TRF-TEST-1M-01',
         ]);
 
@@ -157,10 +160,10 @@ class CashTransactionWebTest extends TestCase
         $this->actingAs($this->user);
 
         $response = $this->post(route('backoffice.cash-transactions.store'), [
-            'type'             => 'TRANSFER',
-            'from_account_id'  => $this->kasTunai->id,
-            'to_account_id'    => $this->kasTunai->id, // Sama persis
-            'amount'           => 500000,
+            'type' => 'TRANSFER',
+            'from_account_id' => $this->kasTunai->id,
+            'to_account_id' => $this->kasTunai->id, // Sama persis
+            'amount' => 500000,
             'transaction_date' => '2026-09-24',
         ]);
 
@@ -173,10 +176,10 @@ class CashTransactionWebTest extends TestCase
         $this->actingAs($this->user);
 
         $response = $this->post(route('backoffice.cash-transactions.store'), [
-            'type'             => 'TRANSFER',
-            'from_account_id'  => $this->kasTunai->id,
-            'to_account_id'    => $this->bankBca->id,
-            'amount'           => 0, // Nilai 0
+            'type' => 'TRANSFER',
+            'from_account_id' => $this->kasTunai->id,
+            'to_account_id' => $this->bankBca->id,
+            'amount' => 0, // Nilai 0
             'transaction_date' => '2026-09-24',
         ]);
 
@@ -190,14 +193,14 @@ class CashTransactionWebTest extends TestCase
 
         // Uji metode storeTransfer langsung
         $transfer = $service->storeTransfer([
-            'branch_id'        => $this->branch->id,
-            'user_id'          => $this->user->id,
-            'from_account_id'  => $this->bankBca->id,
-            'to_account_id'    => $this->kasTunai->id,
-            'amount'           => 500000,
+            'branch_id' => $this->branch->id,
+            'user_id' => $this->user->id,
+            'from_account_id' => $this->bankBca->id,
+            'to_account_id' => $this->kasTunai->id,
+            'amount' => 500000,
             'transaction_date' => '2026-09-24',
             'reference_number' => 'TRF-SVC-TEST-01',
-            'notes'            => 'Tarik tunai dari Bank BCA untuk kas kecil',
+            'notes' => 'Tarik tunai dari Bank BCA untuk kas kecil',
         ]);
 
         $this->assertInstanceOf(CashTransfer::class, $transfer);
@@ -213,15 +216,15 @@ class CashTransactionWebTest extends TestCase
 
         // Uji metode storeTransaction dengan type == 'TRANSFER'
         $transfer2 = $service->storeTransaction([
-            'type'             => 'TRANSFER',
-            'branch_id'        => $this->branch->id,
-            'user_id'          => $this->user->id,
-            'from_account_id'  => $this->kasTunai->id,
-            'to_account_id'    => $this->bankBca->id,
-            'amount'           => 250000,
+            'type' => 'TRANSFER',
+            'branch_id' => $this->branch->id,
+            'user_id' => $this->user->id,
+            'from_account_id' => $this->kasTunai->id,
+            'to_account_id' => $this->bankBca->id,
+            'amount' => 250000,
             'transaction_date' => '2026-09-24',
             'reference_number' => 'TRF-SVC-TEST-02',
-            'notes'            => 'Penyetoran kas via storeTransaction',
+            'notes' => 'Penyetoran kas via storeTransaction',
         ]);
 
         $this->assertInstanceOf(CashTransfer::class, $transfer2);

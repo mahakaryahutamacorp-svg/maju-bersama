@@ -11,6 +11,7 @@ use Tests\TestCase;
 class AccountingReportWebTest extends TestCase
 {
     private Branch $central;
+
     private User $master;
 
     protected function setUp(): void
@@ -58,11 +59,11 @@ class AccountingReportWebTest extends TestCase
 
     public function test_trial_balance_page_renders_filtered_by_branch(): void
     {
-        $response = $this->actingAs($this->master)->get('/reports/accounting/trial-balance?branch_id=' . $this->central->id);
+        $response = $this->actingAs($this->master)->get('/reports/accounting/trial-balance?branch_id='.$this->central->id);
 
         $response->assertStatus(200);
-        $response->assertSee('Neraca Saldo &mdash; <span class="text-sky-700 uppercase tracking-tight">' . $this->central->name . '</span>', false);
-        $response->assertSee('Filter Toko: <strong class="uppercase">' . $this->central->name . '</strong>', false);
+        $response->assertSee('Neraca Saldo &mdash; <span class="text-sky-700 uppercase tracking-tight">'.$this->central->name.'</span>', false);
+        $response->assertSee('Filter Toko: <strong class="uppercase">'.$this->central->name.'</strong>', false);
         $response->assertSee('SEIMBANG');
     }
 
@@ -82,11 +83,11 @@ class AccountingReportWebTest extends TestCase
 
     public function test_income_statement_page_renders_filtered_by_branch(): void
     {
-        $response = $this->actingAs($this->master)->get('/reports/accounting/income-statement?branch_id=' . $this->central->id);
+        $response = $this->actingAs($this->master)->get('/reports/accounting/income-statement?branch_id='.$this->central->id);
 
         $response->assertStatus(200);
-        $response->assertSee('Laporan Laba Rugi &mdash; <span class="text-sky-700 uppercase tracking-tight">' . $this->central->name . '</span>', false);
-        $response->assertSee('Filter Toko: <strong class="uppercase">' . $this->central->name . '</strong>', false);
+        $response->assertSee('Laporan Laba Rugi &mdash; <span class="text-sky-700 uppercase tracking-tight">'.$this->central->name.'</span>', false);
+        $response->assertSee('Filter Toko: <strong class="uppercase">'.$this->central->name.'</strong>', false);
         $response->assertSee('Gross Profit Margin');
     }
 
@@ -109,11 +110,11 @@ class AccountingReportWebTest extends TestCase
 
     public function test_ledger_page_renders_filtered_by_branch(): void
     {
-        $response = $this->actingAs($this->master)->get('/reports/accounting/ledger?branch_id=' . $this->central->id);
+        $response = $this->actingAs($this->master)->get('/reports/accounting/ledger?branch_id='.$this->central->id);
 
         $response->assertStatus(200);
-        $response->assertSee('Buku Besar &mdash; <span class="text-sky-700 uppercase tracking-tight">' . $this->central->name . '</span>', false);
-        $response->assertSee('Filter Toko: <strong class="uppercase">' . $this->central->name . '</strong>', false);
+        $response->assertSee('Buku Besar &mdash; <span class="text-sky-700 uppercase tracking-tight">'.$this->central->name.'</span>', false);
+        $response->assertSee('Filter Toko: <strong class="uppercase">'.$this->central->name.'</strong>', false);
         $response->assertSee('Kas');
         $response->assertSee('x-data="{ expanded: false }"', false);
     }
@@ -121,7 +122,7 @@ class AccountingReportWebTest extends TestCase
     public function test_ledger_page_auto_expands_when_filtered_by_account(): void
     {
         $cash = ChartOfAccount::where('code', '1110')->first();
-        $response = $this->actingAs($this->master)->get('/reports/accounting/ledger?account_id=' . $cash->id);
+        $response = $this->actingAs($this->master)->get('/reports/accounting/ledger?account_id='.$cash->id);
 
         $response->assertStatus(200);
         $response->assertSee('x-data="{ expanded: true }"', false);
@@ -129,4 +130,3 @@ class AccountingReportWebTest extends TestCase
         $response->assertDontSee('TOTAL MUTASI &amp; SALDO AKHIR Harga Pokok Penjualan', false);
     }
 }
-

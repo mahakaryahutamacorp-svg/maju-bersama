@@ -3,12 +3,17 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\Category;
+use App\Models\ChartOfAccount;
 use App\Models\Customer;
+use App\Models\Inventory;
+use App\Models\JournalHeader;
+use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\Sale;
 use App\Models\Supplier;
 use App\Models\User;
-use Carbon\Carbon;
+use App\Services\Reports\IncomeStatementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -17,6 +22,7 @@ class ReportCenterWebTest extends TestCase
     use RefreshDatabase;
 
     private Branch $branch;
+
     private User $user;
 
     protected function setUp(): void
@@ -116,12 +122,12 @@ class ReportCenterWebTest extends TestCase
 
     public function test_income_statement_service_computes_profit_accurately(): void
     {
-        $cash = \App\Models\ChartOfAccount::create(['code' => '1110', 'name' => 'Kas', 'type' => 'asset']);
-        $revenue = \App\Models\ChartOfAccount::create(['code' => '4110', 'name' => 'Pendapatan', 'type' => 'revenue']);
-        $cogs = \App\Models\ChartOfAccount::create(['code' => '5100', 'name' => 'Harga Pokok Penjualan', 'type' => 'expense']);
-        $expense = \App\Models\ChartOfAccount::create(['code' => '6100', 'name' => 'Beban Operasional', 'type' => 'expense']);
+        $cash = ChartOfAccount::create(['code' => '1110', 'name' => 'Kas', 'type' => 'asset']);
+        $revenue = ChartOfAccount::create(['code' => '4110', 'name' => 'Pendapatan', 'type' => 'revenue']);
+        $cogs = ChartOfAccount::create(['code' => '5100', 'name' => 'Harga Pokok Penjualan', 'type' => 'expense']);
+        $expense = ChartOfAccount::create(['code' => '6100', 'name' => 'Beban Operasional', 'type' => 'expense']);
 
-        $j = \App\Models\JournalHeader::create([
+        $j = JournalHeader::create([
             'branch_id' => $this->branch->id,
             'user_id' => $this->user->id,
             'transaction_date' => now()->toDateString(),
@@ -138,7 +144,7 @@ class ReportCenterWebTest extends TestCase
             ['chart_of_account_id' => $cash->id, 'debit' => 0, 'credit' => 150000, 'memo' => 'Kas Keluar Beban'],
         ]);
 
-        $service = new \App\Services\Reports\IncomeStatementService();
+        $service = new IncomeStatementService;
         $data = $service->generate(now()->startOfMonth()->toDateString(), now()->endOfMonth()->toDateString(), $this->branch->id);
 
         $this->assertEquals(1000000.0, $data['revenue']['total']);
@@ -175,10 +181,10 @@ class ReportCenterWebTest extends TestCase
 
     public function test_trial_balance_renders_successfully(): void
     {
-        $cash = \App\Models\ChartOfAccount::create(['code' => '1110', 'name' => 'Kas', 'type' => 'asset']);
-        $revenue = \App\Models\ChartOfAccount::create(['code' => '4110', 'name' => 'Pendapatan', 'type' => 'revenue']);
+        $cash = ChartOfAccount::create(['code' => '1110', 'name' => 'Kas', 'type' => 'asset']);
+        $revenue = ChartOfAccount::create(['code' => '4110', 'name' => 'Pendapatan', 'type' => 'revenue']);
 
-        $j = \App\Models\JournalHeader::create([
+        $j = JournalHeader::create([
             'branch_id' => $this->branch->id,
             'user_id' => $this->user->id,
             'transaction_date' => now()->toDateString(),
@@ -203,12 +209,12 @@ class ReportCenterWebTest extends TestCase
 
     public function test_balance_sheet_renders_successfully_with_net_income(): void
     {
-        $cash = \App\Models\ChartOfAccount::create(['code' => '1110', 'name' => 'Kas', 'type' => 'asset']);
-        $capital = \App\Models\ChartOfAccount::create(['code' => '3110', 'name' => 'Modal Usaha', 'type' => 'equity']);
-        $revenue = \App\Models\ChartOfAccount::create(['code' => '4110', 'name' => 'Pendapatan', 'type' => 'revenue']);
-        $cogs = \App\Models\ChartOfAccount::create(['code' => '5100', 'name' => 'HPP', 'type' => 'expense']);
+        $cash = ChartOfAccount::create(['code' => '1110', 'name' => 'Kas', 'type' => 'asset']);
+        $capital = ChartOfAccount::create(['code' => '3110', 'name' => 'Modal Usaha', 'type' => 'equity']);
+        $revenue = ChartOfAccount::create(['code' => '4110', 'name' => 'Pendapatan', 'type' => 'revenue']);
+        $cogs = ChartOfAccount::create(['code' => '5100', 'name' => 'HPP', 'type' => 'expense']);
 
-        $j1 = \App\Models\JournalHeader::create([
+        $j1 = JournalHeader::create([
             'branch_id' => $this->branch->id,
             'user_id' => $this->user->id,
             'transaction_date' => now()->startOfYear()->toDateString(),
@@ -220,7 +226,7 @@ class ReportCenterWebTest extends TestCase
             ['chart_of_account_id' => $capital->id, 'debit' => 0, 'credit' => 2000000, 'memo' => 'Modal Awal'],
         ]);
 
-        $j2 = \App\Models\JournalHeader::create([
+        $j2 = JournalHeader::create([
             'branch_id' => $this->branch->id,
             'user_id' => $this->user->id,
             'transaction_date' => now()->toDateString(),
@@ -247,11 +253,11 @@ class ReportCenterWebTest extends TestCase
 
     public function test_cash_flow_renders_successfully(): void
     {
-        $cash = \App\Models\ChartOfAccount::create(['code' => '1110', 'name' => 'Kas', 'type' => 'asset']);
-        $revenue = \App\Models\ChartOfAccount::create(['code' => '4110', 'name' => 'Pendapatan', 'type' => 'revenue']);
-        $expense = \App\Models\ChartOfAccount::create(['code' => '6100', 'name' => 'Beban Listrik', 'type' => 'expense']);
+        $cash = ChartOfAccount::create(['code' => '1110', 'name' => 'Kas', 'type' => 'asset']);
+        $revenue = ChartOfAccount::create(['code' => '4110', 'name' => 'Pendapatan', 'type' => 'revenue']);
+        $expense = ChartOfAccount::create(['code' => '6100', 'name' => 'Beban Listrik', 'type' => 'expense']);
 
-        $j = \App\Models\JournalHeader::create([
+        $j = JournalHeader::create([
             'branch_id' => $this->branch->id,
             'user_id' => $this->user->id,
             'transaction_date' => now()->toDateString(),
@@ -291,8 +297,8 @@ class ReportCenterWebTest extends TestCase
 
     public function test_sales_report_renders_successfully(): void
     {
-        $cat = \App\Models\Category::create(['name' => 'Pupuk']);
-        $product = \App\Models\Product::create([
+        $cat = Category::create(['name' => 'Pupuk']);
+        $product = Product::create([
             'branch_id' => $this->branch->id,
             'category_id' => $cat->id,
             'sku' => 'PPK-001',
@@ -303,7 +309,7 @@ class ReportCenterWebTest extends TestCase
             'stock' => 50,
         ]);
 
-        $sale = \App\Models\Sale::create([
+        $sale = Sale::create([
             'branch_id' => $this->branch->id,
             'receipt_number' => 'POS-20260923-0001',
             'total_amount' => 40000,
@@ -331,14 +337,14 @@ class ReportCenterWebTest extends TestCase
 
     public function test_purchases_report_renders_successfully(): void
     {
-        $supplier = \App\Models\Supplier::create([
+        $supplier = Supplier::create([
             'branch_id' => $this->branch->id,
             'name' => 'PT Petrokimia Sentosa',
             'is_active' => true,
         ]);
 
-        $cat = \App\Models\Category::create(['name' => 'Bibit']);
-        $product = \App\Models\Product::create([
+        $cat = Category::create(['name' => 'Bibit']);
+        $product = Product::create([
             'branch_id' => $this->branch->id,
             'category_id' => $cat->id,
             'sku' => 'BBT-001',
@@ -349,7 +355,7 @@ class ReportCenterWebTest extends TestCase
             'stock' => 100,
         ]);
 
-        $po = \App\Models\PurchaseOrder::create([
+        $po = PurchaseOrder::create([
             'branch_id' => $this->branch->id,
             'supplier_id' => $supplier->id,
             'reference_number' => 'PO-2026-0099',
@@ -379,8 +385,8 @@ class ReportCenterWebTest extends TestCase
 
     public function test_inventory_stock_card_renders_successfully(): void
     {
-        $cat = \App\Models\Category::create(['name' => 'Obat Hama']);
-        $product = \App\Models\Product::create([
+        $cat = Category::create(['name' => 'Obat Hama']);
+        $product = Product::create([
             'branch_id' => $this->branch->id,
             'category_id' => $cat->id,
             'sku' => 'OBT-001',
@@ -391,7 +397,7 @@ class ReportCenterWebTest extends TestCase
             'stock' => 30,
         ]);
 
-        \App\Models\Inventory::create([
+        Inventory::create([
             'branch_id' => $this->branch->id,
             'product_id' => $product->id,
             'quantity' => 30,
@@ -445,22 +451,22 @@ class ReportCenterWebTest extends TestCase
 
         // Sale 1: Customer A, 15 hari lalu -> 0-30 Hari
         Sale::create([
-            'branch_id'      => $this->branch->id,
-            'customer_id'    => $customerA->id,
+            'branch_id' => $this->branch->id,
+            'customer_id' => $customerA->id,
             'receipt_number' => 'INV-AR-001',
-            'total_amount'   => 1000000,
-            'paid_amount'    => 200000,
+            'total_amount' => 1000000,
+            'paid_amount' => 200000,
             'payment_status' => 'PARTIAL',
-            'due_date'       => now()->subDays(15)->toDateString(),
+            'due_date' => now()->subDays(15)->toDateString(),
         ]);
 
         // Sale 2: Customer A, 45 hari lalu -> 31-60 Hari
         $sale2 = Sale::create([
-            'branch_id'      => $this->branch->id,
-            'customer_id'    => $customerA->id,
+            'branch_id' => $this->branch->id,
+            'customer_id' => $customerA->id,
             'receipt_number' => 'INV-AR-002',
-            'total_amount'   => 500000,
-            'paid_amount'    => 0,
+            'total_amount' => 500000,
+            'paid_amount' => 0,
             'payment_status' => 'UNPAID',
         ]);
         $sale2->created_at = now()->subDays(45);
@@ -468,22 +474,22 @@ class ReportCenterWebTest extends TestCase
 
         // Sale 3: Customer B, 75 hari lalu -> 61-90 Hari
         Sale::create([
-            'branch_id'      => $this->branch->id,
-            'customer_id'    => $customerB->id,
+            'branch_id' => $this->branch->id,
+            'customer_id' => $customerB->id,
             'receipt_number' => 'INV-AR-003',
-            'total_amount'   => 1200000,
-            'paid_amount'    => 0,
+            'total_amount' => 1200000,
+            'paid_amount' => 0,
             'payment_status' => 'UNPAID',
-            'due_date'       => now()->subDays(75)->toDateString(),
+            'due_date' => now()->subDays(75)->toDateString(),
         ]);
 
         // Sale 4: Customer B, 110 hari lalu -> > 90 Hari
         $sale4 = Sale::create([
-            'branch_id'      => $this->branch->id,
-            'customer_id'    => $customerB->id,
+            'branch_id' => $this->branch->id,
+            'customer_id' => $customerB->id,
             'receipt_number' => 'INV-AR-004',
-            'total_amount'   => 300000,
-            'paid_amount'    => 0,
+            'total_amount' => 300000,
+            'paid_amount' => 0,
             'payment_status' => 'UNPAID',
         ]);
         $sale4->created_at = now()->subDays(110);
@@ -491,13 +497,13 @@ class ReportCenterWebTest extends TestCase
 
         // Sale 5: Lunas (PAID) -> Tidak boleh masuk hitungan
         Sale::create([
-            'branch_id'      => $this->branch->id,
-            'customer_id'    => $customerA->id,
+            'branch_id' => $this->branch->id,
+            'customer_id' => $customerA->id,
             'receipt_number' => 'INV-AR-005',
-            'total_amount'   => 2000000,
-            'paid_amount'    => 2000000,
+            'total_amount' => 2000000,
+            'paid_amount' => 2000000,
             'payment_status' => 'PAID',
-            'due_date'       => now()->subDays(10)->toDateString(),
+            'due_date' => now()->subDays(10)->toDateString(),
         ]);
 
         $response = $this->actingAs($this->user)->get(route('reports.ar-aging'));
@@ -527,74 +533,74 @@ class ReportCenterWebTest extends TestCase
     {
         $supplierA = Supplier::create([
             'branch_id' => $this->branch->id,
-            'name'      => 'PT Petrokimia Kayaku',
-            'phone'     => '021-5551234',
+            'name' => 'PT Petrokimia Kayaku',
+            'phone' => '021-5551234',
         ]);
 
         $supplierB = Supplier::create([
             'branch_id' => $this->branch->id,
-            'name'      => 'CV Benih Unggul Nusantara',
-            'phone'     => '0274-888999',
+            'name' => 'CV Benih Unggul Nusantara',
+            'phone' => '0274-888999',
         ]);
 
         // PO 1: Supplier A, 10 hari lalu -> 0-30 Hari
         PurchaseOrder::create([
-            'branch_id'        => $this->branch->id,
-            'supplier_id'      => $supplierA->id,
+            'branch_id' => $this->branch->id,
+            'supplier_id' => $supplierA->id,
             'reference_number' => 'PO-AP-001',
-            'order_date'       => now()->subDays(10)->toDateString(),
-            'total_amount'     => 2000000,
-            'paid_amount'      => 500000,
-            'payment_status'   => 'PARTIAL',
-            'status'           => 'completed',
+            'order_date' => now()->subDays(10)->toDateString(),
+            'total_amount' => 2000000,
+            'paid_amount' => 500000,
+            'payment_status' => 'PARTIAL',
+            'status' => 'completed',
         ]);
 
         // PO 2: Supplier A, 40 hari lalu -> 31-60 Hari
         PurchaseOrder::create([
-            'branch_id'        => $this->branch->id,
-            'supplier_id'      => $supplierA->id,
+            'branch_id' => $this->branch->id,
+            'supplier_id' => $supplierA->id,
             'reference_number' => 'PO-AP-002',
-            'order_date'       => now()->subDays(40)->toDateString(),
-            'total_amount'     => 1000000,
-            'paid_amount'      => 0,
-            'payment_status'   => 'UNPAID',
-            'status'           => 'completed',
+            'order_date' => now()->subDays(40)->toDateString(),
+            'total_amount' => 1000000,
+            'paid_amount' => 0,
+            'payment_status' => 'UNPAID',
+            'status' => 'completed',
         ]);
 
         // PO 3: Supplier B, 70 hari lalu -> 61-90 Hari
         PurchaseOrder::create([
-            'branch_id'        => $this->branch->id,
-            'supplier_id'      => $supplierB->id,
+            'branch_id' => $this->branch->id,
+            'supplier_id' => $supplierB->id,
             'reference_number' => 'PO-AP-003',
-            'order_date'       => now()->subDays(70)->toDateString(),
-            'total_amount'     => 3000000,
-            'paid_amount'      => 0,
-            'payment_status'   => 'UNPAID',
-            'status'           => 'completed',
+            'order_date' => now()->subDays(70)->toDateString(),
+            'total_amount' => 3000000,
+            'paid_amount' => 0,
+            'payment_status' => 'UNPAID',
+            'status' => 'completed',
         ]);
 
         // PO 4: Supplier B, 120 hari lalu -> > 90 Hari
         PurchaseOrder::create([
-            'branch_id'        => $this->branch->id,
-            'supplier_id'      => $supplierB->id,
+            'branch_id' => $this->branch->id,
+            'supplier_id' => $supplierB->id,
             'reference_number' => 'PO-AP-004',
-            'order_date'       => now()->subDays(120)->toDateString(),
-            'total_amount'     => 800000,
-            'paid_amount'      => 0,
-            'payment_status'   => 'UNPAID',
-            'status'           => 'completed',
+            'order_date' => now()->subDays(120)->toDateString(),
+            'total_amount' => 800000,
+            'paid_amount' => 0,
+            'payment_status' => 'UNPAID',
+            'status' => 'completed',
         ]);
 
         // PO 5: Lunas (PAID) -> Tidak boleh masuk hitungan
         PurchaseOrder::create([
-            'branch_id'        => $this->branch->id,
-            'supplier_id'      => $supplierA->id,
+            'branch_id' => $this->branch->id,
+            'supplier_id' => $supplierA->id,
             'reference_number' => 'PO-AP-005',
-            'order_date'       => now()->subDays(5)->toDateString(),
-            'total_amount'     => 5000000,
-            'paid_amount'      => 5000000,
-            'payment_status'   => 'PAID',
-            'status'           => 'completed',
+            'order_date' => now()->subDays(5)->toDateString(),
+            'total_amount' => 5000000,
+            'paid_amount' => 5000000,
+            'payment_status' => 'PAID',
+            'status' => 'completed',
         ]);
 
         $response = $this->actingAs($this->user)->get(route('reports.ap-aging'));
@@ -620,4 +626,3 @@ class ReportCenterWebTest extends TestCase
         $response->assertSee('Rp 6.300.000');
     }
 }
-

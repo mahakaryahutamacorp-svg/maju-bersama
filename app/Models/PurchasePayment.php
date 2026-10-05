@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PurchasePayment extends Model
 {
-    use HasFactory, HasBranchScope;
+    use HasBranchScope, HasFactory;
 
     protected $fillable = [
         'purchase_id',

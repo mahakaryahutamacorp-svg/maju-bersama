@@ -16,9 +16,13 @@ class PurchaseOrderWebTest extends TestCase
     use RefreshDatabase;
 
     private Branch $branch;
+
     private User $user;
+
     private Category $category;
+
     private Product $productA;
+
     private Product $productB;
 
     protected function setUp(): void

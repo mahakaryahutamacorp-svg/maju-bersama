@@ -27,6 +27,7 @@ class ExpenseService
      *     notes?: string|null,
      *     user_id?: int|null
      * } $data
+     *
      * @throws ValidationException
      */
     public function recordExpense(array $data): Expense
@@ -63,36 +64,36 @@ class ExpenseService
 
             // 1. Simpan data ke tabel expenses
             $expense = Expense::create([
-                'branch_id'           => $branchId,
+                'branch_id' => $branchId,
                 'expense_category_id' => $category->id,
-                'account_id'          => $account->id,
-                'amount'              => $amount,
-                'expense_date'        => $expenseDate,
-                'reference_number'    => $referenceNumber,
-                'notes'               => $notes,
+                'account_id' => $account->id,
+                'amount' => $amount,
+                'expense_date' => $expenseDate,
+                'reference_number' => $referenceNumber,
+                'notes' => $notes,
             ]);
 
             // 2. Panggil JournalPostingService untuk membuat jurnal otomatis:
             // Debit: Akun Beban (expense_categories.chart_of_account_id) sebesar $data['amount']
             // Kredit: Akun Kas/Bank ($data['account_id']) sebesar $data['amount']
             $journal = $this->journalPostingService->post([
-                'branch_id'        => $branchId,
-                'user_id'          => $data['user_id'] ?? null,
+                'branch_id' => $branchId,
+                'user_id' => $data['user_id'] ?? null,
                 'transaction_date' => $expenseDate,
                 'reference_number' => $referenceNumber,
-                'description'      => $description,
-                'lines'            => [
+                'description' => $description,
+                'lines' => [
                     [
                         'chart_of_account_id' => $category->chart_of_account_id,
-                        'debit'               => $amount,
-                        'credit'              => 0,
-                        'memo'                => $description,
+                        'debit' => $amount,
+                        'credit' => 0,
+                        'memo' => $description,
                     ],
                     [
                         'chart_of_account_id' => $account->id,
-                        'debit'               => 0,
-                        'credit'              => $amount,
-                        'memo'                => "Pengeluaran dana operasional via {$account->name}",
+                        'debit' => 0,
+                        'credit' => $amount,
+                        'memo' => "Pengeluaran dana operasional via {$account->name}",
                     ],
                 ],
             ]);
@@ -108,6 +109,7 @@ class ExpenseService
     {
         $date = now()->format('Ymd');
         $random = strtoupper(bin2hex(random_bytes(2)));
+
         return "EXP-{$branchId}-{$date}-{$random}";
     }
 }

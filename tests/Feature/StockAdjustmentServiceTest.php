@@ -9,7 +9,6 @@ use App\Models\Inventory;
 use App\Models\JournalHeader;
 use App\Models\Product;
 use App\Models\StockAdjustment;
-use App\Models\StockAdjustmentItem;
 use App\Models\User;
 use App\Services\StockAdjustmentService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -20,15 +19,18 @@ class StockAdjustmentServiceTest extends TestCase
     use RefreshDatabase;
 
     private StockAdjustmentService $service;
+
     private Branch $branch;
+
     private User $actor;
+
     private Category $category;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->service = new StockAdjustmentService();
+        $this->service = new StockAdjustmentService;
 
         // Seed COA standard
         ChartOfAccount::create(['code' => '1110', 'name' => 'Kas', 'type' => 'asset']);

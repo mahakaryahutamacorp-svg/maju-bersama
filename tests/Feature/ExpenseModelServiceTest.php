@@ -19,14 +19,23 @@ class ExpenseModelServiceTest extends TestCase
     use RefreshDatabase;
 
     private Branch $branch1;
+
     private Branch $branch2;
+
     private User $branch1User;
+
     private User $masterUser;
+
     private ChartOfAccount $cashAccount;
+
     private ChartOfAccount $electricityAccount;
+
     private ChartOfAccount $fuelAccount;
+
     private ExpenseCategory $electricityCategory;
+
     private ExpenseService $expenseService;
+
     private JournalPostingService $journalPostingService;
 
     protected function setUp(): void
@@ -37,80 +46,80 @@ class ExpenseModelServiceTest extends TestCase
         $this->journalPostingService = app(JournalPostingService::class);
 
         $this->branch1 = Branch::create([
-            'name'    => 'Cabang Jakarta Pusat',
-            'code'    => 'JKT-01',
+            'name' => 'Cabang Jakarta Pusat',
+            'code' => 'JKT-01',
             'address' => 'Jl. Thamrin No. 1',
-            'phone'   => '0811001122',
+            'phone' => '0811001122',
         ]);
 
         $this->branch2 = Branch::create([
-            'name'    => 'Cabang Surabaya Barat',
-            'code'    => 'SBY-01',
+            'name' => 'Cabang Surabaya Barat',
+            'code' => 'SBY-01',
             'address' => 'Jl. HR Muhammad No. 5',
-            'phone'   => '0822003344',
+            'phone' => '0822003344',
         ]);
 
         $this->branch1User = User::create([
-            'name'      => 'Admin Cabang JKT',
-            'email'     => 'admin.jkt@example.com',
-            'password'  => bcrypt('password'),
-            'role'      => 'branch_admin',
+            'name' => 'Admin Cabang JKT',
+            'email' => 'admin.jkt@example.com',
+            'password' => bcrypt('password'),
+            'role' => 'branch_admin',
             'branch_id' => $this->branch1->id,
         ]);
 
         $this->masterUser = User::create([
-            'name'      => 'Owner Pusat',
-            'email'     => 'owner@example.com',
-            'password'  => bcrypt('password'),
-            'role'      => 'master',
+            'name' => 'Owner Pusat',
+            'email' => 'owner@example.com',
+            'password' => bcrypt('password'),
+            'role' => 'master',
             'branch_id' => $this->branch1->id,
         ]);
 
         // COA Kas/Bank (Aset Lancar - 11xx)
         $this->cashAccount = ChartOfAccount::create([
-            'code'      => '1110',
-            'name'      => 'Kas Toko Operasional',
-            'type'      => 'asset',
+            'code' => '1110',
+            'name' => 'Kas Toko Operasional',
+            'type' => 'asset',
             'is_active' => true,
         ]);
 
         // COA Beban Operasional (6xxx)
         $this->electricityAccount = ChartOfAccount::create([
-            'code'      => '6110',
-            'name'      => 'Beban Listrik & Air',
-            'type'      => 'expense',
+            'code' => '6110',
+            'name' => 'Beban Listrik & Air',
+            'type' => 'expense',
             'is_active' => true,
         ]);
 
         $this->fuelAccount = ChartOfAccount::create([
-            'code'      => '6120',
-            'name'      => 'Beban Bensin & Transportasi',
-            'type'      => 'expense',
+            'code' => '6120',
+            'name' => 'Beban Bensin & Transportasi',
+            'type' => 'expense',
             'is_active' => true,
         ]);
 
         // Kategori Biaya Operasional
         $this->electricityCategory = ExpenseCategory::create([
-            'branch_id'           => $this->branch1->id,
-            'name'                => 'Listrik',
+            'branch_id' => $this->branch1->id,
+            'name' => 'Listrik',
             'chart_of_account_id' => $this->electricityAccount->id,
-            'is_active'           => true,
+            'is_active' => true,
         ]);
     }
 
     public function test_expense_category_creation_and_relations(): void
     {
         $category = ExpenseCategory::create([
-            'branch_id'           => $this->branch1->id,
-            'name'                => 'Bensin Motor Kurir',
+            'branch_id' => $this->branch1->id,
+            'name' => 'Bensin Motor Kurir',
             'chart_of_account_id' => $this->fuelAccount->id,
-            'is_active'           => true,
+            'is_active' => true,
         ]);
 
         $this->assertDatabaseHas('expense_categories', [
-            'name'                => 'Bensin Motor Kurir',
+            'name' => 'Bensin Motor Kurir',
             'chart_of_account_id' => $this->fuelAccount->id,
-            'is_active'           => 1,
+            'is_active' => 1,
         ]);
 
         $this->assertSame($this->branch1->id, $category->branch->id);
@@ -121,10 +130,10 @@ class ExpenseModelServiceTest extends TestCase
     public function test_expense_category_has_branch_scope(): void
     {
         $catBranch2 = ExpenseCategory::create([
-            'branch_id'           => $this->branch2->id,
-            'name'                => 'Sewa Ruko SBY',
+            'branch_id' => $this->branch2->id,
+            'name' => 'Sewa Ruko SBY',
             'chart_of_account_id' => $this->electricityAccount->id,
-            'is_active'           => true,
+            'is_active' => true,
         ]);
 
         // Branch 1 user should only see branch 1 categories
@@ -143,19 +152,19 @@ class ExpenseModelServiceTest extends TestCase
     public function test_expense_model_creation_and_relations(): void
     {
         $expense = Expense::create([
-            'branch_id'           => $this->branch1->id,
+            'branch_id' => $this->branch1->id,
             'expense_category_id' => $this->electricityCategory->id,
-            'account_id'          => $this->cashAccount->id,
-            'amount'              => 350000.00,
-            'expense_date'        => '2026-09-20',
-            'reference_number'    => 'EXP-TEST-001',
-            'notes'               => 'Pembelian token PLN 350rb',
+            'account_id' => $this->cashAccount->id,
+            'amount' => 350000.00,
+            'expense_date' => '2026-09-20',
+            'reference_number' => 'EXP-TEST-001',
+            'notes' => 'Pembelian token PLN 350rb',
         ]);
 
         $this->assertDatabaseHas('expenses', [
-            'reference_number'    => 'EXP-TEST-001',
-            'amount'              => 350000.00,
-            'notes'               => 'Pembelian token PLN 350rb',
+            'reference_number' => 'EXP-TEST-001',
+            'amount' => 350000.00,
+            'notes' => 'Pembelian token PLN 350rb',
         ]);
         $this->assertSame('2026-09-20', $expense->expense_date->format('Y-m-d'));
 
@@ -169,28 +178,28 @@ class ExpenseModelServiceTest extends TestCase
     public function test_expense_model_has_branch_scope(): void
     {
         $catBranch2 = ExpenseCategory::create([
-            'branch_id'           => $this->branch2->id,
-            'name'                => 'Kebersihan',
+            'branch_id' => $this->branch2->id,
+            'name' => 'Kebersihan',
             'chart_of_account_id' => $this->electricityAccount->id,
-            'is_active'           => true,
+            'is_active' => true,
         ]);
 
         $exp1 = Expense::create([
-            'branch_id'           => $this->branch1->id,
+            'branch_id' => $this->branch1->id,
             'expense_category_id' => $this->electricityCategory->id,
-            'account_id'          => $this->cashAccount->id,
-            'amount'              => 50000.00,
-            'expense_date'        => '2026-09-20',
-            'reference_number'    => 'EXP-JKT-01',
+            'account_id' => $this->cashAccount->id,
+            'amount' => 50000.00,
+            'expense_date' => '2026-09-20',
+            'reference_number' => 'EXP-JKT-01',
         ]);
 
         $exp2 = Expense::create([
-            'branch_id'           => $this->branch2->id,
+            'branch_id' => $this->branch2->id,
             'expense_category_id' => $catBranch2->id,
-            'account_id'          => $this->cashAccount->id,
-            'amount'              => 75000.00,
-            'expense_date'        => '2026-09-20',
-            'reference_number'    => 'EXP-SBY-01',
+            'account_id' => $this->cashAccount->id,
+            'amount' => 75000.00,
+            'expense_date' => '2026-09-20',
+            'reference_number' => 'EXP-SBY-01',
         ]);
 
         // Branch 1 user
@@ -209,26 +218,26 @@ class ExpenseModelServiceTest extends TestCase
     public function test_expense_service_records_expense_and_creates_balanced_journal(): void
     {
         $expense = $this->expenseService->recordExpense([
-            'branch_id'           => $this->branch1->id,
+            'branch_id' => $this->branch1->id,
             'expense_category_id' => $this->electricityCategory->id,
-            'account_id'          => $this->cashAccount->id,
-            'amount'              => 275000.00,
-            'expense_date'        => '2026-09-20',
-            'reference_number'    => 'EXP-20260920-0099',
-            'notes'               => 'Pembayaran Token Listrik Ruko Toko',
-            'user_id'             => $this->branch1User->id,
+            'account_id' => $this->cashAccount->id,
+            'amount' => 275000.00,
+            'expense_date' => '2026-09-20',
+            'reference_number' => 'EXP-20260920-0099',
+            'notes' => 'Pembayaran Token Listrik Ruko Toko',
+            'user_id' => $this->branch1User->id,
         ]);
 
         // Verifikasi entri expense
         $this->assertInstanceOf(Expense::class, $expense);
         $this->assertDatabaseHas('expenses', [
-            'id'                  => $expense->id,
-            'branch_id'           => $this->branch1->id,
+            'id' => $expense->id,
+            'branch_id' => $this->branch1->id,
             'expense_category_id' => $this->electricityCategory->id,
-            'account_id'          => $this->cashAccount->id,
-            'amount'              => 275000.00,
-            'reference_number'    => 'EXP-20260920-0099',
-            'notes'               => 'Pembayaran Token Listrik Ruko Toko',
+            'account_id' => $this->cashAccount->id,
+            'amount' => 275000.00,
+            'reference_number' => 'EXP-20260920-0099',
+            'notes' => 'Pembayaran Token Listrik Ruko Toko',
         ]);
 
         // Verifikasi entri journal header
@@ -270,10 +279,10 @@ class ExpenseModelServiceTest extends TestCase
     public function test_expense_service_handles_notes_absence_in_journal_description(): void
     {
         $expense = $this->expenseService->recordExpense([
-            'branch_id'           => $this->branch1->id,
+            'branch_id' => $this->branch1->id,
             'expense_category_id' => $this->electricityCategory->id,
-            'account_id'          => $this->cashAccount->id,
-            'amount'              => 100000.00,
+            'account_id' => $this->cashAccount->id,
+            'amount' => 100000.00,
         ]);
 
         $this->assertSame('Biaya Operasional: Listrik', $expense->journalHeader->description);
@@ -282,19 +291,19 @@ class ExpenseModelServiceTest extends TestCase
     public function test_expense_service_rejects_inactive_category(): void
     {
         $inactiveCat = ExpenseCategory::create([
-            'branch_id'           => $this->branch1->id,
-            'name'                => 'Kategori Nonaktif',
+            'branch_id' => $this->branch1->id,
+            'name' => 'Kategori Nonaktif',
             'chart_of_account_id' => $this->fuelAccount->id,
-            'is_active'           => false,
+            'is_active' => false,
         ]);
 
         $this->expectException(ValidationException::class);
 
         $this->expenseService->recordExpense([
-            'branch_id'           => $this->branch1->id,
+            'branch_id' => $this->branch1->id,
             'expense_category_id' => $inactiveCat->id,
-            'account_id'          => $this->cashAccount->id,
-            'amount'              => 50000.00,
+            'account_id' => $this->cashAccount->id,
+            'amount' => 50000.00,
         ]);
     }
 
@@ -303,10 +312,10 @@ class ExpenseModelServiceTest extends TestCase
         $this->expectException(ValidationException::class);
 
         $this->expenseService->recordExpense([
-            'branch_id'           => $this->branch1->id,
+            'branch_id' => $this->branch1->id,
             'expense_category_id' => $this->electricityCategory->id,
-            'account_id'          => $this->cashAccount->id,
-            'amount'              => 0,
+            'account_id' => $this->cashAccount->id,
+            'amount' => 0,
         ]);
     }
 
@@ -315,20 +324,20 @@ class ExpenseModelServiceTest extends TestCase
         $this->expectException(ValidationException::class);
 
         $this->journalPostingService->post([
-            'branch_id'        => $this->branch1->id,
+            'branch_id' => $this->branch1->id,
             'transaction_date' => '2026-09-20',
             'reference_number' => 'UNBALANCED-01',
-            'description'      => 'Test Jurnal Tidak Seimbang',
-            'lines'            => [
+            'description' => 'Test Jurnal Tidak Seimbang',
+            'lines' => [
                 [
                     'chart_of_account_id' => $this->electricityAccount->id,
-                    'debit'               => 100000.00,
-                    'credit'              => 0,
+                    'debit' => 100000.00,
+                    'credit' => 0,
                 ],
                 [
                     'chart_of_account_id' => $this->cashAccount->id,
-                    'debit'               => 0,
-                    'credit'              => 90000.00, // Selisih 10.000!
+                    'debit' => 0,
+                    'credit' => 90000.00, // Selisih 10.000!
                 ],
             ],
         ]);

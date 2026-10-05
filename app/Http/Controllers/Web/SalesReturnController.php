@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SalesReturn;
 use App\Services\SalesReturnService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -55,17 +56,17 @@ class SalesReturnController extends Controller
         $totalTransfer = (float) $allFiltered->whereIn('refund_method', ['transfer', 'Transfer', 'bank'])->sum('total_amount');
 
         return view('backoffice.sales-returns.index', [
-            'currentUser'        => $user,
-            'isMaster'           => $user->isMaster(),
-            'returns'            => $returns,
+            'currentUser' => $user,
+            'isMaster' => $user->isMaster(),
+            'returns' => $returns,
             'totalReturnsAmount' => $totalReturnsAmount,
-            'totalCount'         => $totalCount,
-            'totalCash'          => $totalCash,
-            'totalTransfer'      => $totalTransfer,
-            'search'             => $search,
-            'startDate'          => $startDate,
-            'endDate'            => $endDate,
-            'refundMethod'       => $refundMethod,
+            'totalCount' => $totalCount,
+            'totalCash' => $totalCash,
+            'totalTransfer' => $totalTransfer,
+            'search' => $search,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'refundMethod' => $refundMethod,
         ]);
     }
 
@@ -84,8 +85,8 @@ class SalesReturnController extends Controller
         $accounts = ChartOfAccount::where('type', 'asset')
             ->where(function ($q) {
                 $q->where('code', 'like', '11%')
-                  ->orWhere('name', 'like', '%kas%')
-                  ->orWhere('name', 'like', '%bank%');
+                    ->orWhere('name', 'like', '%kas%')
+                    ->orWhere('name', 'like', '%bank%');
             })
             ->orderBy('code')
             ->get();
@@ -107,49 +108,57 @@ class SalesReturnController extends Controller
 
         return view('backoffice.sales-returns.create', [
             'currentUser' => $user,
-            'isMaster'    => $user->isMaster(),
-            'products'    => $products,
-            'accounts'    => $accounts,
+            'isMaster' => $user->isMaster(),
+            'products' => $products,
+            'accounts' => $accounts,
             'recentSales' => $recentSales,
             'activeShift' => $activeShift,
-            'todayDate'   => now()->toDateString(),
+            'todayDate' => now()->toDateString(),
         ]);
     }
 
     /**
      * Store a newly created sales return in storage.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
-            'return_date'         => ['required', 'date'],
-            'customer_name'       => ['nullable', 'string', 'max:150'],
-            'sale_id'             => ['nullable', 'integer', 'exists:sales,id'],
-            'refund_method'       => ['required', 'string', 'in:cash,transfer,Cash,Transfer,tunai,bank'],
+            'return_date' => ['required', 'date'],
+            'customer_name' => ['nullable', 'string', 'max:150'],
+            'sale_id' => ['nullable', 'integer', 'exists:sales,id'],
+            'refund_method' => ['required', 'string', 'in:cash,transfer,Cash,Transfer,tunai,bank'],
             'chart_of_account_id' => ['required', 'integer', 'exists:chart_of_accounts,id'],
-            'reason'              => ['nullable', 'string', 'max:1000'],
-            'items'               => ['required', 'array', 'min:1'],
-            'items.*.product_id'  => ['required', 'integer', 'exists:products,id'],
-            'items.*.quantity'    => ['required', 'integer', 'min:1'],
-            'items.*.unit_price'  => ['required', 'numeric', 'min:0'],
-            'items.*.unit_cost'   => ['nullable', 'numeric', 'min:0'],
+            'reason' => ['nullable', 'string', 'max:1000'],
+            'items' => ['required', 'array', 'min:1'],
+            'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
+            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.unit_price' => ['required', 'numeric', 'min:0'],
+            'items.*.unit_cost' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $salesReturn = $this->salesReturnService->processReturn(
             [
-                'branch_id'           => $request->user()->branch_id,
-                'customer_name'       => $validated['customer_name'] ?? 'Pelanggan Umum',
-                'sale_id'             => $validated['sale_id'] ?? null,
-                'return_date'         => $validated['return_date'],
-                'refund_method'       => $validated['refund_method'],
+                'branch_id' => $request->user()->branch_id,
+                'customer_name' => $validated['customer_name'] ?? 'Pelanggan Umum',
+                'sale_id' => $validated['sale_id'] ?? null,
+                'return_date' => $validated['return_date'],
+                'refund_method' => $validated['refund_method'],
                 'chart_of_account_id' => $validated['chart_of_account_id'],
-                'reason'              => $validated['reason'] ?? null,
+                'reason' => $validated['reason'] ?? null,
             ],
             $validated['items'],
             $request->user()
         );
 
-        $formattedAmount = 'Rp ' . number_format((float) $salesReturn->total_amount, 0, ',', '.');
+        $formattedAmount = 'Rp '.number_format((float) $salesReturn->total_amount, 0, ',', '.');
+
+        if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => "Retur Penjualan {$salesReturn->reference_number} ({$formattedAmount}) berhasil dicatat.",
+                'data' => $salesReturn->load(['items.product', 'chartOfAccount', 'journalHeader.journalLines']),
+            ], 201);
+        }
 
         return redirect()
             ->route('backoffice.sales-returns.index')
@@ -174,7 +183,7 @@ class SalesReturnController extends Controller
 
         return view('backoffice.sales-returns.show', [
             'currentUser' => $user,
-            'isMaster'    => $user->isMaster(),
+            'isMaster' => $user->isMaster(),
             'salesReturn' => $salesReturn,
         ]);
     }

@@ -2,6 +2,7 @@
 
 namespace Tests;
 
+use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
@@ -12,8 +13,7 @@ abstract class TestCase extends BaseTestCase
     /**
      * Define environment setup.
      *
-     * @param  \Illuminate\Foundation\Application  $app
-     * @return void
+     * @param  Application  $app
      */
     protected function defineEnvironment($app): void
     {
@@ -22,4 +22,3 @@ abstract class TestCase extends BaseTestCase
         $app['config']->set('database.connections.sqlite.database', ':memory:');
     }
 }
-

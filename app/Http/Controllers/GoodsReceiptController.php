@@ -7,6 +7,7 @@ use App\Models\GoodsReceipt;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Services\GoodsReceiptService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -20,7 +21,7 @@ class GoodsReceiptController extends Controller
     /**
      * Display a listing of goods receipts history.
      */
-    public function index(Request $request): View
+    public function index(Request $request): View|JsonResponse
     {
         $user = $request->user()->load('branch');
         $isMaster = $user->isMaster();
@@ -52,6 +53,20 @@ class GoodsReceiptController extends Controller
         $totalAmount = (float) $allFiltered->sum('total_amount');
         $totalCash = (float) $allFiltered->where('payment_type', 'cash')->sum('total_amount');
         $totalCredit = (float) $allFiltered->where('payment_type', 'credit')->sum('total_amount');
+
+        if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'data' => $receipts->items(),
+                'total' => $receipts->total(),
+                'metrics' => [
+                    'totalReceipts' => $totalReceipts,
+                    'totalAmount' => $totalAmount,
+                    'totalCash' => $totalCash,
+                    'totalCredit' => $totalCredit,
+                ],
+            ]);
+        }
 
         return view('purchases.goods-receipts.index', [
             'currentUser' => $user,
@@ -120,23 +135,24 @@ class GoodsReceiptController extends Controller
 
         $activePOsData = $activePOs->map(function (PurchaseOrder $po) {
             return [
-                'id'               => $po->id,
+                'id' => $po->id,
                 'reference_number' => $po->reference_number,
-                'supplier_id'      => $po->supplier_id,
-                'supplier_name'    => $po->supplier?->name ?? '',
-                'order_date'       => $po->order_date ? $po->order_date->format('d/m/Y') : '',
-                'status'           => $po->status,
-                'items'            => $po->items->map(function ($item) {
+                'supplier_id' => $po->supplier_id,
+                'supplier_name' => $po->supplier?->name ?? '',
+                'order_date' => $po->order_date ? $po->order_date->format('d/m/Y') : '',
+                'status' => $po->status,
+                'items' => $po->items->map(function ($item) {
                     $remaining = max(0, (int) $item->quantity - (int) $item->received_quantity);
+
                     return [
-                        'id'                 => $item->id,
-                        'product_id'         => $item->product_id,
-                        'product_name'       => $item->product?->name ?? 'Produk #' . $item->product_id,
-                        'sku'                => $item->product?->sku ?? '',
-                        'quantity'           => (int) $item->quantity,
-                        'received_quantity'  => (int) $item->received_quantity,
+                        'id' => $item->id,
+                        'product_id' => $item->product_id,
+                        'product_name' => $item->product?->name ?? 'Produk #'.$item->product_id,
+                        'sku' => $item->product?->sku ?? '',
+                        'quantity' => (int) $item->quantity,
+                        'received_quantity' => (int) $item->received_quantity,
                         'remaining_quantity' => $remaining,
-                        'unit_price'         => (float) $item->unit_price,
+                        'unit_price' => (float) $item->unit_price,
                     ];
                 })->filter(fn ($item) => $item['remaining_quantity'] > 0)->values(),
             ];
@@ -147,19 +163,19 @@ class GoodsReceiptController extends Controller
             : 'purchases.goods-receipts.create';
 
         return view($viewName, [
-            'currentUser'   => $user,
+            'currentUser' => $user,
             'centralBranch' => $targetBranch,
-            'products'      => $productsData,
-            'activePOs'     => $activePOsData,
+            'products' => $productsData,
+            'activePOs' => $activePOsData,
             'activePOsData' => $activePOsData,
-            'todayDate'     => now()->toDateString(),
+            'todayDate' => now()->toDateString(),
         ]);
     }
 
     /**
      * Store a newly created goods receipt in storage.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
             'purchase_order_id' => ['nullable', 'integer', 'exists:purchase_orders,id'],
@@ -181,6 +197,14 @@ class GoodsReceiptController extends Controller
 
         $receipt = $this->goodsReceiptService->processReceipt($validated, $request->user());
 
+        if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => "Penerimaan barang {$receipt->reference_number} berhasil diproses.",
+                'data' => $receipt->load(['items.product', 'branch', 'journalHeader.journalLines.chartOfAccount']),
+            ], 201);
+        }
+
         return redirect()
             ->route('purchases.goods-receipts.show', $receipt->id)
             ->with('success', "Penerimaan barang {$receipt->reference_number} berhasil diproses. Stok gudang bertambah dan jurnal akuntansi telah dicatat otomatis.");
@@ -189,7 +213,7 @@ class GoodsReceiptController extends Controller
     /**
      * Display the specified goods receipt details and accounting impact.
      */
-    public function show(int $id, Request $request): View
+    public function show(int $id, Request $request): View|JsonResponse
     {
         $user = $request->user()->load('branch');
 
@@ -201,6 +225,13 @@ class GoodsReceiptController extends Controller
 
         if (! $user->isMaster() && (int) $receipt->branch_id !== (int) $user->branch_id) {
             abort(403, 'Akses terbatas. Anda tidak memiliki akses ke penerimaan barang cabang lain.');
+        }
+
+        if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'data' => $receipt,
+            ]);
         }
 
         return view('purchases.goods-receipts.show', [

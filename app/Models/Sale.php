@@ -29,10 +29,10 @@ class Sale extends Model
     protected function casts(): array
     {
         return [
-            'total_amount'    => 'integer',
+            'total_amount' => 'integer',
             'discount_amount' => 'decimal:4',
-            'paid_amount'     => 'decimal:4',
-            'due_date'        => 'date',
+            'paid_amount' => 'decimal:4',
+            'due_date' => 'date',
         ];
     }
 

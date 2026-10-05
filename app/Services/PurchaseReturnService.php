@@ -17,6 +17,7 @@ use Illuminate\Validation\ValidationException;
 class PurchaseReturnService
 {
     public const ACCOUNT_INVENTORY = '1210';
+
     public const ACCOUNT_PAYABLE = '2110';
 
     public function __construct(
@@ -33,17 +34,13 @@ class PurchaseReturnService
      *    - Debit: 2110 Hutang Dagang (mengurangi hutang ke supplier)
      *    - Credit: 1210 Persediaan Barang (mengurangi aset persediaan)
      *
-     * @param array $data
-     * @param array $items
-     * @param User|null $actor
-     * @return PurchaseReturn
      * @throws ValidationException
      */
     public function processReturn(array $data, array $items = [], ?User $actor = null): PurchaseReturn
     {
-        $returnItems = !empty($items) ? $items : ($data['items'] ?? []);
+        $returnItems = ! empty($items) ? $items : ($data['items'] ?? []);
 
-        if (empty($returnItems) || !is_array($returnItems)) {
+        if (empty($returnItems) || ! is_array($returnItems)) {
             throw ValidationException::withMessages([
                 'items' => ['Setidaknya satu item retur harus disertakan.'],
             ]);
@@ -54,7 +51,7 @@ class PurchaseReturnService
             $supplierId = (int) ($data['supplier_id'] ?? 0);
             $supplier = Supplier::withoutGlobalScopes()->find($supplierId);
 
-            if (!$supplier) {
+            if (! $supplier) {
                 throw ValidationException::withMessages([
                     'supplier_id' => ['Supplier tidak ditemukan.'],
                 ]);
@@ -67,17 +64,17 @@ class PurchaseReturnService
                 ?? Branch::query()->value('id');
 
             $branch = Branch::withoutGlobalScopes()->find($branchId);
-            if (!$branch) {
+            if (! $branch) {
                 throw ValidationException::withMessages([
                     'branch_id' => ['Cabang tidak ditemukan.'],
                 ]);
             }
 
             // 3. Optional Goods Receipt reference
-            $goodsReceiptId = !empty($data['goods_receipt_id']) ? (int) $data['goods_receipt_id'] : null;
+            $goodsReceiptId = ! empty($data['goods_receipt_id']) ? (int) $data['goods_receipt_id'] : null;
             if ($goodsReceiptId) {
                 $goodsReceiptExists = GoodsReceipt::withoutGlobalScopes()->where('id', $goodsReceiptId)->exists();
-                if (!$goodsReceiptExists) {
+                if (! $goodsReceiptExists) {
                     throw ValidationException::withMessages([
                         'goods_receipt_id' => ['Penerimaan barang tidak ditemukan.'],
                     ]);
@@ -85,7 +82,7 @@ class PurchaseReturnService
             }
 
             // 4. Reference Number
-            $referenceNumber = !empty($data['reference_number'])
+            $referenceNumber = ! empty($data['reference_number'])
                 ? (string) $data['reference_number']
                 : $this->generateReferenceNumber();
 
@@ -112,7 +109,7 @@ class PurchaseReturnService
                     ->lockForUpdate()
                     ->first();
 
-                if (!$product) {
+                if (! $product) {
                     throw ValidationException::withMessages([
                         "items.{$index}.product_id" => ["Produk ID {$productId} tidak ditemukan."],
                     ]);
@@ -139,22 +136,22 @@ class PurchaseReturnService
 
                 $processedItems[] = [
                     'product_id' => $product->id,
-                    'quantity'   => $quantity,
+                    'quantity' => $quantity,
                     'unit_price' => $unitPrice,
-                    'subtotal'   => $subtotal,
+                    'subtotal' => $subtotal,
                 ];
             }
 
             // 6. Save Header
             $purchaseReturn = PurchaseReturn::create([
-                'branch_id'         => $branch->id,
-                'supplier_id'       => $supplier->id,
-                'goods_receipt_id'  => $goodsReceiptId,
-                'return_date'       => $returnDate,
-                'reference_number'  => $referenceNumber,
-                'total_amount'      => $totalAmount,
-                'status'            => $status,
-                'notes'             => $notes,
+                'branch_id' => $branch->id,
+                'supplier_id' => $supplier->id,
+                'goods_receipt_id' => $goodsReceiptId,
+                'return_date' => $returnDate,
+                'reference_number' => $referenceNumber,
+                'total_amount' => $totalAmount,
+                'status' => $status,
+                'notes' => $notes,
             ]);
 
             // 7. Save Items
@@ -229,42 +226,42 @@ class PurchaseReturnService
 
         $payableAccount = ChartOfAccount::where('code', self::ACCOUNT_PAYABLE)->first()
             ?? ChartOfAccount::create([
-                'code'      => self::ACCOUNT_PAYABLE,
-                'name'      => 'Hutang Dagang',
-                'type'      => 'liability',
+                'code' => self::ACCOUNT_PAYABLE,
+                'name' => 'Hutang Dagang',
+                'type' => 'liability',
                 'is_active' => true,
             ]);
 
         $inventoryAccount = ChartOfAccount::where('code', self::ACCOUNT_INVENTORY)->first()
             ?? ChartOfAccount::create([
-                'code'      => self::ACCOUNT_INVENTORY,
-                'name'      => 'Persediaan',
-                'type'      => 'asset',
+                'code' => self::ACCOUNT_INVENTORY,
+                'name' => 'Persediaan',
+                'type' => 'asset',
                 'is_active' => true,
             ]);
 
-        $description = !empty($notes)
+        $description = ! empty($notes)
             ? "Retur Pembelian ke Supplier {$supplier->name} - {$notes}"
             : "Retur Pembelian ke Supplier {$supplier->name}";
 
         return $this->journalPostingService->post([
-            'branch_id'        => $branchId,
-            'user_id'          => $userId,
+            'branch_id' => $branchId,
+            'user_id' => $userId,
             'transaction_date' => $purchaseReturn->return_date,
             'reference_number' => $purchaseReturn->reference_number,
-            'description'      => $description,
-            'lines'            => [
+            'description' => $description,
+            'lines' => [
                 [
                     'chart_of_account_id' => $payableAccount->id,
-                    'debit'               => $totalAmount,
-                    'credit'              => 0,
-                    'memo'                => "Pengurangan hutang dagang atas retur pembelian ke {$supplier->name}",
+                    'debit' => $totalAmount,
+                    'credit' => 0,
+                    'memo' => "Pengurangan hutang dagang atas retur pembelian ke {$supplier->name}",
                 ],
                 [
                     'chart_of_account_id' => $inventoryAccount->id,
-                    'debit'               => 0,
-                    'credit'              => $totalAmount,
-                    'memo'                => "Pengurangan persediaan barang keluar gudang karena retur ke {$supplier->name}",
+                    'debit' => 0,
+                    'credit' => $totalAmount,
+                    'memo' => "Pengurangan persediaan barang keluar gudang karena retur ke {$supplier->name}",
                 ],
             ],
         ]);
@@ -276,7 +273,7 @@ class PurchaseReturnService
     protected function generateReferenceNumber(): string
     {
         do {
-            $ref = 'PRT-' . date('Ymd') . '-' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 5));
+            $ref = 'PRT-'.date('Ymd').'-'.strtoupper(substr(bin2hex(random_bytes(3)), 0, 5));
         } while (PurchaseReturn::withoutGlobalScopes()->where('reference_number', $ref)->exists());
 
         return $ref;

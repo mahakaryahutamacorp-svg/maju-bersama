@@ -8,7 +8,6 @@ use App\Models\ChartOfAccount;
 use App\Models\JournalHeader;
 use App\Models\User;
 use App\Services\CashTransferService;
-use App\Services\JournalPostingService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -18,12 +17,19 @@ class CashTransferServiceTest extends TestCase
     use RefreshDatabase;
 
     private Branch $branch1;
+
     private Branch $branch2;
+
     private User $branch1User;
+
     private User $masterUser;
+
     private ChartOfAccount $cashAccount;
+
     private ChartOfAccount $bankAccount;
+
     private ChartOfAccount $pettyCashAccount;
+
     private CashTransferService $cashTransferService;
 
     protected function setUp(): void
@@ -33,56 +39,56 @@ class CashTransferServiceTest extends TestCase
         $this->cashTransferService = app(CashTransferService::class);
 
         $this->branch1 = Branch::create([
-            'name'    => 'Cabang Jakarta Pusat',
-            'code'    => 'JKT-01',
+            'name' => 'Cabang Jakarta Pusat',
+            'code' => 'JKT-01',
             'address' => 'Jl. Thamrin No. 1',
-            'phone'   => '0811001122',
+            'phone' => '0811001122',
         ]);
 
         $this->branch2 = Branch::create([
-            'name'    => 'Cabang Surabaya Barat',
-            'code'    => 'SBY-01',
+            'name' => 'Cabang Surabaya Barat',
+            'code' => 'SBY-01',
             'address' => 'Jl. HR Muhammad No. 5',
-            'phone'   => '0822003344',
+            'phone' => '0822003344',
         ]);
 
         $this->branch1User = User::create([
-            'name'      => 'Admin Cabang JKT',
-            'email'     => 'admin.jkt@example.com',
-            'password'  => bcrypt('password'),
-            'role'      => 'branch_admin',
+            'name' => 'Admin Cabang JKT',
+            'email' => 'admin.jkt@example.com',
+            'password' => bcrypt('password'),
+            'role' => 'branch_admin',
             'branch_id' => $this->branch1->id,
         ]);
 
         $this->masterUser = User::create([
-            'name'      => 'Owner Pusat',
-            'email'     => 'owner@example.com',
-            'password'  => bcrypt('password'),
-            'role'      => 'master',
+            'name' => 'Owner Pusat',
+            'email' => 'owner@example.com',
+            'password' => bcrypt('password'),
+            'role' => 'master',
             'branch_id' => $this->branch1->id,
         ]);
 
         // COA Kas Utama
         $this->cashAccount = ChartOfAccount::create([
-            'code'      => '1110',
-            'name'      => 'Kas Toko Utama',
-            'type'      => 'asset',
+            'code' => '1110',
+            'name' => 'Kas Toko Utama',
+            'type' => 'asset',
             'is_active' => true,
         ]);
 
         // COA Rekening Bank BCA
         $this->bankAccount = ChartOfAccount::create([
-            'code'      => '1120',
-            'name'      => 'Bank BCA Operasional',
-            'type'      => 'asset',
+            'code' => '1120',
+            'name' => 'Bank BCA Operasional',
+            'type' => 'asset',
             'is_active' => true,
         ]);
 
         // COA Kas Kecil (Petty Cash)
         $this->pettyCashAccount = ChartOfAccount::create([
-            'code'      => '1115',
-            'name'      => 'Kas Kecil Cabang',
-            'type'      => 'asset',
+            'code' => '1115',
+            'name' => 'Kas Kecil Cabang',
+            'type' => 'asset',
             'is_active' => true,
         ]);
     }
@@ -92,12 +98,12 @@ class CashTransferServiceTest extends TestCase
         $this->actingAs($this->branch1User);
 
         $data = [
-            'branch_id'       => $this->branch1->id,
+            'branch_id' => $this->branch1->id,
             'from_account_id' => $this->cashAccount->id,
-            'to_account_id'   => $this->bankAccount->id,
-            'amount'          => 750000,
-            'transfer_date'   => '2026-09-20',
-            'notes'           => 'Setoran kas operasional ke rekening BCA',
+            'to_account_id' => $this->bankAccount->id,
+            'amount' => 750000,
+            'transfer_date' => '2026-09-20',
+            'notes' => 'Setoran kas operasional ke rekening BCA',
         ];
 
         $transfer = $this->cashTransferService->processTransfer($data);
@@ -105,12 +111,12 @@ class CashTransferServiceTest extends TestCase
         // 1. Verifikasi rekaman cash_transfers
         $this->assertInstanceOf(CashTransfer::class, $transfer);
         $this->assertDatabaseHas('cash_transfers', [
-            'id'              => $transfer->id,
-            'branch_id'       => $this->branch1->id,
+            'id' => $transfer->id,
+            'branch_id' => $this->branch1->id,
             'from_account_id' => $this->cashAccount->id,
-            'to_account_id'   => $this->bankAccount->id,
-            'amount'          => 750000.00,
-            'notes'           => 'Setoran kas operasional ke rekening BCA',
+            'to_account_id' => $this->bankAccount->id,
+            'amount' => 750000.00,
+            'notes' => 'Setoran kas operasional ke rekening BCA',
         ]);
         $this->assertSame('2026-09-20', $transfer->transfer_date->format('Y-m-d'));
 
@@ -153,10 +159,10 @@ class CashTransferServiceTest extends TestCase
         // Uji amount 0
         try {
             $this->cashTransferService->processTransfer([
-                'branch_id'       => $this->branch1->id,
+                'branch_id' => $this->branch1->id,
                 'from_account_id' => $this->cashAccount->id,
-                'to_account_id'   => $this->bankAccount->id,
-                'amount'          => 0,
+                'to_account_id' => $this->bankAccount->id,
+                'amount' => 0,
             ]);
             $this->fail('Expected ValidationException was not thrown for amount 0.');
         } catch (ValidationException $e) {
@@ -166,10 +172,10 @@ class CashTransferServiceTest extends TestCase
         // Uji amount negatif
         try {
             $this->cashTransferService->processTransfer([
-                'branch_id'       => $this->branch1->id,
+                'branch_id' => $this->branch1->id,
                 'from_account_id' => $this->cashAccount->id,
-                'to_account_id'   => $this->bankAccount->id,
-                'amount'          => -50000,
+                'to_account_id' => $this->bankAccount->id,
+                'amount' => -50000,
             ]);
             $this->fail('Expected ValidationException was not thrown for negative amount.');
         } catch (ValidationException $e) {
@@ -187,10 +193,10 @@ class CashTransferServiceTest extends TestCase
         $this->expectException(ValidationException::class);
 
         $this->cashTransferService->processTransfer([
-            'branch_id'       => $this->branch1->id,
+            'branch_id' => $this->branch1->id,
             'from_account_id' => $this->cashAccount->id,
-            'to_account_id'   => $this->cashAccount->id, // Akun sama
-            'amount'          => 200000,
+            'to_account_id' => $this->cashAccount->id, // Akun sama
+            'amount' => 200000,
         ]);
 
         $this->assertDatabaseCount('cash_transfers', 0);
@@ -201,19 +207,19 @@ class CashTransferServiceTest extends TestCase
         $this->actingAs($this->branch1User);
 
         $inactiveAccount = ChartOfAccount::create([
-            'code'      => '1199',
-            'name'      => 'Kas Lama Nonaktif',
-            'type'      => 'asset',
+            'code' => '1199',
+            'name' => 'Kas Lama Nonaktif',
+            'type' => 'asset',
             'is_active' => false,
         ]);
 
         $this->expectException(ValidationException::class);
 
         $this->cashTransferService->processTransfer([
-            'branch_id'       => $this->branch1->id,
+            'branch_id' => $this->branch1->id,
             'from_account_id' => $inactiveAccount->id,
-            'to_account_id'   => $this->bankAccount->id,
-            'amount'          => 100000,
+            'to_account_id' => $this->bankAccount->id,
+            'amount' => 100000,
         ]);
     }
 
@@ -225,11 +231,11 @@ class CashTransferServiceTest extends TestCase
         $customDate = '2026-08-15';
 
         $transfer = $this->cashTransferService->processTransfer([
-            'branch_id'        => $this->branch1->id,
-            'from_account_id'  => $this->cashAccount->id,
-            'to_account_id'    => $this->pettyCashAccount->id,
-            'amount'           => 150000,
-            'transfer_date'    => $customDate,
+            'branch_id' => $this->branch1->id,
+            'from_account_id' => $this->cashAccount->id,
+            'to_account_id' => $this->pettyCashAccount->id,
+            'amount' => 150000,
+            'transfer_date' => $customDate,
             'reference_number' => $customRef,
         ]);
 
@@ -237,9 +243,9 @@ class CashTransferServiceTest extends TestCase
         $this->assertEquals($customDate, $transfer->transfer_date->toDateString());
 
         $this->assertDatabaseHas('journal_headers', [
-            'id'               => $transfer->journal_header_id,
+            'id' => $transfer->journal_header_id,
             'reference_number' => $customRef,
-            'description'      => 'Mutasi Kas: dari Kas Toko Utama ke Kas Kecil Cabang',
+            'description' => 'Mutasi Kas: dari Kas Toko Utama ke Kas Kecil Cabang',
         ]);
         $this->assertSame($customDate, $transfer->journalHeader->transaction_date->format('Y-m-d'));
     }
@@ -248,21 +254,21 @@ class CashTransferServiceTest extends TestCase
     {
         // 1. Buat mutasi di Branch 1
         $transferBranch1 = CashTransfer::create([
-            'branch_id'        => $this->branch1->id,
-            'from_account_id'  => $this->cashAccount->id,
-            'to_account_id'    => $this->bankAccount->id,
-            'amount'           => 500000,
-            'transfer_date'    => '2026-09-20',
+            'branch_id' => $this->branch1->id,
+            'from_account_id' => $this->cashAccount->id,
+            'to_account_id' => $this->bankAccount->id,
+            'amount' => 500000,
+            'transfer_date' => '2026-09-20',
             'reference_number' => 'TRF-BR1-001',
         ]);
 
         // 2. Buat mutasi di Branch 2
         $transferBranch2 = CashTransfer::create([
-            'branch_id'        => $this->branch2->id,
-            'from_account_id'  => $this->cashAccount->id,
-            'to_account_id'    => $this->bankAccount->id,
-            'amount'           => 300000,
-            'transfer_date'    => '2026-09-20',
+            'branch_id' => $this->branch2->id,
+            'from_account_id' => $this->cashAccount->id,
+            'to_account_id' => $this->bankAccount->id,
+            'amount' => 300000,
+            'transfer_date' => '2026-09-20',
             'reference_number' => 'TRF-BR2-002',
         ]);
 
@@ -284,11 +290,11 @@ class CashTransferServiceTest extends TestCase
         $this->actingAs($this->branch1User);
 
         $transfer = $this->cashTransferService->processTransfer([
-            'branch_id'       => $this->branch1->id,
+            'branch_id' => $this->branch1->id,
             'from_account_id' => $this->cashAccount->id,
-            'to_account_id'   => $this->bankAccount->id,
-            'amount'          => 250000,
-            'notes'           => 'Uji relasi model',
+            'to_account_id' => $this->bankAccount->id,
+            'amount' => 250000,
+            'notes' => 'Uji relasi model',
         ]);
 
         // Relasi pada CashTransfer

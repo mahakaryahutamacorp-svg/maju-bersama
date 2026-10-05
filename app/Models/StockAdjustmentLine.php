@@ -19,11 +19,11 @@ class StockAdjustmentLine extends Model
     ];
 
     protected $casts = [
-        'system_qty'     => 'integer',
-        'actual_qty'     => 'integer',
+        'system_qty' => 'integer',
+        'actual_qty' => 'integer',
         'difference_qty' => 'integer',
-        'unit_cost'      => 'decimal:4',
-        'subtotal_cost'  => 'decimal:4',
+        'unit_cost' => 'decimal:4',
+        'subtotal_cost' => 'decimal:4',
     ];
 
     public function adjustment(): BelongsTo

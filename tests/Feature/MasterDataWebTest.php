@@ -14,13 +14,21 @@ use Tests\TestCase;
 class MasterDataWebTest extends TestCase
 {
     private Branch $branchA;
+
     private Branch $branchB;
+
     private User $masterUser;
+
     private User $adminA;
+
     private User $adminB;
+
     private Category $categoryPupuk;
+
     private Category $categoryBenih;
+
     private Product $productA;
+
     private Product $productB;
 
     protected function setUp(): void
@@ -126,7 +134,7 @@ class MasterDataWebTest extends TestCase
         $this->assertNotNull($created);
         $this->assertEquals($this->branchA->id, $created->branch_id);
         $this->assertNotEmpty($created->sku);
-        $this->assertStringStartsWith('BR' . $this->branchA->id . '-', $created->sku);
+        $this->assertStringStartsWith('BR'.$this->branchA->id.'-', $created->sku);
     }
 
     public function test_branch_admin_cannot_edit_or_update_product_from_another_branch(): void

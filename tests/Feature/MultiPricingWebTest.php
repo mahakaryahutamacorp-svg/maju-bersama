@@ -17,7 +17,9 @@ class MultiPricingWebTest extends TestCase
     use RefreshDatabase;
 
     private Branch $branch;
+
     private User $admin;
+
     private Category $category;
 
     protected function setUp(): void

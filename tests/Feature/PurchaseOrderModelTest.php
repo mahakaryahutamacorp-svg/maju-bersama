@@ -18,8 +18,11 @@ class PurchaseOrderModelTest extends TestCase
     use RefreshDatabase;
 
     private Branch $branchA;
+
     private Branch $branchB;
+
     private User $userA;
+
     private User $masterUser;
 
     protected function setUp(): void

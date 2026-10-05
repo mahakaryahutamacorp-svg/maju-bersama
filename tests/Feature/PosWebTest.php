@@ -4,6 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\Branch;
 use App\Models\Category;
+use App\Models\ChartOfAccount;
+use App\Models\Customer;
+use App\Models\CustomerGroup;
+use App\Models\JournalHeader;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
@@ -16,8 +20,11 @@ class PosWebTest extends TestCase
     use RefreshDatabase;
 
     private Branch $branch;
+
     private User $cashier;
+
     private Category $category;
+
     private Product $product;
 
     protected function setUp(): void
@@ -54,11 +61,11 @@ class PosWebTest extends TestCase
             'stock' => 25,
         ]);
 
-        \App\Models\ChartOfAccount::updateOrCreate(['code' => '1110'], ['name' => 'Kas', 'type' => 'asset']);
-        \App\Models\ChartOfAccount::updateOrCreate(['code' => '1210'], ['name' => 'Persediaan', 'type' => 'asset']);
-        \App\Models\ChartOfAccount::updateOrCreate(['code' => '4110'], ['name' => 'Pendapatan', 'type' => 'revenue']);
-        \App\Models\ChartOfAccount::updateOrCreate(['code' => '4130'], ['name' => 'Potongan Penjualan', 'type' => 'revenue']);
-        \App\Models\ChartOfAccount::updateOrCreate(['code' => '5100'], ['name' => 'Harga Pokok Penjualan', 'type' => 'expense']);
+        ChartOfAccount::updateOrCreate(['code' => '1110'], ['name' => 'Kas', 'type' => 'asset']);
+        ChartOfAccount::updateOrCreate(['code' => '1210'], ['name' => 'Persediaan', 'type' => 'asset']);
+        ChartOfAccount::updateOrCreate(['code' => '4110'], ['name' => 'Pendapatan', 'type' => 'revenue']);
+        ChartOfAccount::updateOrCreate(['code' => '4130'], ['name' => 'Potongan Penjualan', 'type' => 'revenue']);
+        ChartOfAccount::updateOrCreate(['code' => '5100'], ['name' => 'Harga Pokok Penjualan', 'type' => 'expense']);
     }
 
     public function test_guest_cannot_access_pos_screen(): void
@@ -122,11 +129,11 @@ class PosWebTest extends TestCase
     public function test_cashier_can_checkout_with_nominal_discount_and_balanced_journal(): void
     {
         // Seed akun COA yang dibutuhkan
-        \App\Models\ChartOfAccount::updateOrCreate(['code' => '1110'], ['name' => 'Kas', 'type' => 'asset']);
-        \App\Models\ChartOfAccount::updateOrCreate(['code' => '1210'], ['name' => 'Persediaan', 'type' => 'asset']);
-        \App\Models\ChartOfAccount::updateOrCreate(['code' => '4110'], ['name' => 'Pendapatan', 'type' => 'revenue']);
-        \App\Models\ChartOfAccount::updateOrCreate(['code' => '4130'], ['name' => 'Potongan Penjualan', 'type' => 'revenue']);
-        \App\Models\ChartOfAccount::updateOrCreate(['code' => '5100'], ['name' => 'Harga Pokok Penjualan', 'type' => 'expense']);
+        ChartOfAccount::updateOrCreate(['code' => '1110'], ['name' => 'Kas', 'type' => 'asset']);
+        ChartOfAccount::updateOrCreate(['code' => '1210'], ['name' => 'Persediaan', 'type' => 'asset']);
+        ChartOfAccount::updateOrCreate(['code' => '4110'], ['name' => 'Pendapatan', 'type' => 'revenue']);
+        ChartOfAccount::updateOrCreate(['code' => '4130'], ['name' => 'Potongan Penjualan', 'type' => 'revenue']);
+        ChartOfAccount::updateOrCreate(['code' => '5100'], ['name' => 'Harga Pokok Penjualan', 'type' => 'expense']);
 
         // Kasir beli 2 pcs Keripik @ 15.000 (Subtotal = 30.000)
         // Diberikan diskon nominal kekeluargaan sebesar 5.000
@@ -151,33 +158,33 @@ class PosWebTest extends TestCase
         $this->assertEquals(5000, (float) $sale->discount_amount);
 
         // 2. Verifikasi Jurnal Akuntansi seimbang (Balanced Journal)
-        $journal = \App\Models\JournalHeader::where('reference_number', $receiptNumber)->firstOrFail();
+        $journal = JournalHeader::where('reference_number', $receiptNumber)->firstOrFail();
         $lines = $journal->journalLines;
 
         // Debit: Kas (1110) senilai Grand Total = 25.000
-        $cashLine = $lines->firstWhere('chart_of_account_id', \App\Models\ChartOfAccount::where('code', '1110')->value('id'));
+        $cashLine = $lines->firstWhere('chart_of_account_id', ChartOfAccount::where('code', '1110')->value('id'));
         $this->assertNotNull($cashLine);
         $this->assertEquals(25000, (float) $cashLine->debit);
         $this->assertEquals(0, (float) $cashLine->credit);
 
         // Debit: Potongan Penjualan (4130) senilai discount_amount = 5.000
-        $discountLine = $lines->firstWhere('chart_of_account_id', \App\Models\ChartOfAccount::where('code', '4130')->value('id'));
+        $discountLine = $lines->firstWhere('chart_of_account_id', ChartOfAccount::where('code', '4130')->value('id'));
         $this->assertNotNull($discountLine);
         $this->assertEquals(5000, (float) $discountLine->debit);
         $this->assertEquals(0, (float) $discountLine->credit);
 
         // Kredit: Pendapatan Penjualan (4110) senilai Subtotal = 30.000
-        $revenueLine = $lines->firstWhere('chart_of_account_id', \App\Models\ChartOfAccount::where('code', '4110')->value('id'));
+        $revenueLine = $lines->firstWhere('chart_of_account_id', ChartOfAccount::where('code', '4110')->value('id'));
         $this->assertNotNull($revenueLine);
         $this->assertEquals(0, (float) $revenueLine->debit);
         $this->assertEquals(30000, (float) $revenueLine->credit);
 
         // Sisi HPP & Persediaan: 2 x 10.000 = 20.000
-        $cogsLine = $lines->firstWhere('chart_of_account_id', \App\Models\ChartOfAccount::where('code', '5100')->value('id'));
+        $cogsLine = $lines->firstWhere('chart_of_account_id', ChartOfAccount::where('code', '5100')->value('id'));
         $this->assertNotNull($cogsLine);
         $this->assertEquals(20000, (float) $cogsLine->debit);
 
-        $inventoryLine = $lines->firstWhere('chart_of_account_id', \App\Models\ChartOfAccount::where('code', '1210')->value('id'));
+        $inventoryLine = $lines->firstWhere('chart_of_account_id', ChartOfAccount::where('code', '1210')->value('id'));
         $this->assertNotNull($inventoryLine);
         $this->assertEquals(20000, (float) $inventoryLine->credit);
 
@@ -236,7 +243,7 @@ class PosWebTest extends TestCase
 
     public function test_cashier_can_create_customer_with_category_and_sync_to_pos(): void
     {
-        $groupGrosir = \App\Models\CustomerGroup::firstOrCreate(
+        $groupGrosir = CustomerGroup::firstOrCreate(
             ['name' => 'Grosir'],
             ['notes' => 'Pelanggan Grosir']
         );
@@ -268,22 +275,22 @@ class PosWebTest extends TestCase
     public function test_customer_created_by_branch_cashier_is_visible_to_central_admin(): void
     {
         // 1. Cabang Pusat
-        $centralBranch = \App\Models\Branch::create([
+        $centralBranch = Branch::create([
             'name' => 'Kantor Pusat MB',
             'code' => 'HQ-MB',
             'parent_id' => null,
             'is_active' => true,
         ]);
 
-        $centralAdmin = \App\Models\User::factory()->create([
+        $centralAdmin = User::factory()->create([
             'branch_id' => $centralBranch->id,
             'role' => 'admin',
         ]);
 
-        $groupUmum = \App\Models\CustomerGroup::firstOrCreate(['name' => 'Umum/Retail']);
+        $groupUmum = CustomerGroup::firstOrCreate(['name' => 'Umum/Retail']);
 
         // 2. Kasir di cabang mendaftarkan pelanggan
-        $customer = \App\Models\Customer::create([
+        $customer = Customer::create([
             'branch_id' => $this->branch->id,
             'name' => 'Pak Haji Subur',
             'phone' => '0899999999',
@@ -299,7 +306,7 @@ class PosWebTest extends TestCase
 
     public function test_cashier_can_checkout_with_tempo_and_due_date_and_debit_receivable_journal(): void
     {
-        $customer = \App\Models\Customer::create([
+        $customer = Customer::create([
             'branch_id' => $this->branch->id,
             'name' => 'Pak Joko Tempo',
             'phone' => '081234567000',
@@ -331,16 +338,16 @@ class PosWebTest extends TestCase
         $this->assertEquals(3000000, $sale->total_amount); // 30.000 in cents
 
         // Verifikasi Jurnal Akuntansi: Debit Piutang Usaha (1130) senilai 30.000
-        $journal = \App\Models\JournalHeader::where('reference_number', $receiptNumber)->firstOrFail();
+        $journal = JournalHeader::where('reference_number', $receiptNumber)->firstOrFail();
         $lines = $journal->journalLines;
 
-        $arLine = $lines->firstWhere('chart_of_account_id', \App\Models\ChartOfAccount::where('code', '1130')->value('id'));
+        $arLine = $lines->firstWhere('chart_of_account_id', ChartOfAccount::where('code', '1130')->value('id'));
         $this->assertNotNull($arLine);
         $this->assertEquals(30000, (float) $arLine->debit);
         $this->assertEquals(0, (float) $arLine->credit);
 
         // Kredit Pendapatan (4110)
-        $revenueLine = $lines->firstWhere('chart_of_account_id', \App\Models\ChartOfAccount::where('code', '4110')->value('id'));
+        $revenueLine = $lines->firstWhere('chart_of_account_id', ChartOfAccount::where('code', '4110')->value('id'));
         $this->assertEquals(30000, (float) $revenueLine->credit);
 
         // Seimbang

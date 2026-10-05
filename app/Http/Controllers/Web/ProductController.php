@@ -15,6 +15,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class ProductController extends Controller
 {
@@ -110,7 +111,7 @@ class ProductController extends Controller
             $request->merge(['selling_price' => $request->input("prices.{$defaultPriceLevel->id}")]);
         } elseif ($request->filled('selling_price') && $defaultPriceLevel) {
             $prices = $request->input('prices', []);
-            if (!isset($prices[$defaultPriceLevel->id])) {
+            if (! isset($prices[$defaultPriceLevel->id])) {
                 $prices[$defaultPriceLevel->id] = $request->input('selling_price');
                 $request->merge(['prices' => $prices]);
             }
@@ -233,7 +234,7 @@ class ProductController extends Controller
             $request->merge(['selling_price' => $request->input("prices.{$defaultPriceLevel->id}")]);
         } elseif ($request->filled('selling_price') && $defaultPriceLevel) {
             $prices = $request->input('prices', []);
-            if (!isset($prices[$defaultPriceLevel->id])) {
+            if (! isset($prices[$defaultPriceLevel->id])) {
                 $prices[$defaultPriceLevel->id] = $request->input('selling_price');
                 $request->merge(['prices' => $prices]);
             }
@@ -332,7 +333,7 @@ class ProductController extends Controller
         $defaultLevel = PriceLevel::where('is_default', true)->first();
 
         // Always ensure default level has a price from selling_price fallback
-        if ($defaultLevel && (!isset($prices[$defaultLevel->id]) || $prices[$defaultLevel->id] === '' || $prices[$defaultLevel->id] === null)) {
+        if ($defaultLevel && (! isset($prices[$defaultLevel->id]) || $prices[$defaultLevel->id] === '' || $prices[$defaultLevel->id] === null)) {
             if ($product->selling_price !== null) {
                 $prices[$defaultLevel->id] = $product->selling_price;
             }
@@ -384,12 +385,12 @@ class ProductController extends Controller
             return redirect()
                 ->route('backoffice.products.index')
                 ->with('success', "Produk '{$name}' berhasil dihapus!");
-        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $e) {
+        } catch (HttpException $e) {
             throw $e;
         } catch (\Throwable $e) {
             return redirect()
                 ->route('backoffice.products.index')
-                ->with('error', 'Terjadi kesalahan saat menghapus produk: ' . $e->getMessage());
+                ->with('error', 'Terjadi kesalahan saat menghapus produk: '.$e->getMessage());
         }
     }
 
@@ -408,7 +409,7 @@ class ProductController extends Controller
             ->with('branch:id,name,code')
             ->where(function ($q) use ($query) {
                 $q->where('name', 'like', "%{$query}%")
-                  ->orWhere('sku', 'like', "%{$query}%");
+                    ->orWhere('sku', 'like', "%{$query}%");
             })
             ->limit(8)
             ->get(['id', 'branch_id', 'sku', 'name', 'unit', 'purchase_price', 'selling_price'])

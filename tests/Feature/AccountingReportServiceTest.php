@@ -12,20 +12,28 @@ use Tests\TestCase;
 class AccountingReportServiceTest extends TestCase
 {
     private AccountingReportService $reportService;
+
     private Branch $central;
+
     private Branch $branchOne;
+
     private User $master;
+
     private ChartOfAccount $cash;
+
     private ChartOfAccount $inventory;
+
     private ChartOfAccount $revenue;
+
     private ChartOfAccount $cogs;
+
     private ChartOfAccount $operatingExpense;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->reportService = new AccountingReportService();
+        $this->reportService = new AccountingReportService;
 
         $this->central = Branch::create(['code' => 'PUSAT', 'name' => 'Pusat']);
         $this->branchOne = Branch::create(['code' => 'CABANG-1', 'name' => 'Cabang 1', 'parent_id' => $this->central->id]);

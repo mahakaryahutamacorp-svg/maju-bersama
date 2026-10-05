@@ -27,6 +27,7 @@ class CashTransferService
      *     notes?: string|null,
      *     user_id?: int|null
      * } $data
+     *
      * @throws ValidationException
      */
     public function processTransfer(array $data): CashTransfer
@@ -61,17 +62,17 @@ class CashTransferService
                 ]);
             }
 
-            $branchId = $data['branch_id'] 
-                ?? auth()->user()?->branch_id 
+            $branchId = $data['branch_id']
+                ?? auth()->user()?->branch_id
                 ?? Branch::value('id');
 
             $transferDate = $data['transfer_date'] ?? now()->toDateString();
-            $referenceNumber = ! empty($data['reference_number']) 
-                ? (string) $data['reference_number'] 
+            $referenceNumber = ! empty($data['reference_number'])
+                ? (string) $data['reference_number']
                 : $this->generateReferenceNumber();
 
-            $notes = isset($data['notes']) && trim((string) $data['notes']) !== '' 
-                ? trim((string) $data['notes']) 
+            $notes = isset($data['notes']) && trim((string) $data['notes']) !== ''
+                ? trim((string) $data['notes'])
                 : null;
 
             // Keterangan jurnal: "Mutasi Kas: dari [Nama Akun Asal] ke [Nama Akun Tujuan] - [Catatan]"
@@ -82,36 +83,36 @@ class CashTransferService
 
             // 1. Simpan data ke tabel cash_transfers
             $cashTransfer = CashTransfer::create([
-                'branch_id'        => $branchId,
-                'from_account_id'  => $fromAccount->id,
-                'to_account_id'    => $toAccount->id,
-                'amount'           => $amount,
-                'transfer_date'    => $transferDate,
+                'branch_id' => $branchId,
+                'from_account_id' => $fromAccount->id,
+                'to_account_id' => $toAccount->id,
+                'amount' => $amount,
+                'transfer_date' => $transferDate,
                 'reference_number' => $referenceNumber,
-                'notes'            => $notes,
+                'notes' => $notes,
             ]);
 
             // 2. Otomatisasi Jurnal: Panggil JournalPostingService untuk membuat jurnal:
             // Debit: Akun Tujuan (to_account_id) sebesar nilai amount.
             // Kredit: Akun Asal (from_account_id) sebesar nilai amount.
             $journal = $this->journalPostingService->post([
-                'branch_id'        => $branchId,
-                'user_id'          => $data['user_id'] ?? auth()->id(),
+                'branch_id' => $branchId,
+                'user_id' => $data['user_id'] ?? auth()->id(),
                 'transaction_date' => $transferDate,
                 'reference_number' => $referenceNumber,
-                'description'      => $description,
-                'lines'            => [
+                'description' => $description,
+                'lines' => [
                     [
                         'chart_of_account_id' => $toAccount->id,
-                        'debit'               => $amount,
-                        'credit'              => 0,
-                        'memo'                => $description,
+                        'debit' => $amount,
+                        'credit' => 0,
+                        'memo' => $description,
                     ],
                     [
                         'chart_of_account_id' => $fromAccount->id,
-                        'debit'               => 0,
-                        'credit'              => $amount,
-                        'memo'                => $description,
+                        'debit' => 0,
+                        'credit' => $amount,
+                        'memo' => $description,
                     ],
                 ],
             ]);
@@ -130,6 +131,7 @@ class CashTransferService
     {
         $date = now()->format('Ymd');
         $random = strtoupper(bin2hex(random_bytes(3)));
+
         return "TRF-{$date}-{$random}";
     }
 }

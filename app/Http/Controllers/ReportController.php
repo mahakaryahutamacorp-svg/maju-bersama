@@ -13,6 +13,7 @@ use App\Services\Reports\InventoryReportService;
 use App\Services\Reports\PurchaseReportService;
 use App\Services\Reports\SalesReportService;
 use App\Services\Reports\TrialBalanceService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -27,7 +28,7 @@ class ReportController extends Controller
         ]);
     }
 
-    public function incomeStatement(Request $request, IncomeStatementService $service): View
+    public function incomeStatement(Request $request, IncomeStatementService $service): View|JsonResponse
     {
         $currentUser = $request->user();
         $isMaster = $currentUser->isMaster()
@@ -44,6 +45,13 @@ class ReportController extends Controller
             : (int) $currentUser->branch_id;
 
         $report = $service->generate($startDate, $endDate, $branchId);
+
+        if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'data' => $report,
+            ]);
+        }
 
         $branches = $isMaster
             ? Branch::query()->orderBy('id')->get()
@@ -91,7 +99,7 @@ class ReportController extends Controller
         ]);
     }
 
-    public function balanceSheet(Request $request, BalanceSheetService $service): View
+    public function balanceSheet(Request $request, BalanceSheetService $service): View|JsonResponse
     {
         $currentUser = $request->user();
         $isMaster = $currentUser->isMaster()
@@ -106,6 +114,13 @@ class ReportController extends Controller
             : (int) $currentUser->branch_id;
 
         $report = $service->generate($endDate, $branchId, $startDate);
+
+        if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'data' => $report,
+            ]);
+        }
 
         $branches = $isMaster
             ? Branch::query()->orderBy('id')->get()
@@ -153,7 +168,7 @@ class ReportController extends Controller
         ]);
     }
 
-    public function sales(Request $request, SalesReportService $service): View
+    public function sales(Request $request, SalesReportService $service): View|JsonResponse
     {
         $currentUser = $request->user();
         $isMaster = $currentUser->isMaster()
@@ -168,6 +183,13 @@ class ReportController extends Controller
             : (int) $currentUser->branch_id;
 
         $report = $service->getSales($startDate, $endDate, $branchId);
+
+        if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'data' => $report,
+            ]);
+        }
 
         $branches = $isMaster
             ? Branch::query()->orderBy('id')->get()
@@ -293,12 +315,12 @@ class ReportController extends Controller
             : Branch::query()->where('id', $currentUser->branch_id)->get();
 
         return view('backoffice.reports.ar-aging', [
-            'currentUser'      => $currentUser->load('branch'),
-            'isMaster'         => $isMaster,
-            'report'           => $report,
-            'rows'             => $report['rows'],
-            'totals'           => $report['totals'],
-            'branches'         => $branches,
+            'currentUser' => $currentUser->load('branch'),
+            'isMaster' => $isMaster,
+            'report' => $report,
+            'rows' => $report['rows'],
+            'totals' => $report['totals'],
+            'branches' => $branches,
             'selectedBranchId' => $branchId,
         ]);
     }
@@ -321,12 +343,12 @@ class ReportController extends Controller
             : Branch::query()->where('id', $currentUser->branch_id)->get();
 
         return view('backoffice.reports.ap-aging', [
-            'currentUser'      => $currentUser->load('branch'),
-            'isMaster'         => $isMaster,
-            'report'           => $report,
-            'rows'             => $report['rows'],
-            'totals'           => $report['totals'],
-            'branches'         => $branches,
+            'currentUser' => $currentUser->load('branch'),
+            'isMaster' => $isMaster,
+            'report' => $report,
+            'rows' => $report['rows'],
+            'totals' => $report['totals'],
+            'branches' => $branches,
             'selectedBranchId' => $branchId,
         ]);
     }

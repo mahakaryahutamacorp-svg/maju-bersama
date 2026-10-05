@@ -27,6 +27,7 @@ class JournalEntryService
      *         memo?: string|null
      *     }>
      * } $data
+     *
      * @throws ValidationException
      */
     public function createEntry(array $data): JournalHeader

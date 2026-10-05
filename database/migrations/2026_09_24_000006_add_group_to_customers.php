@@ -44,7 +44,7 @@ return new class extends Migration
                 if (Schema::hasColumn('customers', 'customer_group_id')) {
                     try {
                         $table->dropIndex(['branch_id', 'customer_group_id']);
-                    } catch (\Throwable $e) {
+                    } catch (Throwable $e) {
                     }
                     $table->dropForeign(['customer_group_id']);
                     $table->dropColumn('customer_group_id');

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ChartOfAccount extends Model
@@ -23,27 +24,27 @@ class ChartOfAccount extends Model
         ];
     }
 
-    public function expenseCategories(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function expenseCategories(): HasMany
     {
         return $this->hasMany(ExpenseCategory::class);
     }
 
-    public function expenses(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function expenses(): HasMany
     {
         return $this->hasMany(Expense::class, 'account_id');
     }
 
-    public function journalLines(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function journalLines(): HasMany
     {
         return $this->hasMany(JournalLine::class);
     }
 
-    public function outgoingTransfers(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function outgoingTransfers(): HasMany
     {
         return $this->hasMany(CashTransfer::class, 'from_account_id');
     }
 
-    public function incomingTransfers(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function incomingTransfers(): HasMany
     {
         return $this->hasMany(CashTransfer::class, 'to_account_id');
     }

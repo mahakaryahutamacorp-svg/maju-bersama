@@ -26,7 +26,9 @@ use Illuminate\Validation\ValidationException;
 class GoodsReceiptService
 {
     public const ACCOUNT_INVENTORY = '1210';
+
     public const ACCOUNT_CASH = '1110';
+
     public const ACCOUNT_PAYABLE = '2110';
 
     /**
@@ -47,8 +49,6 @@ class GoodsReceiptService
      *         subtotal?: float|string|null
      *     }>
      * } $data
-     * @param User $actor
-     * @return GoodsReceipt
      */
     public function processReceipt(array $data, User $actor): GoodsReceipt
     {
@@ -138,23 +138,23 @@ class GoodsReceiptService
 
                 $processedItems[] = [
                     'product_id' => $productId,
-                    'quantity'   => $quantity,
+                    'quantity' => $quantity,
                     'unit_price' => $unitPrice,
-                    'subtotal'   => $subtotal,
-                    'po_item'    => $poItem,
+                    'subtotal' => $subtotal,
+                    'po_item' => $poItem,
                 ];
             }
 
             // Langkah A: Simpan data ke goods_receipts
             $receipt = GoodsReceipt::create([
-                'branch_id'         => $branch->id,
+                'branch_id' => $branch->id,
                 'purchase_order_id' => $purchaseOrder?->id,
-                'reference_number'  => $referenceNumber,
-                'supplier_name'     => $supplierName,
-                'date'              => $date,
-                'total_amount'      => $totalAmount,
-                'payment_type'      => $paymentType,
-                'notes'             => $data['notes'] ?? null,
+                'reference_number' => $referenceNumber,
+                'supplier_name' => $supplierName,
+                'date' => $date,
+                'total_amount' => $totalAmount,
+                'payment_type' => $paymentType,
+                'notes' => $data['notes'] ?? null,
             ]);
 
             // Langkah B: Update kuantitas stok di inventories dan sync cache di products (dengan locking)
@@ -180,9 +180,9 @@ class GoodsReceiptService
                 // Create GoodsReceiptItem record
                 $receipt->items()->create([
                     'product_id' => $product->id,
-                    'quantity'   => $item['quantity'],
+                    'quantity' => $item['quantity'],
                     'unit_price' => $item['unit_price'],
-                    'subtotal'   => $item['subtotal'],
+                    'subtotal' => $item['subtotal'],
                 ]);
 
                 // Perbarui received_quantity pada purchase_order_items jika terkait PO
@@ -365,6 +365,7 @@ class GoodsReceiptService
                     'type' => 'liability',
                 ]);
             }
+
             return $account;
         }
 
@@ -386,7 +387,7 @@ class GoodsReceiptService
     private function generateReferenceNumber(): string
     {
         do {
-            $ref = 'GR-' . date('Ymd') . '-' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 5));
+            $ref = 'GR-'.date('Ymd').'-'.strtoupper(substr(bin2hex(random_bytes(3)), 0, 5));
         } while (GoodsReceipt::where('reference_number', $ref)->exists());
 
         return $ref;

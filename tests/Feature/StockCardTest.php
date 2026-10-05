@@ -18,6 +18,7 @@ use App\Models\StockTransferItem;
 use App\Models\User;
 use App\Services\StockCardService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class StockCardTest extends TestCase
@@ -25,17 +26,22 @@ class StockCardTest extends TestCase
     use RefreshDatabase;
 
     private StockCardService $service;
+
     private Branch $branchPusat;
+
     private Branch $branchCabang;
+
     private User $user;
+
     private Category $category;
+
     private Product $product;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->service = new StockCardService();
+        $this->service = new StockCardService;
 
         // Seed COA standard
         ChartOfAccount::create(['code' => '1110', 'name' => 'Kas', 'type' => 'asset']);
@@ -131,7 +137,7 @@ class StockCardTest extends TestCase
             'status' => 'completed',
             'created_by' => $this->user->id,
         ]);
-        \Illuminate\Support\Facades\DB::table('sales')->where('id', $sale->id)->update([
+        DB::table('sales')->where('id', $sale->id)->update([
             'created_at' => '2026-09-02 10:00:00',
         ]);
         SaleItem::create([
@@ -264,7 +270,7 @@ class StockCardTest extends TestCase
             'status' => 'completed',
             'created_by' => $this->user->id,
         ]);
-        \Illuminate\Support\Facades\DB::table('sales')->where('id', $sale->id)->update([
+        DB::table('sales')->where('id', $sale->id)->update([
             'created_at' => '2026-09-10 10:00:00',
         ]);
         SaleItem::create([

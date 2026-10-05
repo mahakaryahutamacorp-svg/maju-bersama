@@ -16,10 +16,6 @@ class InventoryReportService
     /**
      * Get stock card movement history, beginning balance, running balance, and product list.
      *
-     * @param string $startDate
-     * @param string $endDate
-     * @param int|null $branchId
-     * @param int|null $productId
      * @return array{
      *     branch: Branch|null,
      *     product: Product|null,

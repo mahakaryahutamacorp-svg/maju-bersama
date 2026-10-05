@@ -31,9 +31,9 @@ class SalesReturn extends Model
     protected function casts(): array
     {
         return [
-            'return_date'  => 'date',
+            'return_date' => 'date',
             'total_amount' => 'decimal:2',
-            'total_cost'   => 'decimal:2',
+            'total_cost' => 'decimal:2',
         ];
     }
 

@@ -5,6 +5,7 @@ namespace Tests\Browser;
 use App\Models\Branch;
 use App\Models\CashRegister;
 use App\Models\CashRegisterShift;
+use App\Models\Category;
 use App\Models\ChartOfAccount;
 use App\Models\Customer;
 use App\Models\Inventory;
@@ -74,7 +75,7 @@ class PosCheckoutTest extends DuskTestCase
         ]);
 
         // 5. Siapkan Kategori & Data Produk (Stok Awal = 10, Harga Valid)
-        $category = \App\Models\Category::create([
+        $category = Category::create([
             'name' => 'Pupuk Organik',
         ]);
 
@@ -104,7 +105,7 @@ class PosCheckoutTest extends DuskTestCase
 
             // B. Akses Layar POS & Audit Layout Elemen Utama
             $browser->visit('/pos')
-                ->waitFor('#btn-product-' . $product->id, 5)
+                ->waitFor('#btn-product-'.$product->id, 5)
                 ->assertPresent('header')
                 ->assertSee('Kasir POS Multi-Store')
                 ->assertPresent('main')
@@ -114,7 +115,7 @@ class PosCheckoutTest extends DuskTestCase
                 ->assertSee($product->name);
 
             // C. Simulasikan klik pada produk dummy agar masuk ke keranjang belanja
-            $browser->click('#btn-product-' . $product->id)
+            $browser->click('#btn-product-'.$product->id)
                 ->pause(500)
                 ->assertSeeIn('aside', $product->name);
 

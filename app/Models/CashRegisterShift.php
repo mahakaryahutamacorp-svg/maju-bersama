@@ -28,12 +28,12 @@ class CashRegisterShift extends Model
     protected function casts(): array
     {
         return [
-            'opened_at'                => 'datetime',
-            'closed_at'                => 'datetime',
-            'opening_balance'          => 'decimal:2',
+            'opened_at' => 'datetime',
+            'closed_at' => 'datetime',
+            'opening_balance' => 'decimal:2',
             'expected_closing_balance' => 'decimal:2',
-            'actual_closing_balance'   => 'decimal:2',
-            'difference'               => 'decimal:2',
+            'actual_closing_balance' => 'decimal:2',
+            'difference' => 'decimal:2',
         ];
     }
 

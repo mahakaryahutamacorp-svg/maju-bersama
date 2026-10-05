@@ -3,7 +3,6 @@
 namespace App\Services\Reports;
 
 use App\Models\Branch;
-use App\Models\ChartOfAccount;
 use App\Models\JournalLine;
 
 class BalanceSheetService
@@ -11,10 +10,9 @@ class BalanceSheetService
     /**
      * Generate Balance Sheet (Neraca Standar) report data.
      *
-     * @param string $endDate YYYY-MM-DD (as of date)
-     * @param int|null $branchId Optional branch ID filter
-     * @param string|null $startDate Optional start date for label or filtering
-     * @return array
+     * @param  string  $endDate  YYYY-MM-DD (as of date)
+     * @param  int|null  $branchId  Optional branch ID filter
+     * @param  string|null  $startDate  Optional start date for label or filtering
      */
     public function generate(string $endDate, ?int $branchId = null, ?string $startDate = null): array
     {

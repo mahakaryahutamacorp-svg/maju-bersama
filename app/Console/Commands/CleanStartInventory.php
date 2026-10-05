@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Schema;
 class CleanStartInventory extends Command
 {
     protected $signature = 'inventory:clean-start {--force : Jalankan tanpa prompt konfirmasi}';
+
     protected $description = 'Bersihkan transaksi testing, hapus produk dummy, dan inisialisasi stok 83 pestisida ke 0 di semua gudang';
 
     public function handle()
@@ -21,6 +22,7 @@ class CleanStartInventory extends Command
 
         if (! $this->option('force') && ! $this->confirm('Apakah Anda yakin ingin menghapus data testing, produk dummy, dan mereset stok ke 0?')) {
             $this->info('Operasi dibatalkan.');
+
             return 0;
         }
 
@@ -115,8 +117,8 @@ class CleanStartInventory extends Command
                     $cleanCode = strtoupper(preg_replace('/[^A-Z0-9]/i', '', $branch->code ?? 'CAB'));
                     $warehouse = Warehouse::withoutGlobalScopes()->create([
                         'branch_id' => $branch->id,
-                        'code' => $cleanCode . '-GU',
-                        'name' => 'Gudang Utama ' . $branch->name,
+                        'code' => $cleanCode.'-GU',
+                        'name' => 'Gudang Utama '.$branch->name,
                         'is_active' => true,
                     ]);
                 }
@@ -152,6 +154,7 @@ class CleanStartInventory extends Command
         );
 
         $this->info('Sistem Maju Bersama telah siap digunakan untuk operasional riil!');
+
         return 0;
     }
 }

@@ -10,10 +10,9 @@ class IncomeStatementService
     /**
      * Generate Income Statement (Laba Rugi Standar) report data.
      *
-     * @param string $startDate YYYY-MM-DD
-     * @param string $endDate YYYY-MM-DD
-     * @param int|null $branchId Optional branch ID filter
-     * @return array
+     * @param  string  $startDate  YYYY-MM-DD
+     * @param  string  $endDate  YYYY-MM-DD
+     * @param  int|null  $branchId  Optional branch ID filter
      */
     public function generate(string $startDate, string $endDate, ?int $branchId = null): array
     {

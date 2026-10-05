@@ -16,9 +16,13 @@ class BranchPricingWebTest extends TestCase
     use RefreshDatabase;
 
     private Branch $centralBranch;
+
     private Branch $branchA;
+
     private User $centralAdmin;
+
     private User $cashierA;
+
     private Category $category;
 
     protected function setUp(): void

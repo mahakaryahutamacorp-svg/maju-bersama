@@ -17,8 +17,11 @@ use Illuminate\Validation\ValidationException;
 class SalesReturnService
 {
     public const ACCOUNT_REVENUE = '4110';
+
     public const ACCOUNT_INVENTORY = '1210';
+
     public const ACCOUNT_COGS = '5100';
+
     public const ACCOUNT_CASH = '1110';
 
     public function __construct(
@@ -38,17 +41,13 @@ class SalesReturnService
      *    - Debit: 1210 Persediaan Barang (total_cost)
      *    - Credit: 5100 Harga Pokok Penjualan (total_cost)
      *
-     * @param array $data
-     * @param array $items
-     * @param User|null $actor
-     * @return SalesReturn
      * @throws ValidationException
      */
     public function processReturn(array $data, array $items = [], ?User $actor = null): SalesReturn
     {
-        $returnItems = !empty($items) ? $items : ($data['items'] ?? []);
+        $returnItems = ! empty($items) ? $items : ($data['items'] ?? []);
 
-        if (empty($returnItems) || !is_array($returnItems)) {
+        if (empty($returnItems) || ! is_array($returnItems)) {
             throw ValidationException::withMessages([
                 'items' => ['Setidaknya satu item retur harus disertakan.'],
             ]);
@@ -61,7 +60,7 @@ class SalesReturnService
                 ?? Branch::query()->value('id');
 
             $branch = Branch::withoutGlobalScopes()->find($branchId);
-            if (!$branch) {
+            if (! $branch) {
                 throw ValidationException::withMessages([
                     'branch_id' => ['Cabang tidak ditemukan.'],
                 ]);
@@ -71,21 +70,21 @@ class SalesReturnService
             $chartOfAccountId = (int) ($data['chart_of_account_id'] ?? 0);
             $refundAccount = ChartOfAccount::find($chartOfAccountId);
 
-            if (!$refundAccount) {
+            if (! $refundAccount) {
                 $refundAccount = ChartOfAccount::where('code', self::ACCOUNT_CASH)->first()
                     ?? ChartOfAccount::create([
-                        'code'      => self::ACCOUNT_CASH,
-                        'name'      => 'Kas',
-                        'type'      => 'asset',
+                        'code' => self::ACCOUNT_CASH,
+                        'name' => 'Kas',
+                        'type' => 'asset',
                         'is_active' => true,
                     ]);
             }
 
             // 3. Resolve Optional Sale Reference
-            $saleId = !empty($data['sale_id']) ? (int) $data['sale_id'] : null;
+            $saleId = ! empty($data['sale_id']) ? (int) $data['sale_id'] : null;
             if ($saleId) {
                 $saleExists = Sale::withoutGlobalScopes()->where('id', $saleId)->exists();
-                if (!$saleExists) {
+                if (! $saleExists) {
                     throw ValidationException::withMessages([
                         'sale_id' => ['Referensi penjualan tidak ditemukan.'],
                     ]);
@@ -96,7 +95,7 @@ class SalesReturnService
             $userId = $actor?->id ?? $data['user_id'] ?? auth()->id();
             $shiftId = $data['cash_register_shift_id'] ?? null;
 
-            if (!$shiftId && $userId) {
+            if (! $shiftId && $userId) {
                 $activeShift = CashRegisterShift::where('user_id', $userId)
                     ->where('status', 'open')
                     ->latest('opened_at')
@@ -105,12 +104,12 @@ class SalesReturnService
             }
 
             // 5. Reference Number
-            $referenceNumber = !empty($data['reference_number'])
+            $referenceNumber = ! empty($data['reference_number'])
                 ? (string) $data['reference_number']
                 : $this->generateReferenceNumber();
 
             $returnDate = $data['return_date'] ?? now()->toDateString();
-            $customerName = !empty($data['customer_name']) ? (string) $data['customer_name'] : 'Pelanggan Umum';
+            $customerName = ! empty($data['customer_name']) ? (string) $data['customer_name'] : 'Pelanggan Umum';
             $refundMethod = strtolower($data['refund_method'] ?? 'cash');
             $status = $data['status'] ?? 'completed';
             $reason = $data['reason'] ?? $data['notes'] ?? null;
@@ -135,7 +134,7 @@ class SalesReturnService
                     ->lockForUpdate()
                     ->first();
 
-                if (!$product) {
+                if (! $product) {
                     throw ValidationException::withMessages([
                         "items.{$index}.product_id" => ["Produk ID {$productId} tidak ditemukan."],
                     ]);
@@ -170,30 +169,30 @@ class SalesReturnService
                 $product->increment('stock', $quantity);
 
                 $processedItems[] = [
-                    'product_id'    => $product->id,
-                    'quantity'      => $quantity,
-                    'unit_price'    => $unitPrice,
-                    'unit_cost'     => $unitCost,
-                    'subtotal'      => $subtotal,
+                    'product_id' => $product->id,
+                    'quantity' => $quantity,
+                    'unit_price' => $unitPrice,
+                    'unit_cost' => $unitCost,
+                    'subtotal' => $subtotal,
                     'subtotal_cost' => $subtotalCost,
                 ];
             }
 
             // 7. Save SalesReturn Header
             $salesReturn = SalesReturn::create([
-                'branch_id'              => $branch->id,
-                'sale_id'                => $saleId,
-                'user_id'                => $userId,
+                'branch_id' => $branch->id,
+                'sale_id' => $saleId,
+                'user_id' => $userId,
                 'cash_register_shift_id' => $shiftId,
-                'customer_name'          => $customerName,
-                'return_date'            => $returnDate,
-                'reference_number'       => $referenceNumber,
-                'refund_method'          => $refundMethod,
-                'chart_of_account_id'    => $refundAccount->id,
-                'total_amount'           => $totalAmount,
-                'total_cost'             => $totalCost,
-                'status'                 => $status,
-                'reason'                 => $reason,
+                'customer_name' => $customerName,
+                'return_date' => $returnDate,
+                'reference_number' => $referenceNumber,
+                'refund_method' => $refundMethod,
+                'chart_of_account_id' => $refundAccount->id,
+                'total_amount' => $totalAmount,
+                'total_cost' => $totalCost,
+                'status' => $status,
+                'reason' => $reason,
             ]);
 
             // 8. Save Items
@@ -274,30 +273,30 @@ class SalesReturnService
 
         $revenueAccount = ChartOfAccount::where('code', self::ACCOUNT_REVENUE)->first()
             ?? ChartOfAccount::create([
-                'code'      => self::ACCOUNT_REVENUE,
-                'name'      => 'Pendapatan Penjualan',
-                'type'      => 'revenue',
+                'code' => self::ACCOUNT_REVENUE,
+                'name' => 'Pendapatan Penjualan',
+                'type' => 'revenue',
                 'is_active' => true,
             ]);
 
         $inventoryAccount = ChartOfAccount::where('code', self::ACCOUNT_INVENTORY)->first()
             ?? ChartOfAccount::create([
-                'code'      => self::ACCOUNT_INVENTORY,
-                'name'      => 'Persediaan',
-                'type'      => 'asset',
+                'code' => self::ACCOUNT_INVENTORY,
+                'name' => 'Persediaan',
+                'type' => 'asset',
                 'is_active' => true,
             ]);
 
         $cogsAccount = ChartOfAccount::whereIn('code', ['5100', '5110'])->first()
             ?? ChartOfAccount::create([
-                'code'      => self::ACCOUNT_COGS,
-                'name'      => 'Harga Pokok Penjualan',
-                'type'      => 'expense',
+                'code' => self::ACCOUNT_COGS,
+                'name' => 'Harga Pokok Penjualan',
+                'type' => 'expense',
                 'is_active' => true,
             ]);
 
         $customerLabel = $salesReturn->customer_name ?: 'Pelanggan Umum';
-        $description = !empty($reason)
+        $description = ! empty($reason)
             ? "Retur Penjualan {$customerLabel} Ref: {$salesReturn->reference_number} - {$reason}"
             : "Retur Penjualan {$customerLabel} Ref: {$salesReturn->reference_number}";
 
@@ -306,43 +305,43 @@ class SalesReturnService
         // 1. Dr. Pendapatan Penjualan
         $lines[] = [
             'chart_of_account_id' => $revenueAccount->id,
-            'debit'               => $totalAmount,
-            'credit'              => 0,
-            'memo'                => "Pengurangan pendapatan atas retur penjualan {$salesReturn->reference_number}",
+            'debit' => $totalAmount,
+            'credit' => 0,
+            'memo' => "Pengurangan pendapatan atas retur penjualan {$salesReturn->reference_number}",
         ];
 
         // 2. Cr. Kas / Bank
         $lines[] = [
             'chart_of_account_id' => $refundAccount->id,
-            'debit'               => 0,
-            'credit'              => $totalAmount,
-            'memo'                => "Pengeluaran refund pelanggan via {$refundAccount->name}",
+            'debit' => 0,
+            'credit' => $totalAmount,
+            'memo' => "Pengeluaran refund pelanggan via {$refundAccount->name}",
         ];
 
         // 3. Dr. Persediaan Barang & 4. Cr. HPP
         if (bccomp($totalCost, '0.00', 2) > 0) {
             $lines[] = [
                 'chart_of_account_id' => $inventoryAccount->id,
-                'debit'               => $totalCost,
-                'credit'              => 0,
-                'memo'                => "Penerimaan kembali persediaan barang retur ke gudang",
+                'debit' => $totalCost,
+                'credit' => 0,
+                'memo' => 'Penerimaan kembali persediaan barang retur ke gudang',
             ];
 
             $lines[] = [
                 'chart_of_account_id' => $cogsAccount->id,
-                'debit'               => 0,
-                'credit'              => $totalCost,
-                'memo'                => "Pengurangan harga pokok penjualan (HPP) atas retur barang",
+                'debit' => 0,
+                'credit' => $totalCost,
+                'memo' => 'Pengurangan harga pokok penjualan (HPP) atas retur barang',
             ];
         }
 
         return $this->journalPostingService->post([
-            'branch_id'        => $branchId,
-            'user_id'          => $userId,
+            'branch_id' => $branchId,
+            'user_id' => $userId,
             'transaction_date' => $salesReturn->return_date,
             'reference_number' => $salesReturn->reference_number,
-            'description'      => $description,
-            'lines'            => $lines,
+            'description' => $description,
+            'lines' => $lines,
         ]);
     }
 
@@ -352,7 +351,7 @@ class SalesReturnService
     protected function generateReferenceNumber(): string
     {
         do {
-            $ref = 'SR-' . date('Ymd') . '-' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 5));
+            $ref = 'SR-'.date('Ymd').'-'.strtoupper(substr(bin2hex(random_bytes(3)), 0, 5));
         } while (SalesReturn::withoutGlobalScopes()->where('reference_number', $ref)->exists());
 
         return $ref;

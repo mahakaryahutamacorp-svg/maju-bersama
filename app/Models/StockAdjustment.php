@@ -23,8 +23,8 @@ class StockAdjustment extends Model
     ];
 
     protected $casts = [
-        'date'             => 'date',
-        'adjustment_date'  => 'date',
+        'date' => 'date',
+        'adjustment_date' => 'date',
         'total_loss_value' => 'decimal:2',
         'total_gain_value' => 'decimal:2',
     ];

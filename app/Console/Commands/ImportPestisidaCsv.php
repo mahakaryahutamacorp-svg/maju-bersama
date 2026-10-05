@@ -2,26 +2,28 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Branch;
+use App\Models\Category;
+use App\Models\CustomerGroup;
+use App\Models\PriceLevel;
+use App\Models\Product;
+use App\Models\Warehouse;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
-use App\Models\Product;
-use App\Models\Category;
-use App\Models\Branch;
-use App\Models\PriceLevel;
-use App\Models\CustomerGroup;
-use App\Models\Warehouse;
 
 class ImportPestisidaCsv extends Command
 {
     protected $signature = 'import:pestisida {filepath}';
+
     protected $description = 'Import katalog pestisida dari CSV beserta pemisahan kemasan, harga ecer, harga grosir, dan Branch-Level Pricing';
 
     public function handle()
     {
         $filepath = $this->argument('filepath');
 
-        if (!file_exists($filepath)) {
+        if (! file_exists($filepath)) {
             $this->error("File tidak ditemukan di path: {$filepath}");
+
             return 1;
         }
 
@@ -58,18 +60,24 @@ class ImportPestisidaCsv extends Command
         $activeBranches = Branch::where('is_active', true)->get();
 
         $parseNumber = function ($raw) {
-            if (!$raw) return 0.0;
+            if (! $raw) {
+                return 0.0;
+            }
             $trimmed = trim($raw);
-            if ($trimmed === '-' || $trimmed === '' || $trimmed === '0') return 0.0;
+            if ($trimmed === '-' || $trimmed === '' || $trimmed === '0') {
+                return 0.0;
+            }
             $cleaned = preg_replace('/[^\d]/', '', $trimmed);
+
             return (float) $cleaned;
         };
 
-        if (($handle = fopen($filepath, "r")) !== false) {
-            $header = fgetcsv($handle, 1000, ",");
+        if (($handle = fopen($filepath, 'r')) !== false) {
+            $header = fgetcsv($handle, 1000, ',');
             if ($header === false) {
-                $this->error("File CSV kosong.");
+                $this->error('File CSV kosong.');
                 fclose($handle);
+
                 return 1;
             }
 
@@ -90,10 +98,12 @@ class ImportPestisidaCsv extends Command
 
             DB::beginTransaction();
             try {
-                while (($data = fgetcsv($handle, 1000, ",")) !== false) {
+                while (($data = fgetcsv($handle, 1000, ',')) !== false) {
                     $rowCount++;
                     $rawName = trim($data[0] ?? '');
-                    if (empty($rawName)) continue;
+                    if (empty($rawName)) {
+                        continue;
+                    }
 
                     $modal = $parseNumber($data[1] ?? '0');
 
@@ -117,7 +127,7 @@ class ImportPestisidaCsv extends Command
                     $productName = trim($parts[0]);
                     $unit = isset($parts[1]) ? trim(strtoupper($parts[1])) : 'PCS';
 
-                    $sku = 'PST-' . strtoupper(substr(md5($productName . $unit), 0, 6));
+                    $sku = 'PST-'.strtoupper(substr(md5($productName.$unit), 0, 6));
 
                     $product = Product::withoutGlobalScopes()
                         ->where('branch_id', $branchPusat->id)
@@ -201,11 +211,13 @@ class ImportPestisidaCsv extends Command
 
             } catch (\Exception $e) {
                 DB::rollBack();
-                $this->error("Terjadi kesalahan sistem pada baris {$rowCount}: " . $e->getMessage());
+                $this->error("Terjadi kesalahan sistem pada baris {$rowCount}: ".$e->getMessage());
+
                 return 1;
             }
             fclose($handle);
         }
+
         return 0;
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -24,7 +25,7 @@ class AssetDepreciation extends Model
 
     public function setDepreciationDateAttribute($value): void
     {
-        $this->attributes['depreciation_date'] = \Carbon\Carbon::parse($value)->format('Y-m-d');
+        $this->attributes['depreciation_date'] = Carbon::parse($value)->format('Y-m-d');
     }
 
     public function fixedAsset(): BelongsTo

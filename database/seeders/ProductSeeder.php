@@ -24,7 +24,7 @@ class ProductSeeder extends Seeder
                 'name' => 'Pupuk Organik 25kg',
                 'purchase_price' => 85000,
                 'selling_price' => 110000,
-                'stock' => 48,
+                'stock' => 0,
             ],
             [
                 'branch_id' => 1,
@@ -33,7 +33,7 @@ class ProductSeeder extends Seeder
                 'name' => 'Benih Jagung Hibrida',
                 'purchase_price' => 42000,
                 'selling_price' => 57500,
-                'stock' => 120,
+                'stock' => 0,
             ],
             [
                 'branch_id' => 1,
@@ -42,7 +42,7 @@ class ProductSeeder extends Seeder
                 'name' => 'Timbangan Digital 30kg',
                 'purchase_price' => 325000,
                 'selling_price' => 425000,
-                'stock' => 12,
+                'stock' => 0,
             ],
             [
                 'branch_id' => 1,
@@ -51,7 +51,7 @@ class ProductSeeder extends Seeder
                 'name' => 'Barcode Scanner USB',
                 'purchase_price' => 275000,
                 'selling_price' => 365000,
-                'stock' => 7,
+                'stock' => 0,
             ],
         ];
 

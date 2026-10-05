@@ -18,7 +18,7 @@ class BranchController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        if (!$request->user()->isMaster()) {
+        if (! $request->user()->isMaster()) {
             return response()->json([
                 'message' => 'Unauthorized. Only superadmin can access branches.',
             ], 403);
@@ -44,7 +44,7 @@ class BranchController extends Controller
         $validated = $request->validated();
 
         // Set default is_active to true if not provided
-        if (!isset($validated['is_active'])) {
+        if (! isset($validated['is_active'])) {
             $validated['is_active'] = true;
         }
 
@@ -62,7 +62,7 @@ class BranchController extends Controller
      */
     public function show(Request $request, Branch $branch): JsonResponse
     {
-        if (!$request->user()->isMaster()) {
+        if (! $request->user()->isMaster()) {
             return response()->json([
                 'message' => 'Unauthorized. Only superadmin can access branches.',
             ], 403);
@@ -98,7 +98,7 @@ class BranchController extends Controller
      */
     public function destroy(Request $request, Branch $branch): JsonResponse
     {
-        if (!$request->user()->isMaster()) {
+        if (! $request->user()->isMaster()) {
             return response()->json([
                 'message' => 'Unauthorized. Only superadmin can delete branches.',
             ], 403);

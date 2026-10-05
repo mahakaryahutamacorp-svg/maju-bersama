@@ -11,9 +11,6 @@ class SalesReportService
     /**
      * Generate sales summary and detailed transactions.
      *
-     * @param string $startDate
-     * @param string $endDate
-     * @param int|null $branchId
      * @return array{
      *     sales: Collection,
      *     total_sales: float,

@@ -1,5 +1,25 @@
 [
   {
+    "id": "TC101",
+    "title": "procurementpurchaseordergoodsreceiptaudit",
+    "description": "Fase 1 Skenario Pengadaan & Pembelian: Admin Pusat (Master) melakukan Purchase Order (PO) untuk SELURUH produk (100 pcs each), diselesaikan dengan metode Hutang (Accounts Payable), melakukan Penerimaan Barang (Goods Receipt). Audit TestSprite: Verifikasi stok Gudang Pusat tepat 100 pcs untuk setiap produk, jurnal pembelian seimbang sempurna (Dr. 1210 Persediaan, Cr. 2110 Hutang Usaha), dan harga akurat bebas dari bug desimal ratusan juta."
+  },
+  {
+    "id": "TC102",
+    "title": "branchstockdistributionaudit",
+    "description": "Fase 2 Distribusi Cabang: Admin Pusat melakukan transfer stok 10 pcs untuk SEMUA produk dari Gudang Pusat (Branch 1) ke cabang anak (Branch 2). Tugas Audit TestSprite: Memastikan stok cabang anak bertambah menjadi 10 pcs per produk, stok Gudang Pusat tersisa tepat 90 pcs per produk, dan jurnal mutasi antar-cabang seimbang."
+  },
+  {
+    "id": "TC103",
+    "title": "extremeoperationalandexploitaudit",
+    "description": "Fase 3 Uji Operasional Ekstrem: 1. Eksploitasi POS Cabang: Mencoba menjual barang dengan stok 0 via scan barcode / API checkout, sistem backend WAJIB menolak dengan HTTP 422 Unprocessable Entity (tidak ada bypass stok!). 2. Transaksi POS barang valid, memastikan TIDAK ADA bug desimal (nilai transaksi dan jurnal konsisten). 3. Pencatatan Beban Operasional (Expenses). 4. Pembayaran Hutang PO (AP Payment). 5. Retur Penjualan & Retur Pembelian."
+  },
+  {
+    "id": "TC104",
+    "title": "reportcenterandfinancialstatementaudit",
+    "description": "Fase 4 Audit Modul Pusat Laporan: 1. Uji Laporan Penjualan (Sales Report): Memastikan Grand Total Penjualan cocok dengan total riil transaksi POS dan bebas dari bug desimal ratusan juta. 2. Uji Universal Transaction Viewer: Membuka detail transaksi/struk riwayat dan memastikan Harga Satuan, Subtotal, dan Total Transaksi ditampilkan benar. 3. Uji Laporan Keuangan (Laba/Rugi & Neraca): Memverifikasi total Pendapatan (4xxx), HPP (5xxx), Beban (6xxx), dan Kas/Aset (1xxx) akurat dan Neraca 100% Seimbang (Balance)."
+  },
+  {
     "id": "TC001",
     "title": "postapicheckoutprocesspossale",
     "description": "Test the POST /api/checkout endpoint to ensure it processes POS sale transactions correctly by validating cart items, deducting inventory stock, calculating totals, generating receipts, and creating accounting journal entries."

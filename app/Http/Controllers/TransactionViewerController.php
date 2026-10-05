@@ -12,6 +12,7 @@ use App\Models\SalesReturn;
 use App\Models\StockAdjustment;
 use App\Models\StockTransfer;
 use App\Models\SupplierPayment;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -20,7 +21,7 @@ class TransactionViewerController extends Controller
     /**
      * Tampilkan rincian transaksi spesifik dalam bentuk HTML partial untuk modal.
      */
-    public function show(string $reference, Request $request): View
+    public function show(string $reference, Request $request): View|JsonResponse
     {
         $ref = trim($reference);
 
@@ -31,6 +32,14 @@ class TransactionViewerController extends Controller
             ->first();
 
         if ($sale) {
+            if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+                return response()->json([
+                    'status' => 'success',
+                    'type' => 'sale',
+                    'data' => $sale,
+                ]);
+            }
+
             return view('backoffice.transactions.partials.sale', compact('sale'));
         }
 

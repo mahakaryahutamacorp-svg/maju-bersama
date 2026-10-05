@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\CashRegister;
 use App\Models\CashRegisterShift;
 use App\Models\Sale;
+use App\Models\SalesReturn;
 use App\Models\User;
 use Illuminate\Validation\ValidationException;
 
@@ -44,16 +45,16 @@ class CashRegisterShiftService
         $balance = max(0, (float) $openingBalance);
 
         return CashRegisterShift::create([
-            'branch_id'                => $register->branch_id,
-            'cash_register_id'         => $register->id,
-            'user_id'                  => $user->id,
-            'opened_at'                => now(),
-            'opening_balance'          => $balance,
+            'branch_id' => $register->branch_id,
+            'cash_register_id' => $register->id,
+            'user_id' => $user->id,
+            'opened_at' => now(),
+            'opening_balance' => $balance,
             'expected_closing_balance' => $balance,
-            'actual_closing_balance'   => 0.00,
-            'difference'               => 0.00,
-            'status'                   => 'open',
-            'notes'                    => $notes,
+            'actual_closing_balance' => 0.00,
+            'difference' => 0.00,
+            'status' => 'open',
+            'notes' => $notes,
         ]);
     }
 
@@ -76,7 +77,7 @@ class CashRegisterShiftService
         });
 
         // Kurangi refund retur penjualan tunai pada shift ini
-        $cashRefunds = \App\Models\SalesReturn::withoutGlobalScopes()
+        $cashRefunds = SalesReturn::withoutGlobalScopes()
             ->where('cash_register_shift_id', $shift->id)
             ->whereIn('refund_method', ['cash', 'Cash', 'tunai', 'Tunai'])
             ->where('status', 'completed')
@@ -110,12 +111,12 @@ class CashRegisterShiftService
         }
 
         $shift->update([
-            'closed_at'                => now(),
+            'closed_at' => now(),
             'expected_closing_balance' => $expected,
-            'actual_closing_balance'   => $actual,
-            'difference'               => $diff,
-            'status'                   => 'closed',
-            'notes'                    => $shiftNotes,
+            'actual_closing_balance' => $actual,
+            'difference' => $diff,
+            'status' => 'closed',
+            'notes' => $shiftNotes,
         ]);
 
         return $shift->refresh();

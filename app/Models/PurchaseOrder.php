@@ -28,11 +28,11 @@ class PurchaseOrder extends Model
     protected function casts(): array
     {
         return [
-            'order_date'    => 'date',
+            'order_date' => 'date',
             'expected_date' => 'date',
-            'due_date'      => 'date',
-            'total_amount'  => 'decimal:2',
-            'paid_amount'   => 'decimal:4',
+            'due_date' => 'date',
+            'total_amount' => 'decimal:2',
+            'paid_amount' => 'decimal:4',
         ];
     }
 

@@ -23,10 +23,10 @@ class ExpenseCategoryController extends Controller
             ->withCount('expenses')
             ->when($search, function ($q, $search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhereHas('chartOfAccount', function ($sq) use ($search) {
-                      $sq->where('code', 'like', "%{$search}%")
-                         ->orWhere('name', 'like', "%{$search}%");
-                  });
+                    ->orWhereHas('chartOfAccount', function ($sq) use ($search) {
+                        $sq->where('code', 'like', "%{$search}%")
+                            ->orWhere('name', 'like', "%{$search}%");
+                    });
             })
             ->orderBy('name');
 
@@ -34,9 +34,9 @@ class ExpenseCategoryController extends Controller
 
         return view('backoffice.expense-categories.index', [
             'currentUser' => $user,
-            'isMaster'    => $user->isMaster(),
-            'categories'  => $categories,
-            'search'      => $search,
+            'isMaster' => $user->isMaster(),
+            'categories' => $categories,
+            'search' => $search,
         ]);
     }
 
@@ -59,8 +59,8 @@ class ExpenseCategoryController extends Controller
         }
 
         return view('backoffice.expense-categories.create', [
-            'currentUser'     => $user,
-            'isMaster'        => $user->isMaster(),
+            'currentUser' => $user,
+            'isMaster' => $user->isMaster(),
             'expenseAccounts' => $expenseAccounts,
         ]);
     }
@@ -71,16 +71,16 @@ class ExpenseCategoryController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'name'                => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
             'chart_of_account_id' => ['required', 'integer', 'exists:chart_of_accounts,id'],
-            'is_active'           => ['nullable', 'boolean'],
+            'is_active' => ['nullable', 'boolean'],
         ]);
 
         $category = ExpenseCategory::create([
-            'branch_id'           => $request->user()->branch_id,
-            'name'                => $validated['name'],
+            'branch_id' => $request->user()->branch_id,
+            'name' => $validated['name'],
             'chart_of_account_id' => $validated['chart_of_account_id'],
-            'is_active'           => $request->boolean('is_active', true),
+            'is_active' => $request->boolean('is_active', true),
         ]);
 
         return redirect()
@@ -107,9 +107,9 @@ class ExpenseCategoryController extends Controller
         }
 
         return view('backoffice.expense-categories.edit', [
-            'currentUser'     => $user,
-            'isMaster'        => $user->isMaster(),
-            'category'        => $category,
+            'currentUser' => $user,
+            'isMaster' => $user->isMaster(),
+            'category' => $category,
             'expenseAccounts' => $expenseAccounts,
         ]);
     }
@@ -122,15 +122,15 @@ class ExpenseCategoryController extends Controller
         $category = ExpenseCategory::findOrFail($id);
 
         $validated = $request->validate([
-            'name'                => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
             'chart_of_account_id' => ['required', 'integer', 'exists:chart_of_accounts,id'],
-            'is_active'           => ['nullable', 'boolean'],
+            'is_active' => ['nullable', 'boolean'],
         ]);
 
         $category->update([
-            'name'                => $validated['name'],
+            'name' => $validated['name'],
             'chart_of_account_id' => $validated['chart_of_account_id'],
-            'is_active'           => $request->boolean('is_active', true),
+            'is_active' => $request->boolean('is_active', true),
         ]);
 
         return redirect()
@@ -148,6 +148,7 @@ class ExpenseCategoryController extends Controller
         if ($category->expenses_count > 0) {
             // Jika sudah memiliki riwayat transaksi, nonaktifkan saja untuk integritas audit
             $category->update(['is_active' => false]);
+
             return redirect()
                 ->route('backoffice.expense-categories.index')
                 ->with('success', "Kategori '{$category->name}' memiliki riwayat transaksi pengeluaran, status diubah menjadi Non-Aktif.");

@@ -16,9 +16,8 @@ class FixedAssetService
     /**
      * Jalankan proses penyusutan bulanan (Straight-Line Depreciation) untuk periode tertentu.
      *
-     * @param string $yearMonth Format 'YYYY-MM' (contoh: '2026-09')
-     * @param int|null $branchId Optional filter cabang
-     * @return array
+     * @param  string  $yearMonth  Format 'YYYY-MM' (contoh: '2026-09')
+     * @param  int|null  $branchId  Optional filter cabang
      */
     public function runMonthlyDepreciation(string $yearMonth, ?int $branchId = null): array
     {
@@ -48,16 +47,17 @@ class FixedAssetService
                 $alreadyRun = AssetDepreciation::where('fixed_asset_id', $asset->id)
                     ->where(function ($q) use ($startDate, $endDate, $parsedDate) {
                         $q->whereBetween('depreciation_date', [$startDate, $endDate])
-                          ->orWhereBetween('depreciation_date', [$startDate . ' 00:00:00', $endDate . ' 23:59:59'])
-                          ->orWhere(function ($sub) use ($parsedDate) {
-                              $sub->whereYear('depreciation_date', $parsedDate->year)
-                                  ->whereMonth('depreciation_date', $parsedDate->month);
-                          });
+                            ->orWhereBetween('depreciation_date', [$startDate.' 00:00:00', $endDate.' 23:59:59'])
+                            ->orWhere(function ($sub) use ($parsedDate) {
+                                $sub->whereYear('depreciation_date', $parsedDate->year)
+                                    ->whereMonth('depreciation_date', $parsedDate->month);
+                            });
                     })
                     ->exists();
 
                 if ($alreadyRun) {
                     $skippedCount++;
+
                     continue;
                 }
 
@@ -69,6 +69,7 @@ class FixedAssetService
                 if ($remainingDepreciable <= 0.0001) {
                     $asset->update(['status' => 'DISPOSED']);
                     $skippedCount++;
+
                     continue;
                 }
 
@@ -79,6 +80,7 @@ class FixedAssetService
 
                 if ($amountToDepreciate <= 0) {
                     $skippedCount++;
+
                     continue;
                 }
 

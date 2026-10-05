@@ -15,6 +15,7 @@ use Illuminate\Validation\ValidationException;
 class ARAPPaymentService
 {
     public const ACCOUNT_RECEIVABLE_CODE = '1130';
+
     public const ACCOUNT_PAYABLE_CODE = '2110';
 
     public function __construct(
@@ -31,10 +32,6 @@ class ARAPPaymentService
      *    Debit: Kas/Bank (account_id)
      *    Kredit: Piutang Usaha (1130)
      *
-     * @param array $data
-     * @param array $allocations
-     * @param User|null $actor
-     * @return Payment
      * @throws ValidationException
      */
     public function processARPayment(array $data, array $allocations, ?User $actor = null): Payment
@@ -58,21 +55,21 @@ class ARAPPaymentService
             $paymentDate = $data['payment_date'] ?? now()->toDateString();
             $referenceNumber = ! empty($data['reference_number'])
                 ? (string) $data['reference_number']
-                : ('AR-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -4)));
+                : ('AR-'.date('Ymd').'-'.strtoupper(substr(uniqid(), -4)));
 
             $notes = $data['notes'] ?? null;
 
             // 1. Simpan Header Payment
             $payment = Payment::create([
-                'branch_id'        => $branchId,
-                'type'             => 'AR',
-                'customer_id'      => $data['customer_id'] ?? null,
-                'supplier_id'      => null,
-                'account_id'       => $bankAccount->id,
-                'payment_date'     => $paymentDate,
+                'branch_id' => $branchId,
+                'type' => 'AR',
+                'customer_id' => $data['customer_id'] ?? null,
+                'supplier_id' => null,
+                'account_id' => $bankAccount->id,
+                'payment_date' => $paymentDate,
                 'reference_number' => $referenceNumber,
-                'amount'           => $amount,
-                'notes'            => $notes,
+                'amount' => $amount,
+                'notes' => $notes,
             ]);
 
             // 2. Simpan Alokasi dan update tabel Sales
@@ -88,9 +85,9 @@ class ARAPPaymentService
                 $totalAllocated = bcadd($totalAllocated, $allocatedAmount, 4);
 
                 PaymentAllocation::create([
-                    'payment_id'       => $payment->id,
-                    'sale_id'          => $saleId,
-                    'purchase_order_id'=> null,
+                    'payment_id' => $payment->id,
+                    'sale_id' => $saleId,
+                    'purchase_order_id' => null,
                     'allocated_amount' => $allocatedAmount,
                 ]);
 
@@ -118,23 +115,23 @@ class ARAPPaymentService
             }
 
             $journal = $this->journalEntryService->createEntry([
-                'branch_id'        => $branchId,
-                'user_id'          => $actor?->id ?? auth()->id(),
+                'branch_id' => $branchId,
+                'user_id' => $actor?->id ?? auth()->id(),
                 'transaction_date' => $paymentDate,
                 'reference_number' => $referenceNumber,
-                'description'      => $description,
-                'lines'            => [
+                'description' => $description,
+                'lines' => [
                     [
                         'chart_of_account_id' => $bankAccount->id,
-                        'debit'               => $amount,
-                        'credit'              => 0,
-                        'memo'                => "Penerimaan dana kas/bank piutang {$referenceNumber}",
+                        'debit' => $amount,
+                        'credit' => 0,
+                        'memo' => "Penerimaan dana kas/bank piutang {$referenceNumber}",
                     ],
                     [
                         'chart_of_account_id' => $arAccount->id,
-                        'debit'               => 0,
-                        'credit'              => $amount,
-                        'memo'                => "Pengurangan piutang usaha {$referenceNumber}",
+                        'debit' => 0,
+                        'credit' => $amount,
+                        'memo' => "Pengurangan piutang usaha {$referenceNumber}",
                     ],
                 ],
             ]);
@@ -155,10 +152,6 @@ class ARAPPaymentService
      *    Debit: Hutang Usaha (2110)
      *    Kredit: Kas/Bank (account_id)
      *
-     * @param array $data
-     * @param array $allocations
-     * @param User|null $actor
-     * @return Payment
      * @throws ValidationException
      */
     public function processAPPayment(array $data, array $allocations, ?User $actor = null): Payment
@@ -182,21 +175,21 @@ class ARAPPaymentService
             $paymentDate = $data['payment_date'] ?? now()->toDateString();
             $referenceNumber = ! empty($data['reference_number'])
                 ? (string) $data['reference_number']
-                : ('AP-' . date('Ymd') . '-' . strtoupper(substr(uniqid(), -4)));
+                : ('AP-'.date('Ymd').'-'.strtoupper(substr(uniqid(), -4)));
 
             $notes = $data['notes'] ?? null;
 
             // 1. Simpan Header Payment
             $payment = Payment::create([
-                'branch_id'        => $branchId,
-                'type'             => 'AP',
-                'customer_id'      => null,
-                'supplier_id'      => $data['supplier_id'] ?? null,
-                'account_id'       => $bankAccount->id,
-                'payment_date'     => $paymentDate,
+                'branch_id' => $branchId,
+                'type' => 'AP',
+                'customer_id' => null,
+                'supplier_id' => $data['supplier_id'] ?? null,
+                'account_id' => $bankAccount->id,
+                'payment_date' => $paymentDate,
                 'reference_number' => $referenceNumber,
-                'amount'           => $amount,
-                'notes'            => $notes,
+                'amount' => $amount,
+                'notes' => $notes,
             ]);
 
             // 2. Simpan Alokasi dan update tabel PurchaseOrder
@@ -212,10 +205,10 @@ class ARAPPaymentService
                 $totalAllocated = bcadd($totalAllocated, $allocatedAmount, 4);
 
                 PaymentAllocation::create([
-                    'payment_id'        => $payment->id,
-                    'sale_id'           => null,
+                    'payment_id' => $payment->id,
+                    'sale_id' => null,
                     'purchase_order_id' => $poId,
-                    'allocated_amount'  => $allocatedAmount,
+                    'allocated_amount' => $allocatedAmount,
                 ]);
 
                 if ($poId) {
@@ -242,23 +235,23 @@ class ARAPPaymentService
             }
 
             $journal = $this->journalEntryService->createEntry([
-                'branch_id'        => $branchId,
-                'user_id'          => $actor?->id ?? auth()->id(),
+                'branch_id' => $branchId,
+                'user_id' => $actor?->id ?? auth()->id(),
                 'transaction_date' => $paymentDate,
                 'reference_number' => $referenceNumber,
-                'description'      => $description,
-                'lines'            => [
+                'description' => $description,
+                'lines' => [
                     [
                         'chart_of_account_id' => $apAccount->id,
-                        'debit'               => $amount,
-                        'credit'              => 0,
-                        'memo'                => "Pelunasan hutang usaha {$referenceNumber}",
+                        'debit' => $amount,
+                        'credit' => 0,
+                        'memo' => "Pelunasan hutang usaha {$referenceNumber}",
                     ],
                     [
                         'chart_of_account_id' => $bankAccount->id,
-                        'debit'               => 0,
-                        'credit'              => $amount,
-                        'memo'                => "Pengeluaran dana kas/bank pelunasan hutang {$referenceNumber}",
+                        'debit' => 0,
+                        'credit' => $amount,
+                        'memo' => "Pengeluaran dana kas/bank pelunasan hutang {$referenceNumber}",
                     ],
                 ],
             ]);

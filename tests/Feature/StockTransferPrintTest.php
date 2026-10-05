@@ -16,9 +16,13 @@ class StockTransferPrintTest extends TestCase
     use RefreshDatabase;
 
     private Branch $originBranch;
+
     private Branch $destinationBranch;
+
     private User $user;
+
     private Product $product;
+
     private StockTransfer $transfer;
 
     protected function setUp(): void
@@ -26,24 +30,24 @@ class StockTransferPrintTest extends TestCase
         parent::setUp();
 
         $this->originBranch = Branch::create([
-            'name'    => 'Gudang Pusat Jakarta',
-            'code'    => 'WH-PST',
+            'name' => 'Gudang Pusat Jakarta',
+            'code' => 'WH-PST',
             'address' => 'Jl. Hayam Wuruk No. 88, Jakarta Barat',
-            'phone'   => '08123456789',
+            'phone' => '08123456789',
         ]);
 
         $this->destinationBranch = Branch::create([
-            'name'    => 'Cabang Bandung',
-            'code'    => 'BDG-01',
+            'name' => 'Cabang Bandung',
+            'code' => 'BDG-01',
             'address' => 'Jl. Asia Afrika No. 12, Bandung',
-            'phone'   => '08987654321',
+            'phone' => '08987654321',
         ]);
 
         $this->user = User::create([
-            'name'      => 'Budi Logistik',
-            'email'     => 'budi@example.com',
-            'password'  => bcrypt('password'),
-            'role'      => 'central_admin',
+            'name' => 'Budi Logistik',
+            'email' => 'budi@example.com',
+            'password' => bcrypt('password'),
+            'role' => 'central_admin',
             'branch_id' => $this->originBranch->id,
         ]);
 
@@ -53,32 +57,32 @@ class StockTransferPrintTest extends TestCase
         ]);
 
         $this->product = Product::create([
-            'name'           => 'Xiaomi Redmi Note 13 Pro 8/256GB',
-            'sku'            => 'XIA-RN13P-BLK',
-            'category_id'    => $category->id,
-            'branch_id'      => $this->originBranch->id,
-            'unit'           => 'unit',
+            'name' => 'Xiaomi Redmi Note 13 Pro 8/256GB',
+            'sku' => 'XIA-RN13P-BLK',
+            'category_id' => $category->id,
+            'branch_id' => $this->originBranch->id,
+            'unit' => 'unit',
             'purchase_price' => 3200000,
-            'selling_price'  => 3799000,
-            'stock'          => 50,
+            'selling_price' => 3799000,
+            'stock' => 50,
         ]);
 
         $this->transfer = StockTransfer::create([
-            'reference_number'      => 'TRF-202609-001',
-            'source_branch_id'      => $this->originBranch->id,
+            'reference_number' => 'TRF-202609-001',
+            'source_branch_id' => $this->originBranch->id,
             'destination_branch_id' => $this->destinationBranch->id,
-            'created_by'            => $this->user->id,
-            'transfer_date'         => now(),
-            'status'                => 'completed',
-            'notes'                 => 'Pengiriman mendesak untuk promo weekend',
+            'created_by' => $this->user->id,
+            'transfer_date' => now(),
+            'status' => 'completed',
+            'notes' => 'Pengiriman mendesak untuk promo weekend',
         ]);
 
         StockTransferItem::create([
-            'stock_transfer_id'      => $this->transfer->id,
-            'source_product_id'      => $this->product->id,
+            'stock_transfer_id' => $this->transfer->id,
+            'source_product_id' => $this->product->id,
             'destination_product_id' => $this->product->id,
-            'quantity'               => 15,
-            'unit_cost'              => 3200000,
+            'quantity' => 15,
+            'unit_cost' => 3200000,
         ]);
     }
 

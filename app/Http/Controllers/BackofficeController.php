@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\JournalHeader;
 use App\Models\Branch;
+use App\Models\JournalHeader;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\View\View;

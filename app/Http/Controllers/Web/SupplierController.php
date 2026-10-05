@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
 use App\Models\Supplier;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -14,7 +15,7 @@ class SupplierController extends Controller
     /**
      * Display a listing of suppliers.
      */
-    public function index(Request $request): View
+    public function index(Request $request): View|JsonResponse
     {
         $user = $request->user()->load('branch');
         $search = $request->input('search');
@@ -39,18 +40,26 @@ class SupplierController extends Controller
 
         $suppliers = $query->paginate(15)->withQueryString();
 
+        if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'data' => $suppliers->items(),
+                'total' => $suppliers->total(),
+            ]);
+        }
+
         $branches = $user->isMaster()
             ? Branch::orderBy('name')->get(['id', 'name', 'code'])
             : collect();
 
         return view('backoffice.suppliers.index', [
-            'currentUser'  => $user,
-            'isMaster'     => $user->isMaster(),
-            'suppliers'    => $suppliers,
-            'branches'     => $branches,
-            'search'       => $search,
+            'currentUser' => $user,
+            'isMaster' => $user->isMaster(),
+            'suppliers' => $suppliers,
+            'branches' => $branches,
+            'search' => $search,
             'filterBranch' => $filterBranch,
-            'status'       => $status,
+            'status' => $status,
         ]);
     }
 
@@ -67,8 +76,8 @@ class SupplierController extends Controller
 
         return view('backoffice.suppliers.create', [
             'currentUser' => $user,
-            'isMaster'    => $user->isMaster(),
-            'branches'    => $branches,
+            'isMaster' => $user->isMaster(),
+            'branches' => $branches,
         ]);
     }
 
@@ -80,12 +89,12 @@ class SupplierController extends Controller
         $user = $request->user();
 
         $validated = $request->validate([
-            'name'           => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
             'contact_person' => ['nullable', 'string', 'max:255'],
-            'phone'          => ['nullable', 'string', 'max:50'],
-            'address'        => ['nullable', 'string', 'max:1000'],
-            'is_active'      => ['nullable', 'boolean'],
-            'branch_id'      => ['nullable', 'exists:branches,id'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'address' => ['nullable', 'string', 'max:1000'],
+            'is_active' => ['nullable', 'boolean'],
+            'branch_id' => ['nullable', 'exists:branches,id'],
         ]);
 
         // Automatically assign branch_id from authenticated user, or allow master override
@@ -99,12 +108,12 @@ class SupplierController extends Controller
         }
 
         Supplier::create([
-            'branch_id'      => $branchId,
-            'name'           => $validated['name'],
+            'branch_id' => $branchId,
+            'name' => $validated['name'],
             'contact_person' => $validated['contact_person'] ?? null,
-            'phone'          => $validated['phone'] ?? null,
-            'address'        => $validated['address'] ?? null,
-            'is_active'      => $request->boolean('is_active', true),
+            'phone' => $validated['phone'] ?? null,
+            'address' => $validated['address'] ?? null,
+            'is_active' => $request->boolean('is_active', true),
         ]);
 
         return redirect()
@@ -125,9 +134,9 @@ class SupplierController extends Controller
 
         return view('backoffice.suppliers.edit', [
             'currentUser' => $user,
-            'isMaster'    => $user->isMaster(),
-            'supplier'    => $supplier,
-            'branches'    => $branches,
+            'isMaster' => $user->isMaster(),
+            'supplier' => $supplier,
+            'branches' => $branches,
         ]);
     }
 
@@ -139,20 +148,20 @@ class SupplierController extends Controller
         $user = $request->user();
 
         $validated = $request->validate([
-            'name'           => ['required', 'string', 'max:255'],
+            'name' => ['required', 'string', 'max:255'],
             'contact_person' => ['nullable', 'string', 'max:255'],
-            'phone'          => ['nullable', 'string', 'max:50'],
-            'address'        => ['nullable', 'string', 'max:1000'],
-            'is_active'      => ['nullable', 'boolean'],
-            'branch_id'      => ['nullable', 'exists:branches,id'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'address' => ['nullable', 'string', 'max:1000'],
+            'is_active' => ['nullable', 'boolean'],
+            'branch_id' => ['nullable', 'exists:branches,id'],
         ]);
 
         $payload = [
-            'name'           => $validated['name'],
+            'name' => $validated['name'],
             'contact_person' => $validated['contact_person'] ?? null,
-            'phone'          => $validated['phone'] ?? null,
-            'address'        => $validated['address'] ?? null,
-            'is_active'      => $request->boolean('is_active'),
+            'phone' => $validated['phone'] ?? null,
+            'address' => $validated['address'] ?? null,
+            'is_active' => $request->boolean('is_active'),
         ];
 
         if ($user->isMaster() && ! empty($validated['branch_id'])) {

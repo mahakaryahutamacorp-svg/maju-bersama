@@ -41,7 +41,7 @@ return new class extends Migration
         foreach ($branches as $branch) {
             $baseCode = strtoupper(
                 substr(preg_replace('/[^A-Z0-9]/i', '', $branch->code), 0, 12)
-            ) . '-GU';
+            ).'-GU';
 
             $alreadyHasGudangUtama = DB::table('warehouses')
                 ->where('branch_id', $branch->id)
@@ -50,20 +50,20 @@ return new class extends Migration
 
             if (! $alreadyHasGudangUtama) {
                 $finalCode = $baseCode;
-                $suffix    = 1;
+                $suffix = 1;
                 while (DB::table('warehouses')
                     ->where('branch_id', $branch->id)
                     ->where('code', $finalCode)
                     ->exists()
                 ) {
-                    $finalCode = $baseCode . $suffix++;
+                    $finalCode = $baseCode.$suffix++;
                 }
 
                 DB::table('warehouses')->insert([
-                    'branch_id'  => $branch->id,
-                    'name'       => 'Gudang Utama',
-                    'code'       => $finalCode,
-                    'is_active'  => 1,
+                    'branch_id' => $branch->id,
+                    'name' => 'Gudang Utama',
+                    'code' => $finalCode,
+                    'is_active' => 1,
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);

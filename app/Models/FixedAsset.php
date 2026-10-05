@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\HasBranchScope;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -36,7 +37,7 @@ class FixedAsset extends Model
 
     public function setPurchaseDateAttribute($value): void
     {
-        $this->attributes['purchase_date'] = \Carbon\Carbon::parse($value)->format('Y-m-d');
+        $this->attributes['purchase_date'] = Carbon::parse($value)->format('Y-m-d');
     }
 
     /**

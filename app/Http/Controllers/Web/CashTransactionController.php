@@ -36,8 +36,8 @@ class CashTransactionController extends Controller
             ->where('is_active', true)
             ->where(function ($q) {
                 $q->where('code', 'like', '11%')
-                  ->orWhere('name', 'like', '%kas%')
-                  ->orWhere('name', 'like', '%bank%');
+                    ->orWhere('name', 'like', '%kas%')
+                    ->orWhere('name', 'like', '%bank%');
             })
             ->orderBy('code')
             ->get();
@@ -55,13 +55,13 @@ class CashTransactionController extends Controller
             ->get();
 
         return view('backoffice.cash-transactions.create', [
-            'currentUser'      => $user,
-            'isMaster'         => $user->isMaster(),
-            'accounts'         => $cashBankAccounts,
+            'currentUser' => $user,
+            'isMaster' => $user->isMaster(),
+            'accounts' => $cashBankAccounts,
             'cashBankAccounts' => $cashBankAccounts,
-            'allAccounts'      => $allAccounts,
-            'defaultType'      => $defaultType,
-            'todayDate'        => now()->toDateString(),
+            'allAccounts' => $allAccounts,
+            'defaultType' => $defaultType,
+            'todayDate' => now()->toDateString(),
         ]);
     }
 
@@ -74,34 +74,34 @@ class CashTransactionController extends Controller
 
         if ($type === 'TRANSFER') {
             $validated = $request->validate([
-                'type'             => ['nullable', 'string'],
-                'from_account_id'  => ['required', 'integer', 'exists:chart_of_accounts,id'],
-                'to_account_id'    => ['required', 'integer', 'exists:chart_of_accounts,id', 'different:from_account_id'],
-                'amount'           => ['required', 'numeric', 'min:0.01'],
+                'type' => ['nullable', 'string'],
+                'from_account_id' => ['required', 'integer', 'exists:chart_of_accounts,id'],
+                'to_account_id' => ['required', 'integer', 'exists:chart_of_accounts,id', 'different:from_account_id'],
+                'amount' => ['required', 'numeric', 'min:0.01'],
                 'transaction_date' => ['nullable', 'date'],
-                'transfer_date'    => ['nullable', 'date'],
+                'transfer_date' => ['nullable', 'date'],
                 'reference_number' => ['nullable', 'string', 'max:100'],
-                'notes'            => ['nullable', 'string', 'max:1000'],
+                'notes' => ['nullable', 'string', 'max:1000'],
             ], [
                 'to_account_id.different' => 'Akun tujuan transfer tidak boleh sama dengan akun sumber (asal).',
-                'amount.min'              => 'Nominal transfer kas/bank harus lebih besar dari 0.',
+                'amount.min' => 'Nominal transfer kas/bank harus lebih besar dari 0.',
             ]);
 
             $date = $validated['transaction_date'] ?? $validated['transfer_date'] ?? now()->toDateString();
 
             $transfer = $this->cashTransactionService->storeTransfer([
-                'branch_id'        => $request->user()->branch_id,
-                'user_id'          => $request->user()->id,
-                'from_account_id'  => (int) $validated['from_account_id'],
-                'to_account_id'    => (int) $validated['to_account_id'],
-                'amount'           => $validated['amount'],
+                'branch_id' => $request->user()->branch_id,
+                'user_id' => $request->user()->id,
+                'from_account_id' => (int) $validated['from_account_id'],
+                'to_account_id' => (int) $validated['to_account_id'],
+                'amount' => $validated['amount'],
                 'transaction_date' => $date,
-                'transfer_date'    => $date,
+                'transfer_date' => $date,
                 'reference_number' => ! empty($validated['reference_number']) ? trim($validated['reference_number']) : null,
-                'notes'            => ! empty($validated['notes']) ? trim($validated['notes']) : null,
+                'notes' => ! empty($validated['notes']) ? trim($validated['notes']) : null,
             ]);
 
-            $formattedAmount = 'Rp ' . number_format((float) $transfer->amount, 0, ',', '.');
+            $formattedAmount = 'Rp '.number_format((float) $transfer->amount, 0, ',', '.');
             $fromName = $transfer->fromAccount?->name ?? 'Kas Sumber';
             $toName = $transfer->toAccount?->name ?? 'Kas Tujuan';
 
@@ -112,28 +112,29 @@ class CashTransactionController extends Controller
 
         // Penanganan tipe Kas Masuk (IN) / Kas Keluar (OUT)
         $validated = $request->validate([
-            'type'             => ['required', 'in:IN,OUT'],
-            'account_id'       => ['required', 'integer', 'exists:chart_of_accounts,id'],
+            'type' => ['required', 'in:IN,OUT'],
+            'account_id' => ['required', 'integer', 'exists:chart_of_accounts,id'],
             'transaction_date' => ['required', 'date'],
             'reference_number' => ['nullable', 'string', 'max:100'],
-            'notes'            => ['nullable', 'string', 'max:1000'],
-            'lines'            => ['required', 'array', 'min:1'],
+            'notes' => ['nullable', 'string', 'max:1000'],
+            'lines' => ['required', 'array', 'min:1'],
             'lines.*.chart_of_account_id' => ['required', 'integer', 'exists:chart_of_accounts,id'],
-            'lines.*.amount'              => ['required', 'numeric', 'min:0.01'],
-            'lines.*.memo'                => ['nullable', 'string', 'max:500'],
+            'lines.*.amount' => ['required', 'numeric', 'min:0.01'],
+            'lines.*.memo' => ['nullable', 'string', 'max:500'],
         ]);
 
         $this->cashTransactionService->storeTransaction([
-            'branch_id'        => $request->user()->branch_id,
-            'user_id'          => $request->user()->id,
-            'type'             => $type,
-            'account_id'       => (int) $validated['account_id'],
+            'branch_id' => $request->user()->branch_id,
+            'user_id' => $request->user()->id,
+            'type' => $type,
+            'account_id' => (int) $validated['account_id'],
             'transaction_date' => $validated['transaction_date'],
             'reference_number' => $validated['reference_number'] ?? null,
-            'notes'            => $validated['notes'] ?? null,
+            'notes' => $validated['notes'] ?? null,
         ], $validated['lines']);
 
         $label = $type === 'IN' ? 'Kas Masuk' : 'Kas Keluar';
+
         return redirect()
             ->route('backoffice.cash-transfers.index')
             ->with('success', "Transaksi {$label} berhasil dibukukan dengan jurnal akuntansi berpasangan.");

@@ -12,7 +12,6 @@ class AgingReportService
     /**
      * Menghitung Laporan Umur Piutang (AR Aging) per Pelanggan.
      *
-     * @param int|null $branchId
      * @return array{
      *     rows: Collection,
      *     items: Collection,
@@ -59,13 +58,13 @@ class AgingReportService
 
             if (! isset($grouped[$customerId])) {
                 $grouped[$customerId] = [
-                    'customer_id'    => $customerId,
-                    'customer_name'  => $customerName,
-                    'customer'       => $sale->customer,
-                    'total_amount'   => 0.0,
-                    'bucket_0_30'    => 0.0,
-                    'bucket_31_60'   => 0.0,
-                    'bucket_61_90'   => 0.0,
+                    'customer_id' => $customerId,
+                    'customer_name' => $customerName,
+                    'customer' => $sale->customer,
+                    'total_amount' => 0.0,
+                    'bucket_0_30' => 0.0,
+                    'bucket_31_60' => 0.0,
+                    'bucket_61_90' => 0.0,
                     'bucket_over_90' => 0.0,
                     'invoices_count' => 0,
                 ];
@@ -88,18 +87,18 @@ class AgingReportService
         $rows = collect(array_values($grouped))->sortByDesc('total_amount')->values();
 
         $totals = [
-            'total_amount'    => (float) $rows->sum('total_amount'),
-            'bucket_0_30'     => (float) $rows->sum('bucket_0_30'),
-            'bucket_31_60'    => (float) $rows->sum('bucket_31_60'),
-            'bucket_61_90'    => (float) $rows->sum('bucket_61_90'),
-            'bucket_over_90'  => (float) $rows->sum('bucket_over_90'),
+            'total_amount' => (float) $rows->sum('total_amount'),
+            'bucket_0_30' => (float) $rows->sum('bucket_0_30'),
+            'bucket_31_60' => (float) $rows->sum('bucket_31_60'),
+            'bucket_61_90' => (float) $rows->sum('bucket_61_90'),
+            'bucket_over_90' => (float) $rows->sum('bucket_over_90'),
             'total_customers' => $rows->count(),
-            'total_invoices'  => (int) $rows->sum('invoices_count'),
+            'total_invoices' => (int) $rows->sum('invoices_count'),
         ];
 
         return [
-            'rows'   => $rows,
-            'items'  => $rows,
+            'rows' => $rows,
+            'items' => $rows,
             'totals' => $totals,
         ];
     }
@@ -107,7 +106,6 @@ class AgingReportService
     /**
      * Menghitung Laporan Umur Hutang (AP Aging) per Supplier.
      *
-     * @param int|null $branchId
      * @return array{
      *     rows: Collection,
      *     items: Collection,
@@ -154,13 +152,13 @@ class AgingReportService
 
             if (! isset($grouped[$supplierId])) {
                 $grouped[$supplierId] = [
-                    'supplier_id'    => $supplierId,
-                    'supplier_name'  => $supplierName,
-                    'supplier'       => $po->supplier,
-                    'total_amount'   => 0.0,
-                    'bucket_0_30'    => 0.0,
-                    'bucket_31_60'   => 0.0,
-                    'bucket_61_90'   => 0.0,
+                    'supplier_id' => $supplierId,
+                    'supplier_name' => $supplierName,
+                    'supplier' => $po->supplier,
+                    'total_amount' => 0.0,
+                    'bucket_0_30' => 0.0,
+                    'bucket_31_60' => 0.0,
+                    'bucket_61_90' => 0.0,
                     'bucket_over_90' => 0.0,
                     'invoices_count' => 0,
                 ];
@@ -183,18 +181,18 @@ class AgingReportService
         $rows = collect(array_values($grouped))->sortByDesc('total_amount')->values();
 
         $totals = [
-            'total_amount'    => (float) $rows->sum('total_amount'),
-            'bucket_0_30'     => (float) $rows->sum('bucket_0_30'),
-            'bucket_31_60'    => (float) $rows->sum('bucket_31_60'),
-            'bucket_61_90'    => (float) $rows->sum('bucket_61_90'),
-            'bucket_over_90'  => (float) $rows->sum('bucket_over_90'),
+            'total_amount' => (float) $rows->sum('total_amount'),
+            'bucket_0_30' => (float) $rows->sum('bucket_0_30'),
+            'bucket_31_60' => (float) $rows->sum('bucket_31_60'),
+            'bucket_61_90' => (float) $rows->sum('bucket_61_90'),
+            'bucket_over_90' => (float) $rows->sum('bucket_over_90'),
             'total_suppliers' => $rows->count(),
-            'total_invoices'  => (int) $rows->sum('invoices_count'),
+            'total_invoices' => (int) $rows->sum('invoices_count'),
         ];
 
         return [
-            'rows'   => $rows,
-            'items'  => $rows,
+            'rows' => $rows,
+            'items' => $rows,
             'totals' => $totals,
         ];
     }

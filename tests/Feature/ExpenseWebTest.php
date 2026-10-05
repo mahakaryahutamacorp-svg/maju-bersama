@@ -16,9 +16,13 @@ class ExpenseWebTest extends TestCase
     use RefreshDatabase;
 
     private Branch $branch;
+
     private User $admin;
+
     private ChartOfAccount $cashAccount;
+
     private ChartOfAccount $electricityAccount;
+
     private ExpenseCategory $electricityCategory;
 
     protected function setUp(): void
@@ -26,39 +30,39 @@ class ExpenseWebTest extends TestCase
         parent::setUp();
 
         $this->branch = Branch::create([
-            'name'    => 'Cabang Jakarta Selatan',
-            'code'    => 'JKT-SEL',
+            'name' => 'Cabang Jakarta Selatan',
+            'code' => 'JKT-SEL',
             'address' => 'Jl. Fatmawati No. 10',
-            'phone'   => '0811998877',
+            'phone' => '0811998877',
         ]);
 
         $this->admin = User::create([
-            'name'      => 'Bambang Admin',
-            'email'     => 'bambang@example.com',
-            'password'  => bcrypt('password'),
-            'role'      => 'branch_admin',
+            'name' => 'Bambang Admin',
+            'email' => 'bambang@example.com',
+            'password' => bcrypt('password'),
+            'role' => 'branch_admin',
             'branch_id' => $this->branch->id,
         ]);
 
         $this->cashAccount = ChartOfAccount::create([
-            'code'      => '1110',
-            'name'      => 'Kas Toko Kasir',
-            'type'      => 'asset',
+            'code' => '1110',
+            'name' => 'Kas Toko Kasir',
+            'type' => 'asset',
             'is_active' => true,
         ]);
 
         $this->electricityAccount = ChartOfAccount::create([
-            'code'      => '6110',
-            'name'      => 'Beban Listrik Toko',
-            'type'      => 'expense',
+            'code' => '6110',
+            'name' => 'Beban Listrik Toko',
+            'type' => 'expense',
             'is_active' => true,
         ]);
 
         $this->electricityCategory = ExpenseCategory::create([
-            'branch_id'           => $this->branch->id,
-            'name'                => 'Listrik & Air',
+            'branch_id' => $this->branch->id,
+            'name' => 'Listrik & Air',
             'chart_of_account_id' => $this->electricityAccount->id,
-            'is_active'           => true,
+            'is_active' => true,
         ]);
     }
 
@@ -87,33 +91,33 @@ class ExpenseWebTest extends TestCase
     public function test_user_can_store_and_update_expense_category(): void
     {
         $storeResponse = $this->actingAs($this->admin)->post(route('backoffice.expense-categories.store'), [
-            'name'                => 'Biaya Bensin Kurir',
+            'name' => 'Biaya Bensin Kurir',
             'chart_of_account_id' => $this->electricityAccount->id,
-            'is_active'           => '1',
+            'is_active' => '1',
         ]);
 
         $storeResponse->assertRedirect(route('backoffice.expense-categories.index'));
         $storeResponse->assertSessionHas('success');
 
         $this->assertDatabaseHas('expense_categories', [
-            'name'                => 'Biaya Bensin Kurir',
+            'name' => 'Biaya Bensin Kurir',
             'chart_of_account_id' => $this->electricityAccount->id,
-            'is_active'           => 1,
+            'is_active' => 1,
         ]);
 
         $category = ExpenseCategory::where('name', 'Biaya Bensin Kurir')->first();
 
         $updateResponse = $this->actingAs($this->admin)->put(route('backoffice.expense-categories.update', $category->id), [
-            'name'                => 'Bensin & Transportasi',
+            'name' => 'Bensin & Transportasi',
             'chart_of_account_id' => $this->electricityAccount->id,
-            'is_active'           => '1',
+            'is_active' => '1',
         ]);
 
         $updateResponse->assertRedirect(route('backoffice.expense-categories.index'));
         $updateResponse->assertSessionHas('success');
 
         $this->assertDatabaseHas('expense_categories', [
-            'id'   => $category->id,
+            'id' => $category->id,
             'name' => 'Bensin & Transportasi',
         ]);
     }
@@ -137,23 +141,23 @@ class ExpenseWebTest extends TestCase
     {
         $response = $this->actingAs($this->admin)->post(route('backoffice.expenses.store'), [
             'expense_category_id' => $this->electricityCategory->id,
-            'account_id'          => $this->cashAccount->id,
-            'amount'              => 175000,
-            'expense_date'        => '2026-09-20',
-            'reference_number'    => 'NOTA-PLN-175',
-            'notes'               => 'Pembelian Token PLN 175rb untuk toko',
+            'account_id' => $this->cashAccount->id,
+            'amount' => 175000,
+            'expense_date' => '2026-09-20',
+            'reference_number' => 'NOTA-PLN-175',
+            'notes' => 'Pembelian Token PLN 175rb untuk toko',
         ]);
 
         $response->assertRedirect(route('backoffice.expenses.index'));
         $response->assertSessionHas('success');
 
         $this->assertDatabaseHas('expenses', [
-            'branch_id'           => $this->branch->id,
+            'branch_id' => $this->branch->id,
             'expense_category_id' => $this->electricityCategory->id,
-            'account_id'          => $this->cashAccount->id,
-            'amount'              => 175000.00,
-            'reference_number'    => 'NOTA-PLN-175',
-            'notes'               => 'Pembelian Token PLN 175rb untuk toko',
+            'account_id' => $this->cashAccount->id,
+            'amount' => 175000.00,
+            'reference_number' => 'NOTA-PLN-175',
+            'notes' => 'Pembelian Token PLN 175rb untuk toko',
         ]);
 
         $expense = Expense::where('reference_number', 'NOTA-PLN-175')->first();
@@ -170,13 +174,13 @@ class ExpenseWebTest extends TestCase
     public function test_user_can_view_expense_show_page(): void
     {
         $expense = Expense::create([
-            'branch_id'           => $this->branch->id,
+            'branch_id' => $this->branch->id,
             'expense_category_id' => $this->electricityCategory->id,
-            'account_id'          => $this->cashAccount->id,
-            'amount'              => 80000.00,
-            'expense_date'        => '2026-09-20',
-            'reference_number'    => 'EXP-SHOW-001',
-            'notes'               => 'Beli sabun dan pembersih lantai',
+            'account_id' => $this->cashAccount->id,
+            'amount' => 80000.00,
+            'expense_date' => '2026-09-20',
+            'reference_number' => 'EXP-SHOW-001',
+            'notes' => 'Beli sabun dan pembersih lantai',
         ]);
 
         $response = $this->actingAs($this->admin)->get(route('backoffice.expenses.show', $expense->id));
@@ -191,10 +195,10 @@ class ExpenseWebTest extends TestCase
     {
         $response = $this->actingAs($this->admin)->post(route('backoffice.expenses.store'), [
             'expense_category_id' => $this->electricityCategory->id,
-            'account_id'          => $this->cashAccount->id,
-            'amount'              => 0,
-            'expense_date'        => '2026-09-20',
-            'notes'               => '', // Kosong padahal wajib
+            'account_id' => $this->cashAccount->id,
+            'amount' => 0,
+            'expense_date' => '2026-09-20',
+            'notes' => '', // Kosong padahal wajib
         ]);
 
         $response->assertSessionHasErrors(['amount', 'notes']);

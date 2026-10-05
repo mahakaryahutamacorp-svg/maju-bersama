@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Branch;
 use App\Models\Category;
-use App\Models\ChartOfAccount;
 use App\Models\Inventory;
 use App\Models\Product;
 use App\Models\PurchaseReturn;
@@ -19,9 +18,13 @@ class PurchaseReturnWebTest extends TestCase
     use RefreshDatabase;
 
     private Branch $branch;
+
     private User $user;
+
     private Supplier $supplier;
+
     private Category $category;
+
     private Product $product;
 
     protected function setUp(): void

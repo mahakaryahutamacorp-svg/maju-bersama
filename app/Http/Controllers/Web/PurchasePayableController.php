@@ -12,13 +12,14 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class PurchasePayableController extends Controller
 {
     private const ACCOUNT_CASH = '1110';
+
     private const ACCOUNT_BANK = '1120';
+
     private const ACCOUNT_PAYABLE = '2110';
 
     /**
@@ -68,13 +69,13 @@ class PurchasePayableController extends Controller
         $distributors = Supplier::orderBy('name')->get();
 
         return view('purchases.payables', [
-            'currentUser'        => $user,
-            'isMaster'           => $user->isMaster(),
-            'purchases'          => $purchases,
-            'totalActiveDebt'    => $totalActiveDebt,
-            'totalDueThisWeek'   => $totalDueThisWeek,
+            'currentUser' => $user,
+            'isMaster' => $user->isMaster(),
+            'purchases' => $purchases,
+            'totalActiveDebt' => $totalActiveDebt,
+            'totalDueThisWeek' => $totalDueThisWeek,
             'totalPaidThisMonth' => $totalPaidThisMonth,
-            'distributors'       => $distributors,
+            'distributors' => $distributors,
         ]);
     }
 
@@ -95,7 +96,7 @@ class PurchasePayableController extends Controller
         $amount = round((float) $validated['amount'], 2);
         $paymentMethod = strtolower($validated['payment_method'] ?? 'cash');
         $paymentDate = $validated['payment_date'] ?? now()->toDateString();
-        $refNumber = $validated['reference_number'] ?? ('PAY-' . now()->format('Ymd') . '-' . str_pad((string) random_int(1, 9999), 4, '0', STR_PAD_LEFT));
+        $refNumber = $validated['reference_number'] ?? ('PAY-'.now()->format('Ymd').'-'.str_pad((string) random_int(1, 9999), 4, '0', STR_PAD_LEFT));
 
         $remainingDebt = $purchase->remaining_debt;
 
@@ -109,6 +110,7 @@ class PurchasePayableController extends Controller
             if ($request->wantsJson()) {
                 return response()->json(['message' => $msg, 'errors' => ['amount' => [$msg]]], 422);
             }
+
             return back()->withErrors(['amount' => $msg])->withInput();
         }
 
@@ -126,7 +128,7 @@ class PurchasePayableController extends Controller
                 'payment_date' => $paymentDate,
                 'payment_method' => $paymentMethod,
                 'reference_number' => $refNumber,
-                'notes' => $validated['notes'] ?? ('Pembayaran cicilan hutang distributor faktur ' . $lockedPurchase->invoice_number),
+                'notes' => $validated['notes'] ?? ('Pembayaran cicilan hutang distributor faktur '.$lockedPurchase->invoice_number),
                 'created_by' => $user->id,
             ]);
 
@@ -166,7 +168,7 @@ class PurchasePayableController extends Controller
                 'user_id' => $user->id,
                 'transaction_date' => $paymentDate,
                 'reference_number' => $refNumber,
-                'description' => 'Pembayaran Hutang Distributor (Faktur: ' . $lockedPurchase->invoice_number . ')',
+                'description' => 'Pembayaran Hutang Distributor (Faktur: '.$lockedPurchase->invoice_number.')',
             ]);
 
             $formattedAmount = number_format($amount, 2, '.', '');
@@ -176,13 +178,13 @@ class PurchasePayableController extends Controller
                     'chart_of_account_id' => $payableAccount->id,
                     'debit' => $formattedAmount,
                     'credit' => '0.00',
-                    'memo' => 'Pelunasan/Cicilan Hutang Dagang ' . $lockedPurchase->invoice_number,
+                    'memo' => 'Pelunasan/Cicilan Hutang Dagang '.$lockedPurchase->invoice_number,
                 ],
                 [
                     'chart_of_account_id' => $cashOrBankAccount->id,
                     'debit' => '0.00',
                     'credit' => $formattedAmount,
-                    'memo' => 'Pengeluaran ' . $creditAccountName . ' untuk bayar hutang distributor',
+                    'memo' => 'Pengeluaran '.$creditAccountName.' untuk bayar hutang distributor',
                 ],
             ]);
 

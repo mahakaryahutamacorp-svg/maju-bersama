@@ -63,8 +63,8 @@ class CashTransferController extends Controller
         $accounts = ChartOfAccount::where('type', 'asset')
             ->where(function ($q) {
                 $q->where('code', 'like', '11%')
-                  ->orWhere('name', 'like', '%kas%')
-                  ->orWhere('name', 'like', '%bank%');
+                    ->orWhere('name', 'like', '%kas%')
+                    ->orWhere('name', 'like', '%bank%');
             })
             ->where('is_active', true)
             ->orderBy('code')
@@ -75,16 +75,16 @@ class CashTransferController extends Controller
         }
 
         return view('backoffice.cash-transfers.index', [
-            'currentUser'         => $user,
-            'isMaster'            => $user->isMaster(),
-            'transfers'           => $transfers,
+            'currentUser' => $user,
+            'isMaster' => $user->isMaster(),
+            'transfers' => $transfers,
             'totalTransferAmount' => $totalTransferAmount,
-            'transferCount'       => $transferCount,
-            'accounts'            => $accounts,
-            'search'              => $search,
-            'startDate'           => $startDate,
-            'endDate'             => $endDate,
-            'selectedAccountId'   => $accountId,
+            'transferCount' => $transferCount,
+            'accounts' => $accounts,
+            'search' => $search,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'selectedAccountId' => $accountId,
         ]);
     }
 
@@ -100,8 +100,8 @@ class CashTransferController extends Controller
             ->where('is_active', true)
             ->where(function ($q) {
                 $q->where('code', 'like', '11%')
-                  ->orWhere('name', 'like', '%kas%')
-                  ->orWhere('name', 'like', '%bank%');
+                    ->orWhere('name', 'like', '%kas%')
+                    ->orWhere('name', 'like', '%bank%');
             })
             ->orderBy('code')
             ->get();
@@ -115,9 +115,9 @@ class CashTransferController extends Controller
 
         return view('backoffice.cash-transfers.create', [
             'currentUser' => $user,
-            'isMaster'    => $user->isMaster(),
-            'accounts'    => $accounts,
-            'todayDate'   => now()->toDateString(),
+            'isMaster' => $user->isMaster(),
+            'accounts' => $accounts,
+            'todayDate' => now()->toDateString(),
         ]);
     }
 
@@ -127,29 +127,29 @@ class CashTransferController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'from_account_id'  => ['required', 'integer', 'exists:chart_of_accounts,id'],
-            'to_account_id'    => ['required', 'integer', 'exists:chart_of_accounts,id', 'different:from_account_id'],
-            'amount'           => ['required', 'numeric', 'min:0.01'],
-            'transfer_date'    => ['required', 'date'],
+            'from_account_id' => ['required', 'integer', 'exists:chart_of_accounts,id'],
+            'to_account_id' => ['required', 'integer', 'exists:chart_of_accounts,id', 'different:from_account_id'],
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'transfer_date' => ['required', 'date'],
             'reference_number' => ['nullable', 'string', 'max:100'],
-            'notes'            => ['nullable', 'string', 'max:1000'],
+            'notes' => ['nullable', 'string', 'max:1000'],
         ], [
             'to_account_id.different' => 'Akun tujuan transfer tidak boleh sama dengan akun asal.',
-            'amount.min'              => 'Nominal transfer kas/bank harus lebih besar dari 0.',
+            'amount.min' => 'Nominal transfer kas/bank harus lebih besar dari 0.',
         ]);
 
         $cashTransfer = $this->cashTransferService->processTransfer([
-            'branch_id'        => $request->user()->branch_id,
-            'user_id'          => $request->user()->id,
-            'from_account_id'  => (int) $validated['from_account_id'],
-            'to_account_id'    => (int) $validated['to_account_id'],
-            'amount'           => $validated['amount'],
-            'transfer_date'    => $validated['transfer_date'],
+            'branch_id' => $request->user()->branch_id,
+            'user_id' => $request->user()->id,
+            'from_account_id' => (int) $validated['from_account_id'],
+            'to_account_id' => (int) $validated['to_account_id'],
+            'amount' => $validated['amount'],
+            'transfer_date' => $validated['transfer_date'],
             'reference_number' => ! empty($validated['reference_number']) ? trim($validated['reference_number']) : null,
-            'notes'            => ! empty($validated['notes']) ? trim($validated['notes']) : null,
+            'notes' => ! empty($validated['notes']) ? trim($validated['notes']) : null,
         ]);
 
-        $formattedAmount = 'Rp ' . number_format((float) $cashTransfer->amount, 0, ',', '.');
+        $formattedAmount = 'Rp '.number_format((float) $cashTransfer->amount, 0, ',', '.');
         $fromName = $cashTransfer->fromAccount?->name ?? 'Kas Asal';
         $toName = $cashTransfer->toAccount?->name ?? 'Kas Tujuan';
 
@@ -174,8 +174,8 @@ class CashTransferController extends Controller
 
         return view('backoffice.cash-transfers.show', [
             'currentUser' => $user,
-            'isMaster'    => $user->isMaster(),
-            'transfer'    => $transfer,
+            'isMaster' => $user->isMaster(),
+            'transfer' => $transfer,
         ]);
     }
 }

@@ -7,6 +7,7 @@ use App\Models\Inventory;
 use App\Models\Product;
 use App\Models\StockAdjustment;
 use App\Services\StockAdjustmentService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -133,7 +134,7 @@ class StockAdjustmentController extends Controller
     /**
      * Store a newly created stock adjustment.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
         $rawLines = $request->input('lines') ?? $request->input('items') ?? [];
         if (! empty($rawLines) && is_array($rawLines)) {
@@ -141,6 +142,7 @@ class StockAdjustmentController extends Controller
                 if (isset($item['system_qty']) && ! isset($item['expected_qty'])) {
                     $item['expected_qty'] = $item['system_qty'];
                 }
+
                 return $item;
             }, $rawLines);
             $request->merge(['items' => $mapped]);
@@ -174,6 +176,14 @@ class StockAdjustmentController extends Controller
         }
 
         $adjustment = $this->stockAdjustmentService->processAdjustment($validated, $validated['items'], $user);
+
+        if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => "Penyesuaian stok #{$adjustment->reference_number} berhasil diproses.",
+                'data' => $adjustment->load(['items.product', 'branch', 'journal.journalLines.chartOfAccount']),
+            ], 201);
+        }
 
         return redirect()
             ->route('inventory.adjustments.show', $adjustment->id)

@@ -14,10 +14,6 @@ class StockCardService
     /**
      * Get stock card movement history and running balance for a specific product and branch.
      *
-     * @param int $branchId
-     * @param int $productId
-     * @param string|null $startDate
-     * @param string|null $endDate
      * @return array{
      *     branch: Branch,
      *     product: Product,
@@ -63,6 +59,7 @@ class StockCardService
             if ($end && $tDate->gt($end)) {
                 return false;
             }
+
             return true;
         })->values();
 

@@ -22,9 +22,9 @@ class AccountingReportService
      * Calculates opening balance prior to $startDate, lists individual journal lines
      * within the date range with running balances, and calculates ending balance.
      *
-     * @param  int|null  $branchId    Filter by branch or null for consolidated
-     * @param  string|null  $startDate YYYY-MM-DD
-     * @param  string|null  $endDate   YYYY-MM-DD
+     * @param  int|null  $branchId  Filter by branch or null for consolidated
+     * @param  string|null  $startDate  YYYY-MM-DD
+     * @param  string|null  $endDate  YYYY-MM-DD
      * @return array{
      *     branch: array{id: int|null, name: string},
      *     start_date: string|null,
@@ -183,9 +183,9 @@ class AccountingReportService
      * Summarizes ending Debit and Credit balances per account as of $endDate (or in period).
      * Double-entry bookkeeping guarantees that total ending debits always equal total ending credits.
      *
-     * @param  int|null  $branchId    Filter by branch or null for consolidated
-     * @param  string|null  $startDate YYYY-MM-DD
-     * @param  string|null  $endDate   YYYY-MM-DD
+     * @param  int|null  $branchId  Filter by branch or null for consolidated
+     * @param  string|null  $startDate  YYYY-MM-DD
+     * @param  string|null  $endDate  YYYY-MM-DD
      * @return array{
      *     branch: array{id: int|null, name: string},
      *     start_date: string|null,
@@ -338,9 +338,9 @@ class AccountingReportService
      * - Operating Expenses (Akun 5xxx selain 5100 / type expense)
      * - Net Profit = Gross Profit - Operating Expenses
      *
-     * @param  int|null  $branchId    Filter by branch or null for consolidated
-     * @param  string|null  $startDate YYYY-MM-DD
-     * @param  string|null  $endDate   YYYY-MM-DD
+     * @param  int|null  $branchId  Filter by branch or null for consolidated
+     * @param  string|null  $startDate  YYYY-MM-DD
+     * @param  string|null  $endDate  YYYY-MM-DD
      * @return array{
      *     branch: array{id: int|null, name: string},
      *     start_date: string|null,

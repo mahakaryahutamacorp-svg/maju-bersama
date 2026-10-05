@@ -7,7 +7,6 @@ use App\Models\Branch;
 use App\Models\ChartOfAccount;
 use App\Models\FixedAsset;
 use App\Models\JournalHeader;
-use App\Models\JournalLine;
 use App\Models\User;
 use App\Services\FixedAssetService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -18,9 +17,13 @@ class FixedAssetWebTest extends TestCase
     use RefreshDatabase;
 
     private Branch $branch;
+
     private User $admin;
+
     private ChartOfAccount $assetAccount;
+
     private ChartOfAccount $depreciationAccount;
+
     private ChartOfAccount $expenseAccount;
 
     protected function setUp(): void
@@ -28,38 +31,38 @@ class FixedAssetWebTest extends TestCase
         parent::setUp();
 
         $this->branch = Branch::create([
-            'name'    => 'Cabang Utama Bandung',
-            'code'    => 'BDG-01',
+            'name' => 'Cabang Utama Bandung',
+            'code' => 'BDG-01',
             'address' => 'Jl. Asia Afrika No. 100, Bandung',
-            'phone'   => '081234567890',
+            'phone' => '081234567890',
         ]);
 
         $this->admin = User::create([
-            'name'      => 'Ahmad Admin',
-            'email'     => 'ahmad@majubersama.com',
-            'password'  => bcrypt('password'),
-            'role'      => 'branch_admin',
+            'name' => 'Ahmad Admin',
+            'email' => 'ahmad@majubersama.com',
+            'password' => bcrypt('password'),
+            'role' => 'branch_admin',
             'branch_id' => $this->branch->id,
         ]);
 
         $this->assetAccount = ChartOfAccount::create([
-            'code'      => '1310',
-            'name'      => 'Kendaraan & Peralatan Kantor',
-            'type'      => 'asset',
+            'code' => '1310',
+            'name' => 'Kendaraan & Peralatan Kantor',
+            'type' => 'asset',
             'is_active' => true,
         ]);
 
         $this->depreciationAccount = ChartOfAccount::create([
-            'code'      => '1311',
-            'name'      => 'Akumulasi Penyusutan Kendaraan',
-            'type'      => 'asset',
+            'code' => '1311',
+            'name' => 'Akumulasi Penyusutan Kendaraan',
+            'type' => 'asset',
             'is_active' => true,
         ]);
 
         $this->expenseAccount = ChartOfAccount::create([
-            'code'      => '5130',
-            'name'      => 'Beban Penyusutan Kendaraan',
-            'type'      => 'expense',
+            'code' => '5130',
+            'name' => 'Beban Penyusutan Kendaraan',
+            'type' => 'expense',
             'is_active' => true,
         ]);
     }
@@ -89,14 +92,14 @@ class FixedAssetWebTest extends TestCase
     public function test_user_can_create_fixed_asset_with_straight_line_accessor(): void
     {
         $data = [
-            'name'                    => 'Mobil Pick Up Grand Max 1.5',
-            'purchase_date'           => '2026-01-15',
-            'purchase_price'          => 120000000,
-            'salvage_value'           => 24000000,
-            'useful_life_months'      => 48,
-            'asset_account_id'        => $this->assetAccount->id,
+            'name' => 'Mobil Pick Up Grand Max 1.5',
+            'purchase_date' => '2026-01-15',
+            'purchase_price' => 120000000,
+            'salvage_value' => 24000000,
+            'useful_life_months' => 48,
+            'asset_account_id' => $this->assetAccount->id,
             'depreciation_account_id' => $this->depreciationAccount->id,
-            'expense_account_id'      => $this->expenseAccount->id,
+            'expense_account_id' => $this->expenseAccount->id,
         ];
 
         $response = $this->actingAs($this->admin)->post('/backoffice/fixed-assets', $data);
@@ -105,10 +108,10 @@ class FixedAssetWebTest extends TestCase
         $response->assertSessionHas('success');
 
         $this->assertDatabaseHas('fixed_assets', [
-            'branch_id'          => $this->branch->id,
-            'name'               => 'Mobil Pick Up Grand Max 1.5',
+            'branch_id' => $this->branch->id,
+            'name' => 'Mobil Pick Up Grand Max 1.5',
             'useful_life_months' => 48,
-            'status'             => 'ACTIVE',
+            'status' => 'ACTIVE',
         ]);
 
         $asset = FixedAsset::where('name', 'Mobil Pick Up Grand Max 1.5')->firstOrFail();
@@ -119,9 +122,9 @@ class FixedAssetWebTest extends TestCase
     public function test_validation_fails_for_invalid_input(): void
     {
         $response = $this->actingAs($this->admin)->post('/backoffice/fixed-assets', [
-            'name'               => '',
-            'purchase_price'     => -100,
-            'salvage_value'      => 500, // lebih besar dari purchase_price
+            'name' => '',
+            'purchase_price' => -100,
+            'salvage_value' => 500, // lebih besar dari purchase_price
             'useful_life_months' => 0,
         ]);
 
@@ -140,16 +143,16 @@ class FixedAssetWebTest extends TestCase
     public function test_user_can_run_monthly_depreciation_and_creates_balanced_journal(): void
     {
         $asset = FixedAsset::create([
-            'branch_id'               => $this->branch->id,
-            'name'                    => 'Laptop Dell XPS Kasir Backoffice',
-            'purchase_date'           => '2026-08-01',
-            'purchase_price'          => 24000000,
-            'salvage_value'           => 0,
-            'useful_life_months'      => 24, // 1.000.000 / bulan
-            'asset_account_id'        => $this->assetAccount->id,
+            'branch_id' => $this->branch->id,
+            'name' => 'Laptop Dell XPS Kasir Backoffice',
+            'purchase_date' => '2026-08-01',
+            'purchase_price' => 24000000,
+            'salvage_value' => 0,
+            'useful_life_months' => 24, // 1.000.000 / bulan
+            'asset_account_id' => $this->assetAccount->id,
             'depreciation_account_id' => $this->depreciationAccount->id,
-            'expense_account_id'      => $this->expenseAccount->id,
-            'status'                  => 'ACTIVE',
+            'expense_account_id' => $this->expenseAccount->id,
+            'status' => 'ACTIVE',
         ]);
 
         $response = $this->actingAs($this->admin)->post('/fixed-assets/run-depreciation', [
@@ -161,9 +164,9 @@ class FixedAssetWebTest extends TestCase
 
         // Pastikan record asset_depreciations terbentuk
         $this->assertDatabaseHas('asset_depreciations', [
-            'fixed_asset_id'    => $asset->id,
+            'fixed_asset_id' => $asset->id,
             'depreciation_date' => '2026-09-30',
-            'amount'            => 1000000.0000,
+            'amount' => 1000000.0000,
         ]);
 
         $depreciationLog = AssetDepreciation::where('fixed_asset_id', $asset->id)->firstOrFail();
@@ -199,16 +202,16 @@ class FixedAssetWebTest extends TestCase
     public function test_monthly_depreciation_skips_duplicate_runs_in_same_period(): void
     {
         $asset = FixedAsset::create([
-            'branch_id'               => $this->branch->id,
-            'name'                    => 'Genset Silent 5KVA',
-            'purchase_date'           => '2026-07-01',
-            'purchase_price'          => 12000000,
-            'salvage_value'           => 0,
-            'useful_life_months'      => 12, // 1.000.000 / bulan
-            'asset_account_id'        => $this->assetAccount->id,
+            'branch_id' => $this->branch->id,
+            'name' => 'Genset Silent 5KVA',
+            'purchase_date' => '2026-07-01',
+            'purchase_price' => 12000000,
+            'salvage_value' => 0,
+            'useful_life_months' => 12, // 1.000.000 / bulan
+            'asset_account_id' => $this->assetAccount->id,
             'depreciation_account_id' => $this->depreciationAccount->id,
-            'expense_account_id'      => $this->expenseAccount->id,
-            'status'                  => 'ACTIVE',
+            'expense_account_id' => $this->expenseAccount->id,
+            'status' => 'ACTIVE',
         ]);
 
         $service = app(FixedAssetService::class);
@@ -234,16 +237,16 @@ class FixedAssetWebTest extends TestCase
         // Nilai perolehan 1.000.000, nilai sisa 200.000 -> Tersusutkan = 800.000
         // Umur 2 bulan -> 400.000 / bulan
         $asset = FixedAsset::create([
-            'branch_id'               => $this->branch->id,
-            'name'                    => 'Printer Barcode Zebra',
-            'purchase_date'           => '2026-01-01',
-            'purchase_price'          => 1000000,
-            'salvage_value'           => 200000,
-            'useful_life_months'      => 2,
-            'asset_account_id'        => $this->assetAccount->id,
+            'branch_id' => $this->branch->id,
+            'name' => 'Printer Barcode Zebra',
+            'purchase_date' => '2026-01-01',
+            'purchase_price' => 1000000,
+            'salvage_value' => 200000,
+            'useful_life_months' => 2,
+            'asset_account_id' => $this->assetAccount->id,
             'depreciation_account_id' => $this->depreciationAccount->id,
-            'expense_account_id'      => $this->expenseAccount->id,
-            'status'                  => 'ACTIVE',
+            'expense_account_id' => $this->expenseAccount->id,
+            'status' => 'ACTIVE',
         ]);
 
         $service = app(FixedAssetService::class);
@@ -274,16 +277,16 @@ class FixedAssetWebTest extends TestCase
     public function test_fixed_asset_report_center_reflects_actual_assets_and_accumulated_depreciation(): void
     {
         $asset = FixedAsset::create([
-            'branch_id'               => $this->branch->id,
-            'name'                    => 'Timbangan Digital Presisi',
-            'purchase_date'           => '2026-01-01',
-            'purchase_price'          => 5000000,
-            'salvage_value'           => 500000,
-            'useful_life_months'      => 10,
-            'asset_account_id'        => $this->assetAccount->id,
+            'branch_id' => $this->branch->id,
+            'name' => 'Timbangan Digital Presisi',
+            'purchase_date' => '2026-01-01',
+            'purchase_price' => 5000000,
+            'salvage_value' => 500000,
+            'useful_life_months' => 10,
+            'asset_account_id' => $this->assetAccount->id,
             'depreciation_account_id' => $this->depreciationAccount->id,
-            'expense_account_id'      => $this->expenseAccount->id,
-            'status'                  => 'ACTIVE',
+            'expense_account_id' => $this->expenseAccount->id,
+            'status' => 'ACTIVE',
         ]);
 
         // Jalankan depresiasi

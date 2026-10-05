@@ -30,7 +30,7 @@ class CategoryController extends Controller
      */
     public function store(StoreCategoryRequest $request): JsonResponse
     {
-        if (!$request->user()->isMaster()) {
+        if (! $request->user()->isMaster()) {
             return response()->json([
                 'message' => 'Unauthorized. Only superadmin can create categories.',
             ], 403);
@@ -60,7 +60,7 @@ class CategoryController extends Controller
      */
     public function update(UpdateCategoryRequest $request, Category $category): JsonResponse
     {
-        if (!$request->user()->isMaster()) {
+        if (! $request->user()->isMaster()) {
             return response()->json([
                 'message' => 'Unauthorized. Only superadmin can update categories.',
             ], 403);
@@ -80,7 +80,7 @@ class CategoryController extends Controller
      */
     public function destroy(Request $request, Category $category): JsonResponse
     {
-        if (!$request->user()->isMaster()) {
+        if (! $request->user()->isMaster()) {
             return response()->json([
                 'message' => 'Unauthorized. Only superadmin can delete categories.',
             ], 403);

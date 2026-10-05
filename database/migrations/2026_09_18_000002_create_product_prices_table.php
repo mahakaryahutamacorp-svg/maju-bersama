@@ -42,7 +42,7 @@ return new class extends Migration
                         ];
                     }
 
-                    if (!empty($records)) {
+                    if (! empty($records)) {
                         DB::table('product_prices')->insert($records);
                     }
                 });

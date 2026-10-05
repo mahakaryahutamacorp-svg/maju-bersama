@@ -6,7 +6,6 @@ use App\Models\Branch;
 use App\Models\Category;
 use App\Models\ChartOfAccount;
 use App\Models\GoodsReceipt;
-use App\Models\GoodsReceiptItem;
 use App\Models\Inventory;
 use App\Models\JournalHeader;
 use App\Models\Product;
@@ -21,20 +20,28 @@ use Tests\TestCase;
 class GoodsReceiptServiceTest extends TestCase
 {
     private GoodsReceiptService $service;
+
     private Branch $central;
+
     private User $master;
+
     private Category $category;
+
     private Product $productA;
+
     private Product $productB;
+
     private ChartOfAccount $accountCash;
+
     private ChartOfAccount $accountInventory;
+
     private ChartOfAccount $accountPayable;
 
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->service = new GoodsReceiptService();
+        $this->service = new GoodsReceiptService;
 
         // 1. Setup Branch & User
         $this->central = Branch::create([

@@ -12,9 +12,13 @@ use Tests\TestCase;
 class ProductApiTest extends TestCase
 {
     private Branch $branchA;
+
     private Branch $branchB;
+
     private User $userA;
+
     private User $userB;
+
     private Category $category;
 
     protected function setUp(): void
@@ -105,7 +109,7 @@ class ProductApiTest extends TestCase
             ->assertJsonPath('data.branch_id', $this->branchA->id);
 
         $product = Product::where('name', 'New Product')->first();
-        $this->assertStringStartsWith('BR' . $this->branchA->id . '-', $product->sku);
+        $this->assertStringStartsWith('BR'.$this->branchA->id.'-', $product->sku);
     }
 
     public function test_user_can_create_product_with_custom_sku(): void

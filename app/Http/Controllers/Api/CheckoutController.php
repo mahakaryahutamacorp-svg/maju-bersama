@@ -9,9 +9,7 @@ use Illuminate\Http\JsonResponse;
 
 class CheckoutController extends Controller
 {
-    public function __construct(private readonly SalePostingService $salePostingService)
-    {
-    }
+    public function __construct(private readonly SalePostingService $salePostingService) {}
 
     /**
      * Record a point of sale transaction.

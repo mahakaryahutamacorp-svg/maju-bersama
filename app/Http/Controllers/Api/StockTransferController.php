@@ -11,9 +11,7 @@ use Illuminate\Http\Request;
 
 class StockTransferController extends Controller
 {
-    public function __construct(private readonly StockTransferService $stockTransferService)
-    {
-    }
+    public function __construct(private readonly StockTransferService $stockTransferService) {}
 
     /**
      * List transfers that involve the caller's branch. Master users see everything.

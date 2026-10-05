@@ -14,9 +14,13 @@ use Tests\TestCase;
 class StockTransferTest extends TestCase
 {
     private Branch $central;
+
     private Branch $branchOne;
+
     private Category $category;
+
     private User $master;
+
     private Product $centralProduct;
 
     protected function setUp(): void

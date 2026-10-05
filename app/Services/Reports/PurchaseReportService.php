@@ -11,9 +11,6 @@ class PurchaseReportService
     /**
      * Generate purchase order summary and detailed records.
      *
-     * @param string $startDate
-     * @param string $endDate
-     * @param int|null $branchId
      * @return array{
      *     purchases: Collection,
      *     total_purchases: float,
@@ -33,7 +30,7 @@ class PurchaseReportService
             ->where(function ($q) use ($start, $end) {
                 $q->where(function ($dateQ) use ($start, $end) {
                     $dateQ->whereDate('order_date', '>=', $start->toDateString())
-                          ->whereDate('order_date', '<=', $end->toDateString());
+                        ->whereDate('order_date', '<=', $end->toDateString());
                 })->orWhere(function ($sub) use ($start, $end) {
                     $sub->whereNull('order_date')
                         ->whereBetween('created_at', [$start, $end]);

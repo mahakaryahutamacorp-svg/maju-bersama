@@ -12,9 +12,13 @@ use Tests\TestCase;
 class BranchApiTest extends TestCase
 {
     private Branch $branch;
+
     private Category $category;
+
     private User $superadmin;
+
     private User $branchAdmin;
+
     private User $cashier;
 
     protected function setUp(): void
