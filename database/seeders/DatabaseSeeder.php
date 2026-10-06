@@ -134,6 +134,7 @@ class DatabaseSeeder extends Seeder
         // 9. Expense Categories
         $expenseCoa = ChartOfAccount::where('code', '6100')->first()
             ?? ChartOfAccount::where('code', '5110')->first();
+        $utilityCoa = ChartOfAccount::where('code', '6200')->first() ?? $expenseCoa;
         if ($expenseCoa) {
             ExpenseCategory::create([
                 'branch_id' => $branchId,
@@ -143,7 +144,7 @@ class DatabaseSeeder extends Seeder
             ]);
             ExpenseCategory::create([
                 'branch_id' => $branchId,
-                'chart_of_account_id' => $expenseCoa->id,
+                'chart_of_account_id' => $utilityCoa->id,
                 'name' => 'Listrik, Air & Internet',
                 'is_active' => true,
             ]);
