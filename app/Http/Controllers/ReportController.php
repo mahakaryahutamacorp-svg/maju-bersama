@@ -30,6 +30,7 @@ class ReportController extends Controller
             'end_date' => $request->input('end_date', now()->toDateString()),
             'type' => $request->input('type', 'all'),
             'branch_id' => $isMaster ? $request->input('branch_id') : $currentUser->branch_id,
+            'search' => mb_substr((string) $request->input('search', ''), 0, 100),
         ]);
 
         $branches = $isMaster
@@ -48,9 +49,7 @@ class ReportController extends Controller
     public function incomeStatement(Request $request, IncomeStatementService $service): View|JsonResponse
     {
         $currentUser = $request->user();
-        $isMaster = $currentUser->isMaster()
-            || in_array($currentUser->role, ['admin', 'superadmin', 'master'], true)
-            || ($currentUser->branch && ($currentUser->branch->parent_id === null || $currentUser->branch->code === 'PUSAT'));
+        $isMaster = $currentUser->isMaster();
 
         // Parameter start_date & end_date dari query string (default: bulan berjalan)
         $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
@@ -88,9 +87,7 @@ class ReportController extends Controller
     public function trialBalance(Request $request, TrialBalanceService $service): View
     {
         $currentUser = $request->user();
-        $isMaster = $currentUser->isMaster()
-            || in_array($currentUser->role, ['admin', 'superadmin', 'master'], true)
-            || ($currentUser->branch && ($currentUser->branch->parent_id === null || $currentUser->branch->code === 'PUSAT'));
+        $isMaster = $currentUser->isMaster();
 
         $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
         $endDate = $request->input('end_date', now()->endOfMonth()->toDateString());
@@ -119,9 +116,7 @@ class ReportController extends Controller
     public function balanceSheet(Request $request, BalanceSheetService $service): View|JsonResponse
     {
         $currentUser = $request->user();
-        $isMaster = $currentUser->isMaster()
-            || in_array($currentUser->role, ['admin', 'superadmin', 'master'], true)
-            || ($currentUser->branch && ($currentUser->branch->parent_id === null || $currentUser->branch->code === 'PUSAT'));
+        $isMaster = $currentUser->isMaster();
 
         $startDate = $request->input('start_date', now()->startOfYear()->toDateString());
         $endDate = $request->input('end_date', now()->toDateString());
@@ -157,9 +152,7 @@ class ReportController extends Controller
     public function cashFlow(Request $request, CashFlowService $service): View
     {
         $currentUser = $request->user();
-        $isMaster = $currentUser->isMaster()
-            || in_array($currentUser->role, ['admin', 'superadmin', 'master'], true)
-            || ($currentUser->branch && ($currentUser->branch->parent_id === null || $currentUser->branch->code === 'PUSAT'));
+        $isMaster = $currentUser->isMaster();
 
         $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
         $endDate = $request->input('end_date', now()->endOfMonth()->toDateString());
@@ -224,9 +217,7 @@ class ReportController extends Controller
     public function purchases(Request $request, PurchaseReportService $service): View
     {
         $currentUser = $request->user();
-        $isMaster = $currentUser->isMaster()
-            || in_array($currentUser->role, ['admin', 'superadmin', 'master'], true)
-            || ($currentUser->branch && ($currentUser->branch->parent_id === null || $currentUser->branch->code === 'PUSAT'));
+        $isMaster = $currentUser->isMaster();
 
         $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
         $endDate = $request->input('end_date', now()->toDateString());
@@ -255,9 +246,7 @@ class ReportController extends Controller
     public function stockCard(Request $request, InventoryReportService $service): View
     {
         $currentUser = $request->user();
-        $isMaster = $currentUser->isMaster()
-            || in_array($currentUser->role, ['admin', 'superadmin', 'master'], true)
-            || ($currentUser->branch && ($currentUser->branch->parent_id === null || $currentUser->branch->code === 'PUSAT'));
+        $isMaster = $currentUser->isMaster();
 
         $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
         $endDate = $request->input('end_date', now()->toDateString());
@@ -289,9 +278,7 @@ class ReportController extends Controller
     public function fixedAssets(Request $request, FixedAssetReportService $service): View
     {
         $currentUser = $request->user();
-        $isMaster = $currentUser->isMaster()
-            || in_array($currentUser->role, ['admin', 'superadmin', 'master'], true)
-            || ($currentUser->branch && ($currentUser->branch->parent_id === null || $currentUser->branch->code === 'PUSAT'));
+        $isMaster = $currentUser->isMaster();
 
         $branchId = $isMaster
             ? ($request->filled('branch_id') ? (int) $request->input('branch_id') : null)
@@ -341,9 +328,7 @@ class ReportController extends Controller
     public function apAging(Request $request, AgingReportService $service): View
     {
         $currentUser = $request->user();
-        $isMaster = $currentUser->isMaster()
-            || in_array($currentUser->role, ['admin', 'superadmin', 'master'], true)
-            || ($currentUser->branch && ($currentUser->branch->parent_id === null || $currentUser->branch->code === 'PUSAT'));
+        $isMaster = $currentUser->isMaster();
 
         $branchId = $isMaster
             ? ($request->filled('branch_id') ? (int) $request->input('branch_id') : null)
