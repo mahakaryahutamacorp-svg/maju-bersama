@@ -47,5 +47,14 @@ class AppServiceProvider extends ServiceProvider
 
         // Operasional Cabang: Kas, Biaya (Expenses), Aset Tetap, Pembelian PO & Retur, Mutasi, Pembayaran.
         Gate::define('manage-branch-operations', fn (User $user) => $user->isMaster() || $user->isBranchAdmin());
+
+        // Riwayat Penjualan & Piutang (AR) Cabang
+        Gate::define('view-sales-history', fn (User $user) => $user->isMaster() || $user->isBranchAdmin());
+        Gate::define('view-ar-reports', fn (User $user) => $user->isMaster() || $user->isBranchAdmin());
+
+        // Model Policies
+        Gate::policy(\App\Models\Sale::class, \App\Policies\SalePolicy::class);
+        Gate::policy(\App\Models\Expense::class, \App\Policies\ExpensePolicy::class);
+        Gate::policy(\App\Models\Customer::class, \App\Policies\CustomerPolicy::class);
     }
 }

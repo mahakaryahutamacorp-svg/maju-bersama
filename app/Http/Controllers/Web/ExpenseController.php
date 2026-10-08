@@ -102,11 +102,15 @@ class ExpenseController extends Controller
             $accounts = ChartOfAccount::where('type', 'asset')->orderBy('code')->get();
         }
 
+        $isMaster = $user->isMaster();
+        $branches = $isMaster ? \App\Models\Branch::orderBy('name')->get() : collect([$user->branch]);
+
         return view('backoffice.expenses.create', [
             'currentUser' => $user,
-            'isMaster' => $user->isMaster(),
+            'isMaster' => $isMaster,
             'categories' => $categories,
             'accounts' => $accounts,
+            'branches' => $branches,
             'todayDate' => now()->toDateString(),
         ]);
     }
@@ -123,16 +127,25 @@ class ExpenseController extends Controller
             'expense_date' => ['required', 'date'],
             'reference_number' => ['nullable', 'string', 'max:100'],
             'notes' => ['required', 'string', 'max:1000'],
+            'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
         ]);
 
+        $user = $request->user();
+        $isMaster = $user->isMaster();
+
+        // Branch Admin otomatis terkunci ke cabangnya sendiri (auto-fill)
+        $branchId = ($isMaster && ! empty($validated['branch_id']))
+            ? (int) $validated['branch_id']
+            : (int) $user->branch_id;
+
         $expense = $this->expenseService->recordExpense([
-            'branch_id' => $request->user()->branch_id,
-            'user_id' => $request->user()->id,
+            'branch_id' => $branchId,
+            'user_id' => $user->id,
             'expense_category_id' => (int) $validated['expense_category_id'],
             'account_id' => (int) $validated['account_id'],
             'amount' => $validated['amount'],
             'expense_date' => $validated['expense_date'],
-            'reference_number' => $validated['reference_number'] ?: null,
+            'reference_number' => $validated['reference_number'] ?? null,
             'notes' => $validated['notes'],
         ]);
 

@@ -18,14 +18,12 @@ class CustomerController extends Controller
     public function index(Request $request): View
     {
         $user = $request->user()->load('branch');
-        $isMaster = $user->isMaster() || $user->branch?->parent_id === null || in_array($user->role, ['admin', 'master', 'superadmin'], true);
+        $isMaster = $user->isMaster();
         $search = $request->input('search');
         $selectedGroupId = $request->input('customer_group_id');
         $selectedBranchId = $isMaster ? $request->input('branch_id') : $user->branch_id;
 
-        $query = Customer::withoutGlobalScopes()
-            ->with(['customerGroup', 'branch'])
-            ->when(! $isMaster, fn ($q) => $q->where('branch_id', $user->branch_id))
+        $query = Customer::with(['customerGroup', 'branch'])
             ->when($isMaster && $selectedBranchId, fn ($q) => $q->where('branch_id', $selectedBranchId))
             ->when($selectedGroupId, fn ($q) => $q->where('customer_group_id', $selectedGroupId))
             ->when($search, function ($q, $search) {
@@ -113,9 +111,9 @@ class CustomerController extends Controller
     public function edit(Request $request, int $id): View
     {
         $user = $request->user()->load('branch');
-        $isMaster = $user->isMaster() || $user->branch?->parent_id === null || in_array($user->role, ['admin', 'master', 'superadmin'], true);
+        $isMaster = $user->isMaster();
 
-        $customer = Customer::withoutGlobalScopes()->with(['customerGroup', 'branch'])->findOrFail($id);
+        $customer = Customer::with(['customerGroup', 'branch'])->findOrFail($id);
 
         if (! $isMaster && (int) $customer->branch_id !== (int) $user->branch_id) {
             abort(403, 'Akses ditolak untuk data pelanggan cabang lain.');
@@ -139,9 +137,9 @@ class CustomerController extends Controller
     public function update(Request $request, int $id): RedirectResponse
     {
         $user = $request->user();
-        $isMaster = $user->isMaster() || $user->branch?->parent_id === null || in_array($user->role, ['admin', 'master', 'superadmin'], true);
+        $isMaster = $user->isMaster();
 
-        $customer = Customer::withoutGlobalScopes()->findOrFail($id);
+        $customer = Customer::findOrFail($id);
 
         if (! $isMaster && (int) $customer->branch_id !== (int) $user->branch_id) {
             abort(403, 'Akses ditolak untuk mengubah pelanggan cabang lain.');
@@ -181,7 +179,7 @@ class CustomerController extends Controller
         $user = $request->user();
         $isMaster = $user->isMaster();
 
-        $customer = Customer::withoutGlobalScopes()->findOrFail($id);
+        $customer = Customer::findOrFail($id);
 
         if (! $isMaster && (int) $customer->branch_id !== (int) $user->branch_id) {
             abort(403, 'Akses ditolak.');

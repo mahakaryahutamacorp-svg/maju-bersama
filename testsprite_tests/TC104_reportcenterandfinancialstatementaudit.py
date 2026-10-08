@@ -92,13 +92,15 @@ def test_reportcenterandfinancialstatementaudit():
         else:
             prod_items = []
 
+        qty = 3
         if prod_items:
             # pick first product with an id and price
             for p in prod_items:
                 if isinstance(p, dict) and ("id" in p or "product_id" in p):
                     pid = p.get("id") or p.get("product_id")
                     price = p.get("price") or p.get("selling_price") or p.get("unit_price") or p.get("harga")
-                    if pid is not None and price is not None:
+                    stock_qty = p.get("stock") or 0
+                    if pid is not None and price is not None and stock_qty >= qty:
                         product_id = pid
                         product_price = Decimal(str(price))
                         break
@@ -157,6 +159,8 @@ def test_reportcenterandfinancialstatementaudit():
         tx = checkout_response_json
         if isinstance(tx, dict) and "data" in tx and isinstance(tx["data"], dict):
             tx = tx["data"]
+        elif isinstance(tx, dict) and "sale" in tx and isinstance(tx["sale"], dict):
+            tx = tx["sale"]
         assert isinstance(tx, dict), f"Unexpected checkout response structure: {checkout_response_json}"
 
         # Determine items list, id and totals in response
@@ -165,7 +169,7 @@ def test_reportcenterandfinancialstatementaudit():
 
         # Extract transaction ID and grand total
         tx_id = tx.get("id") or tx.get("transaction_id") or tx.get("invoice_id") or tx.get("sale_id")
-        grand_total = tx.get("total") or tx.get("grand_total") or tx.get("amount") or tx.get("grandTotal")
+        grand_total = tx.get("total_amount") or tx.get("total") or tx.get("grand_total") or tx.get("amount") or tx.get("grandTotal")
         assert grand_total is not None, f"Grand total not found in checkout response: {tx}"
 
         # Convert grand_total to Decimal

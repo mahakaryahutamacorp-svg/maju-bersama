@@ -171,9 +171,7 @@ class ReportController extends Controller
     public function sales(Request $request, SalesReportService $service): View|JsonResponse
     {
         $currentUser = $request->user();
-        $isMaster = $currentUser->isMaster()
-            || in_array($currentUser->role, ['admin', 'superadmin', 'master'], true)
-            || ($currentUser->branch && ($currentUser->branch->parent_id === null || $currentUser->branch->code === 'PUSAT'));
+        $isMaster = $currentUser->isMaster();
 
         $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
         $endDate = $request->input('end_date', now()->toDateString());
@@ -300,9 +298,7 @@ class ReportController extends Controller
     public function arAging(Request $request, AgingReportService $service): View
     {
         $currentUser = $request->user();
-        $isMaster = $currentUser->isMaster()
-            || in_array($currentUser->role, ['admin', 'superadmin', 'master'], true)
-            || ($currentUser->branch && ($currentUser->branch->parent_id === null || $currentUser->branch->code === 'PUSAT'));
+        $isMaster = $currentUser->isMaster();
 
         $branchId = $isMaster
             ? ($request->filled('branch_id') ? (int) $request->input('branch_id') : null)

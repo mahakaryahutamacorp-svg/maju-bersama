@@ -105,6 +105,40 @@
                     </div>
 
                     <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                        <!-- Cabang / Branch -->
+                        @if ($isMaster)
+                            <div>
+                                <label for="branch_id" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                                    Cabang <span class="text-rose-500">*</span>
+                                </label>
+                                <select
+                                    id="branch_id"
+                                    name="branch_id"
+                                    required
+                                    class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 shadow-2xs outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                                >
+                                    <option value="">-- Pilih Cabang --</option>
+                                    @foreach ($branches as $branch)
+                                        <option value="{{ $branch->id }}" {{ (old('branch_id', $currentUser->branch_id) == $branch->id) ? 'selected' : '' }}>
+                                            {{ $branch->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        @else
+                            <input type="hidden" name="branch_id" value="{{ $currentUser->branch_id }}">
+                            <div>
+                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                                    Cabang Operasional
+                                </label>
+                                <div class="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm font-semibold text-slate-700">
+                                    <span class="inline-block h-2 w-2 rounded-full bg-emerald-500"></span>
+                                    <span>{{ $currentUser->branch?->name ?? 'Cabang Sendiri' }}</span>
+                                    <span class="ml-auto text-[11px] font-normal text-slate-400">(Otomatis Cabang Sendiri)</span>
+                                </div>
+                            </div>
+                        @endif
+
                         <!-- Tanggal Pengeluaran -->
                         <div>
                             <label for="expense_date" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">

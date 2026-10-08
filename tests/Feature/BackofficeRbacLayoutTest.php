@@ -30,9 +30,7 @@ class BackofficeRbacLayoutTest extends TestCase
 
     /** Teks yang HANYA boleh muncul untuk master. */
     private array $enterpriseMarkers = [
-        'Penjualan &amp; Piutang (AR)',
         'Pembelian &amp; Hutang (AP)',
-        'Keuangan &amp; Akuntansi',
         'Pusat Laporan',
         'Cadangan Database Sistem (Manual Backup)',
         'Review ledger',
@@ -41,6 +39,8 @@ class BackofficeRbacLayoutTest extends TestCase
         'Staf &amp; Kasir',
         'Kategori Biaya',
         'Data Supplier',
+        'Journal Ledger',
+        'Input Saldo Awal (Setup)',
     ];
 
     public function test_cashier_only_sees_dashboard_and_kasir_division(): void
@@ -51,9 +51,12 @@ class BackofficeRbacLayoutTest extends TestCase
             ->assertSee('Point of Sale (POS)')
             ->assertSee('Kasir POS')
             ->assertSee('Shift Kasir')
+            ->assertDontSee('Riwayat Transaksi POS')
             ->assertDontSee('Gudang &amp; Inventaris', false)
             ->assertDontSee('Master Data</span>', false)
             ->assertDontSee('Katalog Produk')
+            ->assertDontSee('Penjualan &amp; Piutang (AR)', false)
+            ->assertDontSee('Keuangan &amp; Akuntansi', false)
             ->assertDontSee('Check stock');
 
         foreach ($this->enterpriseMarkers as $marker) {
@@ -74,10 +77,13 @@ class BackofficeRbacLayoutTest extends TestCase
         $response = $this->actingAs($this->makeUser('branch_admin'))->get('/backoffice')->assertOk();
 
         $response->assertSee('Dashboard &amp; Kasir', false)
+            ->assertSee('Riwayat Transaksi POS')
             ->assertSee('Gudang &amp; Inventaris', false)
             ->assertSee('Penerimaan Barang (GR)')
             ->assertSee('Katalog Produk')
             ->assertSee('Data Pelanggan')
+            ->assertSee('Daftar Piutang (AR) / Pelanggan')
+            ->assertSee('Pengeluaran / Expenses')
             ->assertSee('Shift Kasir');
 
         foreach ($this->enterpriseMarkers as $marker) {
@@ -94,6 +100,8 @@ class BackofficeRbacLayoutTest extends TestCase
         }
 
         $response->assertSee('Gudang &amp; Inventaris', false)
+            ->assertSee('Penjualan &amp; Piutang (AR)', false)
+            ->assertSee('Keuangan &amp; Akuntansi', false)
             ->assertDontSee('Shift Kasir');
     }
 
@@ -130,6 +138,8 @@ class BackofficeRbacLayoutTest extends TestCase
         // Operasional Cabang & Gudang (branch_admin only)
         $this->actingAs($cashier)->get('/inventory')->assertForbidden();
         $this->actingAs($cashier)->get('/inventory/transfer')->assertForbidden();
+        $this->actingAs($cashier)->get('/reports/sales')->assertForbidden();
+        $this->actingAs($cashier)->get('/reports/ar-aging')->assertForbidden();
         $this->actingAs($cashier)->get('/backoffice/expenses')->assertForbidden();
         $this->actingAs($cashier)->get('/backoffice/fixed-assets')->assertForbidden();
         $this->actingAs($cashier)->get('/backoffice/purchase-orders')->assertForbidden();
@@ -149,7 +159,10 @@ class BackofficeRbacLayoutTest extends TestCase
 
         // But branch operations for own branch MUST be allowed
         $this->actingAs($branchAdmin)->get('/inventory')->assertOk();
+        $this->actingAs($branchAdmin)->get('/reports/sales')->assertOk();
+        $this->actingAs($branchAdmin)->get('/reports/ar-aging')->assertOk();
         $this->actingAs($branchAdmin)->get('/backoffice/expenses')->assertOk();
+        $this->actingAs($branchAdmin)->get('/backoffice/customers')->assertOk();
         $this->actingAs($branchAdmin)->get('/backoffice/fixed-assets')->assertOk();
         $this->actingAs($branchAdmin)->get('/backoffice/purchase-orders')->assertOk();
         $this->actingAs($branchAdmin)->get('/backoffice/payments')->assertOk();

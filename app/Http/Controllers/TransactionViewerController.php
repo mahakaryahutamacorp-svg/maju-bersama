@@ -26,8 +26,7 @@ class TransactionViewerController extends Controller
         $ref = trim($reference);
 
         // 1. Penjualan POS (INV- / POS-)
-        $sale = Sale::withoutGlobalScopes()
-            ->where('receipt_number', $ref)
+        $sale = Sale::where('receipt_number', $ref)
             ->with(['items.product', 'branch', 'user', 'cashRegisterShift'])
             ->first();
 
@@ -53,8 +52,7 @@ class TransactionViewerController extends Controller
         }
 
         // 3. Pengeluaran Biaya Operasional (EXP-)
-        $expense = Expense::withoutGlobalScopes()
-            ->where('reference_number', $ref)
+        $expense = Expense::where('reference_number', $ref)
             ->with(['expenseCategory.chartOfAccount', 'account', 'branch', 'journalHeader.journalLines'])
             ->first();
 

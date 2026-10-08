@@ -28,7 +28,7 @@ class AgingReportService
      */
     public function getArAging(?int $branchId = null): array
     {
-        $query = Sale::withoutGlobalScopes()
+        $query = Sale::query()
             ->with(['customer', 'branch'])
             ->where('payment_status', '!=', 'PAID')
             ->orderBy('id', 'desc');

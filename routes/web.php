@@ -161,6 +161,12 @@ Route::middleware('auth')->group(function () {
             Route::post('payments/payables', [PaymentController::class, 'storeAP'])->name('payments.payables.store');
         });
 
+        // Laporan Operasional Cabang: Penjualan & Piutang (Master & Branch Admin)
+        Route::middleware('can:manage-branch-operations')->group(function () {
+            Route::get('reports/sales', [ReportController::class, 'sales'])->name('reports.sales');
+            Route::get('reports/ar-aging', [ReportController::class, 'arAging'])->name('reports.ar-aging');
+        });
+
         // Modul Enterprise (HANYA Master)
         Route::middleware('can:view-accounting')->group(function () {
             Route::resource('supplier-payments', SupplierPaymentController::class);
@@ -173,10 +179,8 @@ Route::middleware('auth')->group(function () {
             Route::get('reports/cash-flow', [ReportController::class, 'cashFlow'])->name('reports.cash-flow');
 
             // Operational Reports
-            Route::get('reports/sales', [ReportController::class, 'sales'])->name('reports.sales');
             Route::get('reports/purchases', [ReportController::class, 'purchases'])->name('reports.purchases');
             Route::get('reports/inventory/stock-card', [ReportController::class, 'stockCard'])->name('reports.stock-card');
-            Route::get('reports/ar-aging', [ReportController::class, 'arAging'])->name('reports.ar-aging');
             Route::get('reports/ap-aging', [ReportController::class, 'apAging'])->name('reports.ap-aging');
         });
 
@@ -204,6 +208,10 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware('can:manage-branch-operations')->group(function () {
         Route::get('/backoffice/reports/fixed-assets', [ReportController::class, 'fixedAssets'])->name('reports.fixed-assets');
+        Route::get('/backoffice/reports/sales', [ReportController::class, 'sales'])->name('reports.sales');
+        Route::get('/reports/sales', [ReportController::class, 'sales']);
+        Route::get('/backoffice/reports/ar-aging', [ReportController::class, 'arAging'])->name('reports.ar-aging');
+        Route::get('/reports/ar-aging', [ReportController::class, 'arAging']);
     });
 
     Route::middleware('can:view-accounting')->group(function () {
@@ -214,10 +222,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/backoffice/reports/cash-flow', [ReportController::class, 'cashFlow'])->name('reports.cash-flow');
 
         Route::prefix('/backoffice/reports')->group(function () {
-            Route::get('/sales', [ReportController::class, 'sales'])->name('reports.sales');
             Route::get('/purchases', [ReportController::class, 'purchases'])->name('reports.purchases');
             Route::get('/inventory/stock-card', [ReportController::class, 'stockCard'])->name('reports.stock-card');
-            Route::get('/ar-aging', [ReportController::class, 'arAging'])->name('reports.ar-aging');
             Route::get('/ap-aging', [ReportController::class, 'apAging'])->name('reports.ap-aging');
         });
     });

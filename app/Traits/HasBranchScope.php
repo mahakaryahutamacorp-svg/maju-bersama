@@ -28,9 +28,4 @@ trait HasBranchScope
             }
         });
     }
-
-    protected static function booted(): void
-    {
-        static::bootHasBranchScope();
-    }
 }

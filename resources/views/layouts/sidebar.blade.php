@@ -27,9 +27,10 @@
     $isPreviewActive = request()->is('preview*');
     $isMasterDataOpen = $isProductsActive || $isCategoriesActive || $isSuppliersActive || $isCustomersActive || $isUsersActive || $isBranchesActive || $isExpenseCatActive || $isPreviewActive;
 
-    $isReceivablesActive = request()->is('backoffice/payments/receivables*') || request()->is('backoffice/payments*');
+    $isReceivablesActive = request()->is('backoffice/payments/receivables*') || request()->is('backoffice/payments*') || request()->is('reports/ar-aging*') || request()->is('backoffice/reports/ar-aging*');
+    $isSalesHistoryActive = request()->is('reports/sales*') || request()->is('backoffice/reports/sales*');
     $isSalesReturnsActive = request()->is('backoffice/sales-returns*');
-    $isPenjualanOpen = $isReceivablesActive || $isSalesReturnsActive;
+    $isPenjualanOpen = $isReceivablesActive || $isSalesReturnsActive || $isSalesHistoryActive;
 
     $isPurchaseOrdersActive = request()->is('backoffice/purchase-orders*');
     $isSupplierPaymentsActive = request()->is('backoffice/supplier-payments*') || request()->is('purchases/payables*');
@@ -127,6 +128,12 @@
                    class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isPosActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
                     Kasir POS
                 </a>
+                @can('manage-branch-operations')
+                <a href="{{ route('reports.sales') }}" 
+                   class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isSalesHistoryActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
+                    Riwayat Transaksi POS
+                </a>
+                @endcan
             </div>
         </div>
 
@@ -247,10 +254,8 @@
         </div>
         @endcan
 
-        {{-- RBAC: Divisi 4, 5, 6 & Pusat Laporan = modul Enterprise, HANYA role master. --}}
-        @can('access-enterprise')
-
         <!-- DIVISI 4: 🛒 Penjualan & Piutang (AR) -->
+        @can('manage-branch-operations')
         <div x-data="{ open: {{ $isPenjualanOpen ? 'true' : 'false' }} }" class="rounded-xl border border-slate-800/80 bg-slate-900/40 overflow-hidden">
             <button type="button" 
                     @click="open = !open" 
@@ -275,6 +280,14 @@
                  x-transition:leave-start="opacity-100 translate-y-0"
                  x-transition:leave-end="opacity-0 -translate-y-1"
                  class="space-y-0.5 px-1 py-1 border-t border-slate-800/60 bg-slate-950/40">
+                <a href="{{ route('reports.sales') }}" 
+                   class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isSalesHistoryActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
+                    Riwayat Transaksi POS
+                </a>
+                <a href="{{ route('reports.ar-aging') }}" 
+                   class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ request()->is('reports/ar-aging*') || request()->is('backoffice/reports/ar-aging*') ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
+                    Daftar Piutang (AR) / Pelanggan
+                </a>
                 <a href="{{ route('backoffice.payments.receivables.create') }}" 
                    class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isReceivablesActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
                     Pembayaran Piutang (AR)
@@ -285,7 +298,10 @@
                 </a>
             </div>
         </div>
+        @endcan
 
+        {{-- Modul Enterprise AP: HANYA role master --}}
+        @can('access-enterprise')
         <!-- DIVISI 5: 🚛 Pembelian & Hutang (AP) -->
         <div x-data="{ open: {{ $isPembelianOpen ? 'true' : 'false' }} }" class="rounded-xl border border-slate-800/80 bg-slate-900/40 overflow-hidden">
             <button type="button" 
@@ -326,8 +342,10 @@
                 </a>
             </div>
         </div>
+        @endcan
 
         <!-- DIVISI 6: 💰 Keuangan & Akuntansi -->
+        @can('manage-branch-operations')
         <div x-data="{ open: {{ $isKeuanganOpen ? 'true' : 'false' }} }" class="rounded-xl border border-slate-800/80 bg-slate-900/40 overflow-hidden">
             <button type="button" 
                     @click="open = !open" 
@@ -352,30 +370,36 @@
                  x-transition:leave-start="opacity-100 translate-y-0"
                  x-transition:leave-end="opacity-0 -translate-y-1"
                  class="space-y-0.5 px-1 py-1 border-t border-slate-800/60 bg-slate-950/40">
+                @can('view-accounting')
                 <a href="/reports/journal" 
                    class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isJournalActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
                     Journal Ledger
                 </a>
+                @endcan
                 <a href="{{ route('backoffice.cash-transfers.index') }}" 
                    class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isCashTransferActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
                     Mutasi Kas &amp; Bank
                 </a>
                 <a href="{{ route('backoffice.expenses.index') }}" 
                    class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isExpensesActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
-                    Biaya Operasional (Kas Keluar)
+                    Pengeluaran / Expenses
                 </a>
+                @can('manage-system')
                 <a href="{{ route('backoffice.opening-balances.create') }}" 
                    class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isOpeningBalanceActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
                     Input Saldo Awal (Setup)
                 </a>
+                @endcan
                 <a href="{{ route('backoffice.fixed-assets.index') }}" 
                    class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isFixedAssetsActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
                     Harta Tetap
                 </a>
             </div>
         </div>
+        @endcan
 
-        <!-- Pusat Laporan (Quick Access Button) -->
+        {{-- Pusat Laporan (Quick Access Button) --}}
+        @can('view-accounting')
         <div class="pt-2">
             <a href="{{ route('reports.index') }}" 
                class="group flex items-center justify-between rounded-xl border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-xs font-semibold text-amber-300 hover:bg-amber-400/20 hover:text-white transition shadow-xs">

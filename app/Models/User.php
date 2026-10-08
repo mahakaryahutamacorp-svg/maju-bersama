@@ -72,7 +72,7 @@ class User extends Authenticatable
 
     public function isMaster(): bool
     {
-        return in_array($this->role, ['master', 'superadmin'], true);
+        return in_array($this->role, ['master', 'superadmin', 'super_admin'], true);
     }
 
     /**
