@@ -160,6 +160,12 @@ class ExpenseController extends Controller
             ], 201);
         }
 
+        if ($request->input('return_to') === 'finance') {
+            return redirect()
+                ->route('backoffice.finance.dashboard', ['tab' => 'pengeluaran'])
+                ->with('success', "Pengeluaran kas {$formattedAmount} untuk {$catName} berhasil dibukukan dengan jurnal akuntansi otomatis.");
+        }
+
         return redirect()
             ->route('backoffice.expenses.index')
             ->with('success', "Pengeluaran kas {$formattedAmount} untuk {$catName} berhasil dibukukan dengan jurnal akuntansi otomatis.");

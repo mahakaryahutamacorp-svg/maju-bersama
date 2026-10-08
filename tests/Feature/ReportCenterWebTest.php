@@ -6,8 +6,11 @@ use App\Models\Branch;
 use App\Models\Category;
 use App\Models\ChartOfAccount;
 use App\Models\Customer;
+use App\Models\Expense;
+use App\Models\ExpenseCategory;
 use App\Models\Inventory;
 use App\Models\JournalHeader;
+use App\Models\Payment;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\Sale;
@@ -54,7 +57,131 @@ class ReportCenterWebTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('Pusat Laporan');
+        $response->assertSee('Keterangan Transaksi');
+        $response->assertSee('Total Pemasukan');
+        $response->assertSee('name="start_date"', false);
+        $response->assertSee('name="end_date"', false);
+        $response->assertSee('name="type"', false);
+        $response->assertSee('name="branch_id"', false);
         $response->assertSee('x-data="{ activeTab: \'keuangan\'', false);
+    }
+
+    public function test_branch_admin_does_not_see_branch_filter_and_cannot_read_other_branch_sales(): void
+    {
+        $otherBranch = Branch::create([
+            'code' => 'CAB2',
+            'name' => 'Cabang Lain',
+            'is_active' => true,
+        ]);
+
+        $branchAdmin = User::factory()->create([
+            'branch_id' => $this->branch->id,
+            'role' => 'branch_admin',
+        ]);
+
+        $ownCustomer = Customer::withoutGlobalScopes()->create([
+            'branch_id' => $this->branch->id,
+            'name' => 'Pelanggan Cabang Sendiri',
+        ]);
+
+        $foreignCustomer = Customer::withoutGlobalScopes()->create([
+            'branch_id' => $otherBranch->id,
+            'name' => 'Pelanggan Cabang Lain',
+        ]);
+
+        Sale::withoutGlobalScopes()->create([
+            'branch_id' => $this->branch->id,
+            'customer_id' => $ownCustomer->id,
+            'receipt_number' => 'INV-OWN-001',
+            'total_amount' => 150000,
+            'payment_method' => 'cash',
+            'status' => 'completed',
+            'created_by' => $branchAdmin->id,
+        ]);
+
+        Sale::withoutGlobalScopes()->create([
+            'branch_id' => $otherBranch->id,
+            'customer_id' => $foreignCustomer->id,
+            'receipt_number' => 'INV-OTH-001',
+            'total_amount' => 990000,
+            'payment_method' => 'cash',
+            'status' => 'completed',
+            'created_by' => $this->user->id,
+        ]);
+
+        $response = $this->actingAs($branchAdmin)->get('/backoffice/reports?branch_id='.$otherBranch->id);
+
+        $response->assertStatus(200);
+        $response->assertDontSee('name="branch_id"', false);
+        $response->assertSee('Penjualan Tunai - Pelanggan Cabang Sendiri');
+        $response->assertDontSee('Pelanggan Cabang Lain');
+        $response->assertDontSee('INV-OTH-001');
+    }
+
+    public function test_report_center_renders_human_readable_transaction_descriptions(): void
+    {
+        $customer = Customer::create([
+            'branch_id' => $this->branch->id,
+            'name' => 'Kelompok Tani Makmur',
+        ]);
+
+        Sale::create([
+            'branch_id' => $this->branch->id,
+            'customer_id' => $customer->id,
+            'receipt_number' => 'INV-HR-001',
+            'total_amount' => 250000,
+            'payment_method' => 'tempo',
+            'status' => 'completed',
+            'created_by' => $this->user->id,
+        ]);
+
+        $expenseAccount = ChartOfAccount::create([
+            'code' => '6100',
+            'name' => 'Beban Listrik',
+            'type' => 'expense',
+            'is_active' => true,
+        ]);
+        $cashAccount = ChartOfAccount::create([
+            'code' => '1110',
+            'name' => 'Kas',
+            'type' => 'asset',
+            'is_active' => true,
+        ]);
+
+        $expenseCategory = ExpenseCategory::create([
+            'branch_id' => $this->branch->id,
+            'name' => 'Listrik',
+            'chart_of_account_id' => $expenseAccount->id,
+            'is_active' => true,
+        ]);
+
+        Expense::create([
+            'branch_id' => $this->branch->id,
+            'expense_category_id' => $expenseCategory->id,
+            'account_id' => $cashAccount->id,
+            'amount' => 75000,
+            'expense_date' => now()->toDateString(),
+            'reference_number' => 'EXP-HR-001',
+            'notes' => 'Token PLN toko',
+        ]);
+
+        Payment::create([
+            'branch_id' => $this->branch->id,
+            'type' => 'AR',
+            'customer_id' => $customer->id,
+            'account_id' => $cashAccount->id,
+            'amount' => 100000,
+            'payment_date' => now()->toDateString(),
+            'reference_number' => 'AR-HR-001',
+        ]);
+
+        $response = $this->actingAs($this->user)->get(route('reports.index'));
+
+        $response->assertStatus(200);
+        $response->assertSee('Penjualan Kredit - Kelompok Tani Makmur');
+        $response->assertSee('Pengeluaran: Listrik');
+        $response->assertSee('Token PLN toko');
+        $response->assertSee('Pembayaran Piutang - Kelompok Tani Makmur');
     }
 
     public function test_report_center_has_all_five_categories(): void
@@ -332,7 +459,7 @@ class ReportCenterWebTest extends TestCase
         $response->assertSee('MAJU BERSAMA GRUP');
         $response->assertSee('POS-20260923-0001');
         $response->assertSee('40.000,00');
-        $response->assertSee('Pelanggan Umum (Walk-in)');
+        $response->assertSee('Penjualan Tunai - Pelanggan Umum');
     }
 
     public function test_purchases_report_renders_successfully(): void

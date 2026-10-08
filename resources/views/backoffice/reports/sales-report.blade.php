@@ -189,7 +189,7 @@
                         <tr class="bg-slate-900 text-white uppercase text-[10px] tracking-wider">
                             <th class="py-3 px-3">Tanggal</th>
                             <th class="py-3 px-3">No. Faktur</th>
-                            <th class="py-3 px-3">Pelanggan</th>
+                            <th class="py-3 px-3">Keterangan Transaksi</th>
                             <th class="py-3 px-3">Metode</th>
                             <th class="py-3 px-3 text-right">Total Jual</th>
                             <th class="py-3 px-3 text-center">Status Pembayaran</th>
@@ -205,7 +205,16 @@
                                     {{ $sale->receipt_number }}
                                 </td>
                                 <td class="py-2.5 px-3 text-slate-800">
-                                    <div class="font-medium">Pelanggan Umum (Walk-in)</div>
+                                    @php
+                                        $saleMethod = match (strtolower((string) ($sale->payment_method ?? 'cash'))) {
+                                            'tempo', 'piutang', 'kredit' => 'Kredit',
+                                            'transfer', 'bank' => 'Transfer',
+                                            'qris' => 'QRIS',
+                                            default => 'Tunai',
+                                        };
+                                        $saleCustomer = $sale->customer?->name ?: 'Pelanggan Umum';
+                                    @endphp
+                                    <div class="font-medium">Penjualan {{ $saleMethod }} - {{ $saleCustomer }}</div>
                                     <div class="text-[10px] text-slate-400">Kasir: {{ $sale->user->name ?? 'Kasir POS' }} &bull; {{ $sale->branch->name ?? '-' }}</div>
                                 </td>
                                 <td class="py-2.5 px-3 whitespace-nowrap">

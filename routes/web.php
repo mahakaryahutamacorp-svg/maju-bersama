@@ -19,6 +19,7 @@ use App\Http\Controllers\Web\CategoryController;
 use App\Http\Controllers\Web\CustomerController;
 use App\Http\Controllers\Web\ExpenseCategoryController;
 use App\Http\Controllers\Web\ExpenseController;
+use App\Http\Controllers\Web\FinanceDashboardController;
 use App\Http\Controllers\Web\FixedAssetController;
 use App\Http\Controllers\Web\InventoryController;
 use App\Http\Controllers\Web\OpeningBalanceController;
@@ -136,6 +137,10 @@ Route::middleware('auth')->group(function () {
             Route::resource('purchase-orders', PurchaseOrderController::class);
             Route::resource('purchase-returns', PurchaseReturnController::class);
 
+            // Dasbor Akuntansi (4 pilar: kas, jurnal, pengeluaran, laporan)
+            Route::get('finance', [FinanceDashboardController::class, 'index'])->name('finance.dashboard');
+            Route::post('finance/journals', [FinanceDashboardController::class, 'storeJournal'])->name('finance.journals.store');
+
             // Expense Categories & Expenses (Biaya Operasional Cabang)
             Route::resource('expense-categories', ExpenseCategoryController::class);
             Route::resource('expenses', ExpenseController::class);
@@ -161,8 +166,9 @@ Route::middleware('auth')->group(function () {
             Route::post('payments/payables', [PaymentController::class, 'storeAP'])->name('payments.payables.store');
         });
 
-        // Laporan Operasional Cabang: Penjualan & Piutang (Master & Branch Admin)
+        // Laporan Operasional Cabang + Pusat Laporan (Master & Branch Admin)
         Route::middleware('can:manage-branch-operations')->group(function () {
+            Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
             Route::get('reports/sales', [ReportController::class, 'sales'])->name('reports.sales');
             Route::get('reports/ar-aging', [ReportController::class, 'arAging'])->name('reports.ar-aging');
         });
@@ -171,8 +177,6 @@ Route::middleware('auth')->group(function () {
         Route::middleware('can:view-accounting')->group(function () {
             Route::resource('supplier-payments', SupplierPaymentController::class);
 
-            // Report Center (Pusat Laporan)
-            Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
             Route::get('reports/income-statement', [ReportController::class, 'incomeStatement'])->name('reports.income-statement');
             Route::get('reports/trial-balance', [ReportController::class, 'trialBalance'])->name('reports.trial-balance');
             Route::get('reports/balance-sheet', [ReportController::class, 'balanceSheet'])->name('reports.balance-sheet');
@@ -207,6 +211,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/backoffice/transactions/{reference}/details', [TransactionViewerController::class, 'show'])->name('transactions.details');
 
     Route::middleware('can:manage-branch-operations')->group(function () {
+        Route::get('/backoffice/reports', [ReportController::class, 'index'])->name('reports.index');
         Route::get('/backoffice/reports/fixed-assets', [ReportController::class, 'fixedAssets'])->name('reports.fixed-assets');
         Route::get('/backoffice/reports/sales', [ReportController::class, 'sales'])->name('reports.sales');
         Route::get('/reports/sales', [ReportController::class, 'sales']);
@@ -215,7 +220,6 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware('can:view-accounting')->group(function () {
-        Route::get('/backoffice/reports', [ReportController::class, 'index'])->name('reports.index');
         Route::get('/backoffice/reports/income-statement', [ReportController::class, 'incomeStatement'])->name('reports.income-statement');
         Route::get('/backoffice/reports/trial-balance', [ReportController::class, 'trialBalance'])->name('reports.trial-balance');
         Route::get('/backoffice/reports/balance-sheet', [ReportController::class, 'balanceSheet'])->name('reports.balance-sheet');

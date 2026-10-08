@@ -27,7 +27,7 @@ class SalesReportService
         $end = Carbon::parse($endDate)->endOfDay();
 
         $query = Sale::query()
-            ->with(['branch', 'user', 'items.product'])
+            ->with(['branch', 'user', 'customer', 'items.product'])
             ->whereBetween('created_at', [$start, $end])
             ->latest('created_at');
 

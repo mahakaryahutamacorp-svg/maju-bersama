@@ -40,10 +40,11 @@
     $isJournalActive = request()->is('reports/journal*') || request()->is('reports/accounting/ledger*');
     $isCashTransferActive = request()->is('backoffice/cash-transfers*') || request()->is('backoffice/cash-transactions*');
     $isExpensesActive = request()->is('backoffice/expenses*');
+    $isFinanceActive = request()->is('backoffice/finance*');
     $isOpeningBalanceActive = request()->is('backoffice/opening-balances*');
     $isFixedAssetsActive = request()->is('backoffice/fixed-assets*');
     $isReportsActive = request()->is('reports*') || request()->is('backoffice/reports*');
-    $isKeuanganOpen = $isJournalActive || $isCashTransferActive || $isExpensesActive || $isOpeningBalanceActive || $isFixedAssetsActive || $isReportsActive;
+    $isKeuanganOpen = $isJournalActive || $isCashTransferActive || $isExpensesActive || $isFinanceActive || $isOpeningBalanceActive || $isFixedAssetsActive || $isReportsActive;
 @endphp
 
 <aside class="border-b border-slate-800 bg-slate-950 text-white lg:h-screen lg:sticky lg:top-0 lg:w-72 lg:border-b-0 lg:border-r shrink-0 flex flex-col">
@@ -370,18 +371,22 @@
                  x-transition:leave-start="opacity-100 translate-y-0"
                  x-transition:leave-end="opacity-0 -translate-y-1"
                  class="space-y-0.5 px-1 py-1 border-t border-slate-800/60 bg-slate-950/40">
+                <a href="{{ route('backoffice.finance.dashboard') }}" 
+                   class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isFinanceActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
+                    Dasbor Akuntansi
+                </a>
+                <a href="{{ route('backoffice.finance.dashboard', ['tab' => 'kas_bank']) }}" 
+                   class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isCashTransferActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
+                    Kas &amp; Bank
+                </a>
                 @can('view-accounting')
-                <a href="/reports/journal" 
-                   class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isJournalActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
+                <a href="{{ route('backoffice.finance.dashboard', ['tab' => 'jurnal']) }}" 
+                   class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isJournalActive || ($isFinanceActive && request('tab') === 'jurnal') ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
                     Journal Ledger
                 </a>
                 @endcan
-                <a href="{{ route('backoffice.cash-transfers.index') }}" 
-                   class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isCashTransferActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
-                    Mutasi Kas &amp; Bank
-                </a>
-                <a href="{{ route('backoffice.expenses.index') }}" 
-                   class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isExpensesActive ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
+                <a href="{{ route('backoffice.finance.dashboard', ['tab' => 'pengeluaran']) }}" 
+                   class="block rounded-md pl-8 pr-3 py-1.5 text-sm transition {{ $isExpensesActive || ($isFinanceActive && request('tab') === 'pengeluaran') ? 'text-sky-400 bg-white/5 font-semibold' : 'text-gray-400 hover:text-white hover:bg-white/5' }}">
                     Pengeluaran / Expenses
                 </a>
                 @can('manage-system')
@@ -399,7 +404,7 @@
         @endcan
 
         {{-- Pusat Laporan (Quick Access Button) --}}
-        @can('view-accounting')
+        @can('manage-branch-operations')
         <div class="pt-2">
             <a href="{{ route('reports.index') }}" 
                class="group flex items-center justify-between rounded-xl border border-amber-400/25 bg-amber-400/10 px-3 py-2 text-xs font-semibold text-amber-300 hover:bg-amber-400/20 hover:text-white transition shadow-xs">

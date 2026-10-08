@@ -31,7 +31,6 @@ class BackofficeRbacLayoutTest extends TestCase
     /** Teks yang HANYA boleh muncul untuk master. */
     private array $enterpriseMarkers = [
         'Pembelian &amp; Hutang (AP)',
-        'Pusat Laporan',
         'Cadangan Database Sistem (Manual Backup)',
         'Review ledger',
         'Buka ledger',
@@ -57,6 +56,7 @@ class BackofficeRbacLayoutTest extends TestCase
             ->assertDontSee('Katalog Produk')
             ->assertDontSee('Penjualan &amp; Piutang (AR)', false)
             ->assertDontSee('Keuangan &amp; Akuntansi', false)
+            ->assertDontSee('Pusat Laporan')
             ->assertDontSee('Check stock');
 
         foreach ($this->enterpriseMarkers as $marker) {
@@ -84,7 +84,10 @@ class BackofficeRbacLayoutTest extends TestCase
             ->assertSee('Data Pelanggan')
             ->assertSee('Daftar Piutang (AR) / Pelanggan')
             ->assertSee('Pengeluaran / Expenses')
-            ->assertSee('Shift Kasir');
+            ->assertSee('Dasbor Akuntansi')
+            ->assertSee('Kas &amp; Bank', false)
+            ->assertSee('Shift Kasir')
+            ->assertSee('Pusat Laporan');
 
         foreach ($this->enterpriseMarkers as $marker) {
             $response->assertDontSee($marker, false);
@@ -102,6 +105,8 @@ class BackofficeRbacLayoutTest extends TestCase
         $response->assertSee('Gudang &amp; Inventaris', false)
             ->assertSee('Penjualan &amp; Piutang (AR)', false)
             ->assertSee('Keuangan &amp; Akuntansi', false)
+            ->assertSee('Dasbor Akuntansi')
+            ->assertSee('Pusat Laporan')
             ->assertDontSee('Shift Kasir');
     }
 
@@ -141,6 +146,7 @@ class BackofficeRbacLayoutTest extends TestCase
         $this->actingAs($cashier)->get('/reports/sales')->assertForbidden();
         $this->actingAs($cashier)->get('/reports/ar-aging')->assertForbidden();
         $this->actingAs($cashier)->get('/backoffice/expenses')->assertForbidden();
+        $this->actingAs($cashier)->get('/backoffice/finance')->assertForbidden();
         $this->actingAs($cashier)->get('/backoffice/fixed-assets')->assertForbidden();
         $this->actingAs($cashier)->get('/backoffice/purchase-orders')->assertForbidden();
         $this->actingAs($cashier)->get('/backoffice/payments')->assertForbidden();
@@ -154,7 +160,7 @@ class BackofficeRbacLayoutTest extends TestCase
         $this->actingAs($branchAdmin)->get('/reports/journal')->assertForbidden();
         $this->actingAs($branchAdmin)->get('/reports/accounting/ledger')->assertForbidden();
         $this->actingAs($branchAdmin)->get('/purchases/payables')->assertForbidden();
-        $this->actingAs($branchAdmin)->get('/backoffice/reports')->assertForbidden();
+        $this->actingAs($branchAdmin)->get('/backoffice/reports')->assertOk();
         $this->actingAs($branchAdmin)->get('/backoffice/supplier-payments')->assertForbidden();
 
         // But branch operations for own branch MUST be allowed
@@ -162,6 +168,7 @@ class BackofficeRbacLayoutTest extends TestCase
         $this->actingAs($branchAdmin)->get('/reports/sales')->assertOk();
         $this->actingAs($branchAdmin)->get('/reports/ar-aging')->assertOk();
         $this->actingAs($branchAdmin)->get('/backoffice/expenses')->assertOk();
+        $this->actingAs($branchAdmin)->get('/backoffice/finance')->assertOk();
         $this->actingAs($branchAdmin)->get('/backoffice/customers')->assertOk();
         $this->actingAs($branchAdmin)->get('/backoffice/fixed-assets')->assertOk();
         $this->actingAs($branchAdmin)->get('/backoffice/purchase-orders')->assertOk();

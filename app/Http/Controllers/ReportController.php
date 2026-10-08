@@ -12,6 +12,7 @@ use App\Services\Reports\IncomeStatementService;
 use App\Services\Reports\InventoryReportService;
 use App\Services\Reports\PurchaseReportService;
 use App\Services\Reports\SalesReportService;
+use App\Services\Reports\TransactionLedgerService;
 use App\Services\Reports\TrialBalanceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,12 +20,28 @@ use Illuminate\View\View;
 
 class ReportController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, TransactionLedgerService $ledgerService): View
     {
-        $currentUser = $request->user();
+        $currentUser = $request->user()->load('branch');
+        $isMaster = $currentUser->isMaster();
+
+        $ledger = $ledgerService->getLedger($currentUser, [
+            'start_date' => $request->input('start_date', now()->startOfMonth()->toDateString()),
+            'end_date' => $request->input('end_date', now()->toDateString()),
+            'type' => $request->input('type', 'all'),
+            'branch_id' => $isMaster ? $request->input('branch_id') : $currentUser->branch_id,
+        ]);
+
+        $branches = $isMaster
+            ? Branch::query()->orderBy('name')->get(['id', 'name', 'code'])
+            : collect();
 
         return view('backoffice.reports.index', [
             'currentUser' => $currentUser,
+            'isMaster' => $isMaster,
+            'ledger' => $ledger,
+            'branches' => $branches,
+            'transactionTypes' => TransactionLedgerService::TYPES,
         ]);
     }
 
@@ -358,6 +375,9 @@ class ReportController extends Controller
             'user',
         ])
             ->when(! $user->isMaster(), fn ($query) => $query->where('branch_id', $user->branch_id))
+            ->when($user->isMaster() && $request->filled('branch_id'), fn ($query) => $query->where('branch_id', (int) $request->input('branch_id')))
+            ->when($request->filled('start_date'), fn ($query) => $query->whereDate('transaction_date', '>=', $request->input('start_date')))
+            ->when($request->filled('end_date'), fn ($query) => $query->whereDate('transaction_date', '<=', $request->input('end_date')))
             ->latest('transaction_date')
             ->paginate(20)
             ->withQueryString();

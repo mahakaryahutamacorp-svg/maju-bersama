@@ -138,6 +138,7 @@ class LayoutAuditTest extends TestCase
             '/backoffice/supplier-payments' => 'Pembayaran Supplier',
             '/backoffice/expense-categories' => 'Kategori Biaya',
             '/backoffice/expenses' => 'Biaya Operasional',
+            '/backoffice/finance' => 'Dasbor Akuntansi',
             '/backoffice/cash-transfers' => 'Mutasi Kas',
             '/backoffice/cash-transactions/create' => 'Kas Masuk',
             '/backoffice/fixed-assets' => 'Harta Tetap',

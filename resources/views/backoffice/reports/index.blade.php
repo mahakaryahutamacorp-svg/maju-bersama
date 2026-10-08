@@ -24,7 +24,7 @@
                     <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400 group-hover:text-amber-300 transition">Maju Bersama ERP</p>
                     <div class="flex items-center gap-2">
                         <h1 class="text-xl font-bold tracking-tight">Pusat Laporan</h1>
-                        <span class="rounded-md bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-400/30">Report Center v1</span>
+                        <span class="rounded-md bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-400/30">Report Center</span>
                     </div>
                 </a>
             </div>
@@ -79,8 +79,153 @@
                 </span>
                 Katalog Laporan Terpadu
             </h2>
-            <p class="text-sm text-slate-500">Pilih kategori tab pada bilah samping untuk mengakses modul laporan keuangan, penjualan, pembelian, logistik, dan aset.</p>
+            <p class="text-sm text-slate-500">Filter aktivitas operasional, baca keterangan transaksi secara manusiawi, lalu buka laporan formal dari katalog di bawah.</p>
         </div>
+
+        @php
+            $ledgerRows = $ledger['rows'] ?? collect();
+            $totalInflow = $ledger['total_inflow'] ?? 0;
+            $totalOutflow = $ledger['total_outflow'] ?? 0;
+            $netAmount = $ledger['net'] ?? 0;
+            $selectedType = $ledger['type'] ?? 'all';
+            $startDate = $ledger['start_date'] ?? now()->startOfMonth()->toDateString();
+            $endDate = $ledger['end_date'] ?? now()->toDateString();
+            $selectedBranchId = $ledger['branch_id'] ?? null;
+            $formatLedgerRupiah = function ($val) {
+                $isNeg = $val < 0;
+                $formatted = number_format(abs((float) $val), 0, ',', '.');
+                return ($isNeg ? '(Rp '.$formatted.')' : 'Rp '.$formatted);
+            };
+            $typeLabel = $transactionTypes[$selectedType] ?? 'Semua Transaksi';
+        @endphp
+
+        <section
+            x-data="{ submitting: false }"
+            class="mb-6 rounded-2xl border border-slate-300 bg-white shadow-md overflow-hidden"
+        >
+            <div class="border-b border-slate-200 bg-slate-50 px-5 py-4 sm:px-6">
+                <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h3 class="text-base font-bold text-slate-900">Aktivitas Transaksi</h3>
+                        <p class="text-xs text-slate-500">Ringkasan pemasukan dan pengeluaran sesuai filter aktif.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2 text-[11px]">
+                        <span class="rounded-full border border-slate-200 bg-white px-2.5 py-1 font-medium text-slate-600">{{ \Carbon\Carbon::parse($startDate)->isoFormat('D MMM Y') }} – {{ \Carbon\Carbon::parse($endDate)->isoFormat('D MMM Y') }}</span>
+                        <span class="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 font-semibold text-amber-800">{{ $typeLabel }}</span>
+                        @if ($isMaster)
+                            <span class="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 font-medium text-sky-800">{{ $selectedBranchId ? ($branches->firstWhere('id', $selectedBranchId)?->name ?? 'Cabang') : 'Semua Cabang' }}</span>
+                        @else
+                            <span class="rounded-full border border-slate-200 bg-white px-2.5 py-1 font-medium text-slate-600">{{ $currentUser->branch?->name ?? 'Cabang Anda' }}</span>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            <form
+                method="GET"
+                action="{{ route('reports.index') }}"
+                @submit="submitting = true"
+                class="grid gap-3 border-b border-slate-100 px-5 py-4 sm:grid-cols-2 lg:grid-cols-5 lg:items-end sm:px-6"
+            >
+                <div>
+                    <label for="start_date" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500">Dari tanggal</label>
+                    <input type="date" id="start_date" name="start_date" value="{{ $startDate }}" class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20">
+                </div>
+                <div>
+                    <label for="end_date" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500">Sampai tanggal</label>
+                    <input type="date" id="end_date" name="end_date" value="{{ $endDate }}" class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20">
+                </div>
+                <div>
+                    <label for="type" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500">Jenis laporan</label>
+                    <select id="type" name="type" class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20">
+                        @foreach ($transactionTypes as $typeKey => $typeName)
+                            <option value="{{ $typeKey }}" @selected($selectedType === $typeKey)>{{ $typeName }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                @if ($isMaster)
+                    <div>
+                        <label for="branch_id" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500">Cabang</label>
+                        <select id="branch_id" name="branch_id" class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20">
+                            <option value="">Semua Cabang</option>
+                            @foreach ($branches as $branch)
+                                <option value="{{ $branch->id }}" @selected((string) $selectedBranchId === (string) $branch->id)>{{ $branch->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                @else
+                    <div>
+                        <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500">Cabang</label>
+                        <input type="text" value="{{ $currentUser->branch?->name ?? 'Cabang Anda' }}" readonly class="mt-1.5 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-600">
+                    </div>
+                @endif
+                <div class="flex gap-2">
+                    <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white shadow-xs hover:bg-slate-800">
+                        <span x-show="!submitting">Terapkan Filter</span>
+                        <span x-cloak x-show="submitting">Memuat…</span>
+                    </button>
+                </div>
+            </form>
+
+            <div class="grid grid-cols-2 gap-3 px-5 py-4 lg:grid-cols-4 sm:px-6">
+                <div class="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-emerald-800">Total Pemasukan</p>
+                    <p class="mt-1 text-lg font-extrabold text-emerald-800">{{ $formatLedgerRupiah($totalInflow) }}</p>
+                </div>
+                <div class="rounded-xl border border-rose-200 bg-rose-50/70 p-3.5">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-rose-800">Total Pengeluaran</p>
+                    <p class="mt-1 text-lg font-extrabold text-rose-800">{{ $formatLedgerRupiah($totalOutflow) }}</p>
+                </div>
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Netto Filter</p>
+                    <p class="mt-1 text-lg font-extrabold {{ $netAmount >= 0 ? 'text-slate-900' : 'text-rose-700' }}">{{ $formatLedgerRupiah($netAmount) }}</p>
+                </div>
+                <div class="rounded-xl border border-sky-200 bg-sky-50/70 p-3.5">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-sky-800">Jumlah Transaksi</p>
+                    <p class="mt-1 text-lg font-extrabold text-sky-900">{{ number_format($ledger['count'] ?? 0, 0, ',', '.') }}</p>
+                </div>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-left text-sm">
+                    <thead class="bg-slate-900 text-[10px] uppercase tracking-wider text-white">
+                        <tr>
+                            <th class="px-4 py-3 font-semibold">Tanggal</th>
+                            <th class="px-4 py-3 font-semibold">Referensi</th>
+                            <th class="px-4 py-3 font-semibold">Keterangan Transaksi</th>
+                            <th class="px-4 py-3 font-semibold">Cabang</th>
+                            <th class="px-4 py-3 font-semibold text-right">Nominal</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 bg-white">
+                        @forelse ($ledgerRows as $row)
+                            <tr class="hover:bg-slate-50">
+                                <td class="whitespace-nowrap px-4 py-2.5 text-xs text-slate-600">
+                                    {{ $row['date'] ? \Carbon\Carbon::parse($row['date'])->isoFormat('D MMM Y') : '-' }}
+                                </td>
+                                <td class="whitespace-nowrap px-4 py-2.5">
+                                    <button type="button" onclick="window.loadTransaction && window.loadTransaction('{{ $row['reference'] }}')" class="font-mono text-xs font-bold text-sky-700 hover:underline">
+                                        {{ $row['reference'] }}
+                                    </button>
+                                </td>
+                                <td class="px-4 py-2.5">
+                                    <p class="font-medium text-slate-900">{{ $row['description'] }}</p>
+                                    <p class="text-[11px] text-slate-500">{{ $row['type_label'] }}</p>
+                                </td>
+                                <td class="whitespace-nowrap px-4 py-2.5 text-xs text-slate-600">{{ $row['branch_name'] }}</td>
+                                <td class="whitespace-nowrap px-4 py-2.5 text-right font-semibold {{ $row['direction'] === 'in' ? 'text-emerald-700' : 'text-rose-700' }}">
+                                    {{ $row['direction'] === 'out' ? '-' : '' }}{{ $formatLedgerRupiah($row['amount']) }}
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="5" class="px-4 py-10 text-center text-sm text-slate-400">Tidak ada transaksi pada filter yang dipilih.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </section>
 
         <!-- Alpine.js Tab Controller Shell -->
         <div x-data="{ activeTab: 'keuangan', searchQuery: '' }" class="rounded-2xl border border-slate-300 bg-white shadow-md overflow-hidden flex flex-col md:flex-row flex-1 min-h-[580px]">

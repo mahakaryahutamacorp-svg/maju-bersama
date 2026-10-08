@@ -37,6 +37,11 @@ class Payment extends Model
         return $this->belongsTo(Branch::class);
     }
 
+    public function customer(): BelongsTo
+    {
+        return $this->belongsTo(Customer::class);
+    }
+
     public function supplier(): BelongsTo
     {
         return $this->belongsTo(Supplier::class);
