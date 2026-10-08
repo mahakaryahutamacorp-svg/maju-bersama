@@ -130,7 +130,8 @@ Route::middleware('auth')->group(function () {
             // Users & Cashiers
             Route::resource('users', UserController::class)->except(['show']);
 
-            // Suppliers
+            // Suppliers (Buku Pemasok + Bayar Hutang FIFO)
+            Route::post('suppliers/{supplier}/payments', [SupplierController::class, 'storePayment'])->name('suppliers.payments.store');
             Route::resource('suppliers', SupplierController::class);
 
             // Purchase Orders & Returns
@@ -156,7 +157,6 @@ Route::middleware('auth')->group(function () {
             // Fixed Assets (Harta Tetap Cabang)
             Route::post('fixed-assets/run-depreciation', [FixedAssetController::class, 'runDepreciation'])->name('fixed-assets.run-depreciation');
             Route::resource('fixed-assets', FixedAssetController::class);
-            Route::get('reports/fixed-assets', [ReportController::class, 'fixedAssets'])->name('reports.fixed-assets');
 
             // Payments (Pembayaran Piutang & Hutang Operasional)
             Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
@@ -166,26 +166,9 @@ Route::middleware('auth')->group(function () {
             Route::post('payments/payables', [PaymentController::class, 'storeAP'])->name('payments.payables.store');
         });
 
-        // Laporan Operasional Cabang + Pusat Laporan (Master & Branch Admin)
-        Route::middleware('can:manage-branch-operations')->group(function () {
-            Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
-            Route::get('reports/sales', [ReportController::class, 'sales'])->name('reports.sales');
-            Route::get('reports/ar-aging', [ReportController::class, 'arAging'])->name('reports.ar-aging');
-        });
-
         // Modul Enterprise (HANYA Master)
         Route::middleware('can:view-accounting')->group(function () {
             Route::resource('supplier-payments', SupplierPaymentController::class);
-
-            Route::get('reports/income-statement', [ReportController::class, 'incomeStatement'])->name('reports.income-statement');
-            Route::get('reports/trial-balance', [ReportController::class, 'trialBalance'])->name('reports.trial-balance');
-            Route::get('reports/balance-sheet', [ReportController::class, 'balanceSheet'])->name('reports.balance-sheet');
-            Route::get('reports/cash-flow', [ReportController::class, 'cashFlow'])->name('reports.cash-flow');
-
-            // Operational Reports
-            Route::get('reports/purchases', [ReportController::class, 'purchases'])->name('reports.purchases');
-            Route::get('reports/inventory/stock-card', [ReportController::class, 'stockCard'])->name('reports.stock-card');
-            Route::get('reports/ap-aging', [ReportController::class, 'apAging'])->name('reports.ap-aging');
         });
 
         // Pengaturan Sistem (HANYA Master)
@@ -194,22 +177,14 @@ Route::middleware('auth')->group(function () {
             Route::post('backup/generate', [BackupController::class, 'generate'])->name('backup.generate');
             Route::get('backup/download', [BackupController::class, 'download'])->name('backup.download');
         });
-
-        // Stock Opname
-        Route::prefix('inventory/adjustments')->middleware('can:access-inventory')->group(function () {
-            Route::get('/', [StockAdjustmentController::class, 'index']);
-            Route::get('/create', [StockAdjustmentController::class, 'create']);
-            Route::post('/', [StockAdjustmentController::class, 'store']);
-            Route::get('/{id}', [StockAdjustmentController::class, 'show']);
-        });
-
-        // Universal Transaction Viewer (Modal)
-        Route::get('transactions/{reference}/details', [TransactionViewerController::class, 'show'])->name('transactions.details');
     });
 
     Route::get('/backoffice/stock-transfers/{reference}/print', [StockTransferPrintController::class, 'print'])->name('stock-transfers.print');
+
+    // Akses per cabang dicek di dalam TransactionViewerController.
     Route::get('/backoffice/transactions/{reference}/details', [TransactionViewerController::class, 'show'])->name('transactions.details');
 
+    // Pusat Laporan. Alias /reports/sales & /reports/ar-aging dipertahankan untuk tautan lama.
     Route::middleware('can:manage-branch-operations')->group(function () {
         Route::get('/backoffice/reports', [ReportController::class, 'index'])->name('reports.index');
         Route::get('/backoffice/reports/fixed-assets', [ReportController::class, 'fixedAssets'])->name('reports.fixed-assets');

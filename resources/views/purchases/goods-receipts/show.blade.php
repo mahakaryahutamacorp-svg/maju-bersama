@@ -1,10 +1,9 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slip Penerimaan Barang #{{ $receipt->reference_number }} | Maju Bersama ERP</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+<x-app-layout :title="'Slip Terima Barang #'.$receipt->reference_number" :breadcrumbs="[
+    ['label' => 'Belanja Barang'],
+    ['label' => 'Terima Barang', 'url' => route('purchases.goods-receipts.index')],
+    ['label' => 'Slip #'.$receipt->reference_number],
+]">
+    <x-slot:head>
     <style>
         @media print {
             .no-print { display: none !important; }
@@ -12,47 +11,13 @@
             .print-card { border: 1px solid #cbd5e1 !important; box-shadow: none !important; }
         }
     </style>
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-    <!-- Header Utama -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white no-print">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-            <div class="flex items-center gap-4">
-                <a href="/backoffice" class="block">
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                    <h1 class="text-xl font-bold tracking-tight">Pengadaan &amp; Persediaan</h1>
-                </a>
-            </div>
-            <div class="flex items-center gap-4">
-                <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
-                    <a href="/pos" class="hover:text-white">POS</a>
-                    <a href="/inventory" class="hover:text-white">Inventory</a>
-                    <a href="/inventory/transfer" class="hover:text-white">Transfer</a>
-                    <a href="/reports/accounting/ledger" class="hover:text-white">Akuntansi</a>
-                    <a href="/backoffice" class="hover:text-white">Backoffice</a>
-                </nav>
-                <div class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200">
-                    {{ $currentUser->branch?->name ?? 'Pusat' }} ({{ $currentUser->role }})
-                </div>
-                <form method="POST" action="/logout" class="hidden sm:block">
-                    @csrf
-                    <button type="submit" class="text-sm text-slate-300 hover:text-white">Logout</button>
-                </form>
-            </div>
-        </div>
-    </header>
+    </x-slot:head>
 
-    <!-- Sub-Navbar -->
     <div class="border-b border-slate-200 bg-white no-print">
-        <div class="mx-auto flex max-w-5xl items-center justify-between overflow-x-auto px-6 py-2.5 lg:px-8">
-            <div class="flex items-center gap-2 text-sm font-medium">
-                <a href="/purchases/goods-receipts" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    &larr; Riwayat Penerimaan
-                </a>
-                <a href="/purchases/goods-receipts/create" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    + Input Baru
-                </a>
-            </div>
+        <div class="mx-auto flex w-full max-w-5xl items-center justify-between gap-2 overflow-x-auto px-6 py-2.5 lg:px-8">
+            <a href="/purchases/goods-receipts/create" class="rounded-lg px-3.5 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 hover:text-slate-900">
+                + Catat Barang Datang Lagi
+            </a>
             <div class="flex items-center gap-2">
                 <button type="button" onclick="window.print()" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-700 shadow-xs hover:bg-slate-50">
                     <svg class="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
@@ -62,7 +27,7 @@
         </div>
     </div>
 
-    <main class="mx-auto max-w-5xl space-y-6 px-6 py-8 lg:px-8">
+    <main class="mx-auto w-full max-w-5xl space-y-6 px-6 py-6 lg:px-8">
         <!-- Flash Alert -->
         @if (session('success'))
             <div class="rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-emerald-900 shadow-sm no-print">
@@ -291,5 +256,4 @@
             </div>
         </article>
     </main>
-</body>
-</html>
+</x-app-layout>

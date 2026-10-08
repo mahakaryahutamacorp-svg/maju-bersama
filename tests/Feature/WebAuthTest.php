@@ -50,7 +50,7 @@ class WebAuthTest extends TestCase
         $this->actingAs($master)
             ->get('/backoffice')
             ->assertOk()
-            ->assertSee('All branches')
+            ->assertSee('Semua cabang')
             ->assertSee('majubersama 1')
             ->assertSee('Master monitoring');
 

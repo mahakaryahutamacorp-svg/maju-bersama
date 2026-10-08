@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -9,6 +10,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class ChartOfAccount extends Model
 {
     use SoftDeletes;
+
+    /** Kas (1110) dan Bank (1120) saja; piutang, uang muka, PPN, dan persediaan bukan uang tunai. */
+    public const CASH_BANK_CODES = ['1110', '1120'];
 
     protected $fillable = [
         'code',
@@ -22,6 +26,13 @@ class ChartOfAccount extends Model
         return [
             'is_active' => 'boolean',
         ];
+    }
+
+    public function scopeCashAndBank(Builder $query): Builder
+    {
+        return $query->where('type', 'asset')
+            ->where('is_active', true)
+            ->whereIn('code', self::CASH_BANK_CODES);
     }
 
     public function expenseCategories(): HasMany

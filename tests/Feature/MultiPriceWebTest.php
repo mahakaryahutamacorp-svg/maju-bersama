@@ -161,13 +161,13 @@ class MultiPriceWebTest extends TestCase
         $response->assertStatus(201);
         $response->assertJsonPath('status', 'success');
 
-        // Total harus 2 x 100.000 = 200.000 (Harga Dasar) -> 20.000.000 cents
+        // Total harus 2 x 100.000 = 200.000 (Harga Dasar)
         $sale = $response->json('sale');
-        $this->assertEquals(20000000, $sale['total_amount']);
+        $this->assertEquals(200000, $sale['total_amount']);
 
         $saleItem = $sale['items'][0];
-        $this->assertEquals(10000000, $saleItem['price']);
-        $this->assertEquals(20000000, $saleItem['subtotal']);
+        $this->assertEquals(100000, $saleItem['price']);
+        $this->assertEquals(200000, $saleItem['subtotal']);
     }
 
     public function test_scenario_2_customer_petani_buys_product_at_petani_tiered_price(): void
@@ -189,13 +189,13 @@ class MultiPriceWebTest extends TestCase
         $response->assertStatus(201);
         $response->assertJsonPath('status', 'success');
 
-        // Total harus 2 x 85.000 = 170.000 (Harga Khusus Petani) -> 17.000.000 cents
+        // Total harus 2 x 85.000 = 170.000 (Harga Khusus Petani)
         $sale = $response->json('sale');
-        $this->assertEquals(17000000, $sale['total_amount']);
+        $this->assertEquals(170000, $sale['total_amount']);
 
         $saleItem = $sale['items'][0];
-        $this->assertEquals(8500000, $saleItem['price']);
-        $this->assertEquals(17000000, $saleItem['subtotal']);
+        $this->assertEquals(85000, $saleItem['price']);
+        $this->assertEquals(170000, $saleItem['subtotal']);
     }
 
     public function test_pos_products_api_returns_group_adjusted_prices(): void

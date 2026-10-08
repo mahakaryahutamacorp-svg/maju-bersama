@@ -61,11 +61,11 @@ class GoodsReceiptWebTest extends TestCase
     {
         $indexResponse = $this->actingAs($this->master)->get('/purchases/goods-receipts');
         $indexResponse->assertStatus(200);
-        $indexResponse->assertSee('Penerimaan Barang (Goods Receipt)');
+        $indexResponse->assertSee('Terima Barang');
 
         $createResponse = $this->actingAs($this->master)->get('/purchases/goods-receipts/create');
         $createResponse->assertStatus(200);
-        $createResponse->assertSee('Formulir Goods Receipt');
+        $createResponse->assertSee('Catat Barang Datang');
         $createResponse->assertSee('Beras Organik 5kg');
         $createResponse->assertSee('goodsReceiptForm');
     }

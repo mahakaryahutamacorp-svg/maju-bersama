@@ -1,15 +1,8 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Buku Pemasok: {{ $supplier->name }} | Maju Bersama ERP</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <style>[x-cloak] { display: none !important; }</style>
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
+<x-app-layout :title="'Buku Pemasok: '.$supplier->name" :breadcrumbs="[
+    ['label' => 'Belanja Barang'],
+    ['label' => 'Buku Pemasok', 'url' => route('backoffice.suppliers.index')],
+    ['label' => $supplier->name],
+]">
 @php
     $formatRp = fn ($v) => 'Rp '.number_format((float) $v, 0, ',', '.');
     $statusStyles = [
@@ -38,9 +31,6 @@
         'notes' => old('notes', ''),
     ];
 @endphp
-<div class="min-h-screen lg:flex">
-    @include('layouts.sidebar')
-
     <main class="min-w-0 flex-1" x-data="supplierHub(@js($hubConfig))" @keydown.escape.window="closeDrawer()">
         <header class="border-b border-slate-200 bg-white">
             <div class="flex flex-col gap-4 px-6 py-5 lg:flex-row lg:items-center lg:justify-between lg:px-10">
@@ -335,8 +325,8 @@
             </div>
         </div>
     </main>
-</div>
 
+<x-slot:scripts>
 <script>
     function supplierHub(config) {
         return {
@@ -429,5 +419,5 @@
         };
     }
 </script>
-</body>
-</html>
+</x-slot:scripts>
+</x-app-layout>

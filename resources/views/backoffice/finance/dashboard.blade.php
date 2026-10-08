@@ -1,22 +1,9 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dasbor Akuntansi | Maju Bersama ERP</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <style>[x-cloak] { display: none !important; }</style>
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
+<x-app-layout title="Ringkasan Keuangan" :breadcrumbs="[['label' => 'Uang & Akuntansi'], ['label' => 'Ringkasan Keuangan']]">
 @php
     $formatRp = fn ($v) => 'Rp '.number_format((float) $v, 0, ',', '.');
     $openExpense = $errors->any() && old('return_to') === 'finance';
     $openJournal = $errors->any() && old('journal_form') === '1';
 @endphp
-<div class="min-h-screen lg:flex">
-    @include('layouts.sidebar')
-
     <main
         class="min-w-0 flex-1"
         x-data="{
@@ -318,6 +305,4 @@
         @include('backoffice.finance.partials.modal-expense')
         @include('backoffice.finance.partials.modal-journal')
     </main>
-</div>
-</body>
-</html>
+</x-app-layout>

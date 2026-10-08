@@ -12,6 +12,7 @@ use App\Models\SalesReturn;
 use App\Models\StockAdjustment;
 use App\Models\StockTransfer;
 use App\Models\SupplierPayment;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -20,17 +21,24 @@ class TransactionViewerController extends Controller
 {
     /**
      * Tampilkan rincian transaksi spesifik dalam bentuk HTML partial untuk modal.
+     * Non-master hanya boleh melihat transaksi cabangnya sendiri; selain itu dianggap tidak ditemukan.
      */
     public function show(string $reference, Request $request): View|JsonResponse
     {
         $ref = trim($reference);
+        $user = $request->user();
 
         // 1. Penjualan POS (INV- / POS-)
-        $sale = Sale::where('receipt_number', $ref)
+        $sale = Sale::withoutGlobalScopes()
+            ->where('receipt_number', $ref)
             ->with(['items.product', 'branch', 'user', 'cashRegisterShift'])
             ->first();
 
         if ($sale) {
+            if (! $this->canView($user, [$sale->branch_id])) {
+                return $this->notFound($ref);
+            }
+
             if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
                 return response()->json([
                     'status' => 'success',
@@ -48,16 +56,21 @@ class TransactionViewerController extends Controller
             ->first();
 
         if ($stockTransfer) {
-            return view('backoffice.transactions.partials.stock-transfer', compact('stockTransfer'));
+            return $this->canView($user, [$stockTransfer->source_branch_id, $stockTransfer->destination_branch_id])
+                ? view('backoffice.transactions.partials.stock-transfer', compact('stockTransfer'))
+                : $this->notFound($ref);
         }
 
         // 3. Pengeluaran Biaya Operasional (EXP-)
-        $expense = Expense::where('reference_number', $ref)
+        $expense = Expense::withoutGlobalScopes()
+            ->where('reference_number', $ref)
             ->with(['expenseCategory.chartOfAccount', 'account', 'branch', 'journalHeader.journalLines'])
             ->first();
 
         if ($expense) {
-            return view('backoffice.transactions.partials.expense', compact('expense'));
+            return $this->canView($user, [$expense->branch_id])
+                ? view('backoffice.transactions.partials.expense', compact('expense'))
+                : $this->notFound($ref);
         }
 
         // 4. Mutasi Antar Kas & Bank (TRF- pada tabel cash_transfers)
@@ -67,7 +80,9 @@ class TransactionViewerController extends Controller
             ->first();
 
         if ($cashTransfer) {
-            return view('backoffice.transactions.partials.cash-transfer', compact('cashTransfer'));
+            return $this->canView($user, [$cashTransfer->branch_id])
+                ? view('backoffice.transactions.partials.cash-transfer', compact('cashTransfer'))
+                : $this->notFound($ref);
         }
 
         // 5. Penerimaan Barang / Goods Receipt (GR-)
@@ -77,7 +92,9 @@ class TransactionViewerController extends Controller
             ->first();
 
         if ($goodsReceipt) {
-            return view('backoffice.transactions.partials.goods-receipt', compact('goodsReceipt'));
+            return $this->canView($user, [$goodsReceipt->branch_id])
+                ? view('backoffice.transactions.partials.goods-receipt', compact('goodsReceipt'))
+                : $this->notFound($ref);
         }
 
         // 6. Pembayaran Supplier (PAY-)
@@ -87,7 +104,9 @@ class TransactionViewerController extends Controller
             ->first();
 
         if ($supplierPayment) {
-            return view('backoffice.transactions.partials.supplier-payment', compact('supplierPayment'));
+            return $this->canView($user, [$supplierPayment->branch_id])
+                ? view('backoffice.transactions.partials.supplier-payment', compact('supplierPayment'))
+                : $this->notFound($ref);
         }
 
         // 7. Penyesuaian Stok / Opname (ADJ-)
@@ -97,7 +116,9 @@ class TransactionViewerController extends Controller
             ->first();
 
         if ($stockAdjustment) {
-            return view('backoffice.transactions.partials.stock-adjustment', compact('stockAdjustment'));
+            return $this->canView($user, [$stockAdjustment->branch_id])
+                ? view('backoffice.transactions.partials.stock-adjustment', compact('stockAdjustment'))
+                : $this->notFound($ref);
         }
 
         // 8. Retur Pembelian (PRT-)
@@ -107,7 +128,9 @@ class TransactionViewerController extends Controller
             ->first();
 
         if ($purchaseReturn) {
-            return view('backoffice.transactions.partials.purchase-return', compact('purchaseReturn'));
+            return $this->canView($user, [$purchaseReturn->branch_id])
+                ? view('backoffice.transactions.partials.purchase-return', compact('purchaseReturn'))
+                : $this->notFound($ref);
         }
 
         // 9. Retur Penjualan (SR-)
@@ -117,7 +140,9 @@ class TransactionViewerController extends Controller
             ->first();
 
         if ($salesReturn) {
-            return view('backoffice.transactions.partials.sales-return', compact('salesReturn'));
+            return $this->canView($user, [$salesReturn->branch_id])
+                ? view('backoffice.transactions.partials.sales-return', compact('salesReturn'))
+                : $this->notFound($ref);
         }
 
         // 10. Fallback: Jurnal Akuntansi Umum / Saldo Awal (OB-)
@@ -126,10 +151,35 @@ class TransactionViewerController extends Controller
             ->first();
 
         if ($journal) {
-            return view('backoffice.transactions.partials.journal', compact('journal'));
+            return $this->canView($user, [$journal->branch_id])
+                ? view('backoffice.transactions.partials.journal', compact('journal'))
+                : $this->notFound($ref);
         }
 
         // 11. Jika tidak ditemukan
-        return view('backoffice.transactions.partials.not-found', ['reference' => $ref]);
+        return $this->notFound($ref);
+    }
+
+    /**
+     * @param  array<int, int|string|null>  $branchIds
+     */
+    private function canView(?User $user, array $branchIds): bool
+    {
+        if (! $user) {
+            return false;
+        }
+
+        if ($user->isMaster()) {
+            return true;
+        }
+
+        $allowed = array_map('intval', array_filter($branchIds, fn ($id) => $id !== null));
+
+        return $user->branch_id !== null && in_array((int) $user->branch_id, $allowed, true);
+    }
+
+    private function notFound(string $reference): View
+    {
+        return view('backoffice.transactions.partials.not-found', ['reference' => $reference]);
     }
 }

@@ -3,17 +3,20 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\CashTransfer;
 use App\Models\Category;
 use App\Models\ChartOfAccount;
 use App\Models\Customer;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
+use App\Models\GoodsReceipt;
 use App\Models\Inventory;
 use App\Models\JournalHeader;
 use App\Models\Payment;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\Sale;
+use App\Models\StockAdjustment;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Services\Reports\IncomeStatementService;
@@ -58,7 +61,9 @@ class ReportCenterWebTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('Pusat Laporan');
         $response->assertSee('Keterangan Transaksi');
-        $response->assertSee('Total Pemasukan');
+        $response->assertSee('Uang Masuk');
+        $response->assertSee('Segera hadir');
+        $response->assertDontSee('href="#"', false);
         $response->assertSee('name="start_date"', false);
         $response->assertSee('name="end_date"', false);
         $response->assertSee('name="type"', false);
@@ -116,6 +121,133 @@ class ReportCenterWebTest extends TestCase
         $response->assertSee('Penjualan Tunai - Pelanggan Cabang Sendiri');
         $response->assertDontSee('Pelanggan Cabang Lain');
         $response->assertDontSee('INV-OTH-001');
+    }
+
+    public function test_branch_admin_on_root_branch_cannot_read_other_branch_sales_or_receivables(): void
+    {
+        $otherBranch = Branch::create(['code' => 'CAB2', 'name' => 'Cabang Lain', 'is_active' => true]);
+
+        $branchAdmin = User::factory()->create([
+            'branch_id' => $this->branch->id,
+            'role' => 'admin',
+        ]);
+
+        $foreignCustomer = Customer::withoutGlobalScopes()->create([
+            'branch_id' => $otherBranch->id,
+            'name' => 'Pelanggan Rahasia Cabang Lain',
+        ]);
+
+        Sale::withoutGlobalScopes()->create([
+            'branch_id' => $otherBranch->id,
+            'customer_id' => $foreignCustomer->id,
+            'receipt_number' => 'INV-SECRET-001',
+            'total_amount' => 777000,
+            'paid_amount' => 0,
+            'payment_method' => 'tempo',
+            'payment_status' => 'UNPAID',
+            'status' => 'completed',
+            'created_by' => $this->user->id,
+        ]);
+
+        foreach (['reports.sales', 'reports.ar-aging'] as $routeName) {
+            $this->actingAs($branchAdmin)
+                ->get(route($routeName, ['branch_id' => $otherBranch->id]))
+                ->assertOk()
+                ->assertDontSee('INV-SECRET-001')
+                ->assertDontSee('Pelanggan Rahasia Cabang Lain');
+        }
+    }
+
+    public function test_cash_totals_exclude_credit_sales(): void
+    {
+        $customer = Customer::create(['branch_id' => $this->branch->id, 'name' => 'Pak Tani']);
+        $cashAccount = ChartOfAccount::create(['code' => '1110', 'name' => 'Kas', 'type' => 'asset', 'is_active' => true]);
+
+        foreach ([['INV-CASH-1', 150000, 'cash'], ['INV-TEMPO-1', 250000, 'tempo']] as [$receipt, $amount, $method]) {
+            Sale::create([
+                'branch_id' => $this->branch->id,
+                'customer_id' => $customer->id,
+                'receipt_number' => $receipt,
+                'total_amount' => $amount,
+                'payment_method' => $method,
+                'status' => 'completed',
+                'created_by' => $this->user->id,
+            ]);
+        }
+
+        Payment::create([
+            'branch_id' => $this->branch->id,
+            'type' => 'AR',
+            'customer_id' => $customer->id,
+            'account_id' => $cashAccount->id,
+            'amount' => 100000,
+            'payment_date' => now()->toDateString(),
+            'reference_number' => 'AR-CASH-1',
+        ]);
+
+        $this->actingAs($this->user)
+            ->get(route('reports.index'))
+            ->assertOk()
+            ->assertSee('Piutang, uang belum diterima')
+            ->assertViewHas('ledger', fn (array $ledger) => $ledger['total_inflow'] === 250000.0
+                && $ledger['count'] === 3);
+    }
+
+    public function test_activity_includes_goods_receipts_cash_transfers_and_stock_opname(): void
+    {
+        $cash = ChartOfAccount::create(['code' => '1110', 'name' => 'Kas Toko', 'type' => 'asset', 'is_active' => true]);
+        $bank = ChartOfAccount::create(['code' => '1120', 'name' => 'Bank BRI', 'type' => 'asset', 'is_active' => true]);
+        $supplier = Supplier::create(['branch_id' => $this->branch->id, 'name' => 'CV Pupuk Jaya', 'is_active' => true]);
+
+        GoodsReceipt::create([
+            'branch_id' => $this->branch->id,
+            'supplier_id' => $supplier->id,
+            'reference_number' => 'GR-CASH-1',
+            'date' => now()->toDateString(),
+            'total_amount' => 300000,
+            'payment_type' => 'cash',
+        ]);
+        GoodsReceipt::create([
+            'branch_id' => $this->branch->id,
+            'supplier_id' => $supplier->id,
+            'reference_number' => 'GR-CREDIT-1',
+            'date' => now()->toDateString(),
+            'total_amount' => 900000,
+            'payment_type' => 'credit',
+        ]);
+        CashTransfer::withoutGlobalScopes()->create([
+            'branch_id' => $this->branch->id,
+            'from_account_id' => $cash->id,
+            'to_account_id' => $bank->id,
+            'amount' => 500000,
+            'transfer_date' => now()->toDateString(),
+            'reference_number' => 'CT-1',
+        ]);
+        StockAdjustment::withoutGlobalScopes()->create([
+            'branch_id' => $this->branch->id,
+            'reference_number' => 'ADJ-1',
+            'date' => now()->toDateString(),
+            'adjustment_date' => now()->toDateString(),
+            'total_loss_value' => 40000,
+            'total_gain_value' => 0,
+        ]);
+
+        $this->actingAs($this->user)
+            ->get(route('reports.index'))
+            ->assertOk()
+            ->assertSee('Beli Barang Tunai - CV Pupuk Jaya')
+            ->assertSee('Beli Barang Kredit - CV Pupuk Jaya')
+            ->assertSee('Pindah Uang: Kas Toko ke Bank BRI')
+            ->assertSee('Stok Opname - Barang Kurang')
+            ->assertViewHas('ledger', fn (array $ledger) => $ledger['count'] === 4
+                && $ledger['total_inflow'] === 0.0
+                && $ledger['total_outflow'] === 300000.0);
+
+        $this->actingAs($this->user)
+            ->get(route('reports.index', ['search' => 'gr-credit']))
+            ->assertOk()
+            ->assertViewHas('ledger', fn (array $ledger) => $ledger['count'] === 1
+                && $ledger['rows']->first()['reference'] === 'GR-CREDIT-1');
     }
 
     public function test_report_center_renders_human_readable_transaction_descriptions(): void

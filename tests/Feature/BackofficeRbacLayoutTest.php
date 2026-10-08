@@ -30,32 +30,34 @@ class BackofficeRbacLayoutTest extends TestCase
 
     /** Teks yang HANYA boleh muncul untuk master. */
     private array $enterpriseMarkers = [
-        'Pembelian &amp; Hutang (AP)',
+        '1. Pesan Barang (PO)',
+        'Riwayat Bayar Hutang',
+        'Retur ke Pemasok',
         'Cadangan Database Sistem (Manual Backup)',
         'Review ledger',
         'Buka ledger',
         'Manajemen Cabang',
         'Staf &amp; Kasir',
         'Kategori Biaya',
-        'Data Supplier',
-        'Journal Ledger',
-        'Input Saldo Awal (Setup)',
+        'Buku Pemasok &amp; Hutang',
+        'Jurnal Umum',
+        'Saldo Awal (Setup)',
     ];
 
     public function test_cashier_only_sees_dashboard_and_kasir_division(): void
     {
         $response = $this->actingAs($this->makeUser('cashier'))->get('/backoffice')->assertOk();
 
-        $response->assertSee('Dashboard &amp; Kasir', false)
-            ->assertSee('Point of Sale (POS)')
-            ->assertSee('Kasir POS')
+        $response->assertSee('Beranda')
+            ->assertSee('Kasir (POS)')
             ->assertSee('Shift Kasir')
-            ->assertDontSee('Riwayat Transaksi POS')
-            ->assertDontSee('Gudang &amp; Inventaris', false)
-            ->assertDontSee('Master Data</span>', false)
+            ->assertDontSee('Riwayat Penjualan')
+            ->assertDontSee('Stok Gudang')
+            ->assertDontSee('Belanja Barang')
+            ->assertDontSee('Pengaturan</span>', false)
             ->assertDontSee('Katalog Produk')
-            ->assertDontSee('Penjualan &amp; Piutang (AR)', false)
-            ->assertDontSee('Keuangan &amp; Akuntansi', false)
+            ->assertDontSee('Jualan</span>', false)
+            ->assertDontSee('Uang &amp; Akuntansi', false)
             ->assertDontSee('Pusat Laporan')
             ->assertDontSee('Check stock');
 
@@ -68,23 +70,23 @@ class BackofficeRbacLayoutTest extends TestCase
     {
         $response = $this->actingAs($this->makeUser('kasir'))->get('/backoffice')->assertOk();
 
-        $response->assertDontSee('Gudang &amp; Inventaris', false)
-            ->assertDontSee('Keuangan &amp; Akuntansi', false);
+        $response->assertDontSee('Stok Gudang')
+            ->assertDontSee('Uang &amp; Akuntansi', false);
     }
 
     public function test_branch_admin_sees_inventory_and_partial_master_data_only(): void
     {
         $response = $this->actingAs($this->makeUser('branch_admin'))->get('/backoffice')->assertOk();
 
-        $response->assertSee('Dashboard &amp; Kasir', false)
-            ->assertSee('Riwayat Transaksi POS')
-            ->assertSee('Gudang &amp; Inventaris', false)
-            ->assertSee('Penerimaan Barang (GR)')
+        $response->assertSee('Beranda')
+            ->assertSee('Riwayat Penjualan')
+            ->assertSee('Stok Gudang')
+            ->assertSee('2. Terima Barang')
             ->assertSee('Katalog Produk')
             ->assertSee('Data Pelanggan')
-            ->assertSee('Daftar Piutang (AR) / Pelanggan')
-            ->assertSee('Pengeluaran / Expenses')
-            ->assertSee('Dasbor Akuntansi')
+            ->assertSee('Piutang Pelanggan')
+            ->assertSee('Biaya Operasional')
+            ->assertSee('Ringkasan Keuangan')
             ->assertSee('Kas &amp; Bank', false)
             ->assertSee('Shift Kasir')
             ->assertSee('Pusat Laporan');
@@ -102,10 +104,10 @@ class BackofficeRbacLayoutTest extends TestCase
             $response->assertSee($marker, false);
         }
 
-        $response->assertSee('Gudang &amp; Inventaris', false)
-            ->assertSee('Penjualan &amp; Piutang (AR)', false)
-            ->assertSee('Keuangan &amp; Akuntansi', false)
-            ->assertSee('Dasbor Akuntansi')
+        $response->assertSee('Stok Gudang')
+            ->assertSee('Jualan</span>', false)
+            ->assertSee('Uang &amp; Akuntansi', false)
+            ->assertSee('Ringkasan Keuangan')
             ->assertSee('Pusat Laporan')
             ->assertDontSee('Shift Kasir');
     }

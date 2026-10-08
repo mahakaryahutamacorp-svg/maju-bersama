@@ -1,77 +1,19 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Data Supplier | Maju Bersama ERP</title>
-    <meta name="description" content="Manajemen data supplier dan rekanan pengadaan barang per cabang.">
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-
-    <!-- Header Utama -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-            <div class="flex items-center gap-4">
-                <a href="/backoffice" class="block">
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                    <h1 class="text-xl font-bold tracking-tight">Manajemen Rekanan</h1>
-                </a>
+<x-app-layout title="Buku Pemasok" :breadcrumbs="[['label' => 'Belanja Barang'], ['label' => 'Buku Pemasok']]">
+    <header class="border-b border-slate-200 bg-white">
+        <div class="flex flex-col gap-4 px-6 py-5 sm:flex-row sm:items-center sm:justify-between lg:px-10">
+            <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-600">Belanja Barang</p>
+                <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-950">Buku Pemasok</h1>
+                <p class="mt-1 text-sm text-slate-500">Semua pemasok tempat toko berbelanja barang.</p>
             </div>
-            <div class="flex items-center gap-4">
-                <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
-                    <a href="/pos" class="hover:text-white">POS Kasir</a>
-                    <a href="/inventory" class="hover:text-white">Inventory</a>
-                    <a href="{{ route('backoffice.purchase-orders.index') }}" class="hover:text-white">Purchase Order</a>
-                    <a href="/backoffice" class="hover:text-white">Backoffice</a>
-                </nav>
-                @if ($isMaster)
-                    <div class="rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-300">
-                        👑 Akses Master Pusat
-                    </div>
-                @else
-                    <div class="rounded-full border border-sky-400/40 bg-sky-400/10 px-3 py-1 text-xs font-semibold text-sky-300">
-                        🏪 {{ $currentUser->branch->name }}
-                    </div>
-                @endif
-                <form method="POST" action="/logout" class="hidden sm:block">
-                    @csrf
-                    <button type="submit" class="text-sm text-slate-300 hover:text-white">Logout</button>
-                </form>
-            </div>
+            <a href="{{ route('backoffice.suppliers.create') }}" id="btn-tambah-supplier" class="inline-flex items-center gap-1.5 self-start rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white shadow-xs transition-colors hover:bg-emerald-500 sm:self-auto">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                Tambah Pemasok
+            </a>
         </div>
     </header>
 
-    <!-- Sub-Navbar Master Data -->
-    <div class="border-b border-slate-200 bg-white shadow-xs">
-        <div class="mx-auto flex max-w-7xl items-center justify-between overflow-x-auto px-6 py-2.5 lg:px-8">
-            <div class="flex items-center gap-2 text-sm font-medium">
-                <a href="{{ route('backoffice.products.index') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Katalog Produk
-                </a>
-                <a href="{{ route('backoffice.categories.index') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Kategori
-                </a>
-                <a href="{{ route('backoffice.suppliers.index') }}" class="rounded-lg bg-indigo-600 px-3.5 py-2 font-bold text-white shadow-xs">
-                    Data Supplier
-                </a>
-                <a href="{{ route('backoffice.warehouses.index') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Multi Gudang
-                </a>
-                <a href="{{ route('backoffice.purchase-orders.index') }}" class="rounded-lg px-3.5 py-2 text-amber-700 hover:bg-amber-50">
-                    Pembelian / PO
-                </a>
-            </div>
-            <a href="{{ route('backoffice.suppliers.create') }}" id="btn-tambah-supplier" class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-emerald-500 transition-colors">
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                Tambah Supplier
-            </a>
-        </div>
-    </div>
-
-    <!-- Main Content -->
-    <main class="mx-auto max-w-7xl px-6 py-8 lg:px-8">
+    <main class="mx-auto w-full max-w-7xl px-6 py-6 lg:px-10">
         <!-- Flash Messages -->
         @if (session('success'))
             <div class="mb-6 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800 shadow-xs">
@@ -91,15 +33,14 @@
         <div class="mb-6 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-sky-50 p-5 shadow-xs">
             <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-wider text-indigo-600">Modul Master Pengadaan</p>
-                    <h2 class="mt-1 text-lg font-bold text-slate-900">Daftar Supplier &amp; Rekanan</h2>
-                    <p class="mt-1 text-sm text-slate-600">
-                        Kelola data supplier untuk pembuatan Purchase Order dan penerimaan barang (Goods Receipt).
+                    <p class="text-xs font-semibold uppercase tracking-wider text-indigo-600">Cara pakai</p>
+                    <p class="mt-1 text-sm text-slate-700">
+                        Klik <span class="font-semibold">Buka Buku</span> untuk melihat sisa hutang, riwayat belanja, dan membayar hutang ke pemasok tersebut di satu layar.
                     </p>
                 </div>
                 <div class="text-right">
                     <span class="text-2xl font-black text-indigo-950">{{ $suppliers->total() }}</span>
-                    <span class="block text-xs font-medium text-slate-500">Total Supplier Terdaftar</span>
+                    <span class="block text-xs font-medium text-slate-500">Pemasok terdaftar</span>
                 </div>
             </div>
         </div>
@@ -166,7 +107,7 @@
                         @forelse ($suppliers as $supplier)
                             <tr class="hover:bg-slate-50/80 transition-colors">
                                 <td class="px-5 py-4 font-semibold text-slate-900">
-                                    {{ $supplier->name }}
+                                    <a href="{{ route('backoffice.suppliers.show', $supplier) }}" class="hover:text-indigo-700 hover:underline">{{ $supplier->name }}</a>
                                 </td>
                                 <td class="px-5 py-4 text-slate-700">
                                     {{ $supplier->contact_person ?? '-' }}
@@ -195,6 +136,9 @@
                                 </td>
                                 <td class="px-5 py-4 text-right whitespace-nowrap">
                                     <div class="flex items-center justify-end gap-2">
+                                        <a href="{{ route('backoffice.suppliers.show', $supplier) }}" class="rounded-lg bg-emerald-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-500">
+                                            Buka Buku
+                                        </a>
                                         <a href="{{ route('backoffice.suppliers.edit', $supplier) }}" class="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300">
                                             Edit
                                         </a>
@@ -227,5 +171,4 @@
             @endif
         </div>
     </main>
-</body>
-</html>
+</x-app-layout>

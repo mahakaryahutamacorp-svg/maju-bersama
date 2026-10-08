@@ -159,8 +159,8 @@
             @endphp
             @foreach ($sale->items as $item)
                 @php
-                    $unitPrice = (int) ($item->price / 100);
-                    $itemSubtotal = (int) ($item->subtotal / 100);
+                    $unitPrice = (int) $item->price;
+                    $itemSubtotal = (int) $item->subtotal;
                     $calculatedTotal += $itemSubtotal;
                 @endphp
                 <div class="item-row">
@@ -177,7 +177,7 @@
 
         <!-- Ringkasan Pembayaran -->
         @php
-            $realTotal = (int) ($sale->total_amount / 100);
+            $realTotal = (int) $sale->total_amount;
             $cash = $cashTendered ? (int) $cashTendered : $realTotal;
             $change = $changeDue !== null ? (int) $changeDue : max(0, $cash - $realTotal);
             $hasDiscount = !empty($sale->discount_amount) && (float) $sale->discount_amount > 0;

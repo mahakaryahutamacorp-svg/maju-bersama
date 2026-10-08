@@ -1,62 +1,12 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Input Penerimaan Barang Masuk | Maju Bersama ERP</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-    <!-- Header Utama -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-            <div class="flex items-center gap-4">
-                <a href="/backoffice" class="block">
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                    <h1 class="text-xl font-bold tracking-tight">Pengadaan &amp; Persediaan</h1>
-                </a>
-            </div>
-            <div class="flex items-center gap-4">
-                <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
-                    <a href="/pos" class="hover:text-white">POS Kasir</a>
-                    <a href="/inventory" class="hover:text-white">Inventory</a>
-                    <a href="{{ route('backoffice.purchase-orders.index') }}" class="hover:text-white">Purchase Order</a>
-                    <a href="/reports/accounting/ledger" class="hover:text-white">Akuntansi</a>
-                    <a href="/backoffice" class="hover:text-white">Backoffice</a>
-                </nav>
-                <div class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200">
-                    {{ $currentUser->branch?->name ?? 'Gudang Pusat' }} ({{ $currentUser->role }})
-                </div>
-                <form method="POST" action="/logout" class="hidden sm:block">
-                    @csrf
-                    <button type="submit" class="text-sm text-slate-300 hover:text-white">Logout</button>
-                </form>
-            </div>
-        </div>
-    </header>
-
-    <!-- Sub-Navbar Modul Pengadaan -->
-    <div class="border-b border-slate-200 bg-white shadow-xs">
-        <div class="mx-auto flex max-w-7xl items-center justify-between overflow-x-auto px-6 py-2.5 lg:px-8">
-            <div class="flex items-center gap-2 text-sm font-medium">
-                <a href="/purchases/goods-receipts" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    &larr; Riwayat Penerimaan
-                </a>
-                <a href="/purchases/goods-receipts/create" class="rounded-lg bg-sky-600 px-3.5 py-2 font-semibold text-white shadow-xs">
-                    + Penerimaan Baru
-                </a>
-                <a href="{{ route('backoffice.purchase-orders.index') }}" class="rounded-lg px-3.5 py-2 text-amber-700 hover:bg-amber-50">
-                    Purchase Order (PO)
-                </a>
-            </div>
-            <div class="text-xs font-semibold text-slate-500">
-                Lokasi Masuk: <span class="text-slate-900 font-bold">{{ $centralBranch->name ?? 'Gudang Pusat' }}</span>
-            </div>
-        </div>
-    </div>
-
-    <main class="mx-auto max-w-7xl space-y-6 px-6 py-8 lg:px-8">
+<x-app-layout title="Catat Barang Datang" :breadcrumbs="[
+    ['label' => 'Belanja Barang'],
+    ['label' => 'Terima Barang', 'url' => route('purchases.goods-receipts.index')],
+    ['label' => 'Catat Barang Datang'],
+]">
+    <main class="mx-auto w-full max-w-7xl space-y-6 px-6 py-6 lg:px-10">
+        <p class="text-xs font-semibold text-slate-500">
+            Lokasi barang masuk: <span class="font-bold text-slate-900">{{ $centralBranch->name ?? 'Gudang Pusat' }}</span>
+        </p>
         <!-- Error Banner -->
         @if ($errors->any())
             <div class="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-rose-900 shadow-xs">
@@ -77,8 +27,8 @@
         <!-- Judul Form -->
         <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-wider text-amber-600">Penerimaan Barang Fisik</p>
-                <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Formulir Goods Receipt</h2>
+                <p class="text-xs font-semibold uppercase tracking-wider text-amber-600">Belanja Barang · Langkah 2</p>
+                <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Catat Barang Datang</h2>
                 <p class="mt-1 text-sm text-slate-500">
                     Masukkan rincian barang yang diterima dari supplier. Anda dapat menarik data dari Purchase Order (PO) atau input mandiri.
                 </p>
@@ -442,7 +392,7 @@
         </div>
     </main>
 
-    <!-- Alpine Component Logic -->
+    <x-slot:scripts>
     <script>
         function goodsReceiptForm(activePOsList = [], productsList = []) {
             let activePOs = activePOsList || [];
@@ -587,5 +537,5 @@
             };
         }
     </script>
-</body>
-</html>
+    </x-slot:scripts>
+</x-app-layout>

@@ -91,22 +91,9 @@ class FinanceDashboardService
         ];
     }
 
-    private function cashAccountQuery()
-    {
-        return ChartOfAccount::query()
-            ->where('is_active', true)
-            ->where('type', 'asset')
-            ->where(function ($q) {
-                $q->where('code', 'like', '11%')
-                    ->orWhere('name', 'like', '%kas%')
-                    ->orWhere('name', 'like', '%bank%');
-            })
-            ->orderBy('code');
-    }
-
     private function cashAccountBalances(?int $branchId): Collection
     {
-        $accounts = $this->cashAccountQuery()->get();
+        $accounts = ChartOfAccount::query()->cashAndBank()->orderBy('code')->get();
         if ($accounts->isEmpty()) {
             return collect();
         }

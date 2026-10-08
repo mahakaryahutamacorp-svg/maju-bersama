@@ -13,6 +13,7 @@
         body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
         [x-cloak] { display: none !important; }
         .font-mono-code { font-family: 'JetBrains Mono', monospace; }
+        a[data-coming-soon] > div > div:last-child { display: none; }
     </style>
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900 antialiased flex flex-col">
@@ -60,7 +61,6 @@
                 <span class="font-semibold text-slate-900">Pusat Laporan</span>
             </div>
             <div class="flex items-center gap-3">
-                <span class="text-xs text-slate-400 hidden sm:inline">Struktur Navigasi Tab Software Akuntansi Klasik</span>
                 <a href="/backoffice" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition">
                     ← Kembali ke Backoffice
                 </a>
@@ -100,14 +100,15 @@
         @endphp
 
         <section
-            x-data="{ submitting: false }"
+            x-data="transactionViewer()"
+            @keydown.escape.window="showModal = false"
             class="mb-6 rounded-2xl border border-slate-300 bg-white shadow-md overflow-hidden"
         >
             <div class="border-b border-slate-200 bg-slate-50 px-5 py-4 sm:px-6">
                 <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h3 class="text-base font-bold text-slate-900">Aktivitas Transaksi</h3>
-                        <p class="text-xs text-slate-500">Ringkasan pemasukan dan pengeluaran sesuai filter aktif.</p>
+                        <p class="text-xs text-slate-500">Semua transaksi sesuai filter. Klik nomor referensi untuk melihat rinciannya.</p>
                     </div>
                     <div class="flex flex-wrap items-center gap-2 text-[11px]">
                         <span class="rounded-full border border-slate-200 bg-white px-2.5 py-1 font-medium text-slate-600">{{ \Carbon\Carbon::parse($startDate)->isoFormat('D MMM Y') }} – {{ \Carbon\Carbon::parse($endDate)->isoFormat('D MMM Y') }}</span>
@@ -125,8 +126,12 @@
                 method="GET"
                 action="{{ route('reports.index') }}"
                 @submit="submitting = true"
-                class="grid gap-3 border-b border-slate-100 px-5 py-4 sm:grid-cols-2 lg:grid-cols-5 lg:items-end sm:px-6"
+                class="grid gap-3 border-b border-slate-100 px-5 py-4 sm:grid-cols-2 lg:grid-cols-6 lg:items-end sm:px-6"
             >
+                <div class="sm:col-span-2 lg:col-span-6">
+                    <label for="search" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500">Cari aktivitas</label>
+                    <input type="search" id="search" name="search" value="{{ $ledger['search'] ?? '' }}" maxlength="100" placeholder="Ketik nomor nota/referensi, nama pelanggan, atau nama pemasok…" class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20">
+                </div>
                 <div>
                     <label for="start_date" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500">Dari tanggal</label>
                     <input type="date" id="start_date" name="start_date" value="{{ $startDate }}" class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20">
@@ -136,7 +141,7 @@
                     <input type="date" id="end_date" name="end_date" value="{{ $endDate }}" class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20">
                 </div>
                 <div>
-                    <label for="type" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500">Jenis laporan</label>
+                    <label for="type" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500">Jenis transaksi</label>
                     <select id="type" name="type" class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20">
                         @foreach ($transactionTypes as $typeKey => $typeName)
                             <option value="{{ $typeKey }}" @selected($selectedType === $typeKey)>{{ $typeName }}</option>
@@ -159,7 +164,7 @@
                         <input type="text" value="{{ $currentUser->branch?->name ?? 'Cabang Anda' }}" readonly class="mt-1.5 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-600">
                     </div>
                 @endif
-                <div class="flex gap-2">
+                <div class="flex gap-2 lg:col-span-2">
                     <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white shadow-xs hover:bg-slate-800">
                         <span x-show="!submitting">Terapkan Filter</span>
                         <span x-cloak x-show="submitting">Memuat…</span>
@@ -169,21 +174,25 @@
 
             <div class="grid grid-cols-2 gap-3 px-5 py-4 lg:grid-cols-4 sm:px-6">
                 <div class="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5">
-                    <p class="text-[11px] font-semibold uppercase tracking-wide text-emerald-800">Total Pemasukan</p>
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-emerald-800">Uang Masuk</p>
                     <p class="mt-1 text-lg font-extrabold text-emerald-800">{{ $formatLedgerRupiah($totalInflow) }}</p>
                 </div>
                 <div class="rounded-xl border border-rose-200 bg-rose-50/70 p-3.5">
-                    <p class="text-[11px] font-semibold uppercase tracking-wide text-rose-800">Total Pengeluaran</p>
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-rose-800">Uang Keluar</p>
                     <p class="mt-1 text-lg font-extrabold text-rose-800">{{ $formatLedgerRupiah($totalOutflow) }}</p>
                 </div>
                 <div class="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
-                    <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Netto Filter</p>
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Selisih Uang</p>
                     <p class="mt-1 text-lg font-extrabold {{ $netAmount >= 0 ? 'text-slate-900' : 'text-rose-700' }}">{{ $formatLedgerRupiah($netAmount) }}</p>
                 </div>
                 <div class="rounded-xl border border-sky-200 bg-sky-50/70 p-3.5">
                     <p class="text-[11px] font-semibold uppercase tracking-wide text-sky-800">Jumlah Transaksi</p>
                     <p class="mt-1 text-lg font-extrabold text-sky-900">{{ number_format($ledger['count'] ?? 0, 0, ',', '.') }}</p>
                 </div>
+                <p class="col-span-2 text-[11px] text-slate-500 lg:col-span-4">
+                    Uang Masuk dan Uang Keluar hanya menghitung uang yang benar-benar berpindah (tunai, transfer, QRIS, pelunasan).
+                    Penjualan/pembelian kredit, retur yang hanya memotong hutang/piutang, pindah kas/bank, dan stok opname tetap tampil di daftar dengan tanda abu-abu, tapi tidak ikut dijumlahkan.
+                </p>
             </div>
 
             <div class="overflow-x-auto">
@@ -204,16 +213,26 @@
                                     {{ $row['date'] ? \Carbon\Carbon::parse($row['date'])->isoFormat('D MMM Y') : '-' }}
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-2.5">
-                                    <button type="button" onclick="window.loadTransaction && window.loadTransaction('{{ $row['reference'] }}')" class="font-mono text-xs font-bold text-sky-700 hover:underline">
+                                    <button type="button" @click="loadTransaction(@js($row['reference']))" class="font-mono text-xs font-bold text-sky-700 hover:underline">
                                         {{ $row['reference'] }}
                                     </button>
                                 </td>
                                 <td class="px-4 py-2.5">
                                     <p class="font-medium text-slate-900">{{ $row['description'] }}</p>
-                                    <p class="text-[11px] text-slate-500">{{ $row['type_label'] }}</p>
+                                    <p class="text-[11px] text-slate-500">
+                                        {{ $row['type_label'] }}
+                                        @if (! ($row['is_cash'] ?? true))
+                                            <span class="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">{{ $row['non_cash_note'] }}</span>
+                                        @endif
+                                    </p>
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-2.5 text-xs text-slate-600">{{ $row['branch_name'] }}</td>
-                                <td class="whitespace-nowrap px-4 py-2.5 text-right font-semibold {{ $row['direction'] === 'in' ? 'text-emerald-700' : 'text-rose-700' }}">
+                                @php
+                                    $amountClass = ! ($row['is_cash'] ?? true)
+                                        ? 'text-slate-400'
+                                        : ($row['direction'] === 'in' ? 'text-emerald-700' : 'text-rose-700');
+                                @endphp
+                                <td class="whitespace-nowrap px-4 py-2.5 text-right font-semibold {{ $amountClass }}">
                                     {{ $row['direction'] === 'out' ? '-' : '' }}{{ $formatLedgerRupiah($row['amount']) }}
                                 </td>
                             </tr>
@@ -224,6 +243,29 @@
                         @endforelse
                     </tbody>
                 </table>
+            </div>
+
+            <div x-show="showModal" x-cloak class="fixed inset-0 z-50 overflow-y-auto" role="dialog" aria-modal="true" aria-label="Rincian transaksi">
+                <div class="fixed inset-0 bg-slate-900/60" @click="showModal = false"></div>
+                <div class="flex min-h-full items-center justify-center p-4">
+                    <div class="relative w-full max-w-4xl overflow-hidden rounded-2xl bg-white shadow-2xl" @click.stop>
+                        <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-6 py-4">
+                            <div>
+                                <h3 class="text-base font-bold text-slate-900">Rincian Transaksi</h3>
+                                <p class="font-mono text-xs text-slate-500" x-text="activeReference"></p>
+                            </div>
+                            <button type="button" @click="showModal = false" class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-200 hover:text-slate-700">
+                                <span class="sr-only">Tutup</span>
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                        </div>
+                        <div class="max-h-[75vh] overflow-y-auto p-6">
+                            <p x-show="loading" class="py-10 text-center text-sm text-slate-500">Memuat rincian transaksi...</p>
+                            <p x-show="errorMessage" x-text="errorMessage" class="py-10 text-center text-sm font-semibold text-rose-600"></p>
+                            <div x-show="!loading && !errorMessage" x-html="transactionHtml"></div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
 
@@ -579,7 +621,8 @@
                                 </div>
                             </a>
 
-                            <a href="#" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
+                            <a data-coming-soon aria-disabled="true" title="Laporan ini sedang disiapkan" class="relative block cursor-not-allowed rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 opacity-75">
+                                <span class="absolute right-3 top-3 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">Segera hadir</span>
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-start gap-3.5">
                                         <div class="rounded-lg bg-rose-100 text-rose-800 p-2.5 mt-0.5 group-hover:scale-105 transition-transform">
@@ -688,7 +731,8 @@
                                 </div>
                             </a>
 
-                            <a href="#" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
+                            <a data-coming-soon aria-disabled="true" title="Laporan ini sedang disiapkan" class="relative block cursor-not-allowed rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 opacity-75">
+                                <span class="absolute right-3 top-3 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">Segera hadir</span>
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-start gap-3.5">
                                         <div class="rounded-lg bg-teal-100 text-teal-800 p-2.5 mt-0.5 group-hover:scale-105 transition-transform">
@@ -773,7 +817,8 @@
                             </a>
 
                             <!-- 2. Daftar Barang per Gudang -->
-                            <a href="#" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
+                            <a data-coming-soon aria-disabled="true" title="Laporan ini sedang disiapkan" class="relative block cursor-not-allowed rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 opacity-75">
+                                <span class="absolute right-3 top-3 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">Segera hadir</span>
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-start gap-3.5">
                                         <div class="rounded-lg bg-teal-100 text-teal-800 p-2.5 mt-0.5 group-hover:scale-105 transition-transform">
@@ -856,7 +901,8 @@
                                 </div>
                             </a>
 
-                            <a href="#" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
+                            <a data-coming-soon aria-disabled="true" title="Laporan ini sedang disiapkan" class="relative block cursor-not-allowed rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 opacity-75">
+                                <span class="absolute right-3 top-3 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">Segera hadir</span>
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-start gap-3.5">
                                         <div class="rounded-lg bg-pink-100 text-pink-800 p-2.5 mt-0.5 group-hover:scale-105 transition-transform">
@@ -882,7 +928,8 @@
                                 </div>
                             </a>
 
-                            <a href="#" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
+                            <a data-coming-soon aria-disabled="true" title="Laporan ini sedang disiapkan" class="relative block cursor-not-allowed rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 opacity-75">
+                                <span class="absolute right-3 top-3 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">Segera hadir</span>
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-start gap-3.5">
                                         <div class="rounded-lg bg-amber-100 text-amber-800 p-2.5 mt-0.5 group-hover:scale-105 transition-transform">
@@ -914,8 +961,8 @@
                 <!-- Footer Status & Tips Kolom Kanan -->
                 <div class="mt-8 pt-4 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
                     <div class="flex items-center gap-2">
-                        <span class="w-2 h-2 rounded-full bg-amber-400"></span>
-                        <span>Tahap 1: Cangkang Antarmuka Navigasi Tab Selesai</span>
+                        <span class="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">Segera hadir</span>
+                        <span>Laporan bertanda ini sedang disiapkan dan belum bisa dibuka.</span>
                     </div>
                     <div class="flex items-center gap-3">
                         <span class="font-mono text-slate-400">Pusat Laporan &bull; Maju Bersama POS-Accounting</span>
@@ -925,5 +972,40 @@
 
         </div>
     </main>
+
+    <script>
+        function transactionViewer() {
+            return {
+                submitting: false,
+                showModal: false,
+                loading: false,
+                activeReference: '',
+                transactionHtml: '',
+                errorMessage: '',
+                async loadTransaction(reference) {
+                    if (!reference) return;
+                    this.activeReference = reference;
+                    this.showModal = true;
+                    this.loading = true;
+                    this.errorMessage = '';
+                    this.transactionHtml = '';
+                    try {
+                        const response = await fetch('/backoffice/transactions/' + encodeURIComponent(reference) + '/details', {
+                            headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' },
+                        });
+                        if (!response.ok) {
+                            this.errorMessage = 'Rincian transaksi gagal dimuat (kode ' + response.status + ').';
+                            return;
+                        }
+                        this.transactionHtml = await response.text();
+                    } catch (error) {
+                        this.errorMessage = 'Koneksi terputus. Periksa jaringan lalu coba lagi.';
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+            };
+        }
+    </script>
 </body>
 </html>

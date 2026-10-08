@@ -76,7 +76,7 @@ class PurchaseOrderWebTest extends TestCase
         // 1. Index page loads
         $response = $this->get(route('backoffice.suppliers.index'));
         $response->assertOk();
-        $response->assertSee('Data Supplier');
+        $response->assertSee('Buku Pemasok');
 
         // 2. Create page loads
         $response = $this->get(route('backoffice.suppliers.create'));

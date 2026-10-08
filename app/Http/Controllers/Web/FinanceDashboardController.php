@@ -36,20 +36,7 @@ class FinanceDashboardController extends Controller
 
         $dashboard = $this->dashboardService->build($user, $branchId, $startDate, $endDate);
 
-        $cashBankAccounts = ChartOfAccount::query()
-            ->where('is_active', true)
-            ->where('type', 'asset')
-            ->where(function ($q) {
-                $q->where('code', 'like', '11%')
-                    ->orWhere('name', 'like', '%kas%')
-                    ->orWhere('name', 'like', '%bank%');
-            })
-            ->orderBy('code')
-            ->get();
-
-        if ($cashBankAccounts->isEmpty()) {
-            $cashBankAccounts = ChartOfAccount::query()->where('type', 'asset')->orderBy('code')->get();
-        }
+        $cashBankAccounts = ChartOfAccount::query()->cashAndBank()->orderBy('code')->get();
 
         return view('backoffice.finance.dashboard', [
             'currentUser' => $user,

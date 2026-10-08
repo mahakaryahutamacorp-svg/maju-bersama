@@ -175,6 +175,51 @@ class FinanceDashboardWebTest extends TestCase
             ->assertDontSee('EXP-BETA-HIDDEN');
     }
 
+    public function test_cash_bank_total_only_counts_kas_and_bank_per_branch(): void
+    {
+        $bank = ChartOfAccount::create(['code' => '1120', 'name' => 'Bank', 'type' => 'asset', 'is_active' => true]);
+        $receivable = ChartOfAccount::create(['code' => '1130', 'name' => 'Piutang Usaha', 'type' => 'asset', 'is_active' => true]);
+        $inventory = ChartOfAccount::create(['code' => '1210', 'name' => 'Persediaan', 'type' => 'asset', 'is_active' => true]);
+        $equity = ChartOfAccount::query()->where('code', '3110')->firstOrFail();
+        $revenue = ChartOfAccount::query()->where('code', '4110')->firstOrFail();
+
+        $post = function (int $branchId, string $reference, array $lines): void {
+            app(JournalPostingService::class)->post([
+                'branch_id' => $branchId,
+                'user_id' => $this->master->id,
+                'transaction_date' => now()->toDateString(),
+                'reference_number' => $reference,
+                'description' => $reference,
+                'lines' => array_map(fn ($line) => [
+                    'chart_of_account_id' => $line[0]->id,
+                    'debit' => $line[1],
+                    'credit' => $line[2],
+                ], $lines),
+            ]);
+        };
+
+        $post($this->branchA->id, 'JU-A-MODAL', [[$this->cashAccount, 300000, 0], [$equity, 0, 300000]]);
+        $post($this->branchA->id, 'JU-A-BANK', [[$bank, 200000, 0], [$this->cashAccount, 0, 50000], [$revenue, 0, 150000]]);
+        $post($this->branchA->id, 'JU-A-PIUTANG', [[$receivable, 900000, 0], [$revenue, 0, 900000]]);
+        $post($this->branchA->id, 'JU-A-STOK', [[$inventory, 400000, 0], [$this->cashAccount, 0, 400000]]);
+        $post($this->branchB->id, 'JU-B-MODAL', [[$this->cashAccount, 7000000, 0], [$equity, 0, 7000000]]);
+
+        $this->actingAs($this->adminA)
+            ->get(route('backoffice.finance.dashboard', ['branch_id' => $this->branchB->id]))
+            ->assertOk()
+            ->assertViewHas('dashboard', function (array $dashboard) {
+                $balances = $dashboard['cash_accounts']->pluck('balance', 'code')->all();
+
+                return $dashboard['cash_total'] === 50000.0
+                    && $balances === ['1110' => -150000.0, '1120' => 200000.0];
+            });
+
+        $this->actingAs($this->master)
+            ->get(route('backoffice.finance.dashboard', ['branch_id' => $this->branchB->id]))
+            ->assertOk()
+            ->assertViewHas('dashboard', fn (array $dashboard) => $dashboard['cash_total'] === 7000000.0);
+    }
+
     public function test_quick_action_posts_manual_journal_via_journal_posting_service(): void
     {
         $response = $this->actingAs($this->adminA)->post(route('backoffice.finance.journals.store'), [

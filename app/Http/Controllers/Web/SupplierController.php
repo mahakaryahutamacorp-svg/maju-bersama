@@ -272,21 +272,7 @@ class SupplierController extends Controller
 
     private function cashBankAccounts()
     {
-        $accounts = ChartOfAccount::query()
-            ->where('type', 'asset')
-            ->where('is_active', true)
-            ->where(function ($q) {
-                $q->where('code', 'like', '11%')
-                    ->orWhere('name', 'like', '%kas%')
-                    ->orWhere('name', 'like', '%bank%');
-            })
-            ->where('code', 'not like', '113%')
-            ->orderBy('code')
-            ->get(['id', 'code', 'name']);
-
-        return $accounts->isNotEmpty()
-            ? $accounts
-            : ChartOfAccount::query()->where('type', 'asset')->orderBy('code')->get(['id', 'code', 'name']);
+        return ChartOfAccount::query()->cashAndBank()->orderBy('code')->get(['id', 'code', 'name']);
     }
 
     /**

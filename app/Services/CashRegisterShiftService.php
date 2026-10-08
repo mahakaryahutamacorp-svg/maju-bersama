@@ -71,10 +71,7 @@ class CashRegisterShiftService
             ->where('status', 'completed')
             ->get();
 
-        $totalCash = $cashSales->sum(function (Sale $sale) {
-            // Nilai sale.total_amount disimpan dalam satuan sen (cents) di POS checkout
-            return (float) ($sale->total_amount / 100);
-        });
+        $totalCash = $cashSales->sum(fn (Sale $sale) => (float) $sale->total_amount);
 
         // Kurangi refund retur penjualan tunai pada shift ini
         $cashRefunds = SalesReturn::withoutGlobalScopes()

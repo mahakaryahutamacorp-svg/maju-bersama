@@ -90,7 +90,7 @@ class PosWebTest extends TestCase
         $sale = Sale::create([
             'branch_id' => $this->branch->id,
             'receipt_number' => 'INV-20260916-0099',
-            'total_amount' => 3000000, // 30.000 (in cents)
+            'total_amount' => 30000,
             'payment_method' => 'cash',
             'status' => 'completed',
             'created_by' => $this->cashier->id,
@@ -100,8 +100,8 @@ class PosWebTest extends TestCase
             'sale_id' => $sale->id,
             'product_id' => $this->product->id,
             'quantity' => 2,
-            'price' => 1500000,
-            'subtotal' => 3000000,
+            'price' => 15000,
+            'subtotal' => 30000,
         ]);
 
         $response = $this->actingAs($this->cashier)->get("/pos/receipt/{$sale->receipt_number}?cash=50000&change=20000");
@@ -152,9 +152,9 @@ class PosWebTest extends TestCase
         $receiptNumber = $response->json('receipt_number');
         $this->assertNotEmpty($receiptNumber);
 
-        // 1. Verifikasi tabel sales: Grand Total 25.000 (2.500.000 sen), diskon 5.000
+        // 1. Verifikasi tabel sales: Grand Total 25.000, diskon 5.000
         $sale = Sale::where('receipt_number', $receiptNumber)->firstOrFail();
-        $this->assertEquals(2500000, $sale->total_amount);
+        $this->assertEquals(25000, $sale->total_amount);
         $this->assertEquals(5000, (float) $sale->discount_amount);
 
         // 2. Verifikasi Jurnal Akuntansi seimbang (Balanced Journal)
@@ -216,7 +216,7 @@ class PosWebTest extends TestCase
         $sale = Sale::create([
             'branch_id' => $this->branch->id,
             'receipt_number' => 'INV-20260916-0888',
-            'total_amount' => 2500000, // 25.000 (in cents)
+            'total_amount' => 25000,
             'discount_amount' => 5000,
             'payment_method' => 'cash',
             'status' => 'completed',
@@ -227,8 +227,8 @@ class PosWebTest extends TestCase
             'sale_id' => $sale->id,
             'product_id' => $this->product->id,
             'quantity' => 2,
-            'price' => 1500000,
-            'subtotal' => 3000000,
+            'price' => 15000,
+            'subtotal' => 30000,
         ]);
 
         $response = $this->actingAs($this->cashier)->get("/pos/receipt/{$sale->receipt_number}");
@@ -284,7 +284,7 @@ class PosWebTest extends TestCase
 
         $centralAdmin = User::factory()->create([
             'branch_id' => $centralBranch->id,
-            'role' => 'admin',
+            'role' => 'master',
         ]);
 
         $groupUmum = CustomerGroup::firstOrCreate(['name' => 'Umum/Retail']);
@@ -335,7 +335,7 @@ class PosWebTest extends TestCase
         $this->assertEquals('UNPAID', $sale->payment_status);
         $this->assertEquals($customer->id, $sale->customer_id);
         $this->assertEquals($dueDate, $sale->due_date->toDateString());
-        $this->assertEquals(3000000, $sale->total_amount); // 30.000 in cents
+        $this->assertEquals(30000, $sale->total_amount);
 
         // Verifikasi Jurnal Akuntansi: Debit Piutang Usaha (1130) senilai 30.000
         $journal = JournalHeader::where('reference_number', $receiptNumber)->firstOrFail();

@@ -32,7 +32,7 @@ class CheckoutTest extends TestCase
                 'receipt_number',
                 'sale' => ['id', 'total_amount', 'items'],
             ])
-            ->assertJsonPath('sale.total_amount', 22000000)
+            ->assertJsonPath('sale.total_amount', 220000)
             ->assertJsonCount(1, 'sale.items');
 
         $saleId = $response->json('sale.id');
@@ -46,15 +46,15 @@ class CheckoutTest extends TestCase
             'id' => $saleId,
             'branch_id' => $user->branch_id,
             'status' => 'completed',
-            'total_amount' => 22000000,
+            'total_amount' => 220000,
         ]);
 
         $this->assertDatabaseHas('sale_items', [
             'sale_id' => $saleId,
             'product_id' => $product->id,
             'quantity' => 2,
-            'price' => 11000000,
-            'subtotal' => 22000000,
+            'price' => 110000,
+            'subtotal' => 220000,
         ]);
 
         $this->assertDatabaseHas('journal_headers', [

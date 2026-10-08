@@ -168,7 +168,7 @@ class PosShiftWebTest extends TestCase
 
         $this->assertNotNull($sale->cash_register_shift_id);
         $this->assertSame($shift->id, $sale->cash_register_shift_id);
-        $this->assertEquals(4000000, $sale->total_amount); // 40.000 in cents
+        $this->assertEquals(40000, $sale->total_amount);
     }
 
     public function test_calculate_expected_balance_sums_opening_balance_and_cash_sales(): void
