@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Branch;
+use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -38,7 +39,6 @@ class BackofficeRbacLayoutTest extends TestCase
         'Manajemen Cabang',
         'Staf &amp; Kasir',
         'Kategori Biaya',
-        'Buku Pemasok &amp; Hutang',
         'Jurnal Umum',
         'Saldo Awal (Setup)',
     ];
@@ -55,6 +55,7 @@ class BackofficeRbacLayoutTest extends TestCase
             ->assertDontSee('Belanja Barang')
             ->assertDontSee('1. Pesan Barang (PO)')
             ->assertDontSee('2. Terima Barang')
+            ->assertDontSee('3. Buku Pemasok &amp; Hutang', false)
             ->assertDontSee(route('backoffice.purchase-orders.index'), false)
             ->assertDontSee('Pengaturan</span>', false)
             ->assertDontSee('Katalog Produk')
@@ -83,8 +84,9 @@ class BackofficeRbacLayoutTest extends TestCase
         $response->assertSee('Beranda')
             ->assertSee('Riwayat Penjualan')
             ->assertSee('Stok Gudang')
-            ->assertSeeInOrder(['Belanja Barang', '1. Pesan Barang (PO)', '2. Terima Barang'])
+            ->assertSeeInOrder(['Belanja Barang', '1. Pesan Barang (PO)', '2. Terima Barang', '3. Buku Pemasok &amp; Hutang'], false)
             ->assertSee(route('backoffice.purchase-orders.index'), false)
+            ->assertSee(route('backoffice.suppliers.index'), false)
             ->assertSee('Katalog Produk')
             ->assertSee('Data Pelanggan')
             ->assertSee('Piutang Pelanggan')
@@ -179,5 +181,22 @@ class BackofficeRbacLayoutTest extends TestCase
         $this->actingAs($branchAdmin)->get('/backoffice/fixed-assets')->assertOk();
         $this->actingAs($branchAdmin)->get('/backoffice/purchase-orders')->assertOk();
         $this->actingAs($branchAdmin)->get('/backoffice/payments')->assertOk();
+        $this->actingAs($branchAdmin)->get('/backoffice/suppliers')->assertOk();
+    }
+
+    public function test_branch_admin_supplier_ledger_is_limited_to_own_branch(): void
+    {
+        $otherBranch = Branch::create(['code' => 'LAIN', 'name' => 'Cabang Lain RBAC']);
+        $ownSupplier = Supplier::create(['branch_id' => $this->branch->id, 'name' => 'Pemasok Cabang Sendiri']);
+        $otherSupplier = Supplier::create(['branch_id' => $otherBranch->id, 'name' => 'Pemasok Cabang Lain']);
+        $branchAdmin = $this->makeUser('branch_admin');
+
+        $this->actingAs($branchAdmin)->get('/backoffice/suppliers')
+            ->assertOk()
+            ->assertSee('Pemasok Cabang Sendiri')
+            ->assertDontSee('Pemasok Cabang Lain');
+
+        $this->actingAs($branchAdmin)->get(route('backoffice.suppliers.show', $ownSupplier))->assertOk();
+        $this->actingAs($branchAdmin)->get(route('backoffice.suppliers.show', $otherSupplier))->assertNotFound();
     }
 }

@@ -124,7 +124,7 @@
                 @can('access-inventory')
                     <x-sidebar.link :href="route('purchases.goods-receipts.index')" :active="$isGoodsReceiptActive">2. Terima Barang</x-sidebar.link>
                 @endcan
-                @can('manage-system')
+                @can('manage-branch-operations')
                     <x-sidebar.link :href="route('backoffice.suppliers.index')" :active="$isSuppliersActive">3. Buku Pemasok &amp; Hutang</x-sidebar.link>
                 @endcan
                 @can('access-enterprise')
