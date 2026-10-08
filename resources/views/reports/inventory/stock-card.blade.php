@@ -1,11 +1,8 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kartu Stok (Stock Card Movement) | Maju Bersama ERP</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<x-app-layout title="Kartu Stok (Stock Card Movement)" :breadcrumbs="[
+    ['label' => 'Stok Gudang'],
+    ['label' => 'Kartu Stok'],
+]">
+    <x-slot:head>
     <style>
         @media print {
             .no-print { display: none !important; }
@@ -14,70 +11,22 @@
         }
         [x-cloak] { display: none !important; }
     </style>
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-    <!-- Header Utama -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white no-print">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-            <div class="flex items-center gap-4">
-                <a href="/backoffice" class="block">
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                    <h1 class="text-xl font-bold tracking-tight">Laporan Mutasi &amp; Kartu Stok</h1>
-                </a>
-            </div>
-            <div class="flex items-center gap-4">
-                <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
-                    <a href="/pos" class="hover:text-white">Kasir (POS)</a>
-                    <a href="/inventory" class="hover:text-white">Persediaan</a>
-                    <a href="/inventory/adjustments" class="hover:text-white">Stok Opname</a>
-                    <a href="/purchases/goods-receipts" class="hover:text-white">Penerimaan Barang</a>
-                    <a href="/reports/accounting/ledger" class="hover:text-white">Buku Besar</a>
-                    <a href="/backoffice" class="hover:text-white">Panel Admin</a>
-                </nav>
-                <div class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200">
-                    {{ $currentUser->branch?->name ?? 'Pusat' }} ({{ $currentUser->role }})
-                </div>
-                <form method="POST" action="/logout" class="hidden sm:block">
-                    @csrf
-                    <button type="submit" class="text-sm text-slate-300 hover:text-white">Keluar</button>
-                </form>
-            </div>
-        </div>
-    </header>
+    </x-slot:head>
 
-    <!-- Sub-Navbar Modul Laporan -->
-    <div class="border-b border-slate-200 bg-white no-print">
-        <div class="mx-auto flex max-w-7xl items-center justify-between overflow-x-auto px-6 py-2.5 lg:px-8">
-            <div class="flex items-center gap-2 text-sm font-medium">
-                <a href="{{ route('reports.inventory.stock-card') }}" class="rounded-lg bg-indigo-600 px-3.5 py-2 font-semibold text-white shadow-sm">
-                    Kartu Stok Produk
-                </a>
-                <a href="/inventory" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Katalog Persediaan
-                </a>
-                <a href="/inventory/adjustments" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Stock Opname
-                </a>
-                <a href="/inventory/transfer" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Transfer Stok
-                </a>
-                <a href="/reports/accounting/ledger" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Buku Besar
-                </a>
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-7xl">
+        <div class="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+            <div>
+                <p class="text-sm font-semibold uppercase tracking-wider text-amber-600">Stok Gudang</p>
+                <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Laporan Mutasi &amp; Kartu Stok</h2>
             </div>
             @if ($stockCard)
-                <button onclick="window.print()" class="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
-                    <svg class="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
-                    </svg>
+                <button type="button" onclick="window.print()" class="no-print inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50">
+                    <svg class="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                     Cetak Kartu Stok
                 </button>
             @endif
         </div>
-    </div>
 
-    <!-- Konten Utama -->
-    <main class="mx-auto max-w-7xl px-6 py-8 lg:px-8">
         <!-- Form Filter & Pencarian Produk Interaktif (Alpine.js) -->
         <div 
             class="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm no-print"
@@ -88,11 +37,11 @@
                     <!-- Dropdown Cabang (jika master) -->
                     @if ($isMaster && $branches->count() > 1)
                         <div>
-                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600">Cabang</label>
+                            <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Cabang</label>
                             <select 
                                 name="branch_id" 
                                 onchange="this.form.submit()" 
-                                class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
                             >
                                 @foreach ($branches as $branch)
                                     <option value="{{ $branch->id }}" {{ $selectedBranchId == $branch->id ? 'selected' : '' }}>
@@ -107,7 +56,7 @@
 
                     <!-- Pencarian & Pemilihan Produk (Dinamis dengan Search Autocomplete) -->
                     <div class="relative sm:col-span-2 lg:col-span-1" @click.away="showDropdown = false">
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600">Pilih Produk (Wajib)</label>
+                        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Pilih Produk (Wajib)</label>
                         <input type="hidden" name="product_id" :value="selectedId">
                         
                         <div class="relative mt-1">
@@ -116,7 +65,7 @@
                                 x-model="searchQuery" 
                                 @focus="showDropdown = true"
                                 placeholder="Ketik nama atau SKU..."
-                                class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
                             >
                             <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
                                 <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -149,23 +98,23 @@
 
                     <!-- Tanggal Mulai -->
                     <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600">Tanggal Mulai</label>
+                        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Tanggal Mulai</label>
                         <input 
                             type="date" 
                             name="start_date" 
                             value="{{ $startDate }}" 
-                            class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
                         >
                     </div>
 
                     <!-- Tanggal Selesai -->
                     <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600">Tanggal Selesai</label>
+                        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Tanggal Selesai</label>
                         <input 
                             type="date" 
                             name="end_date" 
                             value="{{ $endDate }}" 
-                            class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                            class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
                         >
                     </div>
                 </div>
@@ -178,7 +127,7 @@
                         <a href="{{ route('reports.inventory.stock-card') }}" class="rounded-lg border border-slate-300 bg-slate-100 px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200">
                             Reset
                         </a>
-                        <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-indigo-500">
+                        <button type="submit" class="rounded-lg bg-sky-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-sky-700">
                             Tampilkan Kartu Stok
                         </button>
                     </div>
@@ -256,7 +205,7 @@
                 <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
-                            <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-600">
+                            <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                                 <tr>
                                     <th class="px-5 py-3.5">Tanggal</th>
                                     <th class="px-5 py-3.5">No. Referensi</th>
@@ -264,10 +213,10 @@
                                     <th class="px-5 py-3.5">Keterangan / Rekanan</th>
                                     <th class="px-5 py-3.5 text-right text-emerald-700">Masuk (In)</th>
                                     <th class="px-5 py-3.5 text-right text-rose-700">Keluar (Out)</th>
-                                    <th class="px-5 py-3.5 text-right font-bold text-slate-900">Saldo Berjalan</th>
+                                    <th class="px-5 py-3.5 text-right font-bold">Saldo Berjalan</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100 text-slate-800">
+                            <tbody class="divide-y divide-slate-100 text-slate-800 [&>tr:nth-child(even)]:bg-slate-50/60">
                                 <!-- Baris Saldo Awal -->
                                 <tr class="bg-slate-50/80 font-medium text-slate-600 italic">
                                     <td class="whitespace-nowrap px-5 py-3 font-sans">
@@ -391,7 +340,7 @@
         @endif
     </main>
 
-    <!-- Script Autocomplete Pencarian Produk Alpine.js -->
+    <x-slot:scripts>
     <script>
         function stockCardFilter(productsList, initialSelectedId) {
             const initialProduct = (productsList || []).find(p => p.id == initialSelectedId);
@@ -420,5 +369,5 @@
             };
         }
     </script>
-</body>
-</html>
+    </x-slot:scripts>
+</x-app-layout>

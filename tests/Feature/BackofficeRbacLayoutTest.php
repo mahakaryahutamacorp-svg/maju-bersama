@@ -30,7 +30,6 @@ class BackofficeRbacLayoutTest extends TestCase
 
     /** Teks yang HANYA boleh muncul untuk master. */
     private array $enterpriseMarkers = [
-        '1. Pesan Barang (PO)',
         'Riwayat Bayar Hutang',
         'Retur ke Pemasok',
         'Cadangan Database Sistem (Manual Backup)',
@@ -54,6 +53,9 @@ class BackofficeRbacLayoutTest extends TestCase
             ->assertDontSee('Riwayat Penjualan')
             ->assertDontSee('Stok Gudang')
             ->assertDontSee('Belanja Barang')
+            ->assertDontSee('1. Pesan Barang (PO)')
+            ->assertDontSee('2. Terima Barang')
+            ->assertDontSee(route('backoffice.purchase-orders.index'), false)
             ->assertDontSee('Pengaturan</span>', false)
             ->assertDontSee('Katalog Produk')
             ->assertDontSee('Jualan</span>', false)
@@ -81,7 +83,8 @@ class BackofficeRbacLayoutTest extends TestCase
         $response->assertSee('Beranda')
             ->assertSee('Riwayat Penjualan')
             ->assertSee('Stok Gudang')
-            ->assertSee('2. Terima Barang')
+            ->assertSeeInOrder(['Belanja Barang', '1. Pesan Barang (PO)', '2. Terima Barang'])
+            ->assertSee(route('backoffice.purchase-orders.index'), false)
             ->assertSee('Katalog Produk')
             ->assertSee('Data Pelanggan')
             ->assertSee('Piutang Pelanggan')
@@ -104,7 +107,8 @@ class BackofficeRbacLayoutTest extends TestCase
             $response->assertSee($marker, false);
         }
 
-        $response->assertSee('Stok Gudang')
+        $response->assertSeeInOrder(['1. Pesan Barang (PO)', '2. Terima Barang', '3. Buku Pemasok &amp; Hutang'], false)
+            ->assertSee('Stok Gudang')
             ->assertSee('Jualan</span>', false)
             ->assertSee('Uang &amp; Akuntansi', false)
             ->assertSee('Ringkasan Keuangan')

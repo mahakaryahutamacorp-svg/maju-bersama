@@ -232,4 +232,84 @@ class PurchaseOrderWebTest extends TestCase
         ]);
         $response->assertSessionHasErrors(['supplier_id', 'items']);
     }
+
+    public function test_purchase_order_pages_use_app_layout_with_step_label_and_breadcrumbs(): void
+    {
+        $this->actingAs($this->user);
+
+        $supplier = Supplier::withoutGlobalScopes()->create([
+            'branch_id' => $this->branch->id,
+            'name' => 'CV Tani Makmur',
+            'is_active' => true,
+        ]);
+
+        $po = PurchaseOrder::withoutGlobalScopes()->create([
+            'branch_id' => $this->branch->id,
+            'supplier_id' => $supplier->id,
+            'reference_number' => 'PO-LAYOUT-001',
+            'order_date' => now()->toDateString(),
+            'status' => 'pending',
+            'total_amount' => 150000,
+        ]);
+
+        $pages = [
+            route('backoffice.purchase-orders.index'),
+            route('backoffice.purchase-orders.create'),
+            route('backoffice.purchase-orders.show', $po->id),
+        ];
+
+        foreach ($pages as $url) {
+            $this->get($url)
+                ->assertOk()
+                ->assertSee('aria-label="Breadcrumb"', false)
+                ->assertSeeInOrder(['Beranda', 'Belanja Barang', 'Pesan Barang'])
+                ->assertSee('Langkah 1: Pesan Barang (PO)')
+                ->assertSee('Keluar');
+        }
+
+        $this->get(route('backoffice.purchase-orders.index'))
+            ->assertSee('PO-LAYOUT-001')
+            ->assertSee(route('backoffice.purchase-orders.create'), false)
+            ->assertSee(route('backoffice.purchase-orders.destroy', $po), false);
+    }
+
+    public function test_purchase_order_without_goods_receipt_can_be_deleted_from_index(): void
+    {
+        $this->actingAs($this->user);
+
+        $supplier = Supplier::withoutGlobalScopes()->create([
+            'branch_id' => $this->branch->id,
+            'name' => 'CV Hapus PO',
+            'is_active' => true,
+        ]);
+
+        $po = PurchaseOrder::withoutGlobalScopes()->create([
+            'branch_id' => $this->branch->id,
+            'supplier_id' => $supplier->id,
+            'reference_number' => 'PO-DEL-001',
+            'order_date' => now()->toDateString(),
+            'status' => 'pending',
+            'total_amount' => 50000,
+        ]);
+
+        $this->delete(route('backoffice.purchase-orders.destroy', $po))
+            ->assertRedirect(route('backoffice.purchase-orders.index'))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseMissing('purchase_orders', ['id' => $po->id]);
+    }
+
+    public function test_cashier_cannot_open_purchase_order_pages(): void
+    {
+        $cashier = User::factory()->create([
+            'branch_id' => $this->branch->id,
+            'role' => 'cashier',
+        ]);
+
+        $this->actingAs($cashier);
+
+        $this->get(route('backoffice.purchase-orders.index'))->assertForbidden();
+        $this->get(route('backoffice.purchase-orders.create'))->assertForbidden();
+        $this->post(route('backoffice.purchase-orders.store'), [])->assertForbidden();
+    }
 }

@@ -1,33 +1,13 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Daftar Pelanggan | Maju Bersama ERP</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased flex flex-col">
-    <!-- Header Utama -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white shrink-0">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6 lg:px-8">
-            <div class="flex items-center gap-3">
-                <a href="/backoffice" class="block group">
-                    <p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-amber-400 group-hover:text-amber-300 transition">Maju Bersama ERP</p>
-                    <div class="flex items-center gap-2">
-                        <h1 class="text-base font-bold tracking-tight">Manajemen Pelanggan &amp; Multi-Price</h1>
-                    </div>
-                </a>
-            </div>
-            <div class="flex items-center gap-3">
-                <a href="/backoffice" class="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition">
-                    &larr; Backoffice
-                </a>
-            </div>
+<x-app-layout title="Daftar Pelanggan" :breadcrumbs="[
+    ['label' => 'Jualan'],
+    ['label' => 'Data Pelanggan'],
+]">
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-7xl space-y-6">
+        <div class="mb-6">
+            <p class="text-sm font-semibold uppercase tracking-wider text-amber-600">Jualan</p>
+            <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Manajemen Pelanggan &amp; Multi-Price</h2>
         </div>
-    </header>
 
-    <main class="flex-1 mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8 space-y-6">
         @if (session('success'))
             <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900 shadow-xs flex items-center gap-3">
                 <svg class="h-5 w-5 text-emerald-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
@@ -78,7 +58,7 @@
                 </div>
                 @endif
                 <div class="flex items-center gap-2">
-                    <button type="submit" class="w-full rounded-xl bg-slate-900 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-slate-800">
+                    <button type="submit" class="w-full rounded-xl bg-sky-600 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-sky-700">
                         Filter
                     </button>
                     @if ($search || $selectedGroupId || ($isMaster && $selectedBranchId))
@@ -94,8 +74,8 @@
         <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-xs border-collapse">
-                    <thead>
-                        <tr class="bg-slate-900 text-white uppercase text-[10px] tracking-wider">
+                    <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
+                        <tr class="text-white uppercase text-[10px] tracking-wider">
                             <th class="py-3 px-4">Nama Pelanggan</th>
                             <th class="py-3 px-4">Kontak</th>
                             <th class="py-3 px-4">Grup Pelanggan (Pricing Tier)</th>
@@ -103,7 +83,7 @@
                             <th class="py-3 px-4 text-right">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100">
+                    <tbody class="divide-y divide-slate-100 [&>tr:nth-child(even)]:bg-slate-50/60">
                         @forelse ($customers as $c)
                             <tr class="hover:bg-slate-50/80 transition-colors">
                                 <td class="py-3 px-4">
@@ -152,5 +132,4 @@
             @endif
         </div>
     </main>
-</body>
-</html>
+</x-app-layout>

@@ -191,6 +191,16 @@ class LayoutAuditTest extends TestCase
 
             // Verifikasi tag pembungkus utama memiliki kelas layout kontainer
             $this->assertStringContainsString('min-h-screen', $html, "Route {$url} is missing min-h-screen container");
+
+            if ($url === '/pos') {
+                continue;
+            }
+
+            // Layout terpadu <x-app-layout>: sidebar + breadcrumb, tanpa header/sub-navbar lama.
+            $this->assertStringContainsString('aria-label="Breadcrumb"', $html, "Route {$url} is missing breadcrumbs");
+            $this->assertSame(1, substr_count($html, '<aside class="flex shrink-0 flex-col print:hidden'), "Route {$url} must render exactly one main sidebar");
+            $this->assertStringNotContainsString('<header class="border-b border-slate-800 bg-slate-950', $html, "Route {$url} still renders the legacy header");
+            $this->assertSame(1, substr_count($html, 'alpinejs@3.x.x/dist/cdn.min.js'), "Route {$url} must load Alpine core exactly once");
         }
     }
 }

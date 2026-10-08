@@ -1,70 +1,20 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Biaya Operasional &amp; Kas Keluar | Maju Bersama ERP</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-    <!-- Header Utama -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-            <div class="flex items-center gap-4">
-                <a href="/backoffice" class="block">
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                    <h1 class="text-xl font-bold tracking-tight">Keuangan &amp; Akuntansi</h1>
-                </a>
+<x-app-layout title="Biaya Operasional & Kas Keluar" :breadcrumbs="[
+    ['label' => 'Uang & Akuntansi'],
+    ['label' => 'Biaya Operasional'],
+]">
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-7xl space-y-6">
+        <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+            <div>
+                <p class="text-sm font-semibold uppercase tracking-wider text-amber-600">Uang &amp; Akuntansi</p>
+                <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Riwayat Kas Keluar</h2>
+                <p class="mt-1 text-sm text-slate-500">Biaya operasional toko yang tercatat beserta jurnal otomatisnya.</p>
             </div>
-            <div class="flex items-center gap-4">
-                <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
-                    <a href="/pos" class="hover:text-white">POS Kasir</a>
-                    <a href="/inventory" class="hover:text-white">Inventory</a>
-                    <a href="{{ route('backoffice.expenses.index') }}" class="text-amber-400 font-semibold">Biaya Operasional</a>
-                    <a href="{{ route('backoffice.expense-categories.index') }}" class="hover:text-white">Kategori Biaya</a>
-                    <a href="/reports/accounting/ledger" class="hover:text-white">Buku Besar</a>
-                    <a href="/backoffice" class="hover:text-white">Backoffice</a>
-                </nav>
-                <div class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200">
-                    {{ $currentUser->branch?->name ?? 'Pusat' }} ({{ $currentUser->role }})
-                </div>
-                <form method="POST" action="/logout" class="hidden sm:block">
-                    @csrf
-                    <button type="submit" class="text-sm text-slate-300 hover:text-white">Logout</button>
-                </form>
-            </div>
-        </div>
-    </header>
-
-    <!-- Sub-Navbar Modul Pengeluaran -->
-    <div class="border-b border-slate-200 bg-white shadow-xs">
-        <div class="mx-auto flex max-w-7xl items-center justify-between overflow-x-auto px-6 py-2.5 lg:px-8">
-            <div class="flex items-center gap-2 text-sm font-medium">
-                <a href="{{ route('backoffice.expenses.index') }}" class="rounded-lg bg-amber-500 px-3.5 py-2 font-bold text-slate-950 shadow-xs">
-                    Riwayat Kas Keluar
-                </a>
-                <a href="{{ route('backoffice.expenses.create') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    + Catat Kas Keluar
-                </a>
-                <a href="{{ route('backoffice.cash-transfers.index') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Mutasi Kas &amp; Bank
-                </a>
-                <a href="{{ route('backoffice.expense-categories.index') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Kategori Biaya
-                </a>
-                <a href="/reports/accounting/ledger" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Buku Besar Akuntansi
-                </a>
-            </div>
-            <a href="{{ route('backoffice.expenses.create') }}" id="btn-tambah-biaya" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-bold text-amber-400 shadow-xs hover:bg-slate-800 transition-colors">
+            <a href="{{ route('backoffice.expenses.create') }}" id="btn-tambah-biaya" class="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-sky-700">
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
                 Catat Pengeluaran Kas
             </a>
         </div>
-    </div>
 
-    <main class="mx-auto max-w-7xl space-y-6 px-6 py-8 lg:px-8">
         <!-- Flash Messages -->
         @if (session('success'))
             <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900 shadow-xs">
@@ -122,15 +72,15 @@
             <form method="GET" action="{{ route('backoffice.expenses.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5 items-end">
                 <div>
                     <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Dari Tanggal</label>
-                    <input type="date" name="start_date" value="{{ $startDate }}" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-amber-500">
+                    <input type="date" name="start_date" value="{{ $startDate }}" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-sky-500">
                 </div>
                 <div>
                     <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Sampai Tanggal</label>
-                    <input type="date" name="end_date" value="{{ $endDate }}" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-amber-500">
+                    <input type="date" name="end_date" value="{{ $endDate }}" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-sky-500">
                 </div>
                 <div>
                     <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Kategori Biaya</label>
-                    <select name="expense_category_id" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-amber-500">
+                    <select name="expense_category_id" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-sky-500">
                         <option value="">Semua Kategori</option>
                         @foreach ($categories as $cat)
                             <option value="{{ $cat->id }}" {{ $selectedCategoryId == $cat->id ? 'selected' : '' }}>{{ $cat->name }}</option>
@@ -139,10 +89,10 @@
                 </div>
                 <div>
                     <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">Cari Keterangan / Ref</label>
-                    <input type="text" name="search" value="{{ $search }}" placeholder="No. Ref / Catatan..." class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-amber-500">
+                    <input type="text" name="search" value="{{ $search }}" placeholder="No. Ref / Catatan..." class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-800 outline-none focus:border-sky-500">
                 </div>
                 <div class="flex items-center gap-2">
-                    <button type="submit" class="w-full rounded-xl bg-slate-900 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-slate-800">
+                    <button type="submit" class="w-full rounded-xl bg-sky-600 py-2.5 text-xs font-bold text-white shadow-xs hover:bg-sky-700">
                         Terapkan Filter
                     </button>
                     @if ($search || $startDate || $endDate || $selectedCategoryId)
@@ -158,7 +108,7 @@
         <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
             <div class="overflow-x-auto">
                 <table class="w-full border-collapse text-left text-xs">
-                    <thead class="border-b border-slate-200 bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                         <tr>
                             <th class="py-3.5 pl-6 pr-3">Tanggal &amp; No. Referensi</th>
                             <th class="px-4 py-3.5">Kategori &amp; Akun Beban</th>
@@ -168,7 +118,7 @@
                             <th class="py-3.5 pl-3 pr-6 text-right">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100 font-medium text-slate-700">
+                    <tbody class="divide-y divide-slate-100 font-medium text-slate-700 [&>tr:nth-child(even)]:bg-slate-50/60">
                         @forelse ($expenses as $exp)
                             <tr class="hover:bg-slate-50/80 transition-colors">
                                 <td class="py-4 pl-6 pr-3">
@@ -213,7 +163,7 @@
                                 <td colspan="6" class="py-12 text-center text-slate-400">
                                     <p class="text-sm font-semibold">Belum ada catatan biaya operasional.</p>
                                     <p class="text-xs mt-1">Klik tombol di bawah untuk mencatat pengeluaran uang kas pertama.</p>
-                                    <a href="{{ route('backoffice.expenses.create') }}" class="mt-4 inline-block rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 shadow-xs hover:bg-amber-400">
+                                    <a href="{{ route('backoffice.expenses.create') }}" class="mt-4 inline-block rounded-xl bg-sky-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-sky-700">
                                         + Catat Kas Keluar Baru
                                     </a>
                                 </td>
@@ -230,5 +180,4 @@
             @endif
         </div>
     </main>
-</body>
-</html>
+</x-app-layout>

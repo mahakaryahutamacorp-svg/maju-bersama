@@ -1,39 +1,9 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Persediaan Barang | Maju Bersama POS &amp; Akuntansi</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-</head>
-<body x-data="inventoryTable({{ $products->toJson() }})" class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-    <header class="border-b border-slate-800 bg-slate-950 text-white">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-8">
-            <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                <h1 class="mt-1 text-2xl font-bold tracking-tight">Persediaan Barang</h1>
-            </div>
-            <div class="flex items-center gap-4">
-                <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
-                    <a href="/pos" class="hover:text-white">Kasir (POS)</a>
-                    <a href="/inventory" class="font-semibold text-white">Persediaan</a>
-                    <a href="/inventory/transfer" class="hover:text-white">Transfer Stok</a>
-                    <a href="/reports/journal" class="hover:text-white">Buku Jurnal</a>
-                    <a href="/backoffice" class="hover:text-white">Panel Admin</a>
-                </nav>
-                <div class="rounded-full border border-emerald-400/30 bg-emerald-400/10 px-3 py-1 text-xs font-medium text-emerald-300">
-                    <span x-text="filteredProducts.length"></span> produk
-                </div>
-                <form method="POST" action="/logout" class="hidden sm:block">
-                    @csrf
-                    <button type="submit" class="text-sm text-slate-300 hover:text-white">Keluar</button>
-                </form>
-            </div>
-        </div>
-    </header>
-
-    <main class="mx-auto max-w-7xl space-y-8 px-6 py-10 lg:px-8">
+<x-app-layout title="Persediaan Barang" :breadcrumbs="[
+    ['label' => 'Stok Gudang'],
+    ['label' => 'Stok Barang'],
+]">
+    <div x-data="inventoryTable({{ $products->toJson() }})">
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-7xl space-y-8">
         <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
                 <p class="text-sm font-medium text-amber-600">Kontrol Stok &amp; Gudang</p>
@@ -55,16 +25,16 @@
         <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-slate-200">
-                    <thead class="bg-slate-50">
+                    <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                         <tr>
-                            <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Kode Barang (SKU)</th>
-                            <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Nama Produk</th>
-                            <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Kategori</th>
-                            <th class="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Harga Jual</th>
-                            <th class="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Stok</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider">Kode Barang (SKU)</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider">Nama Produk</th>
+                            <th class="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider">Kategori</th>
+                            <th class="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider">Harga Jual</th>
+                            <th class="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider">Stok</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100 bg-white">
+                    <tbody class="divide-y divide-slate-100 bg-white [&>tr:nth-child(even)]:bg-slate-50/60">
                         @foreach ($products as $product)
                             <tr x-show="matches({{ $product->toJson() }})" class="transition-colors hover:bg-slate-50">
                                 <td class="whitespace-nowrap px-6 py-5 font-mono text-sm font-semibold text-sky-700">{{ $product->sku }}</td>
@@ -90,6 +60,9 @@
             </div>
         </section>
     </main>
+    </div>
+
+    <x-slot:scripts>
     <script>
         function inventoryTable(products) {
             return {
@@ -111,5 +84,5 @@
             };
         }
     </script>
-</body>
-</html>
+    </x-slot:scripts>
+</x-app-layout>

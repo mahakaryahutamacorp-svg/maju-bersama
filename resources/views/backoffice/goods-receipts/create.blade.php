@@ -27,7 +27,7 @@
         <!-- Judul Form -->
         <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-wider text-amber-600">Belanja Barang · Langkah 2</p>
+                <p class="text-xs font-semibold uppercase tracking-wider text-amber-600">Langkah 2: Terima Barang</p>
                 <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Catat Barang Datang</h2>
                 <p class="mt-1 text-sm text-slate-500">
                     Masukkan rincian barang yang diterima dari supplier. Anda dapat menarik data dari Purchase Order (PO) atau input mandiri.

@@ -30,7 +30,7 @@
         <!-- Judul & Breadcrumb -->
         <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-                <p class="text-sm font-semibold uppercase tracking-wider text-amber-600">Belanja Barang · Langkah 2</p>
+                <p class="text-sm font-semibold uppercase tracking-wider text-amber-600">Langkah 2: Terima Barang</p>
                 <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Terima Barang</h2>
                 <p class="mt-1 text-sm text-slate-500">
                     Setiap barang yang datang dicatat di sini. Stok langsung bertambah, dan kalau belinya tempo, hutangnya masuk ke Buku Pemasok.
@@ -117,7 +117,7 @@
                             <th class="px-5 py-3.5 text-center">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100">
+                    <tbody class="divide-y divide-slate-100 [&>tr:nth-child(even)]:bg-slate-50/60">
                         @forelse ($receipts as $receipt)
                             <tr class="transition hover:bg-slate-50">
                                 <!-- Tanggal -->

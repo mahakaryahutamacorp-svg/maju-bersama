@@ -1,44 +1,15 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Transfer Stok (Stock Transfer) | Maju Bersama POS &amp; Akuntansi</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-</head>
-<body
-    x-data="stockTransfer({
+<x-app-layout title="Transfer Stok (Stock Transfer)" :breadcrumbs="[
+    ['label' => 'Stok Gudang'],
+    ['label' => 'Stok Barang', 'url' => '/inventory'],
+    ['label' => 'Transfer Stok'],
+]">
+    <div x-data="stockTransfer({
         token: @js($apiToken),
         stock: @js($stockLevels),
         defaultSource: @js($sourceBranches->first()?->id),
         defaultDestination: @js($destinationBranches->first()?->id),
-    })"
-    class="min-h-screen bg-slate-100 text-slate-900 antialiased"
->
-    <header class="border-b border-slate-800 bg-slate-950 text-white">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-8">
-            <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                <h1 class="mt-1 text-2xl font-bold tracking-tight">Transfer Stok (Stock Transfer)</h1>
-            </div>
-            <div class="flex items-center gap-4">
-                <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
-                    <a href="/pos" class="hover:text-white">Kasir (POS)</a>
-                    <a href="/inventory" class="hover:text-white">Persediaan</a>
-                    <a href="/inventory/transfer" class="font-semibold text-white">Transfer Stok</a>
-                    <a href="/reports/journal" class="hover:text-white">Buku Jurnal</a>
-                    <a href="/backoffice" class="hover:text-white">Panel Admin</a>
-                </nav>
-                <form method="POST" action="/logout" class="hidden sm:block">
-                    @csrf
-                    <button type="submit" class="text-sm text-slate-300 hover:text-white">Keluar</button>
-                </form>
-            </div>
-        </div>
-    </header>
-
-    <main class="mx-auto max-w-7xl space-y-8 px-6 py-10 lg:px-8">
+    })">
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-7xl space-y-8">
         <div>
             <p class="text-sm font-medium text-amber-600">Distribusi &amp; Mutasi Barang</p>
             <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-950">Mutasi Persediaan Antarcabang</h2>
@@ -119,14 +90,14 @@
                 <p x-show="lineError" x-cloak class="text-xs text-rose-600" x-text="lineError"></p>
 
                 <table class="min-w-full divide-y divide-slate-200 text-sm">
-                    <thead>
-                        <tr class="text-left text-xs uppercase tracking-wider text-slate-500">
+                    <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
+                        <tr class="text-left text-xs uppercase tracking-wider">
                             <th class="py-2">Nama Produk &amp; SKU</th>
                             <th class="py-2 text-right">Jumlah (Qty)</th>
                             <th class="py-2"></th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100">
+                    <tbody class="divide-y divide-slate-100 [&>tr:nth-child(even)]:bg-slate-50/60">
                         <template x-for="(line, index) in lines" :key="line.product_id">
                             <tr>
                                 <td class="py-3">
@@ -153,16 +124,16 @@
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-slate-200">
-                    <thead class="bg-slate-50">
+                    <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">No. Referensi</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Tanggal</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Dari Cabang</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Ke Cabang</th>
-                            <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Baris Barang</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">No. Referensi</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Tanggal</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Dari Cabang</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Ke Cabang</th>
+                            <th class="px-6 py-3 text-right text-xs font-semibold uppercase tracking-wider">Baris Barang</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100">
+                    <tbody class="divide-y divide-slate-100 [&>tr:nth-child(even)]:bg-slate-50/60">
                         @forelse ($transfers as $transfer)
                             <tr class="hover:bg-slate-50">
                                 <td class="whitespace-nowrap px-6 py-4 font-mono text-sm font-semibold text-sky-700">{{ $transfer->reference_number }}</td>
@@ -181,7 +152,9 @@
             </div>
         </section>
     </main>
+    </div>
 
+    <x-slot:scripts>
     <script>
         function stockTransfer({ token, stock, defaultSource, defaultDestination }) {
             return {
@@ -298,5 +271,5 @@
             };
         }
     </script>
-</body>
-</html>
+    </x-slot:scripts>
+</x-app-layout>

@@ -19,10 +19,12 @@
     $isPurchaseReturnsActive = request()->is('backoffice/purchase-returns*');
     $isBelanjaOpen = $isGoodsReceiptActive || $isPurchaseOrdersActive || $isSuppliersActive || $isSupplierPaymentsActive || $isPurchaseReturnsActive;
 
-    $isInventoryActive = request()->is('inventory') || request()->is('inventory/transfer*');
+    $isInventoryActive = request()->is('inventory');
+    $isStockTransferActive = request()->is('inventory/transfer*');
     $isOpnameActive = request()->is('inventory/adjustments*');
+    $isStockCardActive = request()->is('reports/inventory/stock-card*');
     $isWarehouseActive = request()->is('backoffice/warehouses*');
-    $isStokOpen = $isInventoryActive || $isOpnameActive || $isWarehouseActive;
+    $isStokOpen = $isInventoryActive || $isStockTransferActive || $isOpnameActive || $isStockCardActive || $isWarehouseActive;
 
     $isFinanceActive = request()->is('backoffice/finance*');
     $financeTab = $isFinanceActive ? request('tab') : null;
@@ -111,12 +113,12 @@
             </x-sidebar.group>
         @endcan
 
-        @canany(['access-inventory', 'access-enterprise'])
+        @canany(['manage-branch-operations', 'access-inventory', 'access-enterprise'])
             <x-sidebar.group label="Belanja Barang" hint="Pesan, terima, bayar pemasok" tone="indigo" :open="$isBelanjaOpen">
                 <x-slot:icon>
                     <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1" /></svg>
                 </x-slot:icon>
-                @can('access-enterprise')
+                @can('manage-branch-operations')
                     <x-sidebar.link :href="route('backoffice.purchase-orders.index')" :active="$isPurchaseOrdersActive">1. Pesan Barang (PO)</x-sidebar.link>
                 @endcan
                 @can('access-inventory')
@@ -138,7 +140,11 @@
                     <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>
                 </x-slot:icon>
                 <x-sidebar.link href="/inventory" :active="$isInventoryActive">Stok Barang</x-sidebar.link>
+                <x-sidebar.link :href="route('stock-transfer')" :active="$isStockTransferActive">Transfer Stok</x-sidebar.link>
                 <x-sidebar.link :href="route('inventory.adjustments.index')" :active="$isOpnameActive">Hitung Ulang Stok (Opname)</x-sidebar.link>
+                @can('view-accounting')
+                    <x-sidebar.link :href="route('reports.inventory.stock-card')" :active="$isStockCardActive">Kartu Stok</x-sidebar.link>
+                @endcan
                 <x-sidebar.link :href="route('backoffice.warehouses.index')" :active="$isWarehouseActive">Daftar Gudang</x-sidebar.link>
             </x-sidebar.group>
         @endcan

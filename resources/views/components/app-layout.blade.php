@@ -11,9 +11,10 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ $title }} | Maju Bersama ERP</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    {{-- Plugin Alpine di slot head harus dimuat sebelum Alpine inti. --}}
+    {{ $head ?? '' }}
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>[x-cloak] { display: none !important; }</style>
-    {{ $head ?? '' }}
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
 <div class="min-h-screen lg:flex" x-data="{ mobileMenu: false }">
