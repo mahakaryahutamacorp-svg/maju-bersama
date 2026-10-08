@@ -11,6 +11,7 @@ class PaymentAllocation extends Model
         'payment_id',
         'sale_id',
         'purchase_order_id',
+        'goods_receipt_id',
         'allocated_amount',
     ];
 
@@ -34,5 +35,10 @@ class PaymentAllocation extends Model
     public function purchaseOrder(): BelongsTo
     {
         return $this->belongsTo(PurchaseOrder::class);
+    }
+
+    public function goodsReceipt(): BelongsTo
+    {
+        return $this->belongsTo(GoodsReceipt::class);
     }
 }

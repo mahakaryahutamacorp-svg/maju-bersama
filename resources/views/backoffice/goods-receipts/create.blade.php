@@ -167,7 +167,7 @@
                         Informasi Dokumen Penerimaan
                     </h3>
 
-                    <div class="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                    <div class="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
                         <!-- Tanggal Penerimaan -->
                         <div>
                             <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700">
@@ -185,20 +185,12 @@
                             <span class="mt-1 block text-[11px] text-slate-400">Biarkan kosong untuk auto-generate nomor nota</span>
                         </div>
 
-                        <!-- Nama Supplier / Pemasok -->
-                        <div>
-                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-                                Nama Supplier / Pemasok
-                            </label>
-                            <input type="text" name="supplier_name" x-model="supplierName" placeholder="Contoh: PT Sumber Makmur..." class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500">
-                        </div>
-
                         <!-- Metode Pembayaran -->
                         <div>
-                            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                            <label for="payment_type" class="block text-xs font-semibold uppercase tracking-wider text-slate-700">
                                 Metode Pembayaran <span class="text-rose-500">*</span>
                             </label>
-                            <select name="payment_type" x-model="paymentType" :disabled="selectedPo !== null" required class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 disabled:bg-slate-100 disabled:text-slate-500">
+                            <select id="payment_type" name="payment_type" x-model="paymentType" :disabled="selectedPo !== null" required class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500 disabled:bg-slate-100 disabled:text-slate-500">
                                 <option value="cash">Tunai (Kas)</option>
                                 <option value="credit">Tempo (Hutang Dagang / Usaha)</option>
                             </select>
@@ -209,8 +201,49 @@
                             <span class="mt-1 block text-[11px] text-slate-400" x-text="paymentType === 'cash' ? 'Kredit ke Akun 1110 (Kas)' : 'Kredit ke Akun 2110 (Hutang Usaha)'"></span>
                         </div>
 
+                        <!-- Pemasok: wajib dari daftar jika Tempo, opsional jika Tunai -->
+                        <div class="sm:col-span-2">
+                            <label for="supplier_id" class="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                                Pemasok
+                                <span x-show="isCredit" class="text-rose-500">*</span>
+                                <span x-show="!isCredit" class="font-normal normal-case text-slate-400">(opsional untuk tunai)</span>
+                            </label>
+
+                            <template x-if="selectedPo !== null">
+                                <div class="mt-1.5 rounded-xl border border-slate-200 bg-slate-100 px-3.5 py-2.5 text-sm font-semibold text-slate-700" x-text="selectedPo.supplier_name"></div>
+                            </template>
+
+                            <div x-show="selectedPo === null">
+                                <select id="supplier_id" name="supplier_id" x-model="supplierId"
+                                        :required="isCredit && selectedPo === null"
+                                        :disabled="selectedPo !== null"
+                                        :class="isCredit && !supplierId ? 'border-rose-300 ring-1 ring-rose-200' : 'border-slate-300'"
+                                        class="mt-1.5 w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500">
+                                    <option value="" x-text="isCredit ? '-- Pilih pemasok (wajib untuk tempo) --' : '-- Tidak terdaftar / beli putus --'"></option>
+                                    @foreach ($suppliers as $supplier)
+                                        <option value="{{ $supplier['id'] }}">{{ $supplier['name'] }}</option>
+                                    @endforeach
+                                </select>
+
+                                <p x-show="isCredit && !supplierId" class="mt-1 text-[11px] font-semibold text-rose-600">
+                                    Pembelian tempo harus memilih pemasok terdaftar supaya hutangnya tercatat di Buku Pemasok.
+                                    @if ($suppliers->isEmpty())
+                                        Belum ada pemasok aktif, <a href="{{ route('backoffice.suppliers.create') }}" class="underline">tambahkan dulu</a>.
+                                    @endif
+                                </p>
+
+                                <div x-show="!isCredit && !supplierId" class="mt-2">
+                                    <input type="text" name="supplier_name" x-model="supplierName"
+                                           :disabled="isCredit || supplierId !== ''"
+                                           maxlength="255"
+                                           placeholder="Nama toko/warung (jika tidak terdaftar)..."
+                                           class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500">
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Catatan Tambahan -->
-                        <div class="sm:col-span-2 lg:col-span-4">
+                        <div class="sm:col-span-2 lg:col-span-5">
                             <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700">
                                 Catatan / Memo Tambahan
                             </label>
@@ -400,7 +433,7 @@
                     <a href="/purchases/goods-receipts" class="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-xs hover:bg-slate-50">
                         Batal
                     </a>
-                    <button type="submit" id="btn-submit-receipt" class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-7 py-3 text-sm font-bold text-white shadow-md transition hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2">
+                    <button type="submit" id="btn-submit-receipt" :disabled="needsSupplier" :title="needsSupplier ? 'Pilih pemasok terlebih dahulu untuk pembelian tempo' : ''" class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-7 py-3 text-sm font-bold text-white shadow-md transition hover:bg-emerald-700 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-40">
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                         Simpan &amp; Tambah Stok
                     </button>
@@ -427,13 +460,21 @@
                 activePOs: activePOs,
                 selectedPoId: '',
                 selectedPo: null,
-                supplierName: '',
-                paymentType: 'cash',
+                supplierId: @js((string) old('supplier_id', '')),
+                supplierName: @js((string) old('supplier_name', '')),
+                paymentType: @js(old('payment_type', 'cash')),
                 items: [
                     { product_id: '', product_name: '', sku: '', quantity: 1, unit_price: 0, subtotal: 0 }
                 ],
                 init() {
                     this.recalculateAll();
+                    this.$watch('supplierId', value => { if (value) this.supplierName = ''; });
+                },
+                get isCredit() {
+                    return this.selectedPo !== null || this.paymentType === 'credit';
+                },
+                get needsSupplier() {
+                    return this.selectedPo === null && this.paymentType === 'credit' && !this.supplierId;
                 },
                 loadFromPO(poId) {
                     if (!poId) {
@@ -493,6 +534,7 @@
                 resetPO() {
                     this.selectedPo = null;
                     this.selectedPoId = '';
+                    this.supplierId = '';
                     this.supplierName = '';
                     this.paymentType = 'cash';
                     this.items = [{ product_id: '', product_name: '', sku: '', quantity: 1, unit_price: 0, subtotal: 0 }];

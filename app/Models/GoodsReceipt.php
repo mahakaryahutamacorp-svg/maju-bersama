@@ -12,10 +12,12 @@ class GoodsReceipt extends Model
     protected $fillable = [
         'branch_id',
         'purchase_order_id',
+        'supplier_id',
         'reference_number',
         'supplier_name',
         'date',
         'total_amount',
+        'paid_amount',
         'payment_type',
         'notes',
     ];
@@ -25,7 +27,18 @@ class GoodsReceipt extends Model
         return [
             'date' => 'date',
             'total_amount' => 'decimal:2',
+            'paid_amount' => 'decimal:2',
         ];
+    }
+
+    public function supplier(): BelongsTo
+    {
+        return $this->belongsTo(Supplier::class);
+    }
+
+    public function paymentAllocations(): HasMany
+    {
+        return $this->hasMany(PaymentAllocation::class);
     }
 
     public function branch(): BelongsTo

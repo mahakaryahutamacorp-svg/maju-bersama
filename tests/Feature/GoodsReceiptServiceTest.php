@@ -182,8 +182,14 @@ class GoodsReceiptServiceTest extends TestCase
 
     public function test_goods_receipt_credit_records_payable_journal(): void
     {
+        $supplier = Supplier::withoutGlobalScopes()->create([
+            'branch_id' => $this->central->id,
+            'name' => 'CV Distribusi Nusantara',
+            'is_active' => true,
+        ]);
+
         $payload = [
-            'supplier_name' => 'CV Distribusi Nusantara',
+            'supplier_id' => $supplier->id,
             'date' => '2026-09-17',
             'payment_type' => 'credit',
             'notes' => 'Pembelian tempo 30 hari',
@@ -200,6 +206,8 @@ class GoodsReceiptServiceTest extends TestCase
 
         $this->assertEquals('credit', $receipt->payment_type);
         $this->assertEquals(210000.00, (float) $receipt->total_amount);
+        $this->assertEquals($supplier->id, $receipt->supplier_id);
+        $this->assertEquals('CV Distribusi Nusantara', $receipt->supplier_name);
 
         // Inventory incremented: 10 + 15 = 25
         $invA = Inventory::where('branch_id', $this->central->id)->where('product_id', $this->productA->id)->first();
@@ -222,6 +230,26 @@ class GoodsReceiptServiceTest extends TestCase
         $this->assertEquals(210000.00, (float) $creditLine->credit);
 
         $this->assertEquals($journal->journalLines->sum('debit'), $journal->journalLines->sum('credit'));
+    }
+
+    public function test_direct_credit_receipt_without_supplier_is_rejected_atomically(): void
+    {
+        try {
+            $this->service->processReceipt([
+                'supplier_name' => 'Hanya Teks Bebas',
+                'payment_type' => 'credit',
+                'items' => [
+                    ['product_id' => $this->productA->id, 'quantity' => 5, 'unit_price' => 14000],
+                ],
+            ], $this->master);
+            $this->fail('Pembelian tempo tanpa supplier_id seharusnya ditolak.');
+        } catch (ValidationException $e) {
+            $this->assertArrayHasKey('supplier_id', $e->errors());
+        }
+
+        $this->assertSame(0, GoodsReceipt::count());
+        $this->assertSame(0, JournalHeader::count());
+        $this->assertEquals(10, $this->productA->fresh()->stock);
     }
 
     public function test_goods_receipt_creates_inventory_row_if_none_existed(): void
@@ -313,6 +341,7 @@ class GoodsReceiptServiceTest extends TestCase
 
         // 1. GoodsReceipt assertions
         $this->assertEquals($po->id, $receipt->purchase_order_id);
+        $this->assertEquals($supplier->id, $receipt->supplier_id);
         $this->assertEquals(204000.00, (float) $receipt->total_amount);
         $this->assertEquals('credit', $receipt->payment_type);
         $this->assertEquals('PT Agrindo Perkasa', $receipt->supplier_name);

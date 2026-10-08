@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreGoodsReceiptRequest;
 use App\Models\Branch;
 use App\Models\GoodsReceipt;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
+use App\Models\Supplier;
 use App\Services\GoodsReceiptService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -162,8 +164,20 @@ class GoodsReceiptController extends Controller
             ? 'backoffice.goods-receipts.create'
             : 'purchases.goods-receipts.create';
 
+        $suppliers = Supplier::query()
+            ->with('branch:id,name')
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['id', 'name', 'branch_id'])
+            ->map(fn (Supplier $supplier) => [
+                'id' => $supplier->id,
+                'name' => $isMaster && $supplier->branch ? "{$supplier->name} ({$supplier->branch->name})" : $supplier->name,
+            ])
+            ->values();
+
         return view($viewName, [
             'currentUser' => $user,
+            'suppliers' => $suppliers,
             'centralBranch' => $targetBranch,
             'products' => $productsData,
             'activePOs' => $activePOsData,
@@ -175,20 +189,9 @@ class GoodsReceiptController extends Controller
     /**
      * Store a newly created goods receipt in storage.
      */
-    public function store(Request $request): RedirectResponse|JsonResponse
+    public function store(StoreGoodsReceiptRequest $request): RedirectResponse|JsonResponse
     {
-        $validated = $request->validate([
-            'purchase_order_id' => ['nullable', 'integer', 'exists:purchase_orders,id'],
-            'supplier_name' => ['nullable', 'string', 'max:255'],
-            'date' => ['required', 'date'],
-            'payment_type' => ['required', 'in:cash,credit'],
-            'reference_number' => ['nullable', 'string', 'max:100', 'unique:goods_receipts,reference_number'],
-            'notes' => ['nullable', 'string', 'max:1000'],
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
-            'items.*.unit_price' => ['required', 'numeric', 'min:0'],
-        ]);
+        $validated = $request->validated();
 
         $user = $request->user();
         if (! $user->isMaster()) {

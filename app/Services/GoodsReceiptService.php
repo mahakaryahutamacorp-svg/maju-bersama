@@ -9,6 +9,7 @@ use App\Models\Inventory;
 use App\Models\JournalHeader;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
+use App\Models\Supplier;
 use App\Models\User;
 use App\Models\Warehouse;
 use Illuminate\Support\Facades\DB;
@@ -91,6 +92,8 @@ class GoodsReceiptService
         }
 
         return DB::transaction(function () use ($data, $actor, $paymentType, $purchaseOrder): GoodsReceipt {
+            $supplier = $this->resolveSupplier($data, $actor, $paymentType, $purchaseOrder);
+
             // Resolve branch (central branch or actor's own branch)
             $branch = $this->resolveCentralBranch($data['branch_id'] ?? $purchaseOrder?->branch_id ?? ($actor->isMaster() ? null : $actor->branch_id));
 
@@ -104,7 +107,7 @@ class GoodsReceiptService
                 : $this->generateReferenceNumber();
 
             $date = $data['date'] ?? now()->toDateString();
-            $supplierName = $data['supplier_name'] ?? $purchaseOrder?->supplier?->name;
+            $supplierName = $supplier?->name ?? (isset($data['supplier_name']) ? trim((string) $data['supplier_name']) : null) ?: null;
 
             // Calculate totals and prepare item data
             $totalAmount = '0.00';
@@ -149,6 +152,7 @@ class GoodsReceiptService
             $receipt = GoodsReceipt::create([
                 'branch_id' => $branch->id,
                 'purchase_order_id' => $purchaseOrder?->id,
+                'supplier_id' => $supplier?->id,
                 'reference_number' => $referenceNumber,
                 'supplier_name' => $supplierName,
                 'date' => $date,
@@ -310,6 +314,47 @@ class GoodsReceiptService
                 'memo' => $creditMemo,
             ],
         ]);
+    }
+
+    /**
+     * Pembelian kredit (tempo) wajib terikat ke supplier terdaftar agar hutangnya
+     * bisa dilacak dan dilunasi di Buku Pemasok. Pembelian tunai boleh tanpa supplier.
+     */
+    private function resolveSupplier(array $data, User $actor, string $paymentType, ?PurchaseOrder $purchaseOrder): ?Supplier
+    {
+        if ($purchaseOrder) {
+            if ($purchaseOrder->supplier === null) {
+                throw ValidationException::withMessages([
+                    'supplier_id' => ['Pesanan barang ini tidak memiliki pemasok yang valid.'],
+                ]);
+            }
+
+            return $purchaseOrder->supplier;
+        }
+
+        $supplier = ! empty($data['supplier_id'])
+            ? Supplier::withoutGlobalScopes()->whereKey((int) $data['supplier_id'])->where('is_active', true)->first()
+            : null;
+
+        if (! empty($data['supplier_id']) && $supplier === null) {
+            throw ValidationException::withMessages([
+                'supplier_id' => ['Pemasok yang dipilih tidak ditemukan atau nonaktif.'],
+            ]);
+        }
+
+        if ($supplier && ! $actor->isMaster() && (int) $supplier->branch_id !== (int) $actor->branch_id) {
+            throw ValidationException::withMessages([
+                'supplier_id' => ['Pemasok yang dipilih milik cabang lain.'],
+            ]);
+        }
+
+        if ($paymentType === 'credit' && $supplier === null) {
+            throw ValidationException::withMessages([
+                'supplier_id' => ['Pembelian tempo (hutang) wajib memilih pemasok terdaftar agar hutangnya tercatat di Buku Pemasok.'],
+            ]);
+        }
+
+        return $supplier;
     }
 
     /**

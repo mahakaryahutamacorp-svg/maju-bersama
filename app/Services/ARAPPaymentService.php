@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Branch;
 use App\Models\ChartOfAccount;
+use App\Models\GoodsReceipt;
 use App\Models\Payment;
 use App\Models\PaymentAllocation;
 use App\Models\PurchaseOrder;
@@ -192,10 +193,11 @@ class ARAPPaymentService
                 'notes' => $notes,
             ]);
 
-            // 2. Simpan Alokasi dan update tabel PurchaseOrder
+            // 2. Simpan Alokasi dan update tabel PurchaseOrder / GoodsReceipt (pembelian tanpa PO)
             $totalAllocated = '0.0000';
             foreach ($allocations as $alloc) {
                 $poId = $alloc['purchase_order_id'] ?? null;
+                $receiptId = $alloc['goods_receipt_id'] ?? null;
                 $allocatedAmount = (string) ($alloc['allocated_amount'] ?? 0);
 
                 if (bccomp($allocatedAmount, '0', 4) <= 0) {
@@ -208,8 +210,15 @@ class ARAPPaymentService
                     'payment_id' => $payment->id,
                     'sale_id' => null,
                     'purchase_order_id' => $poId,
+                    'goods_receipt_id' => $receiptId,
                     'allocated_amount' => $allocatedAmount,
                 ]);
+
+                if ($receiptId) {
+                    $receipt = GoodsReceipt::query()->lockForUpdate()->findOrFail($receiptId);
+                    $receipt->paid_amount = bcadd((string) ($receipt->paid_amount ?? 0), $allocatedAmount, 2);
+                    $receipt->save();
+                }
 
                 if ($poId) {
                     $po = PurchaseOrder::withoutGlobalScopes()->findOrFail($poId);

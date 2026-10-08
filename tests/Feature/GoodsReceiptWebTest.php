@@ -217,6 +217,165 @@ class GoodsReceiptWebTest extends TestCase
         $showResponse->assertSee('GR-BR1-001');
     }
 
+    private function directPayload(array $overrides = []): array
+    {
+        return array_merge([
+            'date' => now()->toDateString(),
+            'payment_type' => 'credit',
+            'items' => [
+                ['product_id' => $this->product->id, 'quantity' => 4, 'unit_price' => 50000],
+            ],
+        ], $overrides);
+    }
+
+    public function test_create_page_shows_supplier_dropdown(): void
+    {
+        Supplier::withoutGlobalScopes()->create([
+            'branch_id' => $this->central->id,
+            'name' => 'UD Tani Jaya',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($this->master)->get('/purchases/goods-receipts/create')
+            ->assertOk()
+            ->assertSee('name="supplier_id"', false)
+            ->assertSee('UD Tani Jaya');
+    }
+
+    public function test_direct_credit_receipt_without_supplier_id_is_rejected(): void
+    {
+        $this->actingAs($this->master)
+            ->from('/purchases/goods-receipts/create')
+            ->post('/purchases/goods-receipts', $this->directPayload(['supplier_name' => 'Teks Bebas Saja']))
+            ->assertRedirect('/purchases/goods-receipts/create')
+            ->assertSessionHasErrors('supplier_id');
+
+        $this->assertSame(0, GoodsReceipt::count());
+        $this->assertEquals(10, $this->product->fresh()->stock);
+    }
+
+    public function test_direct_credit_receipt_rejects_inactive_or_unknown_supplier(): void
+    {
+        $inactive = Supplier::withoutGlobalScopes()->create([
+            'branch_id' => $this->central->id,
+            'name' => 'Supplier Nonaktif',
+            'is_active' => false,
+        ]);
+
+        foreach ([$inactive->id, 999999] as $supplierId) {
+            $this->actingAs($this->master)
+                ->post('/purchases/goods-receipts', $this->directPayload(['supplier_id' => $supplierId]))
+                ->assertSessionHasErrors('supplier_id');
+        }
+
+        $this->assertSame(0, GoodsReceipt::count());
+    }
+
+    public function test_branch_admin_cannot_charge_credit_to_other_branch_supplier(): void
+    {
+        $branchAdmin = User::factory()->create(['branch_id' => $this->branchOne->id, 'role' => 'branch_admin']);
+        $centralSupplier = Supplier::withoutGlobalScopes()->create([
+            'branch_id' => $this->central->id,
+            'name' => 'Supplier Milik Pusat',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($branchAdmin)
+            ->post('/purchases/goods-receipts', $this->directPayload(['supplier_id' => $centralSupplier->id]))
+            ->assertSessionHasErrors('supplier_id');
+
+        $this->assertSame(0, GoodsReceipt::count());
+    }
+
+    public function test_direct_credit_receipt_links_supplier_and_shows_debt_in_supplier_hub(): void
+    {
+        $supplier = Supplier::withoutGlobalScopes()->create([
+            'branch_id' => $this->central->id,
+            'name' => 'UD Tani Jaya',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($this->master)
+            ->post('/purchases/goods-receipts', $this->directPayload([
+                'supplier_id' => $supplier->id,
+                'supplier_name' => 'Nama Palsu Yang Diabaikan',
+                'reference_number' => 'GR-TEMPO-001',
+            ]))
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $receipt = GoodsReceipt::where('reference_number', 'GR-TEMPO-001')->firstOrFail();
+        $this->assertSame($supplier->id, $receipt->supplier_id);
+        $this->assertSame('UD Tani Jaya', $receipt->supplier_name);
+        $this->assertSame('credit', $receipt->payment_type);
+
+        $this->actingAs($this->master)
+            ->get(route('backoffice.suppliers.show', $supplier))
+            ->assertOk()
+            ->assertSee('Rp 200.000')
+            ->assertSee('Terima Barang - Beras Organik 5kg');
+    }
+
+    public function test_direct_cash_receipt_still_accepts_free_text_supplier_name(): void
+    {
+        $this->actingAs($this->master)
+            ->post('/purchases/goods-receipts', $this->directPayload([
+                'payment_type' => 'cash',
+                'supplier_name' => 'Warung Bu Sri',
+                'reference_number' => 'GR-TUNAI-001',
+            ]))
+            ->assertSessionHasNoErrors();
+
+        $receipt = GoodsReceipt::where('reference_number', 'GR-TUNAI-001')->firstOrFail();
+        $this->assertNull($receipt->supplier_id);
+        $this->assertSame('Warung Bu Sri', $receipt->supplier_name);
+    }
+
+    public function test_po_receipt_inherits_supplier_from_purchase_order(): void
+    {
+        $supplier = Supplier::withoutGlobalScopes()->create([
+            'branch_id' => $this->central->id,
+            'name' => 'PT Pemasok PO',
+            'is_active' => true,
+        ]);
+        $otherSupplier = Supplier::withoutGlobalScopes()->create([
+            'branch_id' => $this->central->id,
+            'name' => 'PT Penyusup',
+            'is_active' => true,
+        ]);
+
+        $po = PurchaseOrder::withoutGlobalScopes()->create([
+            'branch_id' => $this->central->id,
+            'supplier_id' => $supplier->id,
+            'reference_number' => 'PO-INHERIT-01',
+            'order_date' => now()->toDateString(),
+            'status' => 'pending',
+            'total_amount' => 100000,
+        ]);
+        PurchaseOrderItem::create([
+            'purchase_order_id' => $po->id,
+            'product_id' => $this->product->id,
+            'quantity' => 2,
+            'received_quantity' => 0,
+            'unit_price' => 50000,
+            'subtotal' => 100000,
+        ]);
+
+        $this->actingAs($this->master)
+            ->post('/purchases/goods-receipts', $this->directPayload([
+                'purchase_order_id' => $po->id,
+                'payment_type' => 'cash',
+                'supplier_id' => $otherSupplier->id,
+                'reference_number' => 'GR-PO-INHERIT',
+                'items' => [['product_id' => $this->product->id, 'quantity' => 2, 'unit_price' => 50000]],
+            ]))
+            ->assertSessionHasNoErrors();
+
+        $receipt = GoodsReceipt::where('reference_number', 'GR-PO-INHERIT')->firstOrFail();
+        $this->assertSame($supplier->id, $receipt->supplier_id);
+        $this->assertSame('credit', $receipt->payment_type);
+    }
+
     public function test_branch_admin_cannot_view_goods_receipt_of_another_branch(): void
     {
         $branchAdmin = User::factory()->create([
