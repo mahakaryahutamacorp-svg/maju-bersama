@@ -204,12 +204,29 @@ class StockCardService
                 DB::raw('CASE WHEN stock_adjustment_items.difference_qty < 0 THEN ABS(stock_adjustment_items.difference_qty) ELSE 0 END as qty_out'),
             ]);
 
+        $salesReturns = DB::table('sales_returns')
+            ->join('sales_return_items', 'sales_returns.id', '=', 'sales_return_items.sales_return_id')
+            ->where('sales_returns.branch_id', $branchId)
+            ->where('sales_return_items.product_id', $productId)
+            ->where('sales_returns.status', 'completed')
+            ->select([
+                'sales_returns.return_date as transaction_date',
+                'sales_returns.created_at',
+                'sales_returns.reference_number',
+                DB::raw("'sales_return' as movement_code"),
+                DB::raw("'Retur Penjualan' as type"),
+                'sales_returns.customer_name as raw_note',
+                'sales_return_items.quantity as qty_in',
+                DB::raw('0 as qty_out'),
+            ]);
+
         // Combine all using unionAll and order chronologically
         $query = $goodsReceipts
             ->unionAll($sales)
             ->unionAll($transfersOut)
             ->unionAll($transfersIn)
-            ->unionAll($adjustments);
+            ->unionAll($adjustments)
+            ->unionAll($salesReturns);
 
         return DB::query()->fromSub($query, 'movements')
             ->orderBy('transaction_date', 'asc')
@@ -228,6 +245,7 @@ class StockCardService
             'transfer_out' => "Kirim transfer ke cabang {$mov->raw_note}",
             'transfer_in' => "Terima transfer dari cabang {$mov->raw_note}",
             'adjustment' => $mov->raw_note ?: 'Rekonsiliasi Fisik Opname',
+            'sales_return' => $mov->raw_note ? "Retur pelanggan: {$mov->raw_note}" : 'Retur penjualan ke gudang',
             default => '-',
         };
     }

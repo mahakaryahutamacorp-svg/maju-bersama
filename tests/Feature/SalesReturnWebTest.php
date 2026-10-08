@@ -8,6 +8,8 @@ use App\Models\Category;
 use App\Models\ChartOfAccount;
 use App\Models\Inventory;
 use App\Models\Product;
+use App\Models\Sale;
+use App\Models\SaleItem;
 use App\Models\SalesReturn;
 use App\Models\User;
 use App\Services\CashRegisterShiftService;
@@ -168,6 +170,8 @@ class SalesReturnWebTest extends TestCase
 
     public function test_user_can_store_sales_return_with_cash_refund(): void
     {
+        $sale = $this->makeSale($this->branch, $this->cashier, $this->productA, 1, 120000, 'cash');
+
         // Setup cash register shift for cashier
         $register = CashRegister::create([
             'branch_id' => $this->branch->id,
@@ -182,6 +186,7 @@ class SalesReturnWebTest extends TestCase
         $payload = [
             'return_date' => '2026-09-21',
             'customer_name' => 'Budi Setiawan',
+            'sale_id' => $sale->id,
             'refund_method' => 'cash',
             'chart_of_account_id' => $this->cashAccount->id,
             'reason' => 'Warna casing tidak sesuai pesanan',
@@ -268,9 +273,12 @@ class SalesReturnWebTest extends TestCase
 
     public function test_user_can_store_sales_return_with_bank_transfer(): void
     {
+        $sale = $this->makeSale($this->branch, $this->cashier, $this->productB, 2, 45000, 'transfer');
+
         $payload = [
             'return_date' => '2026-09-21',
             'customer_name' => 'Dewi Sartika',
+            'sale_id' => $sale->id,
             'refund_method' => 'transfer',
             'chart_of_account_id' => $this->bankAccount->id,
             'reason' => 'Transfer balik ke rekening BCA pelanggan',
@@ -317,10 +325,13 @@ class SalesReturnWebTest extends TestCase
 
     public function test_transaction_viewer_shows_sales_return_details(): void
     {
+        $sale = $this->makeSale($this->branch, $this->cashier, $this->productA, 1, 120000, 'cash');
+
         $service = app(SalesReturnService::class);
         $salesReturn = $service->processReturn(
             [
                 'branch_id' => $this->branch->id,
+                'sale_id' => $sale->id,
                 'customer_name' => 'Hendra Gunawan',
                 'return_date' => '2026-09-21',
                 'refund_method' => 'cash',
@@ -350,5 +361,70 @@ class SalesReturnWebTest extends TestCase
         $response->assertSee('Pendapatan Penjualan');
         $response->assertSee('Persediaan');
         $response->assertSee('Harga Pokok Penjualan');
+    }
+
+    public function test_cashier_cannot_return_sale_from_another_branch(): void
+    {
+        $otherBranch = Branch::create([
+            'name' => 'Cabang Lain',
+            'code' => 'OTH01',
+            'is_active' => true,
+        ]);
+
+        $foreignProduct = Product::withoutGlobalScopes()->create([
+            'branch_id' => $otherBranch->id,
+            'category_id' => $this->category->id,
+            'sku' => 'FOREIGN-01',
+            'name' => 'Produk Cabang Lain',
+            'purchase_price' => 10000,
+            'selling_price' => 20000,
+            'stock' => 5,
+            'is_active' => true,
+        ]);
+
+        $foreignSale = $this->makeSale($otherBranch, $this->cashier, $foreignProduct, 1, 20000, 'cash');
+
+        $response = $this->actingAs($this->cashier)->post(route('backoffice.sales-returns.store'), [
+            'return_date' => '2026-09-21',
+            'sale_id' => $foreignSale->id,
+            'refund_method' => 'cash',
+            'chart_of_account_id' => $this->cashAccount->id,
+            'items' => [
+                [
+                    'product_id' => $foreignProduct->id,
+                    'quantity' => 1,
+                    'unit_price' => 20000,
+                    'unit_cost' => 10000,
+                ],
+            ],
+        ]);
+
+        $response->assertSessionHasErrors(['sale_id']);
+        $this->assertDatabaseMissing('sales_returns', [
+            'sale_id' => $foreignSale->id,
+        ]);
+    }
+
+    private function makeSale(Branch $branch, User $user, Product $product, int $quantity, int $unitPrice, string $paymentMethod): Sale
+    {
+        $sale = Sale::withoutGlobalScopes()->create([
+            'branch_id' => $branch->id,
+            'created_by' => $user->id,
+            'receipt_number' => 'INV-'.$branch->code.'-'.str_pad((string) random_int(1, 9999), 4, '0', STR_PAD_LEFT),
+            'total_amount' => $unitPrice * $quantity,
+            'payment_method' => $paymentMethod,
+            'payment_status' => 'PAID',
+            'status' => 'completed',
+        ]);
+
+        SaleItem::create([
+            'sale_id' => $sale->id,
+            'product_id' => $product->id,
+            'quantity' => $quantity,
+            'price' => $unitPrice,
+            'subtotal' => $unitPrice * $quantity,
+        ]);
+
+        return $sale;
     }
 }

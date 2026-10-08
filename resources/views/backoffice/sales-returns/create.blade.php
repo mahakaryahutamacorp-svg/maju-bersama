@@ -154,11 +154,17 @@
                         <!-- Referensi Penjualan Asli / No Struk (Opsional) -->
                         <div>
                             <label for="sale_id" class="block text-xs font-bold uppercase tracking-wider text-slate-700">
-                                Ref. Struk / Penjualan Asli <span class="text-slate-400 font-normal">(Opsional)</span>
+                                Ref. Struk / Penjualan Asli
+                                @if (! $isMaster)
+                                    <span class="text-rose-500">*</span>
+                                @else
+                                    <span class="text-slate-400 font-normal">(Opsional)</span>
+                                @endif
                             </label>
                             <select
                                 id="sale_id"
                                 name="sale_id"
+                                @if (! $isMaster) required @endif
                                 class="mt-2 block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-xs focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
                             >
                                 <option value="">-- Tanpa Tautan Struk --</option>

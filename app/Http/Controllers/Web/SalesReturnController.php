@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\StoreSalesReturnRequest;
 use App\Models\CashRegisterShift;
 use App\Models\ChartOfAccount;
 use App\Models\Product;
@@ -120,25 +121,14 @@ class SalesReturnController extends Controller
     /**
      * Store a newly created sales return in storage.
      */
-    public function store(Request $request): RedirectResponse|JsonResponse
+    public function store(StoreSalesReturnRequest $request): RedirectResponse|JsonResponse
     {
-        $validated = $request->validate([
-            'return_date' => ['required', 'date'],
-            'customer_name' => ['nullable', 'string', 'max:150'],
-            'sale_id' => ['nullable', 'integer', 'exists:sales,id'],
-            'refund_method' => ['required', 'string', 'in:cash,transfer,Cash,Transfer,tunai,bank'],
-            'chart_of_account_id' => ['required', 'integer', 'exists:chart_of_accounts,id'],
-            'reason' => ['nullable', 'string', 'max:1000'],
-            'items' => ['required', 'array', 'min:1'],
-            'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
-            'items.*.unit_price' => ['required', 'numeric', 'min:0'],
-            'items.*.unit_cost' => ['nullable', 'numeric', 'min:0'],
-        ]);
+        $validated = $request->validated();
+        $user = $request->user();
 
         $salesReturn = $this->salesReturnService->processReturn(
             [
-                'branch_id' => $request->user()->branch_id,
+                'branch_id' => $user->branch_id,
                 'customer_name' => $validated['customer_name'] ?? 'Pelanggan Umum',
                 'sale_id' => $validated['sale_id'] ?? null,
                 'return_date' => $validated['return_date'],
@@ -147,7 +137,7 @@ class SalesReturnController extends Controller
                 'reason' => $validated['reason'] ?? null,
             ],
             $validated['items'],
-            $request->user()
+            $user
         );
 
         $formattedAmount = 'Rp '.number_format((float) $salesReturn->total_amount, 0, ',', '.');
