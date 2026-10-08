@@ -1,39 +1,9 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tambah Kategori Biaya | Maju Bersama ERP</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-    <!-- Header Utama -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-            <div class="flex items-center gap-4">
-                <a href="/backoffice" class="block">
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                    <h1 class="text-xl font-bold tracking-tight">Keuangan &amp; Akuntansi</h1>
-                </a>
-            </div>
-            <div class="flex items-center gap-4">
-                <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
-                    <a href="/pos" class="hover:text-white">POS Kasir</a>
-                    <a href="/inventory" class="hover:text-white">Inventory</a>
-                    <a href="{{ route('backoffice.expenses.index') }}" class="hover:text-white">Biaya Operasional</a>
-                    <a href="{{ route('backoffice.expense-categories.index') }}" class="text-amber-400 font-semibold">Kategori Biaya</a>
-                    <a href="/reports/accounting/ledger" class="hover:text-white">Buku Besar</a>
-                    <a href="/backoffice" class="hover:text-white">Backoffice</a>
-                </nav>
-                <div class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200">
-                    {{ $currentUser->branch?->name ?? 'Pusat' }} ({{ $currentUser->role }})
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <main class="mx-auto max-w-3xl space-y-6 px-6 py-8 lg:px-8">
+<x-app-layout title="Tambah Kategori Biaya" :breadcrumbs="[
+    ['label' => 'Pengaturan'],
+    ['label' => 'Kategori Biaya', 'url' => route('backoffice.expense-categories.index')],
+    ['label' => 'Tambah Kategori'],
+]">
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-3xl space-y-6">
         <!-- Error Banner -->
         @if ($errors->any())
             <div class="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-rose-900 shadow-xs">
@@ -53,7 +23,7 @@
 
         <div class="flex items-center justify-between">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-wider text-amber-600">Master Data Biaya</p>
+                <p class="font-semibold uppercase text-sm tracking-wider text-amber-600">Master Data Biaya</p>
                 <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950">Tambah Kategori Biaya Baru</h2>
             </div>
             <a href="{{ route('backoffice.expense-categories.index') }}" class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
@@ -67,7 +37,7 @@
 
                 <!-- Nama Kategori -->
                 <div>
-                    <label for="name" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                    <label for="name" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                         Nama Kategori Biaya <span class="text-rose-500">*</span>
                     </label>
                     <input
@@ -78,21 +48,21 @@
                         required
                         autofocus
                         placeholder="Misal: Beban Listrik Toko, Bensin Operasional, Konsumsi Rapat..."
-                        class="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-400/20 transition"
+                        class="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-500/20 transition"
                     >
                     <p class="mt-1.5 text-xs text-slate-500">Nama kelompok pengeluaran yang mudah dipahami oleh staf dan kasir.</p>
                 </div>
 
                 <!-- Pemetaan Akun Beban (COA) -->
                 <div>
-                    <label for="chart_of_account_id" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                    <label for="chart_of_account_id" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                         Akun Buku Besar / COA Beban <span class="text-rose-500">*</span>
                     </label>
                     <select
                         id="chart_of_account_id"
                         name="chart_of_account_id"
                         required
-                        class="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-400/20 transition"
+                        class="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-500/20 transition"
                     >
                         <option value="">-- Pilih Akun Bagan Akun (Beban / Expense) --</option>
                         @foreach ($expenseAccounts as $acc)
@@ -112,7 +82,7 @@
                         name="is_active"
                         value="1"
                         {{ old('is_active', '1') ? 'checked' : '' }}
-                        class="h-4 w-4 rounded border-slate-300 text-amber-500 focus:ring-amber-400"
+                        class="h-4 w-4 rounded border-slate-300 text-amber-500 focus:ring-sky-500"
                     >
                     <label for="is_active" class="text-xs font-bold text-slate-800">
                         Kategori Aktif (Dapat dipilih pada formulir kas keluar)
@@ -127,7 +97,7 @@
                     <button
                         type="submit"
                         id="btn-submit-category"
-                        class="rounded-xl bg-amber-500 px-6 py-2.5 text-xs font-bold text-slate-950 shadow-md hover:bg-amber-400 transition"
+                        class="rounded-xl bg-sky-600 px-6 py-2.5 text-xs font-bold text-white shadow-md hover:bg-sky-700 transition"
                     >
                         Simpan Kategori Biaya →
                     </button>
@@ -135,5 +105,4 @@
             </form>
         </div>
     </main>
-</body>
-</html>
+</x-app-layout>

@@ -1,62 +1,9 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Input Retur Penjualan (Sales Return) | Maju Bersama ERP</title>
-    <meta name="description" content="Formulir pengembalian barang dari pelanggan dan pengembalian dana (refund) dengan koreksi stok dan 4-baris jurnal akuntansi otomatis.">
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-
-    <!-- Header Utama -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-            <div class="flex items-center gap-4">
-                <a href="/backoffice" class="block">
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                    <h1 class="text-xl font-bold tracking-tight">Penjualan &amp; Kasir</h1>
-                </a>
-            </div>
-            <div class="flex items-center gap-4">
-                <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
-                    <a href="/pos" class="hover:text-white">POS Kasir</a>
-                    <a href="/inventory" class="hover:text-white">Inventory</a>
-                    <a href="/backoffice" class="hover:text-white">Backoffice</a>
-                </nav>
-                @if ($isMaster)
-                    <div class="rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-300">
-                        👑 Master Pusat
-                    </div>
-                @else
-                    <div class="rounded-full border border-sky-400/40 bg-sky-400/10 px-3 py-1 text-xs font-semibold text-sky-300">
-                        🏪 {{ $currentUser->branch->name ?? 'Cabang' }}
-                    </div>
-                @endif
-            </div>
-        </div>
-    </header>
-
-    <!-- Sub-Navbar -->
-    <div class="border-b border-slate-200 bg-white shadow-xs">
-        <div class="mx-auto flex max-w-7xl items-center justify-between overflow-x-auto px-6 py-2.5 lg:px-8">
-            <div class="flex items-center gap-2 text-sm font-medium">
-                <a href="{{ route('backoffice.sales-returns.index') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    &larr; Riwayat Retur Penjualan
-                </a>
-                <a href="{{ route('backoffice.sales-returns.create') }}" class="rounded-lg bg-rose-600 px-3.5 py-2 font-bold text-white shadow-xs">
-                    + Input Retur Pelanggan
-                </a>
-                <a href="/pos" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Kasir POS
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Container -->
-    <main class="mx-auto max-w-7xl px-6 py-8 lg:px-8">
+<x-app-layout title="Input Retur Penjualan (Sales Return)" :breadcrumbs="[
+    ['label' => 'Jualan'],
+    ['label' => 'Retur dari Pelanggan', 'url' => route('backoffice.sales-returns.index')],
+    ['label' => 'Input Retur'],
+]">
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-7xl">
 
         <!-- Error Alerts -->
         @if ($errors->any())
@@ -100,7 +47,7 @@
                 <!-- Judul Halaman -->
                 <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
                     <div>
-                        <p class="text-xs font-semibold uppercase tracking-wider text-rose-600">Layanan Purna Jual &amp; Kasir</p>
+                        <p class="font-semibold uppercase text-sm tracking-wider text-amber-600">Layanan Purna Jual &amp; Kasir</p>
                         <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Input Retur Penjualan (Refund)</h2>
                         <p class="mt-1 text-sm text-slate-500">
                             Terima barang kembali dari konsumen, kembalikan stok fisik ke etalase/gudang, dan potong saldo kas/bank secara akurat.
@@ -123,7 +70,7 @@
                     <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                         <!-- Tanggal Retur -->
                         <div>
-                            <label for="return_date" class="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                            <label for="return_date" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                 Tanggal Retur <span class="text-rose-500">*</span>
                             </label>
                             <input
@@ -132,13 +79,13 @@
                                 name="return_date"
                                 value="{{ old('return_date', $todayDate) }}"
                                 required
-                                class="mt-2 block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-xs focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+                                class="mt-2 block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                             >
                         </div>
 
                         <!-- Info Pelanggan (Input Teks Bebas) -->
                         <div>
-                            <label for="customer_name" class="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                            <label for="customer_name" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                 Info / Nama Pelanggan <span class="text-slate-400 font-normal">(Opsional)</span>
                             </label>
                             <input
@@ -147,13 +94,13 @@
                                 name="customer_name"
                                 value="{{ old('customer_name') }}"
                                 placeholder="Contoh: Bpk. Ahmad / Umum"
-                                class="mt-2 block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-xs focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+                                class="mt-2 block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                             >
                         </div>
 
                         <!-- Referensi Penjualan Asli / No Struk (Opsional) -->
                         <div>
-                            <label for="sale_id" class="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                            <label for="sale_id" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                 Ref. Struk / Penjualan Asli
                                 @if (! $isMaster)
                                     <span class="text-rose-500">*</span>
@@ -165,7 +112,7 @@
                                 id="sale_id"
                                 name="sale_id"
                                 @if (! $isMaster) required @endif
-                                class="mt-2 block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-xs focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+                                class="mt-2 block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                             >
                                 <option value="">-- Tanpa Tautan Struk --</option>
                                 @foreach ($recentSales as $sale)
@@ -178,7 +125,7 @@
 
                         <!-- Metode Refund (Dropdown) -->
                         <div>
-                            <label for="refund_method" class="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                            <label for="refund_method" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                 Metode Refund <span class="text-rose-500">*</span>
                             </label>
                             <select
@@ -187,7 +134,7 @@
                                 x-model="refundMethod"
                                 @change="onRefundMethodChange()"
                                 required
-                                class="mt-2 block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-xs focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+                                class="mt-2 block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                             >
                                 <option value="cash">Kasir / Tunai (Laci Kas)</option>
                                 <option value="transfer">Transfer Bank</option>
@@ -196,7 +143,7 @@
 
                         <!-- Akun Kas / Bank Pemotong Saldo -->
                         <div>
-                            <label for="chart_of_account_id" class="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                            <label for="chart_of_account_id" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                 Akun Pemotong Saldo <span class="text-rose-500">*</span>
                             </label>
                             <select
@@ -204,7 +151,7 @@
                                 name="chart_of_account_id"
                                 x-model="selectedAccountId"
                                 required
-                                class="mt-2 block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-xs focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+                                class="mt-2 block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                             >
                                 <template x-for="acc in accounts" :key="acc.id">
                                     <option :value="acc.id" x-text="acc.code + ' - ' + acc.name"></option>
@@ -214,7 +161,7 @@
 
                         <!-- Alasan Retur -->
                         <div>
-                            <label for="reason" class="block text-xs font-bold uppercase tracking-wider text-slate-700">
+                            <label for="reason" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                 Alasan Retur / Catatan
                             </label>
                             <textarea
@@ -222,7 +169,7 @@
                                 name="reason"
                                 rows="1"
                                 placeholder="Contoh: Salah beli ukuran, cacat fungsi, dll"
-                                class="mt-2 block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 shadow-xs focus:border-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-500/20"
+                                class="mt-2 block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm text-slate-900 shadow-xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                             >{{ old('reason') }}</textarea>
                         </div>
                     </div>
@@ -254,7 +201,7 @@
                     <!-- Tabel Item Dinamis -->
                     <div class="overflow-x-auto rounded-xl border border-slate-200">
                         <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
-                            <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-600">
+                            <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                                 <tr>
                                     <th class="w-12 px-3 py-3 text-center">No</th>
                                     <th class="px-4 py-3 min-w-[280px]">Produk</th>
@@ -265,7 +212,7 @@
                                     <th class="w-16 px-3 py-3 text-center">Aksi</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100 bg-white">
+                            <tbody class="divide-y divide-slate-100 bg-white [&>tr:nth-child(even)]:bg-slate-50/60">
                                 <template x-for="(item, index) in items" :key="index">
                                     <tr class="hover:bg-slate-50/70 transition-colors">
                                         <!-- Nomor Urut -->
@@ -278,7 +225,7 @@
                                                 x-model="item.product_id"
                                                 @change="onProductSelect(index)"
                                                 required
-                                                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-2xs focus:border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
+                                                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-2xs focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
                                             >
                                                 <option value="">-- Pilih Produk --</option>
                                                 <template x-for="prod in products" :key="prod.id">
@@ -303,7 +250,7 @@
                                                 @input="calculateSubtotal(index)"
                                                 min="1"
                                                 required
-                                                class="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-right text-sm font-mono text-slate-900 shadow-2xs focus:border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
+                                                class="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-right text-sm font-mono text-slate-900 shadow-2xs focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
                                             >
                                         </td>
 
@@ -318,7 +265,7 @@
                                                     @input="calculateSubtotal(index)"
                                                     min="0"
                                                     required
-                                                    class="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-right text-sm font-mono text-slate-900 shadow-2xs focus:border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
+                                                    class="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-right text-sm font-mono text-slate-900 shadow-2xs focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
                                                 >
                                                 <div class="mt-0.5 text-[11px] text-right font-mono text-slate-500" x-text="formatRupiah(item.unit_price)"></div>
                                             </div>
@@ -420,7 +367,7 @@
                         id="btn-submit-sales-return"
                         :disabled="grandTotal <= 0"
                         :class="grandTotal <= 0 ? 'opacity-50 cursor-not-allowed bg-slate-400' : 'bg-rose-600 hover:bg-rose-700 shadow-md'"
-                        class="inline-flex items-center gap-2 rounded-xl px-8 py-3 text-sm font-bold text-white transition focus:ring-2 focus:ring-rose-500 focus:ring-offset-2"
+                        class="inline-flex items-center gap-2 rounded-xl px-8 py-3 text-sm font-bold text-white transition focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
                     >
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                         Proses Retur Penjualan &amp; Refund
@@ -430,7 +377,7 @@
         </div>
     </main>
 
-    <!-- Alpine.js Component Script -->
+    <x-slot:scripts>
     <script>
         function salesReturnForm(productsList, accountsList) {
             return {
@@ -518,5 +465,5 @@
             };
         }
     </script>
-</body>
-</html>
+    </x-slot:scripts>
+</x-app-layout>

@@ -20,9 +20,7 @@ class AccountingReportController extends Controller
     public function ledger(Request $request): View
     {
         $user = $request->user();
-        $isMaster = $user->isMaster()
-            || in_array($user->role, ['admin', 'superadmin', 'master'], true)
-            || ($user->branch && ($user->branch->parent_id === null || $user->branch->code === 'PUSAT'));
+        $isMaster = $user->isMaster();
 
         // Default date range: start of current month to today
         $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
@@ -77,9 +75,7 @@ class AccountingReportController extends Controller
     public function trialBalance(Request $request): View
     {
         $user = $request->user();
-        $isMaster = $user->isMaster()
-            || in_array($user->role, ['admin', 'superadmin', 'master'], true)
-            || ($user->branch && ($user->branch->parent_id === null || $user->branch->code === 'PUSAT'));
+        $isMaster = $user->isMaster();
 
         $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
         $endDate = $request->input('end_date', now()->toDateString());
@@ -118,9 +114,7 @@ class AccountingReportController extends Controller
     public function incomeStatement(Request $request): View
     {
         $user = $request->user();
-        $isMaster = $user->isMaster()
-            || in_array($user->role, ['admin', 'superadmin', 'master'], true)
-            || ($user->branch && ($user->branch->parent_id === null || $user->branch->code === 'PUSAT'));
+        $isMaster = $user->isMaster();
 
         $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
         $endDate = $request->input('end_date', now()->toDateString());

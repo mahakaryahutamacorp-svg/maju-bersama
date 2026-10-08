@@ -1,31 +1,9 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Kategori Biaya | Maju Bersama ERP</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-    <!-- Header Utama -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-            <div class="flex items-center gap-4">
-                <a href="/backoffice" class="block">
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                    <h1 class="text-xl font-bold tracking-tight">Keuangan &amp; Akuntansi</h1>
-                </a>
-            </div>
-            <div class="flex items-center gap-4">
-                <div class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200">
-                    {{ $currentUser->branch?->name ?? 'Pusat' }} ({{ $currentUser->role }})
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <main class="mx-auto max-w-3xl space-y-6 px-6 py-8 lg:px-8">
+<x-app-layout title="Edit Kategori Biaya" :breadcrumbs="[
+    ['label' => 'Pengaturan'],
+    ['label' => 'Kategori Biaya', 'url' => route('backoffice.expense-categories.index')],
+    ['label' => 'Edit Kategori'],
+]">
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-3xl space-y-6">
         <!-- Error Banner -->
         @if ($errors->any())
             <div class="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-rose-900 shadow-xs">
@@ -45,7 +23,7 @@
 
         <div class="flex items-center justify-between">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-wider text-amber-600">Master Data Biaya</p>
+                <p class="font-semibold uppercase text-sm tracking-wider text-amber-600">Master Data Biaya</p>
                 <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950">Edit Kategori: {{ $category->name }}</h2>
             </div>
             <a href="{{ route('backoffice.expense-categories.index') }}" class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50">
@@ -60,7 +38,7 @@
 
                 <!-- Nama Kategori -->
                 <div>
-                    <label for="name" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                    <label for="name" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                         Nama Kategori Biaya <span class="text-rose-500">*</span>
                     </label>
                     <input
@@ -70,20 +48,20 @@
                         value="{{ old('name', $category->name) }}"
                         required
                         autofocus
-                        class="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-400/20 transition"
+                        class="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-500/20 transition"
                     >
                 </div>
 
                 <!-- Pemetaan Akun Beban (COA) -->
                 <div>
-                    <label for="chart_of_account_id" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
+                    <label for="chart_of_account_id" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                         Akun Buku Besar / COA Beban <span class="text-rose-500">*</span>
                     </label>
                     <select
                         id="chart_of_account_id"
                         name="chart_of_account_id"
                         required
-                        class="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-400/20 transition"
+                        class="w-full rounded-xl border border-slate-300 bg-slate-50/50 px-4 py-3 text-sm font-semibold text-slate-900 outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-sky-500/20 transition"
                     >
                         @foreach ($expenseAccounts as $acc)
                             <option value="{{ $acc->id }}" {{ old('chart_of_account_id', $category->chart_of_account_id) == $acc->id ? 'selected' : '' }}>
@@ -101,7 +79,7 @@
                         name="is_active"
                         value="1"
                         {{ old('is_active', $category->is_active) ? 'checked' : '' }}
-                        class="h-4 w-4 rounded border-slate-300 text-amber-500 focus:ring-amber-400"
+                        class="h-4 w-4 rounded border-slate-300 text-amber-500 focus:ring-sky-500"
                     >
                     <label for="is_active" class="text-xs font-bold text-slate-800">
                         Kategori Aktif (Dapat dipilih pada formulir kas keluar)
@@ -115,7 +93,7 @@
                     </a>
                     <button
                         type="submit"
-                        class="rounded-xl bg-amber-500 px-6 py-2.5 text-xs font-bold text-slate-950 shadow-md hover:bg-amber-400 transition"
+                        class="rounded-xl bg-sky-600 px-6 py-2.5 text-xs font-bold text-white shadow-md hover:bg-sky-700 transition"
                     >
                         Perbarui Kategori Biaya →
                     </button>
@@ -123,5 +101,4 @@
             </form>
         </div>
     </main>
-</body>
-</html>
+</x-app-layout>

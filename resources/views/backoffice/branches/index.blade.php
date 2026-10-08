@@ -1,61 +1,14 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manajemen Cabang Toko | Maju Bersama ERP</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-    <!-- Header Utama -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-            <div class="flex items-center gap-4">
-                <a href="/backoffice" class="block">
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                    <h1 class="text-xl font-bold tracking-tight">Manajemen Master Data</h1>
-                </a>
-            </div>
-            <div class="flex items-center gap-4">
-                <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
-                    <a href="/pos" class="hover:text-white">POS Kasir</a>
-                    <a href="/inventory" class="hover:text-white">Inventory</a>
-                    <a href="/reports/journal" class="hover:text-white">Jurnal</a>
-                    <a href="/backoffice" class="hover:text-white">Backoffice</a>
-                </nav>
-                <div class="rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-300">
-                    👑 Akses Master Pusat
-                </div>
-            </div>
+<x-app-layout title="Manajemen Cabang Toko" :breadcrumbs="[
+    ['label' => 'Pengaturan'],
+    ['label' => 'Manajemen Cabang'],
+]">
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-7xl">
+        <div class="mb-6">
+            <p class="text-sm font-semibold uppercase tracking-wider text-amber-600">Pengaturan</p>
+            <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Manajemen Cabang</h2>
         </div>
-    </header>
 
-    <!-- Sub-Navbar Master Data -->
-    <div class="border-b border-slate-200 bg-white shadow-sm">
-        <div class="mx-auto flex max-w-7xl items-center justify-between overflow-x-auto px-6 py-2.5 lg:px-8">
-            <div class="flex items-center gap-2 text-sm font-medium">
-                <a href="{{ route('backoffice.products.index') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Katalog Produk
-                </a>
-                <a href="{{ route('backoffice.categories.index') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Kategori
-                </a>
-                <a href="{{ route('backoffice.users.index') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Staf &amp; Kasir
-                </a>
-                <a href="{{ route('backoffice.branches.index') }}" class="rounded-lg bg-amber-500 px-3.5 py-2 font-bold text-slate-950 shadow-sm">
-                    Manajemen Cabang
-                </a>
-            </div>
-            <a href="{{ route('backoffice.branches.create') }}" class="hidden sm:inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-500">
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                Daftarkan Cabang Baru
-            </a>
-        </div>
-    </div>
 
-    <!-- Main Container -->
-    <main class="mx-auto max-w-7xl px-6 py-8 lg:px-8">
         <!-- Flash Message Alerts -->
         @if (session('success'))
             <div class="mb-6 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800 shadow-sm">
@@ -79,7 +32,7 @@
         <div class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
             <form method="GET" action="{{ route('backoffice.branches.index') }}" class="flex items-center gap-3 w-full sm:w-auto">
                 <input type="text" name="search" value="{{ $search }}" placeholder="Cari nama atau kode cabang..." class="rounded-lg border border-slate-300 px-3.5 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 w-full sm:w-72">
-                <button type="submit" class="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+                <button type="submit" class="rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700">
                     Cari
                 </button>
                 @if ($search)
@@ -88,7 +41,7 @@
                     </a>
                 @endif
             </form>
-            <a href="{{ route('backoffice.branches.create') }}" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-bold text-slate-950 shadow-sm hover:bg-amber-400">
+            <a href="{{ route('backoffice.branches.create') }}" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-sky-700">
                 <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                 Daftarkan Cabang Baru
             </a>
@@ -103,7 +56,7 @@
 
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm text-slate-600">
-                    <thead class="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+                    <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                         <tr>
                             <th class="px-6 py-3">Kode Cabang</th>
                             <th class="px-6 py-3">Nama Cabang Toko</th>
@@ -114,7 +67,7 @@
                             <th class="px-6 py-3 text-center">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100">
+                    <tbody class="divide-y divide-slate-100 [&>tr:nth-child(even)]:bg-slate-50/60">
                         @forelse ($branches as $branch)
                             <tr class="hover:bg-slate-50/80 transition-colors">
                                 <td class="px-6 py-4 font-mono font-bold text-sky-700">
@@ -177,5 +130,4 @@
             @endif
         </div>
     </main>
-</body>
-</html>
+</x-app-layout>

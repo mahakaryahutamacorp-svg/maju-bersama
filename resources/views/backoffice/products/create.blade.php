@@ -1,45 +1,14 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tambah Produk Baru | Maju Bersama ERP</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-    <!-- Header Utama -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-            <div class="flex items-center gap-4">
-                <a href="/backoffice" class="block">
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                    <h1 class="text-xl font-bold tracking-tight">Manajemen Master Data</h1>
-                </a>
-            </div>
-            <div class="flex items-center gap-4">
-                <div class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200">
-                    {{ $currentUser->branch?->name ?? 'Pusat' }} ({{ $currentUser->role }})
-                </div>
-            </div>
+<x-app-layout title="Tambah Produk Baru" :breadcrumbs="[
+    ['label' => 'Pengaturan'],
+    ['label' => 'Katalog Produk', 'url' => route('backoffice.products.index')],
+    ['label' => 'Tambah Produk'],
+]">
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-3xl">
+        <div class="mb-6">
+            <p class="text-sm font-semibold uppercase tracking-wider text-amber-600">Pengaturan</p>
+            <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Tambah Produk Baru</h2>
         </div>
-    </header>
 
-    <!-- Sub-Navbar Master Data -->
-    <div class="border-b border-slate-200 bg-white shadow-sm">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-2.5 lg:px-8">
-            <div class="flex items-center gap-2 text-sm font-medium">
-                <a href="{{ route('backoffice.products.index') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    ← Kembali ke Katalog
-                </a>
-                <span class="text-slate-300">/</span>
-                <span class="font-semibold text-slate-900">Tambah Produk Baru</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Form Container -->
-    <main class="mx-auto max-w-3xl px-6 py-8 lg:px-8">
         @if ($errors->any())
             <div class="mb-6 rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-800 shadow-sm">
                 <div class="flex items-center gap-2 font-semibold text-sm">
@@ -88,7 +57,7 @@
                     }
                 }" class="relative">
                     <div class="flex items-center justify-between">
-                        <label for="name" class="block text-sm font-semibold text-slate-800">
+                        <label for="name" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                             Nama Produk <span class="text-rose-500">*</span>
                         </label>
                         <span x-show="isLoading" class="text-xs text-sky-600 font-medium animate-pulse" style="display: none;">
@@ -144,7 +113,7 @@
                 <!-- SKU / Barcode (Opsional Auto-generate) -->
                 <div>
                     <div class="flex items-center justify-between">
-                        <label for="sku" class="block text-sm font-semibold text-slate-800">
+                        <label for="sku" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                             Kode SKU / Barcode
                         </label>
                         <span class="text-xs text-slate-500 italic">Kosongkan untuk generate otomatis sistem</span>
@@ -156,7 +125,7 @@
                 <!-- Kategori, Satuan & Cabang -->
                 <div class="grid gap-4 sm:grid-cols-3">
                     <div>
-                        <label for="category_id" class="block text-sm font-semibold text-slate-800">
+                        <label for="category_id" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                             Kategori Produk <span class="text-rose-500">*</span>
                         </label>
                         <select id="category_id" name="category_id" required class="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
@@ -170,7 +139,7 @@
                     </div>
 
                     <div>
-                        <label for="unit" class="block text-sm font-semibold text-slate-800">
+                        <label for="unit" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                             Satuan Barang <span class="text-rose-500">*</span>
                         </label>
                         <select id="unit" name="unit" class="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
@@ -183,7 +152,7 @@
                     </div>
 
                     <div>
-                        <label class="block text-sm font-semibold text-slate-800">
+                        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                             Cabang Penempatan <span class="text-rose-500">*</span>
                         </label>
                         @if ($isMaster)
@@ -204,7 +173,7 @@
 
                 <!-- Harga Beli (HPP) -->
                 <div>
-                    <label for="purchase_price" class="block text-sm font-semibold text-slate-800">
+                    <label for="purchase_price" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                         Harga Beli / HPP (Rp) <span class="text-rose-500">*</span>
                     </label>
                     <div class="relative mt-1.5">
@@ -319,7 +288,7 @@
                                             name="customer_group_prices[{{ $cg->id }}]"
                                             value="{{ old("customer_group_prices.{$cg->id}") }}"
                                             placeholder="Sama dgn harga dasar"
-                                            class="w-full rounded-lg border border-slate-300 pl-9 pr-3 py-2 text-sm font-semibold text-slate-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                                            class="w-full rounded-lg border border-slate-300 pl-9 pr-3 py-2 text-sm font-semibold text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
                                         >
                                     </div>
                                     <p class="text-[10px] text-slate-400 mt-1">
@@ -370,7 +339,7 @@
                                             name="branch_prices[{{ $b->id }}]"
                                             value="{{ old("branch_prices.{$b->id}") }}"
                                             placeholder="Sama dgn harga pusat"
-                                            class="w-full rounded-lg border border-slate-300 pl-9 pr-3 py-2 text-sm font-semibold text-slate-900 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                            class="w-full rounded-lg border border-slate-300 pl-9 pr-3 py-2 text-sm font-semibold text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
                                         >
                                     </div>
                                     <p class="text-[10px] text-slate-400 mt-1">
@@ -384,7 +353,7 @@
 
                 <!-- Stok Awal -->
                 <div>
-                    <label for="stock" class="block text-sm font-semibold text-slate-800">
+                    <label for="stock" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                         Kuantitas Stok Awal
                     </label>
                     <input type="number" min="0" id="stock" name="stock" value="{{ old('stock', 0) }}" class="mt-1.5 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
@@ -403,5 +372,4 @@
             </form>
         </div>
     </main>
-</body>
-</html>
+</x-app-layout>

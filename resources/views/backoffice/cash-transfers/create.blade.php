@@ -1,63 +1,9 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Formulir Mutasi Kas &amp; Bank | Maju Bersama ERP</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-    <!-- Header Utama -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-            <div class="flex items-center gap-4">
-                <a href="/backoffice" class="block">
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                    <h1 class="text-xl font-bold tracking-tight">Kas &amp; Bank (Treasury)</h1>
-                </a>
-            </div>
-            <div class="flex items-center gap-4">
-                <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
-                    <a href="/pos" class="hover:text-white">POS Kasir</a>
-                    <a href="/inventory" class="hover:text-white">Inventory</a>
-                    <a href="{{ route('backoffice.cash-transfers.index') }}" class="text-amber-400 font-semibold">Mutasi Kas &amp; Bank</a>
-                    <a href="{{ route('backoffice.expenses.index') }}" class="hover:text-white">Biaya Operasional</a>
-                    <a href="/reports/accounting/ledger" class="hover:text-white">Buku Besar</a>
-                    <a href="/backoffice" class="hover:text-white">Backoffice</a>
-                </nav>
-                <div class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200">
-                    {{ $currentUser->branch?->name ?? 'Pusat' }} ({{ $currentUser->role }})
-                </div>
-                <form method="POST" action="/logout" class="hidden sm:block">
-                    @csrf
-                    <button type="submit" class="text-sm text-slate-300 hover:text-white">Logout</button>
-                </form>
-            </div>
-        </div>
-    </header>
-
-    <!-- Sub-Navbar Modul Kas & Bank -->
-    <div class="border-b border-slate-200 bg-white shadow-xs">
-        <div class="mx-auto flex max-w-7xl items-center justify-between overflow-x-auto px-6 py-2.5 lg:px-8">
-            <div class="flex items-center gap-2 text-sm font-medium">
-                <a href="{{ route('backoffice.cash-transfers.index') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    &larr; Riwayat Mutasi Kas
-                </a>
-                <a href="{{ route('backoffice.cash-transfers.create') }}" class="rounded-lg bg-amber-500 px-3.5 py-2 font-bold text-slate-950 shadow-xs">
-                    + Catat Mutasi Kas
-                </a>
-                <a href="{{ route('backoffice.expenses.index') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Biaya Operasional
-                </a>
-                <a href="/reports/accounting/ledger" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Buku Besar Akuntansi
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <main class="mx-auto max-w-5xl space-y-6 px-6 py-8 lg:px-8">
+<x-app-layout title="Formulir Mutasi Kas & Bank" :breadcrumbs="[
+    ['label' => 'Uang & Akuntansi'],
+    ['label' => 'Kas & Bank', 'url' => route('backoffice.cash-transfers.index')],
+    ['label' => 'Pindah Kas'],
+]">
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-5xl space-y-6">
         <!-- Error Banner -->
         @if ($errors->any())
             <div class="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-rose-900 shadow-xs">
@@ -80,7 +26,7 @@
         <!-- Judul Form -->
         <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-wider text-amber-600 font-bold">Treasury / Mutasi Kas</p>
+                <p class="font-semibold uppercase font-bold text-sm tracking-wider text-amber-600">Treasury / Mutasi Kas</p>
                 <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Transfer Antar Kas &amp; Bank</h2>
                 <p class="mt-1 text-xs text-slate-500">Pindahkan dana antar rekening toko (misal: setoran kas kasir ke bank, pengisian kas kecil) dengan pencatatan jurnal ganda otomatis.</p>
             </div>
@@ -106,7 +52,7 @@
                     <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
                         <!-- Tanggal Transfer -->
                         <div>
-                            <label for="transfer_date" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                            <label for="transfer_date" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                 Tanggal Transfer <span class="text-rose-500">*</span>
                             </label>
                             <input
@@ -115,13 +61,13 @@
                                 name="transfer_date"
                                 x-model="transferDate"
                                 required
-                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 shadow-2xs outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 shadow-2xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                             >
                         </div>
 
                         <!-- Nomor Referensi (Opsional/Otomatis) -->
                         <div>
-                            <label for="reference_number" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                            <label for="reference_number" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                 Nomor Referensi <span class="text-slate-400 font-normal lowercase">(opsional)</span>
                             </label>
                             <input
@@ -130,14 +76,14 @@
                                 name="reference_number"
                                 x-model="referenceNumber"
                                 placeholder="Contoh: TRF-BCA-001 (kosongkan untuk otomatis)"
-                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-900 shadow-2xs outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-900 shadow-2xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                             >
                             <span class="mt-1 block text-[11px] text-slate-400">Jika dikosongkan, sistem akan membuat nomor acak: TRF-YYYYMMDD-XXXX</span>
                         </div>
 
                         <!-- Akun Asal (Sumber Dana) -->
                         <div>
-                            <label for="from_account_id" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                            <label for="from_account_id" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                 Sumber Dana / Akun Asal (Kredit) <span class="text-rose-500">*</span>
                             </label>
                             <select
@@ -145,7 +91,7 @@
                                 name="from_account_id"
                                 x-model="fromAccountId"
                                 required
-                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 shadow-2xs outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 shadow-2xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                             >
                                 <option value="">-- Pilih Akun Sumber Dana --</option>
                                 @foreach ($accounts as $acc)
@@ -159,7 +105,7 @@
 
                         <!-- Akun Tujuan (Tujuan Dana) -->
                         <div>
-                            <label for="to_account_id" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                            <label for="to_account_id" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                 Tujuan Dana / Akun Tujuan (Debit) <span class="text-rose-500">*</span>
                             </label>
                             <select
@@ -167,7 +113,7 @@
                                 name="to_account_id"
                                 x-model="toAccountId"
                                 required
-                                :class="isSameAccount ? 'border-rose-400 focus:border-rose-500 focus:ring-rose-500 bg-rose-50/20' : 'border-slate-300 focus:border-amber-500 focus:ring-amber-500 bg-white'"
+                                :class="isSameAccount ? 'border-rose-400 focus:border-sky-500 focus:ring-sky-500 bg-rose-50/20' : 'border-slate-300 focus:border-sky-500 focus:ring-sky-500 bg-white'"
                                 class="w-full rounded-xl border px-3.5 py-2.5 text-sm font-semibold text-slate-900 shadow-2xs outline-none focus:ring-1 transition"
                             >
                                 <option value="">-- Pilih Akun Tujuan Transfer --</option>
@@ -190,7 +136,7 @@
 
                         <!-- Nominal Mutasi (Live Rupiah Formatter) -->
                         <div class="sm:col-span-2">
-                            <label for="display_amount" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                            <label for="display_amount" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                 Nominal Mutasi / Transfer (Rp) <span class="text-rose-500">*</span>
                             </label>
                             <div class="relative">
@@ -202,7 +148,7 @@
                                     @input="formatInput($event)"
                                     placeholder="0"
                                     required
-                                    class="w-full rounded-xl border border-amber-300 bg-amber-50/20 pl-12 pr-4 py-3.5 text-xl font-mono font-black text-slate-950 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-400/20 transition"
+                                    class="w-full rounded-xl border border-amber-300 bg-amber-50/20 pl-12 pr-4 py-3.5 text-xl font-mono font-black text-slate-950 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition"
                                 >
                             </div>
                             <!-- Raw Numeric Value sent to Backend -->
@@ -237,7 +183,7 @@
 
                         <!-- Catatan / Keterangan Mutasi -->
                         <div class="sm:col-span-2">
-                            <label for="notes" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                            <label for="notes" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                 Catatan / Keterangan Transfer <span class="text-slate-400 font-normal lowercase">(opsional)</span>
                             </label>
                             <textarea
@@ -246,7 +192,7 @@
                                 rows="2"
                                 x-model="notes"
                                 placeholder="Contoh: Setoran hasil penjualan kasir shift pagi, atau pengisian dana kas kecil operasional..."
-                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-2xs outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-2xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                             >{{ old('notes') }}</textarea>
                             <p class="mt-1 text-[11px] text-slate-400">Catatan ini akan otomatis dicantumkan pada memo jurnal akuntansi buku besar.</p>
                         </div>
@@ -279,7 +225,7 @@
                     <!-- Tabel Jurnal Debit & Kredit -->
                     <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xs">
                         <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
-                            <thead class="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider">
+                            <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                                 <tr>
                                     <th class="px-4 py-2.5">Akun Buku Besar</th>
                                     <th class="px-4 py-2.5">Posisi / Keterangan</th>
@@ -287,7 +233,7 @@
                                     <th class="px-4 py-2.5 text-right">Kredit (Rp)</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100 font-mono">
+                            <tbody class="divide-y divide-slate-100 font-mono [&>tr:nth-child(even)]:bg-slate-50/60">
                                 <!-- Baris Debit: Akun Tujuan -->
                                 <tr class="hover:bg-slate-50/80">
                                     <td class="px-4 py-3 font-sans">
@@ -341,7 +287,7 @@
                         type="submit"
                         id="btn-submit-transfer"
                         :disabled="!canSubmit"
-                        class="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-7 py-3 text-sm font-bold text-slate-950 shadow-md transition hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                        class="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-7 py-3 text-sm font-bold text-white shadow-md transition hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"/>
@@ -353,7 +299,7 @@
         </div>
     </main>
 
-    <!-- Alpine.js Component Script -->
+    <x-slot:scripts>
     <script>
         function cashTransferForm(accounts = [], initialAmount = 0) {
             return {
@@ -430,5 +376,5 @@
             };
         }
     </script>
-</body>
-</html>
+    </x-slot:scripts>
+</x-app-layout>

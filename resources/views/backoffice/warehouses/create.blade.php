@@ -1,51 +1,14 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tambah Gudang | Maju Bersama ERP</title>
-    <meta name="description" content="Form penambahan gudang baru pada cabang toko Maju Bersama ERP.">
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-
-    <!-- Header -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-            <div>
-                <a href="/backoffice">
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                    <h1 class="text-xl font-bold tracking-tight">Multi Gudang</h1>
-                </a>
-            </div>
-            @if ($isMaster)
-                <div class="rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-300">
-                    👑 Akses Master Pusat
-                </div>
-            @else
-                <div class="rounded-full border border-sky-400/40 bg-sky-400/10 px-3 py-1 text-xs font-semibold text-sky-300">
-                    🏪 {{ $currentUser->branch->name }}
-                </div>
-            @endif
+<x-app-layout title="Tambah Gudang" :breadcrumbs="[
+    ['label' => 'Stok Gudang'],
+    ['label' => 'Daftar Gudang', 'url' => route('backoffice.warehouses.index')],
+    ['label' => 'Tambah Gudang'],
+]">
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-2xl">
+        <div class="mb-6">
+            <p class="text-sm font-semibold uppercase tracking-wider text-amber-600">Stok Gudang</p>
+            <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Tambah Gudang</h2>
         </div>
-    </header>
 
-    <!-- Breadcrumb Bar -->
-    <div class="border-b border-slate-200 bg-white shadow-sm">
-        <div class="mx-auto flex max-w-7xl items-center px-6 py-2.5 lg:px-8">
-            <div class="flex items-center gap-2 text-sm font-medium">
-                <a href="{{ route('backoffice.warehouses.index') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    ← Daftar Gudang
-                </a>
-                <span class="text-slate-300">/</span>
-                <span class="font-semibold text-slate-900">Tambah Gudang Baru</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Form -->
-    <main class="mx-auto max-w-2xl px-6 py-8 lg:px-8">
 
         <!-- Validation Errors -->
         @if ($errors->any())
@@ -87,11 +50,11 @@
                 <!-- Pilih Cabang (Master only) -->
                 @if ($isMaster)
                     <div>
-                        <label for="branch_id" class="block text-sm font-semibold text-slate-800">
+                        <label for="branch_id" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                             Cabang <span class="text-rose-500">*</span>
                         </label>
                         <select id="branch_id" name="branch_id" required
-                            class="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500">
+                            class="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
                             <option value="">-- Pilih Cabang --</option>
                             @foreach ($branches as $branch)
                                 <option value="{{ $branch->id }}" {{ old('branch_id') == $branch->id ? 'selected' : '' }}>
@@ -109,7 +72,7 @@
                 <!-- Kode & Nama Gudang -->
                 <div class="grid gap-4 sm:grid-cols-3">
                     <div>
-                        <label for="code" class="block text-sm font-semibold text-slate-800">
+                        <label for="code" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                             Kode Gudang <span class="text-rose-500">*</span>
                         </label>
                         <input id="code" type="text" name="code" x-model="code"
@@ -117,17 +80,17 @@
                             value="{{ old('code') }}"
                             required placeholder="GDG-01"
                             maxlength="20"
-                            class="mt-1.5 w-full font-mono uppercase rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500">
+                            class="mt-1.5 w-full font-mono uppercase rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
                         <p class="mt-1 text-[11px] text-slate-400">Maks. 20 karakter, unik per cabang.</p>
                     </div>
                     <div class="sm:col-span-2">
-                        <label for="name" class="block text-sm font-semibold text-slate-800">
+                        <label for="name" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                             Nama Gudang <span class="text-rose-500">*</span>
                         </label>
                         <input id="name" type="text" name="name" value="{{ old('name') }}"
                             required placeholder="Contoh: Gudang Belakang, Etalase Depan"
                             maxlength="100"
-                            class="mt-1.5 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500">
+                            class="mt-1.5 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
                     </div>
                 </div>
 
@@ -148,12 +111,11 @@
                         Batal
                     </a>
                     <button id="btn-simpan-gudang" type="submit"
-                        class="rounded-xl bg-teal-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-teal-500 transition-colors">
+                        class="rounded-xl bg-sky-600 px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-sky-700 transition-colors">
                         Simpan Gudang
                     </button>
                 </div>
             </form>
         </div>
     </main>
-</body>
-</html>
+</x-app-layout>

@@ -1,38 +1,12 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Penerimaan Pembayaran Piutang (AR) | Maju Bersama ERP</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<x-app-layout title="Penerimaan Pembayaran Piutang (AR)" :breadcrumbs="[
+    ['label' => 'Jualan'],
+    ['label' => 'Terima Bayaran Piutang'],
+]">
+    <x-slot:head>
     <style>[x-cloak] { display: none !important; }</style>
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-    <!-- Header Utama -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-            <div class="flex items-center gap-4">
-                <a href="/backoffice" class="block">
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                    <h1 class="text-xl font-bold tracking-tight">Piutang Usaha (Account Receivable)</h1>
-                </a>
-            </div>
-            <div class="flex items-center gap-4">
-                <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
-                    <a href="/pos" class="hover:text-white">POS Kasir</a>
-                    <a href="{{ route('backoffice.payments.index') }}" class="text-amber-400 font-semibold">Riwayat AR/AP</a>
-                    <a href="{{ route('backoffice.payments.payables.create') }}" class="hover:text-white">Bayar Hutang (AP)</a>
-                    <a href="/backoffice" class="hover:text-white">Backoffice</a>
-                </nav>
-                <div class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200">
-                    {{ $currentUser->branch?->name ?? 'Pusat' }} ({{ $currentUser->role }})
-                </div>
-            </div>
-        </div>
-    </header>
+    </x-slot:head>
 
-    <main class="mx-auto max-w-5xl space-y-6 px-6 py-8 lg:px-8">
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-5xl space-y-6">
         <!-- Error Banner -->
         @if ($errors->any())
             <div class="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-rose-900 shadow-xs">
@@ -53,7 +27,7 @@
         <!-- Judul Form -->
         <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-wider text-emerald-600 font-bold">Account Receivable / Piutang</p>
+                <p class="font-semibold uppercase font-bold text-sm tracking-wider text-amber-600">Account Receivable / Piutang</p>
                 <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Penerimaan Pembayaran Piutang</h2>
                 <p class="mt-1 text-xs text-slate-500">Mencatat pelunasan atau cicilan piutang pelanggan dengan alokasi ke satu atau banyak faktur penjualan sekaligus.</p>
             </div>
@@ -79,7 +53,7 @@
                     <div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
                         <!-- Akun Kas/Bank Penerima -->
                         <div>
-                            <label for="account_id" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                            <label for="account_id" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                 Akun Kas / Bank Penerima <span class="text-rose-500">*</span>
                             </label>
                             <select
@@ -87,7 +61,7 @@
                                 name="account_id"
                                 x-model="accountId"
                                 required
-                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 shadow-2xs outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 shadow-2xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                             >
                                 <option value="">-- Pilih Rekening Kas/Bank --</option>
                                 <template x-for="acc in cashBankAccounts" :key="'acc-' + acc.id">
@@ -98,7 +72,7 @@
 
                         <!-- Tanggal Pembayaran -->
                         <div>
-                            <label for="payment_date" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                            <label for="payment_date" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                 Tanggal Penerimaan <span class="text-rose-500">*</span>
                             </label>
                             <input
@@ -107,13 +81,13 @@
                                 name="payment_date"
                                 x-model="paymentDate"
                                 required
-                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 shadow-2xs outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 shadow-2xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                             >
                         </div>
 
                         <!-- Nomor Referensi -->
                         <div>
-                            <label for="reference_number" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                            <label for="reference_number" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                 No. Referensi / Bukti <span class="text-slate-400 font-normal lowercase">(opsional)</span>
                             </label>
                             <input
@@ -122,7 +96,7 @@
                                 name="reference_number"
                                 x-model="referenceNumber"
                                 placeholder="Contoh: AR-BCA-001 (auto jika kosong)"
-                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-900 shadow-2xs outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-900 shadow-2xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                             >
                         </div>
                     </div>
@@ -130,7 +104,7 @@
                     <!-- Nominal Total Diterima -->
                     <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
                         <div>
-                            <label for="amount" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                            <label for="amount" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                 Total Nominal Diterima (Rp) <span class="text-rose-500">*</span>
                             </label>
                             <div class="relative">
@@ -145,14 +119,14 @@
                                     @input="autoDistributeAllocations()"
                                     required
                                     placeholder="0"
-                                    class="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-12 pr-4 text-lg font-bold text-slate-900 shadow-2xs outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                    class="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-12 pr-4 text-lg font-bold text-slate-900 shadow-2xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                                 >
                             </div>
                             <span class="mt-1 block text-xs font-semibold text-emerald-700" x-text="formatRupiah(amount)"></span>
                         </div>
 
                         <div>
-                            <label for="notes" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                            <label for="notes" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                 Catatan / Memo <span class="text-slate-400 font-normal lowercase">(opsional)</span>
                             </label>
                             <textarea
@@ -161,7 +135,7 @@
                                 x-model="notes"
                                 rows="2"
                                 placeholder="Keterangan transfer pelanggan, nomor cek/giro, dll..."
-                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-900 shadow-2xs outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-900 shadow-2xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                             ></textarea>
                         </div>
                     </div>
@@ -187,7 +161,7 @@
 
                     <div class="overflow-x-auto rounded-xl border border-slate-200">
                         <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
-                            <thead class="bg-slate-50 font-bold uppercase tracking-wider text-slate-700">
+                            <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                                 <tr>
                                     <th class="px-4 py-3 w-12 text-center">Pilih</th>
                                     <th class="px-4 py-3">No. Faktur (Receipt)</th>
@@ -197,7 +171,7 @@
                                     <th class="px-4 py-3 text-right w-48">Nominal Dialokasikan (Rp)</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100 bg-white">
+                            <tbody class="divide-y divide-slate-100 bg-white [&>tr:nth-child(even)]:bg-slate-50/60">
                                 <template x-for="(sale, index) in salesList" :key="sale.id">
                                     <tr :class="sale.selected ? 'bg-emerald-50/40' : ''">
                                         <td class="px-4 py-3 text-center">
@@ -205,7 +179,7 @@
                                                 type="checkbox" 
                                                 x-model="sale.selected"
                                                 @change="toggleSelectSale(sale)"
-                                                class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                                                class="rounded border-slate-300 text-emerald-600 focus:ring-sky-500"
                                             >
                                         </td>
                                         <td class="px-4 py-3 font-semibold text-slate-900" x-text="sale.receipt_number"></td>
@@ -224,7 +198,7 @@
                                                         :name="`allocations[${index}][allocated_amount]`"
                                                         x-model.number="sale.allocated_amount"
                                                         placeholder="0"
-                                                        class="w-full rounded-lg border border-slate-300 p-2 text-right text-xs font-bold text-slate-900 outline-none focus:border-emerald-500"
+                                                        class="w-full rounded-lg border border-slate-300 p-2 text-right text-xs font-bold text-slate-900 outline-none focus:border-sky-500"
                                                     >
                                                 </div>
                                             </template>
@@ -270,14 +244,14 @@
 
                     <div class="overflow-hidden rounded-xl border border-slate-200 bg-slate-50/50">
                         <table class="min-w-full divide-y divide-slate-200 text-xs">
-                            <thead class="bg-slate-100 text-slate-600 font-bold uppercase">
+                            <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                                 <tr>
                                     <th class="px-4 py-2.5 text-left">Kode &amp; Nama Akun</th>
                                     <th class="px-4 py-2.5 text-right w-36">Debit (Rp)</th>
                                     <th class="px-4 py-2.5 text-right w-36">Kredit (Rp)</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100 bg-white">
+                            <tbody class="divide-y divide-slate-100 bg-white [&>tr:nth-child(even)]:bg-slate-50/60">
                                 <tr>
                                     <td class="px-4 py-2 font-medium text-slate-800">
                                         <span class="inline-block rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-bold text-sky-800 mr-1.5">DEBIT</span>
@@ -310,7 +284,7 @@
                     <button
                         type="submit"
                         :disabled="!isBalanced"
-                        class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-6 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-500 focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-50"
+                        class="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-6 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-sky-700 focus:ring-2 focus:ring-sky-500 disabled:opacity-50"
                     >
                         <span>Simpan &amp; Bukukan Penerimaan AR</span>
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
@@ -320,6 +294,7 @@
         </div>
     </main>
 
+    <x-slot:scripts>
     <script>
         function arPaymentForm(cashBankAccounts, unpaidSales) {
             return {
@@ -384,5 +359,5 @@
             }
         }
     </script>
-</body>
-</html>
+    </x-slot:scripts>
+</x-app-layout>

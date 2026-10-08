@@ -1,20 +1,14 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Harta Tetap &amp; Depresiasi | Maju Bersama ERP</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<x-app-layout title="Harta Tetap & Depresiasi" :breadcrumbs="[
+    ['label' => 'Uang & Akuntansi'],
+    ['label' => 'Harta Tetap'],
+]">
+    <x-slot:head>
     <style>
         body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
         .font-mono-num { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
     </style>
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased flex flex-col">
+    </x-slot:head>
+
     @php
         $formatRupiah = function ($val) {
             $isNeg = $val < 0;
@@ -23,59 +17,12 @@
         };
     @endphp
 
-    <!-- Header Utama -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white shrink-0">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6 lg:px-8">
-            <div class="flex items-center gap-3">
-                <a href="/backoffice" class="block group">
-                    <p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-amber-400 group-hover:text-amber-300 transition">Maju Bersama ERP</p>
-                    <div class="flex items-center gap-2">
-                        <h1 class="text-base font-bold tracking-tight">Harta Tetap &amp; Aktiva</h1>
-                        <span class="rounded bg-purple-500/20 px-2 py-0.5 text-[10px] font-mono font-semibold text-purple-300">Depresiasi Garis Lurus</span>
-                    </div>
-                </a>
-            </div>
-            <div class="flex items-center gap-3">
-                <a href="{{ route('reports.fixed-assets') }}" class="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition">
-                    Laporan Harta Tetap &rarr;
-                </a>
-                <a href="/backoffice" class="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition">
-                    Dashboard Backoffice
-                </a>
-                <div class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200 hidden sm:inline-flex items-center gap-1.5">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                    <span>{{ $currentUser->branch?->name ?? 'Semua Cabang' }}</span>
-                </div>
-            </div>
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-7xl space-y-6">
+        <div class="mb-6">
+            <p class="text-sm font-semibold uppercase tracking-wider text-amber-600">Uang &amp; Akuntansi</p>
+            <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Harta Tetap &amp; Aktiva</h2>
         </div>
-    </header>
 
-    <!-- Sub-Navbar Modul Aset -->
-    <div class="border-b border-slate-200 bg-white shadow-xs shrink-0">
-        <div class="mx-auto flex max-w-7xl items-center justify-between overflow-x-auto px-4 py-2.5 sm:px-6 lg:px-8">
-            <div class="flex items-center gap-2 text-sm font-medium">
-                <a href="{{ route('backoffice.fixed-assets.index') }}" class="rounded-lg bg-purple-600 px-3.5 py-2 font-bold text-white shadow-xs">
-                    Daftar Harta Tetap
-                </a>
-                <a href="{{ route('backoffice.fixed-assets.create') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    + Tambah Aset Tetap
-                </a>
-                <a href="{{ route('reports.fixed-assets') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Laporan Register Aset
-                </a>
-                <a href="/reports/accounting/ledger" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Buku Besar Akuntansi
-                </a>
-            </div>
-            <a href="{{ route('backoffice.fixed-assets.create') }}" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-bold text-amber-400 shadow-xs hover:bg-slate-800 transition">
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
-                Tambah Aset Baru
-            </a>
-        </div>
-    </div>
-
-    <!-- Main Container -->
-    <main class="flex-1 mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8 space-y-6">
         <!-- Flash Messages -->
         @if (session('success'))
             <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900 shadow-xs flex items-center gap-3">
@@ -216,8 +163,8 @@
 
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-xs border-collapse">
-                    <thead>
-                        <tr class="bg-slate-900 text-white uppercase text-[10px] tracking-wider">
+                    <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
+                        <tr class="text-white uppercase text-[10px] tracking-wider">
                             <th class="py-3.5 px-4">Nama Aset &amp; Cabang</th>
                             <th class="py-3.5 px-4">Tgl Beli &amp; Umur</th>
                             <th class="py-3.5 px-4 text-right">Nilai Perolehan</th>
@@ -227,7 +174,7 @@
                             <th class="py-3.5 px-4 text-center">Status</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100">
+                    <tbody class="divide-y divide-slate-100 [&>tr:nth-child(even)]:bg-slate-50/60">
                         @forelse ($assets as $asset)
                             @php
                                 $acq = (float) $asset->purchase_price;
@@ -311,5 +258,4 @@
             </div>
         </div>
     </main>
-</body>
-</html>
+</x-app-layout>

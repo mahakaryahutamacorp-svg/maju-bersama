@@ -1,38 +1,9 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voucher Mutasi Kas {{ $transfer->reference_number }} | Maju Bersama ERP</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-    <!-- Header Utama -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-            <div class="flex items-center gap-4">
-                <a href="/backoffice" class="block">
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                    <h1 class="text-xl font-bold tracking-tight">Kas &amp; Bank (Treasury)</h1>
-                </a>
-            </div>
-            <div class="flex items-center gap-4">
-                <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
-                    <a href="/pos" class="hover:text-white">POS Kasir</a>
-                    <a href="/inventory" class="hover:text-white">Inventory</a>
-                    <a href="{{ route('backoffice.cash-transfers.index') }}" class="text-amber-400 font-semibold">Mutasi Kas &amp; Bank</a>
-                    <a href="{{ route('backoffice.expenses.index') }}" class="hover:text-white">Biaya Operasional</a>
-                    <a href="/reports/accounting/ledger" class="hover:text-white">Buku Besar</a>
-                    <a href="/backoffice" class="hover:text-white">Backoffice</a>
-                </nav>
-                <div class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200">
-                    {{ $currentUser->branch?->name ?? 'Pusat' }} ({{ $currentUser->role }})
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <main class="mx-auto max-w-4xl space-y-6 px-6 py-8 lg:px-8">
+<x-app-layout :title="'Voucher Mutasi Kas '.($transfer->reference_number)" :breadcrumbs="[
+    ['label' => 'Uang & Akuntansi'],
+    ['label' => 'Kas & Bank', 'url' => route('backoffice.cash-transfers.index')],
+    ['label' => 'Voucher Mutasi Kas '.($transfer->reference_number)],
+]">
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-4xl space-y-6">
         <!-- Breadcrumb & Nav -->
         <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <div>
@@ -48,7 +19,7 @@
                     </svg>
                     Cetak Bukti
                 </button>
-                <a href="{{ route('backoffice.cash-transfers.create') }}" class="inline-flex items-center gap-1.5 rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 shadow-xs hover:bg-amber-400">
+                <a href="{{ route('backoffice.cash-transfers.create') }}" class="inline-flex items-center gap-1.5 rounded-xl bg-sky-600 px-4 py-2 text-xs font-bold text-white shadow-xs hover:bg-sky-700">
                     + Catat Mutasi Baru
                 </a>
             </div>
@@ -121,7 +92,7 @@
 
                         <div class="overflow-hidden rounded-xl border border-slate-200 shadow-2xs">
                             <table class="min-w-full divide-y divide-slate-200 text-xs">
-                                <thead class="bg-slate-50 font-bold uppercase tracking-wider text-slate-500">
+                                <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                                     <tr>
                                         <th class="px-4 py-2.5 text-left">Kode Akun</th>
                                         <th class="px-4 py-2.5 text-left">Nama Akun</th>
@@ -129,7 +100,7 @@
                                         <th class="px-4 py-2.5 text-right">Kredit (Rp)</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-100 font-mono">
+                                <tbody class="divide-y divide-slate-100 font-mono [&>tr:nth-child(even)]:bg-slate-50/60">
                                     @foreach ($transfer->journalHeader->journalLines as $line)
                                         <tr class="hover:bg-slate-50">
                                             <td class="px-4 py-2.5 text-slate-600 font-semibold">{{ $line->chartOfAccount?->code }}</td>
@@ -161,5 +132,4 @@
             </div>
         </div>
     </main>
-</body>
-</html>
+</x-app-layout>

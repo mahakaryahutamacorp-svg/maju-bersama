@@ -1,30 +1,9 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voucher Kas Keluar #{{ $expense->reference_number }} | Maju Bersama ERP</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-    <!-- Header Utama -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white print:hidden">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-            <div class="flex items-center gap-4">
-                <a href="/backoffice" class="block">
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                    <h1 class="text-xl font-bold tracking-tight">Keuangan &amp; Akuntansi</h1>
-                </a>
-            </div>
-            <div class="flex items-center gap-4">
-                <div class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200">
-                    {{ $currentUser->branch?->name ?? 'Pusat' }} ({{ $currentUser->role }})
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <main class="mx-auto max-w-4xl space-y-6 px-6 py-8 lg:px-8">
+<x-app-layout :title="'Voucher Kas Keluar #'.($expense->reference_number)" :breadcrumbs="[
+    ['label' => 'Uang & Akuntansi'],
+    ['label' => 'Biaya Operasional', 'url' => route('backoffice.expenses.index')],
+    ['label' => 'Voucher Kas Keluar #'.($expense->reference_number)],
+]">
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-4xl space-y-6">
         <!-- Action Bar -->
         <div class="flex items-center justify-between print:hidden">
             <a href="{{ route('backoffice.expenses.index') }}" class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-2xs">
@@ -92,7 +71,7 @@
 
                     <div class="overflow-x-auto">
                         <table class="w-full border-collapse text-left text-xs font-mono">
-                            <thead class="border-b border-indigo-200 bg-white/60 text-[10px] font-bold uppercase text-indigo-900 font-sans">
+                            <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                                 <tr>
                                     <th class="py-2.5 px-3">Kode &amp; Akun</th>
                                     <th class="py-2.5 px-3">Memo Baris</th>
@@ -100,7 +79,7 @@
                                     <th class="py-2.5 px-3 text-right">Kredit (Rp)</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-indigo-100 bg-white">
+                            <tbody class="divide-y divide-indigo-100 bg-white [&>tr:nth-child(even)]:bg-slate-50/60">
                                 @foreach ($expense->journalHeader->journalLines as $line)
                                     <tr>
                                         <td class="py-3 px-3 font-semibold text-slate-900">
@@ -124,5 +103,4 @@
             @endif
         </div>
     </main>
-</body>
-</html>
+</x-app-layout>

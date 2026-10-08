@@ -1,75 +1,16 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pusat Laporan (Report Center) | Maju Bersama ERP</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<x-app-layout title="Pusat Laporan (Report Center)" :breadcrumbs="[
+    ['label' => 'Pusat Laporan'],
+]">
+    <x-slot:head>
     <style>
         body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
         [x-cloak] { display: none !important; }
         .font-mono-code { font-family: 'JetBrains Mono', monospace; }
         a[data-coming-soon] > div > div:last-child { display: none; }
     </style>
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased flex flex-col">
-    <!-- Header Utama (Sesuai Standar Maju Bersama ERP) -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white shrink-0">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-            <div class="flex items-center gap-4">
-                <a href="/backoffice" class="block group">
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400 group-hover:text-amber-300 transition">Maju Bersama ERP</p>
-                    <div class="flex items-center gap-2">
-                        <h1 class="text-xl font-bold tracking-tight">Pusat Laporan</h1>
-                        <span class="rounded-md bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-400/30">Report Center</span>
-                    </div>
-                </a>
-            </div>
-            <div class="flex items-center gap-4">
-                <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
-                    <a href="/pos" class="hover:text-white transition">POS Kasir</a>
-                    <a href="/inventory" class="hover:text-white transition">Inventory</a>
-                    <a href="/backoffice" class="hover:text-white transition">Panel Backoffice</a>
-                </nav>
-                <div class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3.5 py-1 text-xs font-medium text-sky-200 flex items-center gap-2">
-                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <span>{{ $currentUser->branch?->name ?? 'Semua Cabang' }} ({{ $currentUser->role ?? 'User' }})</span>
-                </div>
-                <form method="POST" action="/logout" class="hidden sm:block">
-                    @csrf
-                    <button type="submit" class="text-sm text-slate-300 hover:text-white transition">Keluar</button>
-                </form>
-            </div>
-        </div>
-    </header>
+    </x-slot:head>
 
-    <!-- Sub-Navbar Breadcrumb & Status Bar -->
-    <div class="border-b border-slate-200 bg-white shadow-xs shrink-0">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-3 lg:px-8">
-            <div class="flex items-center gap-2 text-sm text-slate-600">
-                <a href="/backoffice" class="hover:text-slate-900 transition flex items-center gap-1">
-                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                    </svg>
-                    <span>Backoffice</span>
-                </a>
-                <span class="text-slate-300">/</span>
-                <span class="font-semibold text-slate-900">Pusat Laporan</span>
-            </div>
-            <div class="flex items-center gap-3">
-                <a href="/backoffice" class="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition">
-                    ← Kembali ke Backoffice
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Workspace Container (Dua Kolom: Tab Kiri & Daftar Laporan Kanan) -->
-    <main class="flex-1 mx-auto w-full max-w-7xl p-4 sm:p-6 lg:p-8 flex flex-col justify-start">
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-7xl flex flex-col justify-start">
         <div class="mb-5 flex flex-col gap-1">
             <h2 class="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2.5">
                 <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-500 text-slate-950 font-bold shadow-xs">
@@ -130,19 +71,19 @@
             >
                 <div class="sm:col-span-2 lg:col-span-6">
                     <label for="search" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500">Cari aktivitas</label>
-                    <input type="search" id="search" name="search" value="{{ $ledger['search'] ?? '' }}" maxlength="100" placeholder="Ketik nomor nota/referensi, nama pelanggan, atau nama pemasok…" class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20">
+                    <input type="search" id="search" name="search" value="{{ $ledger['search'] ?? '' }}" maxlength="100" placeholder="Ketik nomor nota/referensi, nama pelanggan, atau nama pemasok…" class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20">
                 </div>
                 <div>
                     <label for="start_date" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500">Dari tanggal</label>
-                    <input type="date" id="start_date" name="start_date" value="{{ $startDate }}" class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20">
+                    <input type="date" id="start_date" name="start_date" value="{{ $startDate }}" class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20">
                 </div>
                 <div>
                     <label for="end_date" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500">Sampai tanggal</label>
-                    <input type="date" id="end_date" name="end_date" value="{{ $endDate }}" class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20">
+                    <input type="date" id="end_date" name="end_date" value="{{ $endDate }}" class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20">
                 </div>
                 <div>
                     <label for="type" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500">Jenis transaksi</label>
-                    <select id="type" name="type" class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20">
+                    <select id="type" name="type" class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20">
                         @foreach ($transactionTypes as $typeKey => $typeName)
                             <option value="{{ $typeKey }}" @selected($selectedType === $typeKey)>{{ $typeName }}</option>
                         @endforeach
@@ -151,7 +92,7 @@
                 @if ($isMaster)
                     <div>
                         <label for="branch_id" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500">Cabang</label>
-                        <select id="branch_id" name="branch_id" class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20">
+                        <select id="branch_id" name="branch_id" class="mt-1.5 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20">
                             <option value="">Semua Cabang</option>
                             @foreach ($branches as $branch)
                                 <option value="{{ $branch->id }}" @selected((string) $selectedBranchId === (string) $branch->id)>{{ $branch->name }}</option>
@@ -165,7 +106,7 @@
                     </div>
                 @endif
                 <div class="flex gap-2 lg:col-span-2">
-                    <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white shadow-xs hover:bg-slate-800">
+                    <button type="submit" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-bold text-white shadow-xs hover:bg-sky-700">
                         <span x-show="!submitting">Terapkan Filter</span>
                         <span x-cloak x-show="submitting">Memuat…</span>
                     </button>
@@ -197,7 +138,7 @@
 
             <div class="overflow-x-auto">
                 <table class="min-w-full text-left text-sm">
-                    <thead class="bg-slate-900 text-[10px] uppercase tracking-wider text-white">
+                    <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                         <tr>
                             <th class="px-4 py-3 font-semibold">Tanggal</th>
                             <th class="px-4 py-3 font-semibold">Referensi</th>
@@ -206,7 +147,7 @@
                             <th class="px-4 py-3 font-semibold text-right">Nominal</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100 bg-white">
+                    <tbody class="divide-y divide-slate-100 bg-white [&>tr:nth-child(even)]:bg-slate-50/60">
                         @forelse ($ledgerRows as $row)
                             <tr class="hover:bg-slate-50">
                                 <td class="whitespace-nowrap px-4 py-2.5 text-xs text-slate-600">
@@ -973,6 +914,7 @@
         </div>
     </main>
 
+    <x-slot:scripts>
     <script>
         function transactionViewer() {
             return {
@@ -1007,5 +949,5 @@
             };
         }
     </script>
-</body>
-</html>
+    </x-slot:scripts>
+</x-app-layout>

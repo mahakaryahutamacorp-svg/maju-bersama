@@ -1,10 +1,9 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bukti Penyesuaian Stok #{{ $adjustment->reference_number }} | Maju Bersama ERP</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+<x-app-layout :title="'Bukti Penyesuaian Stok #'.($adjustment->reference_number)" :breadcrumbs="[
+    ['label' => 'Stok Gudang'],
+    ['label' => 'Hitung Ulang Stok (Opname)', 'url' => route('inventory.adjustments.index')],
+    ['label' => 'Bukti Penyesuaian Stok #'.($adjustment->reference_number)],
+]">
+    <x-slot:head>
     <style>
         @media print {
             .no-print { display: none !important; }
@@ -12,49 +11,9 @@
             .print-shadow-none { box-shadow: none !important; border-color: #cbd5e1 !important; }
         }
     </style>
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-    <!-- Header Utama -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white no-print">
-        <div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-            <div class="flex items-center gap-4">
-                <a href="/backoffice" class="block">
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                    <h1 class="text-xl font-bold tracking-tight">Bukti Berita Acara Opname</h1>
-                </a>
-            </div>
-            <div class="flex items-center gap-4">
-                <a href="{{ route('inventory.adjustments.index') }}" class="text-sm text-slate-300 hover:text-white">
-                    ← Riwayat Opname
-                </a>
-                <a href="{{ route('inventory.adjustments.create') }}" class="rounded-lg bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500">
-                    + Input Opname Baru
-                </a>
-            </div>
-        </div>
-    </header>
+    </x-slot:head>
 
-    <!-- Sub-Navbar Aksi -->
-    <div class="border-b border-slate-200 bg-white no-print">
-        <div class="mx-auto flex max-w-5xl items-center justify-between px-6 py-3">
-            <div class="flex items-center gap-2 text-sm text-slate-600">
-                <a href="{{ route('inventory.adjustments.index') }}" class="hover:underline">Stock Opname</a>
-                <span>/</span>
-                <span class="font-mono font-semibold text-slate-900">{{ $adjustment->reference_number }}</span>
-            </div>
-            <div class="flex items-center gap-3">
-                <button onclick="window.print()" class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-500 transition">
-                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
-                    </svg>
-                    Cetak Berita Acara (Print)
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Konten Lembar Dokumen Bukti Fisik -->
-    <main class="mx-auto max-w-5xl px-6 py-8">
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-5xl">
         <div class="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm print-shadow-none">
             <!-- Header Dokumen / Surat Berita Acara -->
             <div class="flex flex-col justify-between gap-4 border-b border-slate-200 pb-6 sm:flex-row sm:items-start">
@@ -127,7 +86,7 @@
                 </h3>
                 <div class="overflow-hidden rounded-xl border border-slate-200">
                     <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
-                        <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-600">
+                        <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                             <tr>
                                 <th class="px-4 py-3">No</th>
                                 <th class="px-4 py-3">Produk &amp; SKU</th>
@@ -138,7 +97,7 @@
                                 <th class="px-4 py-3 text-right">Total Nilai</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100">
+                        <tbody class="divide-y divide-slate-100 [&>tr:nth-child(even)]:bg-slate-50/60">
                             @foreach ($adjustment->items as $idx => $item)
                                 <tr class="{{ $item->difference_qty < 0 ? 'bg-rose-50/40' : ($item->difference_qty > 0 ? 'bg-emerald-50/40' : '') }}">
                                     <td class="px-4 py-3 text-slate-400 font-mono text-xs">{{ $idx + 1 }}</td>
@@ -200,7 +159,7 @@
 
                     <div class="overflow-hidden rounded-xl border border-slate-200">
                         <table class="min-w-full divide-y divide-slate-200 text-left text-xs font-mono">
-                            <thead class="bg-slate-50 uppercase tracking-wider text-slate-600">
+                            <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                                 <tr>
                                     <th class="px-4 py-2.5 font-sans">Kode Akun</th>
                                     <th class="px-4 py-2.5 font-sans">Nama Akun Buku Besar</th>
@@ -208,7 +167,7 @@
                                     <th class="px-4 py-2.5 text-right font-sans">Kredit (Rp)</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100">
+                            <tbody class="divide-y divide-slate-100 [&>tr:nth-child(even)]:bg-slate-50/60">
                                 @php
                                     $totDebit = 0;
                                     $totCredit = 0;
@@ -266,5 +225,4 @@
             </div>
         </div>
     </main>
-</body>
-</html>
+</x-app-layout>

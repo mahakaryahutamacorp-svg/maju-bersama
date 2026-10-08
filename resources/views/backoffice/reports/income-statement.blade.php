@@ -1,14 +1,8 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Laba Rugi Standar | Maju Bersama ERP</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<x-app-layout title="Laba Rugi Standar" :breadcrumbs="[
+    ['label' => 'Pusat Laporan', 'url' => route('reports.index')],
+    ['label' => 'Laba Rugi'],
+]">
+    <x-slot:head>
     <style>
         body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
         .font-mono-num { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
@@ -19,8 +13,8 @@
             .print-break { page-break-after: always; }
         }
     </style>
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased flex flex-col">
+    </x-slot:head>
+
     @php
         $formatRupiah = function ($val) {
             $isNeg = $val < 0;
@@ -36,33 +30,9 @@
         $isProfitable = $netProfit >= 0;
     @endphp
 
-    <!-- Header Bar Utama (Aplikasi) -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white shrink-0 no-print">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6 lg:px-8">
-            <div class="flex items-center gap-3">
-                <a href="/backoffice" class="block group">
-                    <p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-amber-400 group-hover:text-amber-300 transition">Maju Bersama ERP</p>
-                    <div class="flex items-center gap-2">
-                        <h1 class="text-base font-bold tracking-tight">Pusat Laporan</h1>
-                        <span class="rounded bg-slate-800 px-1.5 py-0.5 text-[10px] font-mono text-slate-300">Income Statement</span>
-                    </div>
-                </a>
-            </div>
-            <div class="flex items-center gap-3">
-                <a href="{{ route('reports.index') }}" class="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition">
-                    ← Kembali ke Pusat Laporan
-                </a>
-                <div class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200 hidden sm:inline-flex items-center gap-1.5">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                    <span>{{ $currentUser->branch?->name ?? 'Semua Cabang' }}</span>
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <!-- Filter Control Bar (Sticky & No-Print) -->
-    <div class="border-b border-slate-200 bg-white shadow-xs shrink-0 no-print">
-        <div class="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-3.5 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-8">
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-4xl flex flex-col justify-start">
+        <div class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm no-print print:hidden">
+        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
                 <div class="flex items-center gap-2">
                     <span class="p-1 rounded bg-emerald-100 text-emerald-800">
@@ -101,7 +71,7 @@
                     </div>
                 @endif
 
-                <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-slate-800 focus:outline-none transition">
+                <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-sky-700 focus:outline-none transition">
                     <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                     </svg>
@@ -117,14 +87,14 @@
     </div>
 
     <!-- Konten Kertas Laporan (Card Putih / Layout Cetak) -->
-    <main class="flex-1 mx-auto w-full max-w-4xl p-4 sm:p-6 lg:p-8 flex flex-col justify-start">
+
         <div class="print-container rounded-2xl border border-slate-300 bg-white shadow-lg p-6 sm:p-10 lg:p-12 text-slate-900">
             
             <!-- KOP PERUSAHAAN (MAJU BERSAMA GRUP) -->
             <header class="border-b-2 border-slate-900 pb-5 mb-6">
                 <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div>
-                        <p class="text-xs font-bold tracking-[0.2em] text-amber-600 uppercase">Sistem Keuangan &amp; Akuntansi Terintegrasi</p>
+                        <p class="font-bold uppercase text-sm tracking-wider text-amber-600">Sistem Keuangan &amp; Akuntansi Terintegrasi</p>
                         <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-950 uppercase mt-0.5">MAJU BERSAMA GRUP</h1>
                         <p class="text-xs text-slate-500 mt-1">Multi-Store Agriculture &amp; FMCG Retail Network</p>
                     </div>
@@ -160,14 +130,14 @@
                         <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">1. Pendapatan Usaha (Revenue)</h3>
                     </div>
                     <table class="w-full text-xs">
-                        <thead>
-                            <tr class="text-slate-400 border-b border-slate-200 text-left">
+                        <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
+                            <tr class="border-b text-left">
                                 <th class="py-1.5 font-medium pl-3 w-24">Kode Akun</th>
                                 <th class="py-1.5 font-medium">Nama Akun</th>
                                 <th class="py-1.5 font-medium text-right pr-3 w-44">Jumlah (IDR)</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100">
+                        <tbody class="divide-y divide-slate-100 [&>tr:nth-child(even)]:bg-slate-50/60">
                             @forelse ($report['revenue']['accounts'] as $acc)
                                 <tr class="hover:bg-slate-50/80 transition-colors">
                                     <td class="py-2 pl-3 font-mono text-slate-500">{{ $acc['code'] }}</td>
@@ -197,14 +167,14 @@
                         <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">2. Harga Pokok Penjualan (COGS)</h3>
                     </div>
                     <table class="w-full text-xs">
-                        <thead>
-                            <tr class="text-slate-400 border-b border-slate-200 text-left">
+                        <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
+                            <tr class="border-b text-left">
                                 <th class="py-1.5 font-medium pl-3 w-24">Kode Akun</th>
                                 <th class="py-1.5 font-medium">Nama Akun</th>
                                 <th class="py-1.5 font-medium text-right pr-3 w-44">Jumlah (IDR)</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100">
+                        <tbody class="divide-y divide-slate-100 [&>tr:nth-child(even)]:bg-slate-50/60">
                             @forelse ($report['cogs']['accounts'] as $acc)
                                 <tr class="hover:bg-slate-50/80 transition-colors">
                                     <td class="py-2 pl-3 font-mono text-slate-500">{{ $acc['code'] }}</td>
@@ -250,14 +220,14 @@
                         <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">3. Beban Operasional (Operating Expenses)</h3>
                     </div>
                     <table class="w-full text-xs">
-                        <thead>
-                            <tr class="text-slate-400 border-b border-slate-200 text-left">
+                        <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
+                            <tr class="border-b text-left">
                                 <th class="py-1.5 font-medium pl-3 w-24">Kode Akun</th>
                                 <th class="py-1.5 font-medium">Nama Akun</th>
                                 <th class="py-1.5 font-medium text-right pr-3 w-44">Jumlah (IDR)</th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y divide-slate-100">
+                        <tbody class="divide-y divide-slate-100 [&>tr:nth-child(even)]:bg-slate-50/60">
                             @forelse ($report['operating_expenses']['accounts'] as $acc)
                                 <tr class="hover:bg-slate-50/80 transition-colors">
                                     <td class="py-2 pl-3 font-mono text-slate-500">{{ $acc['code'] }}</td>
@@ -330,5 +300,4 @@
 
         </div>
     </main>
-</body>
-</html>
+</x-app-layout>

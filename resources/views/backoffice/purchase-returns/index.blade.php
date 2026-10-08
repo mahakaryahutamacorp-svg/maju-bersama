@@ -1,69 +1,8 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Riwayat Retur Pembelian | Maju Bersama ERP</title>
-    <meta name="description" content="Daftar transaksi pengembalian barang ke supplier (Retur Pembelian) dengan viewer modal transaksi.">
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-
-    <!-- Header Utama -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-            <div class="flex items-center gap-4">
-                <a href="/backoffice" class="block">
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                    <h1 class="text-xl font-bold tracking-tight">Pengadaan &amp; Pembelian</h1>
-                </a>
-            </div>
-            <div class="flex items-center gap-4">
-                <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
-                    <a href="/pos" class="hover:text-white">POS Kasir</a>
-                    <a href="/inventory" class="hover:text-white">Inventory</a>
-                    <a href="{{ route('backoffice.suppliers.index') }}" class="hover:text-white">Supplier</a>
-                    <a href="/backoffice" class="hover:text-white">Backoffice</a>
-                </nav>
-                @if ($isMaster)
-                    <div class="rounded-full border border-amber-400/40 bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-300">
-                        👑 Master Pusat
-                    </div>
-                @else
-                    <div class="rounded-full border border-sky-400/40 bg-sky-400/10 px-3 py-1 text-xs font-semibold text-sky-300">
-                        🏪 {{ $currentUser->branch->name ?? 'Cabang' }}
-                    </div>
-                @endif
-            </div>
-        </div>
-    </header>
-
-    <!-- Sub-Navbar -->
-    <div class="border-b border-slate-200 bg-white shadow-xs">
-        <div class="mx-auto flex max-w-7xl items-center justify-between overflow-x-auto px-6 py-2.5 lg:px-8">
-            <div class="flex items-center gap-2 text-sm font-medium">
-                <a href="{{ route('backoffice.purchase-returns.index') }}" class="rounded-lg bg-rose-600 px-3.5 py-2 font-bold text-white shadow-xs">
-                    Riwayat Retur Pembelian
-                </a>
-                <a href="{{ route('backoffice.purchase-returns.create') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    + Input Retur Baru
-                </a>
-                <a href="{{ route('backoffice.purchase-orders.index') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Purchase Order
-                </a>
-                <a href="/purchases/goods-receipts" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Penerimaan Barang
-                </a>
-                <a href="{{ route('backoffice.supplier-payments.index') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Pembayaran Supplier
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Container dengan Alpine.js untuk Universal Transaction Viewer -->
-    <main x-data="purchaseReturnIndex()" class="mx-auto max-w-7xl px-6 py-8 lg:px-8 space-y-6">
+<x-app-layout title="Riwayat Retur Pembelian" :breadcrumbs="[
+    ['label' => 'Belanja Barang'],
+    ['label' => 'Retur ke Pemasok'],
+]">
+    <main x-data="purchaseReturnIndex()" class="mx-auto w-full px-6 py-6 lg:px-10 max-w-7xl space-y-6">
 
         <!-- Flash Message -->
         @if (session('success'))
@@ -83,14 +22,14 @@
         <!-- Header Halaman -->
         <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-wider text-rose-600">Pengadaan &amp; Retur Barang</p>
+                <p class="font-semibold uppercase text-sm tracking-wider text-amber-600">Pengadaan &amp; Retur Barang</p>
                 <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Riwayat Retur Pembelian</h2>
                 <p class="mt-1 text-sm text-slate-500">
                     Daftar dokumen pengembalian barang ke supplier. Klik No. Referensi untuk membuka rincian barang dan bukti jurnal.
                 </p>
             </div>
             <div>
-                <a href="{{ route('backoffice.purchase-returns.create') }}" class="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-rose-700">
+                <a href="{{ route('backoffice.purchase-returns.create') }}" class="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-sky-700">
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
                     + Input Retur Baru
                 </a>
@@ -120,35 +59,35 @@
         <section class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
             <form method="GET" action="{{ route('backoffice.purchase-returns.index') }}" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 items-end">
                 <div class="lg:col-span-2">
-                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Pencarian</label>
+                    <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Pencarian</label>
                     <input
                         type="text"
                         name="search"
                         value="{{ $search }}"
                         placeholder="Cari No. Referensi (PRT-...), Supplier, atau Catatan..."
-                        class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
+                        class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                     >
                 </div>
                 <div>
-                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Dari Tanggal</label>
+                    <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Dari Tanggal</label>
                     <input
                         type="date"
                         name="start_date"
                         value="{{ $startDate }}"
-                        class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
+                        class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                     >
                 </div>
                 <div>
-                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Sampai Tanggal</label>
+                    <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Sampai Tanggal</label>
                     <input
                         type="date"
                         name="end_date"
                         value="{{ $endDate }}"
-                        class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
+                        class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                     >
                 </div>
                 <div class="flex items-center gap-2">
-                    <button type="submit" class="flex-1 rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white shadow-xs hover:bg-slate-800 transition">
+                    <button type="submit" class="flex-1 rounded-xl bg-sky-600 px-4 py-2 text-sm font-bold text-white shadow-xs hover:bg-sky-700 transition">
                         Filter
                     </button>
                     @if ($search || $startDate || $endDate || $status)
@@ -164,7 +103,7 @@
         <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
-                    <thead class="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-600">
+                    <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                         <tr>
                             <th class="py-3.5 px-4 w-12 text-center">#</th>
                             <th class="py-3.5 px-4 w-32">Tanggal</th>
@@ -176,7 +115,7 @@
                             <th class="py-3.5 px-4 min-w-[180px]">Catatan Retur</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100">
+                    <tbody class="divide-y divide-slate-100 [&>tr:nth-child(even)]:bg-slate-50/60">
                         @forelse ($returns as $index => $ret)
                             <tr class="hover:bg-slate-50/80 transition-colors">
                                 <td class="py-3.5 px-4 text-center text-xs font-bold text-slate-400 font-mono">
@@ -332,7 +271,7 @@
         </div>
     </main>
 
-    <!-- Script Alpine.js Component -->
+    <x-slot:scripts>
     <script>
         function purchaseReturnIndex() {
             return {
@@ -377,5 +316,5 @@
             };
         }
     </script>
-</body>
-</html>
+    </x-slot:scripts>
+</x-app-layout>

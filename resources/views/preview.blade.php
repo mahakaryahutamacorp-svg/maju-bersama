@@ -1,28 +1,8 @@
-<!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pratinjau Sistem | Maju Bersama POS &amp; Akuntansi</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-    <header class="border-b border-slate-800 bg-slate-950 text-white">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-8">
-            <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Platform POS &amp; Akuntansi</p>
-                <h1 class="mt-1 text-2xl font-bold tracking-tight">Maju Bersama ERP</h1>
-            </div>
-            <nav class="flex items-center gap-4 text-sm text-slate-300">
-                <span class="rounded-full bg-amber-400/20 text-amber-300 px-3 py-1 text-xs font-bold border border-amber-400/30">Khusus Master</span>
-                <a href="/backoffice" class="rounded-lg bg-sky-600 px-3.5 py-2 font-semibold text-white hover:bg-sky-500 transition-colors">
-                    &larr; Kembali ke Backoffice
-                </a>
-            </nav>
-        </div>
-    </header>
-
-    <main class="mx-auto max-w-7xl space-y-8 px-6 py-10 lg:px-8">
+<x-app-layout title="Pratinjau Sistem" :breadcrumbs="[
+    ['label' => 'Pengaturan'],
+    ['label' => 'Preview Data Sistem'],
+]">
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-7xl space-y-8">
         <div>
             <p class="text-sm font-medium text-amber-600">Ringkasan Sistem</p>
             <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-950">Pratinjau Data Awal Sistem</h2>
@@ -39,14 +19,14 @@
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-slate-200">
-                    <thead class="bg-slate-50">
+                    <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Cabang</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Kode Cabang</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Pengguna Admin</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Cabang</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Kode Cabang</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Pengguna Admin</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100 bg-white">
+                    <tbody class="divide-y divide-slate-100 bg-white [&>tr:nth-child(even)]:bg-slate-50/60">
                         @forelse ($branches as $branch)
                             <tr class="transition-colors hover:bg-slate-50">
                                 <td class="whitespace-nowrap px-6 py-4 text-sm font-semibold text-slate-900">{{ $branch->name }}</td>
@@ -80,14 +60,14 @@
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-slate-200">
-                    <thead class="bg-slate-50">
+                    <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Kode Akun</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Nama Akun</th>
-                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Klasifikasi Akun</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Kode Akun</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Nama Akun</th>
+                            <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wider">Klasifikasi Akun</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100 bg-white">
+                    <tbody class="divide-y divide-slate-100 bg-white [&>tr:nth-child(even)]:bg-slate-50/60">
                         @forelse ($chartOfAccounts as $account)
                             <tr class="transition-colors hover:bg-slate-50">
                                 <td class="whitespace-nowrap px-6 py-4 font-mono text-sm font-semibold text-sky-700">{{ $account->code }}</td>
@@ -113,5 +93,4 @@
             </div>
         </section>
     </main>
-</body>
-</html>
+</x-app-layout>

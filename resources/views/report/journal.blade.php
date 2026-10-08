@@ -1,42 +1,16 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jurnal Umum (General Ledger) | Maju Bersama POS &amp; Akuntansi</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+<x-app-layout title="Jurnal Umum (General Ledger)" :breadcrumbs="[
+    ['label' => 'Uang & Akuntansi'],
+    ['label' => 'Jurnal Umum'],
+]">
+    <x-slot:head>
     <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>[x-cloak] { display: none !important; }</style>
-</head>
-<body x-data="journalLedger()" class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-    <header class="border-b border-slate-800 bg-slate-950 text-white">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-5 lg:px-8">
-            <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                <h1 class="mt-1 text-2xl font-bold tracking-tight">Jurnal Umum</h1>
-            </div>
-            <div class="flex items-center gap-4">
-                <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
-                    <a href="/pos" class="hover:text-white">Kasir (POS)</a>
-                    <a href="/inventory" class="hover:text-white">Persediaan</a>
-                    <a href="/inventory/transfer" class="hover:text-white">Transfer Stok</a>
-                    <a href="/reports/accounting/ledger" class="hover:text-white">Buku Besar</a>
-                    <a href="/reports/journal" class="font-semibold text-white">Jurnal Umum</a>
-                    <a href="/backoffice" class="hover:text-white">Panel Admin</a>
-                </nav>
-                <div class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200">
-                    {{ $headers->total() }} transaksi
-                </div>
-                <form method="POST" action="/logout" class="hidden sm:block">
-                    @csrf
-                    <button type="submit" class="text-sm text-slate-300 hover:text-white">Keluar</button>
-                </form>
-            </div>
-        </div>
-    </header>
+    </x-slot:head>
 
-    <main class="mx-auto max-w-7xl space-y-6 px-6 py-8 lg:px-8">
+    <div x-data="journalLedger()">
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-7xl space-y-6">
+        @include('reports.accounting.partials.tabs')
+
         <!-- Sub-header & Pencarian -->
         <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
@@ -126,7 +100,7 @@
                          class="border-t border-slate-200 bg-slate-50/60">
                         <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-slate-200 text-xs sm:text-sm">
-                                <thead class="bg-slate-100/80 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+                                <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                                     <tr>
                                         <th class="px-4 py-2 sm:px-6 text-left">Kode Akun</th>
                                         <th class="px-4 py-2 sm:px-6 text-left">Nama Akun &amp; Keterangan</th>
@@ -134,7 +108,7 @@
                                         <th class="px-4 py-2 sm:px-6 text-right">Kredit</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-100 bg-white">
+                                <tbody class="divide-y divide-slate-100 bg-white [&>tr:nth-child(even)]:bg-slate-50/60">
                                     @foreach ($header->journalLines as $line)
                                         @php
                                             $accountName = $line->chartOfAccount?->name ?? 'Akun Tidak Dikenal';
@@ -196,7 +170,6 @@
         @endif
     </main>
 
-    <!-- Universal Transaction Viewer Modal -->
     <div x-show="showModal" 
          x-cloak 
          class="fixed inset-0 z-50 overflow-y-auto" 
@@ -204,7 +177,7 @@
          role="dialog" 
          aria-modal="true"
          style="display: none;">
-        <!-- Backdrop -->
+        
         <div x-show="showModal"
              x-transition:enter="ease-out duration-300"
              x-transition:enter-start="opacity-0"
@@ -216,7 +189,7 @@
              @click="showModal = false"></div>
 
         <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
-            <!-- Modal Panel -->
+            
             <div x-show="showModal"
                  x-transition:enter="ease-out duration-300"
                  x-transition:enter-start="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
@@ -227,7 +200,7 @@
                  @keydown.escape.window="showModal = false"
                  class="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:my-8 sm:w-full sm:max-w-3xl border border-slate-200">
                 
-                <!-- Modal Header -->
+                
                 <div class="flex items-center justify-between border-b border-slate-100 bg-slate-50/80 px-6 py-4">
                     <div class="flex items-center gap-2.5">
                         <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-sky-100 text-sky-700 shadow-xs">
@@ -250,12 +223,12 @@
                     </button>
                 </div>
 
-                <!-- Modal Body Content injected via HTML partial -->
+                
                 <div class="p-6">
                     <div x-html="transactionHtml"></div>
                 </div>
 
-                <!-- Modal Footer -->
+                
                 <div class="border-t border-slate-100 bg-slate-50 px-6 py-3.5 flex justify-end">
                     <button type="button" 
                             @click="showModal = false" 
@@ -266,7 +239,9 @@
             </div>
         </div>
     </div>
+    </div>
 
+    <x-slot:scripts>
     <script>
         function journalLedger() {
             return {
@@ -316,5 +291,5 @@
             };
         }
     </script>
-</body>
-</html>
+    </x-slot:scripts>
+</x-app-layout>

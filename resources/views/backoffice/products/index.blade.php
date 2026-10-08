@@ -1,71 +1,19 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Katalog Produk | Maju Bersama ERP</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-    <!-- Header Utama -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-            <div class="flex items-center gap-4">
-                <a href="/backoffice" class="block">
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                    <h1 class="text-xl font-bold tracking-tight">Manajemen Master Data</h1>
-                </a>
+<x-app-layout title="Katalog Produk" :breadcrumbs="[
+    ['label' => 'Pengaturan'],
+    ['label' => 'Katalog Produk'],
+]">
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-7xl">
+        <div class="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+            <div>
+                <p class="text-sm font-semibold uppercase tracking-wider text-amber-600">Pengaturan</p>
+                <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Katalog Produk</h2>
             </div>
-            <div class="flex items-center gap-4">
-                <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
-                    <a href="/pos" class="hover:text-white">POS Kasir</a>
-                    <a href="/inventory" class="hover:text-white">Inventory</a>
-                    <a href="/reports/journal" class="hover:text-white">Jurnal</a>
-                    <a href="/backoffice" class="hover:text-white">Backoffice</a>
-                </nav>
-                <div class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200">
-                    {{ $currentUser->branch?->name ?? 'Pusat' }} ({{ $currentUser->role }})
-                </div>
-                <form method="POST" action="/logout" class="hidden sm:block">
-                    @csrf
-                    <button type="submit" class="text-sm text-slate-300 hover:text-white">Logout</button>
-                </form>
-            </div>
-        </div>
-    </header>
-
-    <!-- Sub-Navbar Master Data -->
-    <div class="border-b border-slate-200 bg-white shadow-sm">
-        <div class="mx-auto flex max-w-7xl items-center justify-between overflow-x-auto px-6 py-2.5 lg:px-8">
-            <div class="flex items-center gap-2 text-sm font-medium">
-                <a href="{{ route('backoffice.products.index') }}" class="rounded-lg bg-sky-600 px-3.5 py-2 font-semibold text-white shadow-sm">
-                    Katalog Produk
-                </a>
-                <a href="{{ route('backoffice.products.create') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    + Tambah Produk
-                </a>
-                <a href="{{ route('backoffice.categories.index') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Kategori
-                </a>
-                <a href="{{ route('backoffice.users.index') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Staf &amp; Kasir
-                </a>
-                @if ($isMaster)
-                    <a href="{{ route('backoffice.branches.index') }}" class="rounded-lg px-3.5 py-2 text-amber-700 hover:bg-amber-50">
-                        Manajemen Cabang
-                    </a>
-                @endif
-            </div>
-            <a href="{{ route('backoffice.products.create') }}" class="hidden sm:inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-2 text-xs font-bold text-white shadow-sm hover:bg-emerald-500">
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                Tambah Produk
+            <a href="{{ route('backoffice.products.create') }}" class="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-sky-700">
+                + Tambah Produk
             </a>
         </div>
-    </div>
 
-    <!-- Main Container -->
-    <main class="mx-auto max-w-7xl px-6 py-8 lg:px-8">
+
         <!-- Flash Message Alerts -->
         @if (session('success'))
             <div class="mb-6 flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800 shadow-sm">
@@ -89,14 +37,14 @@
         <div class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <form method="GET" action="{{ route('backoffice.products.index') }}" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-12">
                 <div class="lg:col-span-4">
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Pencarian</label>
+                    <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Pencarian</label>
                     <div class="relative">
                         <input type="text" name="search" value="{{ $search }}" placeholder="Cari nama produk atau SKU..." class="w-full rounded-lg border border-slate-300 px-3.5 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
                     </div>
                 </div>
 
                 <div class="lg:col-span-3">
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Kategori</label>
+                    <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Kategori</label>
                     <select name="category_id" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
                         <option value="">Semua Kategori</option>
                         @foreach ($categories as $category)
@@ -109,7 +57,7 @@
 
                 @if ($isMaster)
                     <div class="lg:col-span-3">
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Filter Cabang</label>
+                        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Filter Cabang</label>
                         <select name="branch_id" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
                             <option value="">Seluruh Cabang</option>
                             @foreach ($branches as $branch)
@@ -121,7 +69,7 @@
                     </div>
                 @else
                     <div class="lg:col-span-3">
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Cabang Aktif</label>
+                        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Cabang Aktif</label>
                         <div class="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-sm text-slate-700 font-medium">
                             {{ $currentUser->branch?->name }}
                         </div>
@@ -129,7 +77,7 @@
                 @endif
 
                 <div class="flex items-end gap-2 lg:col-span-2">
-                    <button type="submit" class="w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 shadow-sm">
+                    <button type="submit" class="w-full rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700 shadow-sm">
                         Filter
                     </button>
                     @if ($search || $selectedCategoryId || $selectedBranchId)
@@ -150,7 +98,7 @@
 
             <div class="overflow-x-auto">
                 <table class="w-full text-left text-sm text-slate-600">
-                    <thead class="bg-slate-50 text-xs uppercase tracking-wider text-slate-500">
+                    <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                         <tr>
                             <th class="px-6 py-3">Produk &amp; SKU</th>
                             <th class="px-6 py-3">Kategori</th>
@@ -161,7 +109,7 @@
                             <th class="px-6 py-3 text-center">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100">
+                    <tbody class="divide-y divide-slate-100 [&>tr:nth-child(even)]:bg-slate-50/60">
                         @forelse ($products as $product)
                             <tr class="hover:bg-slate-50/80 transition-colors">
                                 <td class="px-6 py-4">
@@ -232,5 +180,4 @@
             @endif
         </div>
     </main>
-</body>
-</html>
+</x-app-layout>

@@ -129,7 +129,7 @@
                                     <th class="py-3 px-4 text-right w-44">Subtotal</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100">
+                            <tbody class="divide-y divide-slate-100 [&>tr:nth-child(even)]:bg-slate-50/60">
                                 @foreach ($receipt->items as $index => $item)
                                     <tr>
                                         <td class="py-3.5 px-4 text-center font-mono text-xs text-slate-400">{{ $index + 1 }}</td>

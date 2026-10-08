@@ -1,15 +1,9 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buku Besar (General Ledger) | Maju Bersama ERP</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+<x-app-layout title="Buku Besar (General Ledger)" :breadcrumbs="[
+    ['label' => 'Uang & Akuntansi'],
+    ['label' => 'Buku Besar'],
+]">
+    <x-slot:head>
     <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
         body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
         [x-cloak] { display: none !important; }
@@ -20,8 +14,8 @@
             [x-cloak], [x-show] { display: block !important; height: auto !important; }
         }
     </style>
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
+    </x-slot:head>
+
     @php
         // Helper badge warna untuk visual grouping transaksi antar cabang
         if (!function_exists('getBranchBadgeStyle')) {
@@ -54,58 +48,9 @@
         }
     @endphp
 
-    <!-- Header Utama -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white no-print">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-            <div class="flex items-center gap-4">
-                <a href="/backoffice" class="block">
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                    <h1 class="text-xl font-bold tracking-tight">Akuntansi &amp; Keuangan</h1>
-                </a>
-            </div>
-            <div class="flex items-center gap-4">
-                <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
-                    <a href="/pos" class="hover:text-white">Kasir (POS)</a>
-                    <a href="/inventory" class="hover:text-white">Persediaan</a>
-                    <a href="/inventory/transfer" class="hover:text-white">Transfer Stok</a>
-                    <a href="/backoffice" class="hover:text-white">Panel Admin</a>
-                </nav>
-                <div class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200">
-                    {{ $currentUser->branch?->name ?? 'Pusat' }} ({{ $currentUser->role }})
-                </div>
-                <form method="POST" action="/logout" class="hidden sm:block">
-                    @csrf
-                    <button type="submit" class="text-sm text-slate-300 hover:text-white">Keluar</button>
-                </form>
-            </div>
-        </div>
-    </header>
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-7xl space-y-6">
+        @include('reports.accounting.partials.tabs')
 
-    <!-- Sub-Navbar Navigasi Laporan -->
-    <div class="border-b border-slate-200 bg-white no-print">
-        <div class="mx-auto flex max-w-7xl items-center justify-between overflow-x-auto px-6 py-2.5 lg:px-8">
-            <div class="flex items-center gap-2 text-sm font-medium">
-                <a href="/reports/accounting/ledger" class="rounded-lg bg-sky-600 px-3.5 py-2 font-semibold text-white shadow-sm">
-                    Buku Besar
-                </a>
-                <a href="/reports/accounting/trial-balance" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Neraca Saldo
-                </a>
-                <a href="/reports/accounting/income-statement" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Laba Rugi
-                </a>
-                <a href="/reports/journal" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Jurnal Umum
-                </a>
-            </div>
-            <button type="button" onclick="window.print()" class="flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
-                <svg class="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
-                Cetak Laporan
-            </button>
-        </div>
-    </div>
-
-    <main class="mx-auto max-w-7xl space-y-6 px-6 py-8 lg:px-8">
         <!-- 2. Header Laporan Dinamis (Bereaksi Terhadap Filter Toko / Konsolidasi) -->
         <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
@@ -155,7 +100,7 @@
                 <!-- Dropdown Cabang Dinamis -->
                 @if ($isMaster)
                     <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">Cabang / Toko</label>
+                        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Cabang / Toko</label>
                         <select name="branch_id" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500">
                             <option value="">Semua Cabang (Konsolidasi)</option>
                             @foreach ($branches as $branch)
@@ -167,7 +112,7 @@
                     </div>
                 @else
                     <div>
-                        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">Cabang / Toko</label>
+                        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Cabang / Toko</label>
                         <input type="text" readonly value="{{ $activeBranchName }}" class="w-full rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-600 shadow-sm outline-none cursor-not-allowed">
                         <input type="hidden" name="branch_id" value="{{ $branchId }}">
                     </div>
@@ -175,7 +120,7 @@
 
                 <!-- Pilihan Akun -->
                 <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">Akun Perkiraan</label>
+                    <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Akun Perkiraan</label>
                     <select name="account_id" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500">
                         <option value="">Semua Akun Aktif</option>
                         @foreach ($accounts as $acc)
@@ -188,13 +133,13 @@
 
                 <!-- Dari Tanggal -->
                 <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">Dari Tanggal</label>
+                    <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Dari Tanggal</label>
                     <input type="date" name="start_date" value="{{ $startDate }}" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500">
                 </div>
 
                 <!-- Sampai Tanggal -->
                 <div>
-                    <label class="block text-xs font-semibold uppercase tracking-wider text-gray-600 mb-1.5">Sampai Tanggal</label>
+                    <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Sampai Tanggal</label>
                     <input type="date" name="end_date" value="{{ $endDate }}" class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 shadow-sm outline-none transition focus:border-sky-500 focus:ring-1 focus:ring-sky-500">
                 </div>
 
@@ -343,7 +288,7 @@
                     <div x-show="expanded" x-collapse x-cloak>
                         <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-gray-200 text-left text-xs">
-                                <thead class="bg-gray-50 text-[11px] font-semibold uppercase tracking-wider text-gray-600 border-b border-gray-200">
+                                <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                                     <tr>
                                         <th class="whitespace-nowrap px-4 py-2">Tanggal</th>
                                         <th class="whitespace-nowrap px-4 py-2">No. Referensi</th>
@@ -355,7 +300,7 @@
                                         <th class="whitespace-nowrap px-4 py-2 text-right">Saldo Berjalan</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-gray-100 bg-white">
+                                <tbody class="divide-y divide-gray-100 bg-white [&>tr:nth-child(even)]:bg-slate-50/60">
                                     <!-- Baris Saldo Awal -->
                                     <tr class="bg-amber-50/30 border-b border-gray-100 text-xs font-medium text-gray-600">
                                         <td class="whitespace-nowrap px-4 py-1.5 font-mono tabular-nums">{{ $startDate ? \Carbon\Carbon::parse($startDate)->format('d/m/Y') : '-' }}</td>
@@ -473,5 +418,4 @@
             </div>
         @endif
     </main>
-</body>
-</html>
+</x-app-layout>

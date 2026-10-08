@@ -1,44 +1,14 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Akun Pengguna - {{ $user->name }} | Maju Bersama ERP</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-    <!-- Header Utama -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-            <div class="flex items-center gap-4">
-                <a href="/backoffice" class="block">
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                    <h1 class="text-xl font-bold tracking-tight">Manajemen Master Data</h1>
-                </a>
-            </div>
-            <div class="flex items-center gap-4">
-                <div class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200">
-                    {{ $currentUser->branch?->name ?? 'Pusat' }} ({{ $currentUser->role }})
-                </div>
-            </div>
+<x-app-layout :title="'Edit Akun Pengguna - '.($user->name)" :breadcrumbs="[
+    ['label' => 'Pengaturan'],
+    ['label' => 'Staf & Kasir', 'url' => route('backoffice.users.index')],
+    ['label' => 'Edit Staf'],
+]">
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-2xl">
+        <div class="mb-6">
+            <p class="text-sm font-semibold uppercase tracking-wider text-amber-600">Pengaturan</p>
+            <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Edit Akun Pengguna - {{ $user->name }}</h2>
         </div>
-    </header>
 
-    <!-- Sub-Navbar Master Data -->
-    <div class="border-b border-slate-200 bg-white shadow-sm">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-2.5 lg:px-8">
-            <div class="flex items-center gap-2 text-sm font-medium">
-                <a href="{{ route('backoffice.users.index') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    ← Kembali ke Daftar Staf
-                </a>
-                <span class="text-slate-300">/</span>
-                <span class="font-semibold text-slate-900">Edit Pengguna: {{ $user->name }}</span>
-            </div>
-        </div>
-    </div>
-
-    <!-- Main Form Container -->
-    <main class="mx-auto max-w-2xl px-6 py-8 lg:px-8">
         @if ($errors->any())
             <div class="mb-6 rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-800 shadow-sm">
                 <div class="flex items-center gap-2 font-semibold text-sm">
@@ -70,7 +40,7 @@
 
                 <!-- Nama Lengkap -->
                 <div>
-                    <label for="name" class="block text-sm font-semibold text-slate-800">
+                    <label for="name" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                         Nama Lengkap <span class="text-rose-500">*</span>
                     </label>
                     <input type="text" id="name" name="name" value="{{ old('name', $user->name) }}" required class="mt-1.5 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
@@ -78,7 +48,7 @@
 
                 <!-- Email Login -->
                 <div>
-                    <label for="email" class="block text-sm font-semibold text-slate-800">
+                    <label for="email" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                         Alamat Email <span class="text-rose-500">*</span>
                     </label>
                     <input type="email" id="email" name="email" value="{{ old('email', $user->email) }}" required class="mt-1.5 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
@@ -86,7 +56,7 @@
 
                 <!-- Password Baru (Opsional) -->
                 <div>
-                    <label for="password" class="block text-sm font-semibold text-slate-800">
+                    <label for="password" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                         Kata Sandi Baru (Opsional)
                     </label>
                     <input type="password" id="password" name="password" minlength="6" placeholder="Biarkan kosong jika tidak ingin mengubah password" class="mt-1.5 w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
@@ -95,7 +65,7 @@
 
                 <!-- Role / Hak Akses -->
                 <div>
-                    <label for="role" class="block text-sm font-semibold text-slate-800">
+                    <label for="role" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                         Role / Hak Akses <span class="text-rose-500">*</span>
                     </label>
                     <select id="role" name="role" required class="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
@@ -109,7 +79,7 @@
 
                 <!-- Cabang Penempatan -->
                 <div>
-                    <label class="block text-sm font-semibold text-slate-800">
+                    <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                         Cabang Penempatan
                     </label>
                     @if ($isMaster)
@@ -146,5 +116,4 @@
             </form>
         </div>
     </main>
-</body>
-</html>
+</x-app-layout>

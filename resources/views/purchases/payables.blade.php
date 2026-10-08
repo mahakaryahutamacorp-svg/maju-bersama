@@ -1,65 +1,16 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Hutang Distributor (Accounts Payable) | Maju Bersama</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<x-app-layout title="Hutang Distributor (Accounts Payable)" :breadcrumbs="[
+    ['label' => 'Belanja Barang'],
+    ['label' => 'Hutang Distributor'],
+]">
+    <x-slot:head>
     <style>
         body { font-family: 'Plus Jakarta Sans', sans-serif; }
         .font-mono-code { font-family: 'JetBrains Mono', monospace; }
     </style>
-</head>
-<body x-data="payablesApp()" class="min-h-screen bg-slate-50 text-slate-900 antialiased">
-    <!-- Top Navigation Header -->
-    <header class="sticky top-0 z-30 border-b border-slate-800 bg-slate-950 text-white shadow-md">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-            <div class="flex items-center gap-3">
-                <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500 font-extrabold text-slate-950 shadow-sm">
-                    MB
-                </div>
-                <div>
-                    <div class="flex items-center gap-2">
-                        <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-400">Maju Bersama ERP</p>
-                        <span class="rounded bg-amber-500/20 px-1.5 py-0.2 text-[10px] font-semibold text-amber-300">Pusat</span>
-                    </div>
-                    <h1 class="text-lg font-bold tracking-tight text-white sm:text-xl">Hutang Distributor (Accounts Payable)</h1>
-                </div>
-            </div>
+    </x-slot:head>
 
-            <div class="flex items-center gap-3 sm:gap-6">
-                <nav class="hidden items-center gap-4 text-sm font-medium text-slate-300 lg:flex">
-                    <a href="/pos" class="hover:text-white transition">Kasir (POS)</a>
-                    <a href="/inventory" class="hover:text-white transition">Persediaan</a>
-                    <a href="/inventory/transfer" class="hover:text-white transition">Transfer Stok</a>
-                    <a href="/purchases/goods-receipts" class="hover:text-white transition">Penerimaan Barang</a>
-                    <a href="/purchases/payables" class="font-bold text-amber-400 border-b-2 border-amber-400 pb-0.5">Hutang Distributor</a>
-                    <a href="/reports/accounting/ledger" class="hover:text-white transition">Buku Besar</a>
-                    <a href="/backoffice" class="hover:text-white transition">Panel Admin</a>
-                </nav>
-
-                <div class="flex items-center gap-3">
-                    <div class="hidden text-right sm:block">
-                        <p class="text-xs font-semibold text-white">{{ auth()->user()->name ?? 'Admin Pusat' }}</p>
-                        <p class="text-[10px] text-slate-400">{{ auth()->user()->branch->name ?? 'Kantor Pusat' }}</p>
-                    </div>
-                    <form method="POST" action="/logout">
-                        @csrf
-                        <button type="submit" class="rounded-lg border border-slate-700 bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-300 hover:bg-rose-900/40 hover:text-rose-300 hover:border-rose-500/40 transition">
-                            Keluar
-                        </button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <main class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 space-y-8">
+    <div x-data="payablesApp()">
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-7xl space-y-8">
         <!-- Breadcrumb & Header Title -->
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -159,11 +110,11 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                             </svg>
                         </div>
-                        <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari no faktur atau nama distributor..." class="w-full rounded-xl border border-slate-300 bg-slate-50/50 py-2 pl-9 pr-4 text-sm font-medium text-slate-800 placeholder-slate-400 outline-none focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-200 transition">
+                        <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari no faktur atau nama distributor..." class="w-full rounded-xl border border-slate-300 bg-slate-50/50 py-2 pl-9 pr-4 text-sm font-medium text-slate-800 placeholder-slate-400 outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-amber-200 transition">
                     </div>
 
                     <div class="w-full sm:w-48">
-                        <select name="status" onchange="this.form.submit()" class="w-full rounded-xl border border-slate-300 bg-slate-50/50 py-2 px-3 text-sm font-medium text-slate-800 outline-none focus:border-amber-500 focus:bg-white focus:ring-2 focus:ring-amber-200 transition">
+                        <select name="status" onchange="this.form.submit()" class="w-full rounded-xl border border-slate-300 bg-slate-50/50 py-2 px-3 text-sm font-medium text-slate-800 outline-none focus:border-sky-500 focus:bg-white focus:ring-2 focus:ring-amber-200 transition">
                             <option value="">Semua Status</option>
                             <option value="unpaid" {{ request('status') === 'unpaid' ? 'selected' : '' }}>Belum Lunas (Unpaid)</option>
                             <option value="partial" {{ request('status') === 'partial' ? 'selected' : '' }}>Sebagian (Partial)</option>
@@ -173,7 +124,7 @@
                 </div>
 
                 <div class="flex items-center gap-2">
-                    <button type="submit" class="rounded-xl bg-slate-800 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-900 transition">
+                    <button type="submit" class="rounded-xl bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700 transition">
                         Filter
                     </button>
                     @if (request('search') || request('status'))
@@ -189,7 +140,7 @@
         <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-slate-200">
-                    <thead class="bg-slate-50 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
+                    <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                         <tr>
                             <th scope="col" class="px-6 py-4">No. Faktur</th>
                             <th scope="col" class="px-6 py-4">Distributor / Supplier</th>
@@ -200,7 +151,7 @@
                             <th scope="col" class="px-6 py-4 text-center">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100 bg-white text-sm">
+                    <tbody class="divide-y divide-slate-100 bg-white text-sm [&>tr:nth-child(even)]:bg-slate-50/60">
                         @forelse ($purchases as $item)
                             @php
                                 $isOverdue = $item->due_date && $item->due_date->isPast() && $item->status !== 'paid';
@@ -345,25 +296,25 @@
                             <!-- Form Inputs -->
                             <div class="space-y-4">
                                 <div>
-                                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Tanggal Pembayaran</label>
-                                    <input type="date" x-model="paymentForm.payment_date" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200">
+                                    <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Tanggal Pembayaran</label>
+                                    <input type="date" x-model="paymentForm.payment_date" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-emerald-200">
                                 </div>
 
                                 <div>
                                     <div class="flex items-center justify-between mb-1">
-                                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-700">Nominal Pembayaran (Rp)</label>
+                                        <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Nominal Pembayaran (Rp)</label>
                                         <button type="button" @click="setFullPayment()" class="text-xs font-bold text-emerald-600 hover:text-emerald-700 underline">Lunasi Semua</button>
                                     </div>
                                     <div class="relative">
                                         <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-sm font-bold text-slate-400">Rp</span>
-                                        <input type="number" step="0.01" min="0.01" :max="activePurchase ? activePurchase.remaining_debt : 999999999" x-model="paymentForm.amount" required placeholder="0" class="w-full rounded-xl border border-slate-300 py-2 pl-10 pr-4 text-base font-bold font-mono-code text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200">
+                                        <input type="number" step="0.01" min="0.01" :max="activePurchase ? activePurchase.remaining_debt : 999999999" x-model="paymentForm.amount" required placeholder="0" class="w-full rounded-xl border border-slate-300 py-2 pl-10 pr-4 text-base font-bold font-mono-code text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-emerald-200">
                                     </div>
                                     <p class="text-[11px] text-slate-400 mt-1" x-text="'Maksimal bayar: ' + formatRupiah(activePurchase ? activePurchase.remaining_debt : 0)"></p>
                                 </div>
 
                                 <div>
-                                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Metode Pembayaran (Akun Kas/Bank)</label>
-                                    <select x-model="paymentForm.payment_method" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm font-semibold text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200">
+                                    <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Metode Pembayaran (Akun Kas/Bank)</label>
+                                    <select x-model="paymentForm.payment_method" required class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm font-semibold text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-emerald-200">
                                         <option value="cash">Kas Tunai (Akun 1110)</option>
                                         <option value="bank">Transfer Bank (Akun 1120)</option>
                                         <option value="transfer">Giro / Kliring</option>
@@ -371,13 +322,13 @@
                                 </div>
 
                                 <div>
-                                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">No. Referensi / Bukti Transfer</label>
-                                    <input type="text" x-model="paymentForm.reference_number" placeholder="Contoh: TRF-BCA-88291 / Bilyet Giro" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200">
+                                    <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">No. Referensi / Bukti Transfer</label>
+                                    <input type="text" x-model="paymentForm.reference_number" placeholder="Contoh: TRF-BCA-88291 / Bilyet Giro" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-emerald-200">
                                 </div>
 
                                 <div>
-                                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Catatan</label>
-                                    <textarea x-model="paymentForm.notes" rows="2" placeholder="Catatan opsional pembayaran termin..." class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200"></textarea>
+                                    <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Catatan</label>
+                                    <textarea x-model="paymentForm.notes" rows="2" placeholder="Catatan opsional pembayaran termin..." class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-emerald-200"></textarea>
                                 </div>
                             </div>
                         </div>
@@ -386,7 +337,7 @@
                             <button type="button" @click="showPaymentModal = false" class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition">
                                 Batal
                             </button>
-                            <button type="submit" :disabled="loading" class="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 transition disabled:opacity-50">
+                            <button type="submit" :disabled="loading" class="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-5 py-2 text-sm font-bold text-white shadow-sm hover:bg-sky-700 transition disabled:opacity-50">
                                 <span x-show="!loading">Konfirmasi Pembayaran</span>
                                 <span x-show="loading" class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
                             </button>
@@ -426,7 +377,7 @@
                         <template x-if="activePurchase && activePurchase.payments && activePurchase.payments.length > 0">
                             <div class="overflow-x-auto rounded-xl border border-slate-200">
                                 <table class="min-w-full divide-y divide-slate-200 text-xs">
-                                    <thead class="bg-slate-50 font-bold uppercase text-slate-500">
+                                    <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                                         <tr>
                                             <th class="px-4 py-3 text-left">No. Referensi</th>
                                             <th class="px-4 py-3 text-left">Tanggal</th>
@@ -435,7 +386,7 @@
                                             <th class="px-4 py-3 text-left">Catatan</th>
                                         </tr>
                                     </thead>
-                                    <tbody class="divide-y divide-slate-100 font-medium text-slate-800">
+                                    <tbody class="divide-y divide-slate-100 font-medium text-slate-800 [&>tr:nth-child(even)]:bg-slate-50/60">
                                         <template x-for="p in activePurchase.payments" :key="p.id">
                                             <tr class="hover:bg-slate-50">
                                                 <td class="px-4 py-3 font-mono-code font-bold text-sky-700" x-text="p.reference_number || ('PAY-' + p.id)"></td>
@@ -501,13 +452,13 @@
 
                         <div class="p-6 space-y-4">
                             <div>
-                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">No. Faktur / Invoice</label>
-                                <input type="text" x-model="createForm.invoice_number" required placeholder="Contoh: INV-DIST-2026-001" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm font-mono-code text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200">
+                                <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">No. Faktur / Invoice</label>
+                                <input type="text" x-model="createForm.invoice_number" required placeholder="Contoh: INV-DIST-2026-001" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm font-mono-code text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-amber-200">
                             </div>
 
                             <div>
-                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Distributor / Supplier</label>
-                                <select x-model="createForm.distributor_id" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm font-medium text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200">
+                                <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Distributor / Supplier</label>
+                                <select x-model="createForm.distributor_id" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm font-medium text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-amber-200">
                                     <option value="">-- Pilih Distributor (Opsional) --</option>
                                     @foreach ($distributors as $dist)
                                         <option value="{{ $dist->id }}">{{ $dist->name }}</option>
@@ -516,21 +467,21 @@
                             </div>
 
                             <div>
-                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Total Tagihan (Rp)</label>
+                                <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Total Tagihan (Rp)</label>
                                 <div class="relative">
                                     <span class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-sm font-bold text-slate-400">Rp</span>
-                                    <input type="number" step="0.01" min="0.01" x-model="createForm.total_amount" required placeholder="0" class="w-full rounded-xl border border-slate-300 py-2 pl-10 pr-4 text-base font-bold font-mono-code text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200">
+                                    <input type="number" step="0.01" min="0.01" x-model="createForm.total_amount" required placeholder="0" class="w-full rounded-xl border border-slate-300 py-2 pl-10 pr-4 text-base font-bold font-mono-code text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-amber-200">
                                 </div>
                             </div>
 
                             <div>
-                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Tanggal Jatuh Tempo</label>
-                                <input type="date" x-model="createForm.due_date" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200">
+                                <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Tanggal Jatuh Tempo</label>
+                                <input type="date" x-model="createForm.due_date" class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-amber-200">
                             </div>
 
                             <div>
-                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1">Catatan / Keterangan Barang</label>
-                                <textarea x-model="createForm.notes" rows="2" placeholder="Keterangan pasokan barang dari distributor..." class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-200"></textarea>
+                                <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Catatan / Keterangan Barang</label>
+                                <textarea x-model="createForm.notes" rows="2" placeholder="Keterangan pasokan barang dari distributor..." class="w-full rounded-xl border border-slate-300 px-3.5 py-2 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-2 focus:ring-amber-200"></textarea>
                             </div>
                         </div>
 
@@ -538,7 +489,7 @@
                             <button type="button" @click="showCreateModal = false" class="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 transition">
                                 Batal
                             </button>
-                            <button type="submit" :disabled="loading" class="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2 text-sm font-bold text-white shadow-sm hover:bg-slate-800 transition disabled:opacity-50">
+                            <button type="submit" :disabled="loading" class="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-5 py-2 text-sm font-bold text-white shadow-sm hover:bg-sky-700 transition disabled:opacity-50">
                                 <span x-show="!loading">Simpan Faktur</span>
                                 <span x-show="loading" class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full"></span>
                             </button>
@@ -548,7 +499,9 @@
             </div>
         </div>
     </main>
+    </div>
 
+    <x-slot:scripts>
     <script>
         function payablesApp() {
             return {
@@ -663,5 +616,5 @@
             }
         }
     </script>
-</body>
-</html>
+    </x-slot:scripts>
+</x-app-layout>

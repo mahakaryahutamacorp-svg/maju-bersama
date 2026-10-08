@@ -1,63 +1,24 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Input Penyesuaian Stok (Stock Opname) | Maju Bersama ERP</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<x-app-layout title="Input Penyesuaian Stok (Stock Opname)" :breadcrumbs="[
+    ['label' => 'Stok Gudang'],
+    ['label' => 'Hitung Ulang Stok (Opname)', 'url' => route('inventory.adjustments.index')],
+    ['label' => 'Opname Baru'],
+]">
+    <x-slot:head>
     <style>
         [x-cloak] { display: none !important; }
     </style>
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-    <!-- Header Utama -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-            <div class="flex items-center gap-4">
-                <a href="/backoffice" class="block">
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                    <h1 class="text-xl font-bold tracking-tight">Formulir Stock Opname</h1>
-                </a>
-            </div>
-            <div class="flex items-center gap-4">
-                <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
-                    <a href="/inventory/adjustments" class="hover:text-white">← Kembali ke Riwayat</a>
-                    <a href="/inventory" class="hover:text-white">Katalog Stok</a>
-                    <a href="/backoffice" class="hover:text-white">Backoffice</a>
-                </nav>
-                <div class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200">
-                    {{ $currentBranch->name }} ({{ $currentUser->role }})
-                </div>
-            </div>
-        </div>
-    </header>
+    </x-slot:head>
 
-    <!-- Sub-Navbar Breadcrumb -->
-    <div class="border-b border-slate-200 bg-white">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-2.5 lg:px-8">
-            <nav class="flex items-center gap-2 text-sm text-slate-500">
-                <a href="/inventory" class="hover:text-slate-900">Inventory</a>
-                <span>/</span>
-                <a href="{{ route('inventory.adjustments.index') }}" class="hover:text-slate-900">Stock Opname</a>
-                <span>/</span>
-                <span class="font-semibold text-slate-900">Input Hasil Pemeriksaan Fisik</span>
-            </nav>
-            <div class="flex items-center gap-2">
-                <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-800">
-                    <span class="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    Mode Live Audit Real-time
-                </span>
-            </div>
-        </div>
-    </div>
-
-    <!-- Konten Utama Alpine.js -->
     <main 
-        class="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" 
+        class="mx-auto w-full px-6 py-6 lg:px-10 max-w-7xl" 
         x-data="stockAdjustmentForm({{ Js::from($products) }}, {{ $currentBranch->id }})"
         x-cloak
     >
+        <div class="mb-6">
+            <p class="text-sm font-semibold uppercase tracking-wider text-amber-600">Stok Gudang</p>
+            <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Formulir Stock Opname</h2>
+        </div>
+
         <!-- Error Alerts jika ada dari Laravel Validation -->
         @if ($errors->any())
             <div class="mb-6 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 shadow-sm">
@@ -93,10 +54,10 @@
 
                         <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div>
-                                <label class="block text-xs font-medium text-slate-700">Cabang Lokasi Opname</label>
+                                <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Cabang Lokasi Opname</label>
                                 @if ($isMaster && $branches->count() > 1)
                                     <select 
-                                        class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                        class="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
                                         x-model="branchId"
                                         @change="changeBranch($event.target.value)"
                                     >
@@ -112,24 +73,24 @@
                             </div>
 
                             <div>
-                                <label class="block text-xs font-medium text-slate-700">Tanggal Pemeriksaan Fisik</label>
+                                <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Tanggal Pemeriksaan Fisik</label>
                                 <input 
                                     type="date" 
                                     name="date" 
                                     x-model="date" 
                                     required 
-                                    class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                    class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
                                 >
                             </div>
 
                             <div class="sm:col-span-2">
-                                <label class="block text-xs font-medium text-slate-700">Catatan / Alasan Pemeriksaan (Opsional)</label>
+                                <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Catatan / Alasan Pemeriksaan (Opsional)</label>
                                 <input 
                                     type="text" 
                                     name="notes" 
                                     x-model="notes" 
                                     placeholder="Contoh: Opname rutin akhir bulan, audit gudang makanan, dsb." 
-                                    class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                    class="mt-1 block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
                                 >
                             </div>
                         </div>
@@ -166,7 +127,7 @@
                                 @keydown.escape="showDropdown = false"
                                 @focus="showDropdown = true"
                                 placeholder="Ketik nama atau SKU produk (misal: Minyak, Beras, PRD-001)..." 
-                                class="block w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                                class="block w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                             >
 
                             <!-- Dropdown List Hasil Pencarian -->
@@ -218,7 +179,7 @@
 
                         <div class="w-full overflow-x-auto">
                             <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
-                                <thead class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-slate-600">
+                                <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                                     <tr>
                                         <th class="px-4 py-3">Produk / SKU</th>
                                         <th class="px-4 py-3 text-center">Stok Sistem (Expected)</th>
@@ -229,7 +190,7 @@
                                         <th class="px-3 py-3 text-center">Hapus</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-100">
+                                <tbody class="divide-y divide-slate-100 [&>tr:nth-child(even)]:bg-slate-50/60">
                                     <template x-for="(item, index) in items" :key="item.product_id">
                                         <tr 
                                             class="transition" 
@@ -264,7 +225,7 @@
                                                     x-model.number="item.actual_qty" 
                                                     @input="recalculate()"
                                                     required 
-                                                    class="w-24 rounded-lg border border-slate-300 px-2.5 py-1.5 text-center font-bold text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                                                    class="w-24 rounded-lg border border-slate-300 px-2.5 py-1.5 text-center font-bold text-slate-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
                                                 >
                                             </td>
 
@@ -411,14 +372,14 @@
                         <!-- Tabel Simulasi Jurnal -->
                         <div class="mt-4 rounded-xl border border-slate-200 bg-white p-3 shadow-inner">
                             <table class="w-full text-xs">
-                                <thead>
-                                    <tr class="border-b border-slate-100 text-slate-400 text-left">
+                                <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
+                                    <tr class="border-b text-left">
                                         <th class="pb-1.5">Kode / Akun</th>
                                         <th class="pb-1.5 text-right">Debit</th>
                                         <th class="pb-1.5 text-right">Kredit</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-50 font-mono">
+                                <tbody class="divide-y divide-slate-50 font-mono [&>tr:nth-child(even)]:bg-slate-50/60">
                                     <!-- Jika ada selisih minus / loss -->
                                     <template x-if="totalLossValue > 0">
                                         <tr>
@@ -484,7 +445,7 @@
                         <button 
                             type="submit" 
                             :disabled="items.length === 0 || isSubmitting"
-                            class="w-full rounded-xl bg-indigo-600 py-3.5 text-center text-sm font-bold text-white shadow-lg shadow-indigo-600/30 transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+                            class="w-full rounded-xl bg-sky-600 py-3.5 text-center text-sm font-bold text-white shadow-lg shadow-indigo-600/30 transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             <span x-show="!isSubmitting">Simpan &amp; Bukukan Stock Opname</span>
                             <span x-show="isSubmitting" class="flex items-center justify-center gap-2">
@@ -504,7 +465,7 @@
         </form>
     </main>
 
-    <!-- Script Logika SPA Alpine.js -->
+    <x-slot:scripts>
     <script>
         function stockAdjustmentForm(initialProducts, initialBranchId) {
             return {
@@ -656,5 +617,5 @@
             };
         }
     </script>
-</body>
-</html>
+    </x-slot:scripts>
+</x-app-layout>

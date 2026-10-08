@@ -1,44 +1,8 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Setup Saldo Awal Perusahaan | Maju Bersama ERP</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-    <!-- Header Utama -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-            <div class="flex items-center gap-4">
-                <a href="/backoffice" class="block">
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                    <h1 class="text-xl font-bold tracking-tight">Keuangan &amp; Akuntansi</h1>
-                </a>
-            </div>
-            <div class="flex items-center gap-4">
-                <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
-                    <a href="/pos" class="hover:text-white">POS Kasir</a>
-                    <a href="/inventory" class="hover:text-white">Inventory</a>
-                    <a href="{{ route('backoffice.cash-transfers.index') }}" class="hover:text-white">Mutasi Kas</a>
-                    <a href="{{ route('backoffice.expenses.index') }}" class="hover:text-white">Biaya Operasional</a>
-                    <a href="{{ route('backoffice.opening-balances.create') }}" class="text-amber-400 font-semibold">Saldo Awal</a>
-                    <a href="/reports/accounting/ledger" class="hover:text-white">Buku Besar</a>
-                    <a href="/backoffice" class="hover:text-white">Backoffice</a>
-                </nav>
-                <div class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200">
-                    {{ $currentUser->branch?->name ?? 'Pusat' }} ({{ $currentUser->role }})
-                </div>
-                <form method="POST" action="/logout" class="hidden sm:block">
-                    @csrf
-                    <button type="submit" class="text-sm text-slate-300 hover:text-white">Logout</button>
-                </form>
-            </div>
-        </div>
-    </header>
-
-    <main class="mx-auto max-w-5xl space-y-6 px-6 py-8 lg:px-8">
+<x-app-layout title="Setup Saldo Awal Perusahaan" :breadcrumbs="[
+    ['label' => 'Uang & Akuntansi'],
+    ['label' => 'Saldo Awal (Setup)'],
+]">
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-5xl space-y-6">
         <!-- Flash Messages -->
         @if (session('success'))
             <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-900 shadow-xs">
@@ -117,7 +81,7 @@
 
                     <div class="overflow-hidden rounded-xl border border-slate-200 shadow-2xs">
                         <table class="min-w-full divide-y divide-slate-200 text-xs">
-                            <thead class="bg-slate-50 text-slate-600 font-bold uppercase tracking-wider">
+                            <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                                 <tr>
                                     <th class="px-4 py-3 text-left">Kode Akun</th>
                                     <th class="px-4 py-3 text-left">Nama Akun Buku Besar</th>
@@ -126,7 +90,7 @@
                                     <th class="px-4 py-3 text-right">Kredit (Rp)</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100 font-mono">
+                            <tbody class="divide-y divide-slate-100 font-mono [&>tr:nth-child(even)]:bg-slate-50/60">
                                 @foreach ($existingJournal->journalLines as $line)
                                     <tr class="hover:bg-slate-50">
                                         <td class="px-4 py-3 font-semibold text-slate-700">{{ $line->chartOfAccount?->code }}</td>
@@ -182,7 +146,7 @@
                         <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
                             <!-- Tanggal Efektif -->
                             <div>
-                                <label for="transaction_date" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                                <label for="transaction_date" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                     Tanggal Saldo Awal <span class="text-rose-500">*</span>
                                 </label>
                                 <input
@@ -191,13 +155,13 @@
                                     name="transaction_date"
                                     value="{{ old('transaction_date', $todayDate) }}"
                                     required
-                                    class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 shadow-2xs outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                                    class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 shadow-2xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                                 >
                             </div>
 
                             <!-- Nomor Referensi -->
                             <div>
-                                <label for="reference_number" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                                <label for="reference_number" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                     Nomor Referensi Jurnal <span class="text-slate-400 font-normal lowercase">(opsional)</span>
                                 </label>
                                 <input
@@ -206,13 +170,13 @@
                                     name="reference_number"
                                     value="{{ old('reference_number') }}"
                                     placeholder="Contoh: OB-INITIAL-01 (kosongkan untuk otomatis)"
-                                    class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-900 shadow-2xs outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                                    class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-900 shadow-2xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                                 >
                             </div>
 
                             <!-- Catatan Tambahan -->
                             <div class="sm:col-span-2">
-                                <label for="notes" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                                <label for="notes" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                     Catatan / Keterangan Pembukuan
                                 </label>
                                 <input
@@ -221,7 +185,7 @@
                                     name="notes"
                                     value="{{ old('notes') }}"
                                     placeholder="Contoh: Setup saldo awal hari pertama operasional toko..."
-                                    class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-2xs outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                                    class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-2xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                                 >
                             </div>
                         </div>
@@ -248,7 +212,7 @@
                         <div class="grid grid-cols-1 gap-6 sm:grid-cols-3">
                             <!-- 1. Saldo Kas Laci -->
                             <div>
-                                <label for="display_cash" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                                <label for="display_cash" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                     Saldo Kas Laci / Kasir
                                 </label>
                                 <div class="relative">
@@ -259,7 +223,7 @@
                                         x-model="formattedCash"
                                         @input="formatInput('cashInDrawer', $event)"
                                         placeholder="0"
-                                        class="w-full rounded-xl border border-slate-300 bg-white pl-11 pr-3.5 py-2.5 text-base font-mono font-bold text-slate-900 shadow-2xs outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                        class="w-full rounded-xl border border-slate-300 bg-white pl-11 pr-3.5 py-2.5 text-base font-mono font-bold text-slate-900 shadow-2xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                                     >
                                 </div>
                                 <input type="hidden" name="cash_in_drawer" :value="cashInDrawer">
@@ -268,7 +232,7 @@
 
                             <!-- 2. Saldo Bank BCA -->
                             <div>
-                                <label for="display_bank" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                                <label for="display_bank" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                     Saldo Rekening Bank BCA
                                 </label>
                                 <div class="relative">
@@ -279,7 +243,7 @@
                                         x-model="formattedBank"
                                         @input="formatInput('bankBca', $event)"
                                         placeholder="0"
-                                        class="w-full rounded-xl border border-slate-300 bg-white pl-11 pr-3.5 py-2.5 text-base font-mono font-bold text-slate-900 shadow-2xs outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                        class="w-full rounded-xl border border-slate-300 bg-white pl-11 pr-3.5 py-2.5 text-base font-mono font-bold text-slate-900 shadow-2xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                                     >
                                 </div>
                                 <input type="hidden" name="bank_bca" :value="bankBca">
@@ -288,7 +252,7 @@
 
                             <!-- 3. Nilai Persediaan Barang -->
                             <div>
-                                <label for="display_inv" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                                <label for="display_inv" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                     Nilai Persediaan Barang
                                 </label>
                                 <div class="relative">
@@ -299,7 +263,7 @@
                                         x-model="formattedInventory"
                                         @input="formatInput('inventory', $event)"
                                         placeholder="0"
-                                        class="w-full rounded-xl border border-slate-300 bg-white pl-11 pr-3.5 py-2.5 text-base font-mono font-bold text-slate-900 shadow-2xs outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                                        class="w-full rounded-xl border border-slate-300 bg-white pl-11 pr-3.5 py-2.5 text-base font-mono font-bold text-slate-900 shadow-2xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                                     >
                                 </div>
                                 <input type="hidden" name="inventory" :value="inventory">
@@ -329,7 +293,7 @@
                         <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
                             <!-- Sisa Hutang Supplier -->
                             <div>
-                                <label for="display_payable" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                                <label for="display_payable" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                     Total Sisa Hutang ke Supplier
                                 </label>
                                 <div class="relative">
@@ -340,7 +304,7 @@
                                         x-model="formattedPayable"
                                         @input="formatInput('payable', $event)"
                                         placeholder="0"
-                                        class="w-full rounded-xl border border-slate-300 bg-white pl-11 pr-3.5 py-2.5 text-base font-mono font-bold text-slate-900 shadow-2xs outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500"
+                                        class="w-full rounded-xl border border-slate-300 bg-white pl-11 pr-3.5 py-2.5 text-base font-mono font-bold text-slate-900 shadow-2xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                                     >
                                 </div>
                                 <input type="hidden" name="payable" :value="payable">
@@ -394,7 +358,7 @@
                         <!-- Tabel Pratinjau Jurnal yang Akan Dibukukan -->
                         <div class="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xs">
                             <table class="min-w-full divide-y divide-slate-200 text-xs">
-                                <thead class="bg-slate-50 font-bold uppercase tracking-wider text-slate-500">
+                                <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                                     <tr>
                                         <th class="px-4 py-2.5 text-left">Akun Buku Besar</th>
                                         <th class="px-4 py-2.5 text-left">Posisi Akuntansi</th>
@@ -402,7 +366,7 @@
                                         <th class="px-4 py-2.5 text-right">Kredit (Rp)</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-slate-100 font-mono">
+                                <tbody class="divide-y divide-slate-100 font-mono [&>tr:nth-child(even)]:bg-slate-50/60">
                                     <!-- Kas -->
                                     <tr x-show="cashInDrawer > 0">
                                         <td class="px-4 py-2.5 font-sans font-medium text-slate-900">[1110] Kas Toko Utama</td>
@@ -467,7 +431,7 @@
                             type="submit"
                             id="btn-submit-opening-balance"
                             :disabled="!canSubmit"
-                            class="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-7 py-3 text-sm font-bold text-slate-950 shadow-md transition hover:bg-amber-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                            class="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-7 py-3 text-sm font-bold text-white shadow-md transition hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -480,7 +444,7 @@
         @endif
     </main>
 
-    <!-- Alpine.js Component Script -->
+    <x-slot:scripts>
     <script>
         function openingBalanceForm() {
             return {
@@ -529,5 +493,5 @@
             };
         }
     </script>
-</body>
-</html>
+    </x-slot:scripts>
+</x-app-layout>

@@ -1,66 +1,9 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Formulir Kas Keluar / Biaya Operasional | Maju Bersama ERP</title>
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-</head>
-<body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
-    <!-- Header Utama -->
-    <header class="border-b border-slate-800 bg-slate-950 text-white">
-        <div class="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-8">
-            <div class="flex items-center gap-4">
-                <a href="/backoffice" class="block">
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
-                    <h1 class="text-xl font-bold tracking-tight">Keuangan &amp; Akuntansi</h1>
-                </a>
-            </div>
-            <div class="flex items-center gap-4">
-                <nav class="hidden items-center gap-4 text-sm text-slate-300 md:flex">
-                    <a href="/pos" class="hover:text-white">POS Kasir</a>
-                    <a href="/inventory" class="hover:text-white">Inventory</a>
-                    <a href="{{ route('backoffice.expenses.index') }}" class="text-amber-400 font-semibold">Biaya Operasional</a>
-                    <a href="{{ route('backoffice.expense-categories.index') }}" class="hover:text-white">Kategori Biaya</a>
-                    <a href="/reports/accounting/ledger" class="hover:text-white">Buku Besar</a>
-                    <a href="/backoffice" class="hover:text-white">Backoffice</a>
-                </nav>
-                <div class="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-medium text-sky-200">
-                    {{ $currentUser->branch?->name ?? 'Pusat' }} ({{ $currentUser->role }})
-                </div>
-                <form method="POST" action="/logout" class="hidden sm:block">
-                    @csrf
-                    <button type="submit" class="text-sm text-slate-300 hover:text-white">Logout</button>
-                </form>
-            </div>
-        </div>
-    </header>
-
-    <!-- Sub-Navbar Modul Pengeluaran -->
-    <div class="border-b border-slate-200 bg-white shadow-xs">
-        <div class="mx-auto flex max-w-7xl items-center justify-between overflow-x-auto px-6 py-2.5 lg:px-8">
-            <div class="flex items-center gap-2 text-sm font-medium">
-                <a href="{{ route('backoffice.expenses.index') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    &larr; Riwayat Kas Keluar
-                </a>
-                <a href="{{ route('backoffice.expenses.create') }}" class="rounded-lg bg-amber-500 px-3.5 py-2 font-bold text-slate-950 shadow-xs">
-                    + Catat Kas Keluar
-                </a>
-                <a href="{{ route('backoffice.cash-transfers.index') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Mutasi Kas &amp; Bank
-                </a>
-                <a href="{{ route('backoffice.expense-categories.index') }}" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Kategori Biaya
-                </a>
-                <a href="/reports/accounting/ledger" class="rounded-lg px-3.5 py-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900">
-                    Buku Besar Akuntansi
-                </a>
-            </div>
-        </div>
-    </div>
-
-    <main class="mx-auto max-w-5xl space-y-6 px-6 py-8 lg:px-8">
+<x-app-layout title="Formulir Kas Keluar / Biaya Operasional" :breadcrumbs="[
+    ['label' => 'Uang & Akuntansi'],
+    ['label' => 'Biaya Operasional', 'url' => route('backoffice.expenses.index')],
+    ['label' => 'Catat Biaya'],
+]">
+    <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-5xl space-y-6">
         <!-- Error Banner -->
         @if ($errors->any())
             <div class="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-rose-900 shadow-xs">
@@ -81,7 +24,7 @@
         <!-- Judul Form -->
         <div class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-wider text-rose-600 font-bold">Pengeluaran Kas Toko</p>
+                <p class="font-semibold uppercase font-bold text-sm tracking-wider text-amber-600">Pengeluaran Kas Toko</p>
                 <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Formulir Biaya Operasional</h2>
                 <p class="mt-1 text-xs text-slate-500">Mencatat pengeluaran uang kas toko (listrik, bensin, konsumsi, dsb) secara akurat dengan jurnal otomatis.</p>
             </div>
@@ -108,14 +51,14 @@
                         <!-- Cabang / Branch -->
                         @if ($isMaster)
                             <div>
-                                <label for="branch_id" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                                <label for="branch_id" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                     Cabang <span class="text-rose-500">*</span>
                                 </label>
                                 <select
                                     id="branch_id"
                                     name="branch_id"
                                     required
-                                    class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 shadow-2xs outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                                    class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 shadow-2xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                                 >
                                     <option value="">-- Pilih Cabang --</option>
                                     @foreach ($branches as $branch)
@@ -128,7 +71,7 @@
                         @else
                             <input type="hidden" name="branch_id" value="{{ $currentUser->branch_id }}">
                             <div>
-                                <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                                <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                     Cabang Operasional
                                 </label>
                                 <div class="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm font-semibold text-slate-700">
@@ -141,7 +84,7 @@
 
                         <!-- Tanggal Pengeluaran -->
                         <div>
-                            <label for="expense_date" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                            <label for="expense_date" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                 Tanggal Pengeluaran <span class="text-rose-500">*</span>
                             </label>
                             <input
@@ -150,13 +93,13 @@
                                 name="expense_date"
                                 value="{{ old('expense_date', $todayDate) }}"
                                 required
-                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 shadow-2xs outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 shadow-2xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                             >
                         </div>
 
                         <!-- Kategori Biaya Operasional -->
                         <div>
-                            <label for="expense_category_id" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                            <label for="expense_category_id" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                 Kategori Biaya Operasional <span class="text-rose-500">*</span>
                             </label>
                             <select
@@ -164,7 +107,7 @@
                                 name="expense_category_id"
                                 x-model="selectedCategoryId"
                                 required
-                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 shadow-2xs outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 shadow-2xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                             >
                                 <option value="">-- Pilih Kategori Pengeluaran --</option>
                                 @foreach ($categories as $cat)
@@ -177,7 +120,7 @@
 
                         <!-- Rekening / Sumber Dana Kas/Bank -->
                         <div>
-                            <label for="account_id" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                            <label for="account_id" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                 Sumber Dana Kas / Rekening <span class="text-rose-500">*</span>
                             </label>
                             <select
@@ -185,7 +128,7 @@
                                 name="account_id"
                                 x-model="selectedAccountId"
                                 required
-                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 shadow-2xs outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-semibold text-slate-900 shadow-2xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                             >
                                 <option value="">-- Pilih Rekening Kas / Bank --</option>
                                 @foreach ($accounts as $acc)
@@ -198,7 +141,7 @@
 
                         <!-- Nomor Referensi (Opsional/Otomatis) -->
                         <div>
-                            <label for="reference_number" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                            <label for="reference_number" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                 Nomor Referensi / No. Bukti Nota
                             </label>
                             <input
@@ -207,14 +150,14 @@
                                 name="reference_number"
                                 value="{{ old('reference_number') }}"
                                 placeholder="Contoh: NOTA-PLN-0920, KWT-BENSIN-01..."
-                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-900 shadow-2xs outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-900 shadow-2xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                             >
                             <span class="mt-1 block text-[11px] text-slate-400">Kosongkan untuk nomor referensi otomatis dari sistem</span>
                         </div>
 
                         <!-- Nominal Pengeluaran (Live Rupiah Formatter) -->
                         <div class="sm:col-span-2">
-                            <label for="display_amount" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                            <label for="display_amount" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                 Nominal Pengeluaran (Rp) <span class="text-rose-500">*</span>
                             </label>
                             <div class="relative">
@@ -226,7 +169,7 @@
                                     @input="formatInput($event)"
                                     placeholder="0"
                                     required
-                                    class="w-full rounded-xl border border-rose-300 bg-rose-50/20 pl-12 pr-4 py-3.5 text-xl font-mono font-black text-slate-950 outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-400/20 transition"
+                                    class="w-full rounded-xl border border-rose-300 bg-rose-50/20 pl-12 pr-4 py-3.5 text-xl font-mono font-black text-slate-950 outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 transition"
                                 >
                             </div>
                             <input type="hidden" name="amount" :value="rawAmount">
@@ -260,7 +203,7 @@
 
                         <!-- Catatan / Keterangan Pengeluaran (Wajib) -->
                         <div class="sm:col-span-2">
-                            <label for="notes" class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
+                            <label for="notes" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                                 Catatan / Keterangan Pengeluaran <span class="text-rose-500">*</span>
                             </label>
                             <textarea
@@ -270,7 +213,7 @@
                                 x-model="notes"
                                 required
                                 placeholder="Tuliskan tujuan pengeluaran dengan rinci (misal: Beli token PLN 200rb untuk AC toko lantai 1)..."
-                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-2xs outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500"
+                                class="w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-2xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                             >{{ old('notes') }}</textarea>
                             <p class="mt-1 text-[11px] text-slate-400">Catatan ini akan otomatis dicantumkan pada memo jurnal akuntansi buku besar.</p>
                         </div>
@@ -349,7 +292,7 @@
         </div>
     </main>
 
-    <!-- Alpine.js Component Script -->
+    <x-slot:scripts>
     <script>
         function expenseForm(categories = [], accounts = [], initialAmount = 0) {
             return {
@@ -413,5 +356,5 @@
             };
         }
     </script>
-</body>
-</html>
+    </x-slot:scripts>
+</x-app-layout>
