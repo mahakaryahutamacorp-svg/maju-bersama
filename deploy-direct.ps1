@@ -1,7 +1,8 @@
 <#
 .SYNOPSIS
     Script deployment langsung ke VPS Hostinger (Direct SSH Deploy)
-    Dijalankan dari lokal Windows PowerShell tanpa bergantung pada GitHub Actions.
+    Dijalankan dari root workspace ini: D:\MAJUBERSAMA_CURSOR
+    Contoh: .\deploy-direct.ps1
 #>
 
 param (
@@ -12,14 +13,28 @@ param (
     [string]$SshKeyPath = ""
 )
 
+$WorkspacePath = $PSScriptRoot
+Set-Location $WorkspacePath
+
+$artisanPath = Join-Path $WorkspacePath "artisan"
+$gitPath = Join-Path $WorkspacePath ".git"
+if (-not (Test-Path $artisanPath) -or -not (Test-Path $gitPath)) {
+    Write-Host "Script ini harus berada di root workspace Maju Bersama." -ForegroundColor Red
+    Write-Host "Lokasi script: $WorkspacePath" -ForegroundColor Red
+    exit 1
+}
+
+$originUrl = git -C $WorkspacePath remote get-url origin
+if ($originUrl -notmatch "mahakaryahutamacorp-svg/maju-bersama(\.git)?$") {
+    Write-Host "Remote origin workspace ini bukan repositori Maju Bersama: $originUrl" -ForegroundColor Red
+    exit 1
+}
+
 Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host "  Maju Bersama - Direct VPS Deployment   " -ForegroundColor Cyan
 Write-Host "=========================================" -ForegroundColor Cyan
-
-$KeyArg = ""
-if ($SshKeyPath -ne "" -and (Test-Path $SshKeyPath)) {
-    $KeyArg = "-i `"$SshKeyPath`""
-}
+Write-Host "Workspace lokal : $WorkspacePath" -ForegroundColor Cyan
+Write-Host "Tujuan server   : ${HostingerUser}@${HostingerHost}:$HostingerPath" -ForegroundColor Cyan
 
 $RemoteCommand = @"
 set -euo pipefail
@@ -51,15 +66,22 @@ systemctl reload php-fpm-83 2>/dev/null || /etc/init.d/php-fpm-83 reload 2>/dev/
 systemctl reload nginx 2>/dev/null || /etc/init.d/nginx reload 2>/dev/null || true
 
 echo '==> Deployment finished successfully!'
-php artisan about --no-interaction | head -n 12
+php artisan about --no-interaction
 "@
 
+# Here-string PowerShell memakai CRLF. Bash di server menolak argumen seperti "12\r".
+$RemoteCommand = $RemoteCommand -replace "`r", ""
+
 Write-Host "[1/2] Connecting to $HostingerUser@$HostingerHost on port $HostingerPort..." -ForegroundColor Yellow
-if ($KeyArg -ne "") {
-    ssh $KeyArg -p $HostingerPort -o StrictHostKeyChecking=no "$HostingerUser@$HostingerHost" $RemoteCommand
-} else {
-    ssh -p $HostingerPort -o StrictHostKeyChecking=no "$HostingerUser@$HostingerHost" $RemoteCommand
+$sshArgs = @(
+    "-p", "$HostingerPort",
+    "-o", "StrictHostKeyChecking=no"
+)
+if ($SshKeyPath -ne "" -and (Test-Path $SshKeyPath)) {
+    $sshArgs += @("-i", $SshKeyPath)
 }
+$sshArgs += @("$HostingerUser@$HostingerHost", "bash", "-s")
+$RemoteCommand | & ssh @sshArgs
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "`n[2/2] ✅ Deployment berhasil! Website aktif di https://majubersama.online" -ForegroundColor Green

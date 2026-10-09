@@ -10,6 +10,7 @@ use App\Http\Controllers\StockAdjustmentController;
 use App\Http\Controllers\StockCardController;
 use App\Http\Controllers\StockTransferPrintController;
 use App\Http\Controllers\TransactionViewerController;
+use App\Http\Controllers\Web\AssistantController;
 use App\Http\Controllers\Web\AuthController;
 use App\Http\Controllers\Web\BackupController;
 use App\Http\Controllers\Web\BranchController;
@@ -157,6 +158,9 @@ Route::middleware('auth')->group(function () {
             // Fixed Assets (Harta Tetap Cabang)
             Route::post('fixed-assets/run-depreciation', [FixedAssetController::class, 'runDepreciation'])->name('fixed-assets.run-depreciation');
             Route::resource('fixed-assets', FixedAssetController::class);
+
+            Route::get('assistant', [AssistantController::class, 'index'])->name('assistant.index');
+            Route::post('assistant/ask', [AssistantController::class, 'ask'])->name('assistant.ask');
 
             // Payments (Pembayaran Piutang & Hutang Operasional)
             Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
