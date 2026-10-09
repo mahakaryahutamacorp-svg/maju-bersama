@@ -66,11 +66,11 @@ systemctl reload php-fpm-83 2>/dev/null || /etc/init.d/php-fpm-83 reload 2>/dev/
 systemctl reload nginx 2>/dev/null || /etc/init.d/nginx reload 2>/dev/null || true
 
 echo '==> Deployment finished successfully!'
-php artisan about --no-interaction
 "@
 
-# Here-string PowerShell memakai CRLF. Bash di server menolak argumen seperti "12\r".
-$RemoteCommand = $RemoteCommand -replace "`r", ""
+# PowerShell mengirim akhir baris Windows. Perintah dikirim sebagai base64 agar bash tidak menerima "\r".
+$script = ($RemoteCommand -replace "`r", "").TrimEnd() + "`n"
+$payload = [Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($script))
 
 Write-Host "[1/2] Connecting to $HostingerUser@$HostingerHost on port $HostingerPort..." -ForegroundColor Yellow
 $sshArgs = @(
@@ -80,8 +80,11 @@ $sshArgs = @(
 if ($SshKeyPath -ne "" -and (Test-Path $SshKeyPath)) {
     $sshArgs += @("-i", $SshKeyPath)
 }
-$sshArgs += @("$HostingerUser@$HostingerHost", "bash", "-s")
-$RemoteCommand | & ssh @sshArgs
+$sshArgs += @(
+    "$HostingerUser@$HostingerHost",
+    "printf '%s' '$payload' | base64 -d | bash"
+)
+& ssh @sshArgs
 
 if ($LASTEXITCODE -eq 0) {
     Write-Host "`n[2/2] ✅ Deployment berhasil! Website aktif di https://majubersama.online" -ForegroundColor Green
