@@ -1,11 +1,20 @@
+<style>
+    .ito-launcher,
+    .ito-panel { position: fixed; right: 1.25rem; z-index: 70; }
+    .ito-launcher { bottom: 1.25rem; height: 3rem; width: 3rem; }
+    .ito-panel { bottom: 5rem; display: flex; width: min(22rem, calc(100vw - 2rem)); max-height: 28rem; flex-direction: column; }
+    .ito-thread { max-height: 20rem; overflow-y: auto; }
+    .ito-text { white-space: pre-line; }
+    @media print { .ito-widget { display: none !important; } }
+</style>
 <div
-    class="print:hidden"
+    class="ito-widget"
     x-data="itoPanel({{ request()->is('backoffice/assistant*') ? 'true' : 'false' }})"
 >
     <section
         x-show="open"
         x-cloak
-        class="fixed bottom-20 right-4 z-40 flex w-[min(22rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl sm:right-5"
+        class="ito-panel flex max-h-80 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
     >
         <header class="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
             <div>
@@ -14,11 +23,11 @@
             </div>
             <button type="button" @click="open = false" class="rounded-lg px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100" aria-label="Tutup Ito">Tutup</button>
         </header>
-        <div class="max-h-80 space-y-3 overflow-y-auto px-4 py-3" x-ref="thread">
+        <div class="ito-thread space-y-3 px-4 py-3" x-ref="thread">
             <template x-for="(message, index) in messages" :key="index">
                 <div :class="message.role === 'user' ? 'text-right' : ''">
                     <div
-                        class="inline-block max-w-full rounded-2xl px-3 py-2 text-left text-xs whitespace-pre-line"
+                        class="ito-text inline-block max-w-full rounded-2xl px-3 py-2 text-left text-xs"
                         :class="message.role === 'user' ? 'bg-slate-900 text-white' : 'bg-slate-50 text-slate-800'"
                         x-text="message.text"
                     ></div>
@@ -48,7 +57,7 @@
     <button
         type="button"
         @click="open = !open"
-        class="fixed bottom-4 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-slate-950 text-white shadow-lg ring-2 ring-white transition hover:bg-sky-700 sm:bottom-5 sm:right-5"
+        class="ito-launcher flex items-center justify-center rounded-full bg-slate-950 text-white shadow-lg ring-2 ring-white transition hover:bg-sky-700"
         :aria-expanded="open"
         aria-label="Ito, Ica Taufik assistant"
         title="Ito"

@@ -193,6 +193,11 @@ class LayoutAuditTest extends TestCase
             // Verifikasi tag pembungkus utama memiliki kelas layout kontainer
             $this->assertStringContainsString('min-h-screen', $html, "Route {$url} is missing min-h-screen container");
 
+            if (in_array($url, ['/backoffice', '/dashboard'], true)) {
+                $this->assertStringContainsString('ito-launcher', $html, "Route {$url} is missing the floating Ito button");
+                $this->assertStringContainsString('bottom: 1.25rem', $html, "Route {$url} is missing the Ito corner position");
+            }
+
             if ($url === '/pos') {
                 continue;
             }
