@@ -233,7 +233,9 @@ class StockTransferTest extends TestCase
 
         $response->assertOk()
             ->assertSee('Stock Transfer')
-            ->assertSee('PRT-001');
+            ->assertSee('PRT-001')
+            ->assertSee('Ketik nama atau SKU barang')
+            ->assertSee('max-h-60 w-full overflow-y-auto', false);
     }
 
     public function test_guest_cannot_open_transfer_page(): void

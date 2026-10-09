@@ -76,36 +76,75 @@
                     <span class="text-xs text-slate-500" x-text="`${lines.length} baris barang`"></span>
                 </div>
 
-                <div class="flex flex-col gap-2 sm:flex-row">
-                    <select x-model.number="picker.productId" class="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-sky-500 focus:ring-2">
-                        <option value="">Pilih produk barang...</option>
-                        <template x-for="option in availableStock" :key="option.product_id">
-                            <option :value="option.product_id" x-text="`${option.sku} - ${option.name} (Stok: ${option.quantity})`"></option>
-                        </template>
-                    </select>
+                <div class="flex flex-col gap-2 sm:flex-row sm:items-start">
+                    <div class="relative min-w-0 flex-1" @click.away="picker.open = false">
+                        <input
+                            type="text"
+                            x-model="picker.query"
+                            @input="onSearchInput()"
+                            @focus="picker.open = true"
+                            @keydown.arrow-down.prevent="moveHighlight(1)"
+                            @keydown.arrow-up.prevent="moveHighlight(-1)"
+                            @keydown.enter.prevent="chooseHighlighted()"
+                            @keydown.escape="picker.open = false"
+                            placeholder="Ketik nama atau SKU barang..."
+                            autocomplete="off"
+                            role="combobox"
+                            aria-autocomplete="list"
+                            :aria-expanded="picker.open"
+                            class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-sky-500 focus:ring-2"
+                        >
+                        <div
+                            x-show="picker.open"
+                            x-cloak
+                            x-ref="productList"
+                            role="listbox"
+                            class="absolute z-30 mt-1 max-h-60 w-full overflow-y-auto overscroll-contain rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
+                        >
+                            <template x-for="(option, index) in filteredStock" :key="option.product_id">
+                                <button
+                                    type="button"
+                                    role="option"
+                                    :aria-selected="index === picker.highlight"
+                                    @mouseenter="picker.highlight = index"
+                                    @click="selectProduct(option)"
+                                    class="flex w-full items-center justify-between gap-3 px-3 py-2.5 text-left text-sm transition hover:bg-amber-50"
+                                    :class="index === picker.highlight ? 'bg-amber-50' : ''"
+                                >
+                                    <span class="min-w-0">
+                                        <span class="block truncate font-semibold text-slate-900" x-text="option.name"></span>
+                                        <span class="block font-mono text-xs text-slate-500" x-text="option.sku"></span>
+                                    </span>
+                                    <span class="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700" x-text="`Stok ${option.quantity}`"></span>
+                                </button>
+                            </template>
+                            <p x-show="filteredStock.length === 0" class="px-3 py-3 text-sm text-slate-500">Tidak ada barang yang cocok.</p>
+                        </div>
+                    </div>
                     <input x-model.number="picker.quantity" type="number" min="1" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-sky-500 focus:ring-2 sm:w-28" placeholder="Jumlah">
                     <button type="button" @click="addLine()" class="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600">Tambah</button>
                 </div>
 
                 <p x-show="lineError" x-cloak class="text-xs text-rose-600" x-text="lineError"></p>
 
+                <div class="max-h-80 overflow-y-auto overscroll-contain rounded-xl border border-slate-200">
                 <table class="min-w-full divide-y divide-slate-200 text-sm">
-                    <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
+                    <thead class="sticky top-0 z-10 bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                         <tr class="text-left text-xs uppercase tracking-wider">
-                            <th class="py-2">Nama Produk &amp; SKU</th>
-                            <th class="py-2 text-right">Jumlah (Qty)</th>
-                            <th class="py-2"></th>
+                            <th class="px-3 py-2">Nama Produk &amp; SKU</th>
+                            <th class="px-3 py-2 text-right">Jumlah (Qty)</th>
+                            <th class="px-3 py-2"></th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 [&>tr:nth-child(even)]:bg-slate-50/60">
                         <template x-for="(line, index) in lines" :key="line.product_id">
                             <tr>
-                                <td class="py-3">
+                                <td class="px-3 py-3">
                                     <div class="font-medium text-slate-900" x-text="line.name"></div>
                                     <div class="font-mono text-xs text-slate-500" x-text="line.sku"></div>
                                 </td>
-                                <td class="py-3 text-right font-semibold" x-text="line.quantity"></td>
-                                <td class="py-3 text-right">
+                                <td class="px-3 py-3 text-right font-semibold" x-text="line.quantity"></td>
+                                <td class="px-3 py-3 text-right">
                                     <button type="button" @click="lines.splice(index, 1)" class="text-xs text-rose-600 hover:underline">Hapus</button>
                                 </td>
                             </tr>
@@ -115,6 +154,7 @@
                         </tr>
                     </tbody>
                 </table>
+                </div>
             </div>
         </section>
 
@@ -164,7 +204,7 @@
                 destinationBranchId: defaultDestination ?? null,
                 notes: '',
                 lines: [],
-                picker: { productId: '', quantity: 1 },
+                picker: { productId: '', quantity: 1, query: '', open: false, highlight: 0 },
                 submitting: false,
                 feedback: null,
                 lineError: '',
@@ -173,9 +213,61 @@
                     return this.stock.filter((row) => row.branch_id === this.sourceBranchId);
                 },
 
+                get filteredStock() {
+                    const query = (this.picker.query || '').trim().toLowerCase();
+
+                    if (!query || this.picker.productId) {
+                        return this.availableStock;
+                    }
+
+                    return this.availableStock.filter((row) =>
+                        row.name.toLowerCase().includes(query) || row.sku.toLowerCase().includes(query)
+                    );
+                },
+
+                onSearchInput() {
+                    this.picker.productId = '';
+                    this.picker.open = true;
+                    this.picker.highlight = 0;
+                },
+
+                moveHighlight(step) {
+                    const total = this.filteredStock.length;
+
+                    if (total === 0) {
+                        return;
+                    }
+
+                    this.picker.open = true;
+                    const next = this.picker.highlight + step;
+                    this.picker.highlight = (next + total) % total;
+                    this.$nextTick(() => {
+                        this.$refs.productList?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
+                    });
+                },
+
+                chooseHighlighted() {
+                    if (!this.picker.open) {
+                        return;
+                    }
+
+                    const option = this.filteredStock[this.picker.highlight];
+
+                    if (option) {
+                        this.selectProduct(option);
+                    }
+                },
+
+                selectProduct(option) {
+                    this.picker.productId = option.product_id;
+                    this.picker.query = `${option.sku} - ${option.name}`;
+                    this.picker.open = false;
+                    this.lineError = '';
+                },
+
                 resetLines() {
                     this.lines = [];
-                    this.picker = { productId: '', quantity: 1 };
+                    this.picker = { productId: '', quantity: 1, query: '', open: false, highlight: 0 };
                 },
 
                 addLine() {
@@ -215,7 +307,7 @@
                         });
                     }
 
-                    this.picker = { productId: '', quantity: 1 };
+                    this.picker = { productId: '', quantity: 1, query: '', open: false, highlight: 0 };
                 },
 
                 async submit() {
