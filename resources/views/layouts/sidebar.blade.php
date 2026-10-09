@@ -44,7 +44,6 @@
     $isPreviewActive = request()->is('preview*');
     $isPengaturanOpen = $isProductsActive || $isCategoriesActive || $isUsersActive || $isBranchesActive || $isExpenseCatActive || $isPreviewActive;
 
-    $isAssistantActive = request()->is('backoffice/assistant*');
     $isReportsActive = request()->is('reports') || request()->is('backoffice/reports');
 
     $topLinkClass = fn (bool $active) => 'flex items-center gap-2.5 rounded-xl border px-3 py-2 text-xs font-semibold transition '
@@ -188,14 +187,6 @@
 
         @can('manage-branch-operations')
             <div class="pt-2">
-                <a href="{{ route('backoffice.assistant.index') }}"
-                   class="group mb-2 flex items-center justify-between rounded-xl border px-3 py-2 text-xs font-semibold transition {{ $isAssistantActive ? 'border-sky-400/50 bg-sky-400/20 text-white' : 'border-sky-400/25 bg-sky-400/10 text-sky-200 hover:bg-sky-400/20 hover:text-white' }}">
-                    <span class="flex items-center gap-2">
-                        <svg class="h-4 w-4 text-sky-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
-                        Asisten
-                    </span>
-                    <span class="rounded bg-sky-400/20 px-1.5 py-0.5 text-[9px] font-bold text-sky-200">Baca</span>
-                </a>
                 <a href="{{ route('reports.index') }}"
                    class="group flex items-center justify-between rounded-xl border px-3 py-2 text-xs font-semibold transition {{ $isReportsActive ? 'border-amber-400/50 bg-amber-400/20 text-white' : 'border-amber-400/25 bg-amber-400/10 text-amber-300 hover:bg-amber-400/20 hover:text-white' }}">
                     <span class="flex items-center gap-2">

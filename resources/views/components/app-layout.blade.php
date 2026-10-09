@@ -42,6 +42,11 @@
         {{ $slot }}
     </div>
 </div>
+@auth
+    @can('manage-branch-operations')
+        @include('layouts.ito')
+    @endcan
+@endauth
 {{ $scripts ?? '' }}
 </body>
 </html>

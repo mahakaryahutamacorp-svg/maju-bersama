@@ -144,7 +144,7 @@ class LayoutAuditTest extends TestCase
             '/backoffice/fixed-assets' => 'Harta Tetap',
             '/backoffice/payments' => 'Pembayaran',
             '/backoffice/payments/receivables/create' => 'Piutang',
-            '/backoffice/assistant' => 'Asisten',
+            '/backoffice/assistant' => 'Ito',
             '/backoffice/payments/payables/create' => 'Hutang',
 
             // Operasional Kasir & Inventory
