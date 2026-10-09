@@ -46,9 +46,12 @@ class ReadOnlyAssistant
             );
         }
 
-        $selection = $this->model->chooseTools($question) ?? $this->selectTools($question);
-        if ($selection === []) {
-            $selection = $this->selectTools($question);
+        $selection = $this->selectTools($question);
+        if (config('assistant.remote')) {
+            $selection = $this->model->chooseTools($question) ?? $selection;
+            if ($selection === []) {
+                $selection = $this->selectTools($question);
+            }
         }
 
         $parts = [];

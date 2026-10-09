@@ -338,9 +338,27 @@ class ReadOnlyAssistantTest extends TestCase
         $this->assertStringContainsString('[1130] Piutang Usaha', $masterTrace->json('answer'));
     }
 
+    public function test_local_assistant_ignores_api_key_until_remote_is_enabled(): void
+    {
+        config([
+            'assistant.api_key' => 'test-key',
+            'assistant.remote' => false,
+        ]);
+        Http::fake();
+
+        $this->actingAs($this->admin)->postJson(route('backoffice.assistant.ask'), [
+            'question' => 'Di mana menu terima bayaran piutang?',
+        ])->assertOk()->assertJsonPath('outcome', 'answered');
+
+        Http::assertNothingSent();
+    }
+
     public function test_model_cannot_invoke_a_write_tool(): void
     {
-        config(['assistant.api_key' => 'test-key']);
+        config([
+            'assistant.api_key' => 'test-key',
+            'assistant.remote' => true,
+        ]);
         Http::fake([
             '*' => Http::response([
                 'choices' => [[

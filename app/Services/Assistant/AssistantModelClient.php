@@ -12,6 +12,10 @@ class AssistantModelClient
      */
     public function chooseTools(string $question): ?array
     {
+        if (! config('assistant.remote')) {
+            return null;
+        }
+
         $apiKey = config('assistant.api_key');
         if (! is_string($apiKey) || $apiKey === '') {
             return null;
