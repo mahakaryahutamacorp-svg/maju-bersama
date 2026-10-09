@@ -32,6 +32,7 @@ class ReadOnlyToolkit
             'stock_on_hand' => $this->stockOnHand($user, (string) ($arguments['query'] ?? '')),
             'list_receivables' => $this->listReceivables((string) ($arguments['query'] ?? '')),
             'sales_summary' => $this->salesSummary((string) ($arguments['period'] ?? 'today')),
+            'recent_transactions' => $this->recentTransactions($user, (string) ($arguments['query'] ?? '')),
             'cash_position' => $this->cashPosition($user),
             'trace_document' => $this->traceDocument($user, (string) ($arguments['query'] ?? '')),
             default => throw new AssistantToolDenied($tool),
@@ -154,6 +155,51 @@ class ReadOnlyToolkit
             'summary' => $count > 0
                 ? "Penjualan {$label}: {$count} transaksi, total {$this->rupiah($total)}."
                 : "Tidak ada penjualan {$label} di cabang yang boleh Anda lihat.",
+            'links' => [['label' => 'Riwayat Penjualan', 'url' => route('reports.sales')]],
+        ];
+    }
+
+    /**
+     * @return array{found: bool, summary: string, links: array<int, array{label: string, url: string}>}
+     */
+    private function recentTransactions(User $user, string $query): array
+    {
+        $term = trim($query);
+        $sales = Sale::query()
+            ->with(['customer', 'branch'])
+            ->when($term !== '', function ($builder) use ($term) {
+                $builder->where(function ($inner) use ($term) {
+                    $inner->where('receipt_number', 'like', "%{$term}%")
+                        ->orWhereHas('customer', fn ($customer) => $customer->where('name', 'like', "%{$term}%"));
+                });
+            })
+            ->latest('id')
+            ->limit(8)
+            ->get();
+
+        if ($sales->isEmpty()) {
+            return [
+                'found' => false,
+                'summary' => 'Tidak ditemukan transaksi yang cocok di data yang boleh Anda lihat.',
+                'links' => [['label' => 'Riwayat Penjualan', 'url' => route('reports.sales')]],
+            ];
+        }
+
+        $lines = $sales->map(function (Sale $sale) use ($user) {
+            $date = $sale->created_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?: '-';
+            $name = $sale->customer?->name ?: 'Pelanggan Umum';
+            $branch = $user->isMaster() ? (($sale->branch?->name ?: 'Cabang').', ') : '';
+
+            return "{$date}, {$branch}faktur {$sale->receipt_number}, {$name}, {$this->rupiah((float) $sale->total_amount)}, status {$sale->payment_status}.";
+        })->implode("\n");
+
+        $scope = $user->isMaster()
+            ? 'Transaksi terbaru di seluruh cabang:'
+            : 'Transaksi terbaru di cabang Anda:';
+
+        return [
+            'found' => true,
+            'summary' => "{$scope}\n{$lines}",
             'links' => [['label' => 'Riwayat Penjualan', 'url' => route('reports.sales')]],
         ];
     }

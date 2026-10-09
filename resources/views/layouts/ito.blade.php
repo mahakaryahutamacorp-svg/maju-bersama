@@ -69,7 +69,7 @@
             error: '',
             messages: [{
                 role: 'assistant',
-                text: 'Saya Ito, Ica Taufik assistant. Tanya data cabang Anda atau cara memakai aplikasi. Saya hanya membaca, lalu menunjukkan halamannya.',
+                text: 'Saya Ito, Ica Taufik assistant. Tanya data di dalam aplikasi, termasuk transaksi terbaru, atau cara memakainya. Saya hanya membaca, lalu menunjukkan halamannya.',
                 links: [],
             }],
 

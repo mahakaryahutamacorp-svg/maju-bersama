@@ -51,8 +51,8 @@ class SystemGuide
             [
                 'id' => 'penjualan',
                 'title' => 'Riwayat penjualan',
-                'keywords' => ['penjualan', 'omzet', 'faktur', 'struk', 'kasir'],
-                'body' => 'Setiap penjualan punya nomor faktur. Penjualan tunai masuk ke kas. Penjualan tempo membuat piutang. Rincian satu faktur dibuka dari nomor referensinya.',
+                'keywords' => ['penjualan', 'omzet', 'faktur', 'struk', 'kasir', 'transaksi', 'terbaru', 'terakhir'],
+                'body' => 'Setiap penjualan punya nomor faktur. Penjualan tunai masuk ke kas. Penjualan tempo membuat piutang. Transaksi terbaru bisa ditanyakan langsung. Akun master dan superadmin melihat seluruh cabang. Admin cabang hanya melihat cabangnya. Rincian satu faktur dibuka dari nomor referensinya.',
                 'links' => [
                     ['label' => 'Riwayat Penjualan', 'url' => route('reports.sales')],
                 ],

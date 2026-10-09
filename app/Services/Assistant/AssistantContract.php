@@ -9,6 +9,7 @@ final class AssistantContract
         'stock_on_hand',
         'list_receivables',
         'sales_summary',
+        'recent_transactions',
         'cash_position',
         'trace_document',
     ];
@@ -32,7 +33,7 @@ final class AssistantContract
         $normalized = mb_strtolower($question);
         $needles = [
             'stok', 'barang', 'sku', 'produk', 'gudang', 'opname', 'transfer',
-            'piutang', 'debitur', 'pelanggan', 'faktur', 'struk', 'invoice', 'penjualan', 'omzet',
+            'piutang', 'debitur', 'pelanggan', 'faktur', 'struk', 'invoice', 'penjualan', 'omzet', 'transaksi', 'terbaru', 'terakhir',
             'kas', 'bank', 'saldo', 'jurnal', 'akun', '1130', '1110', '1120', '2110',
             'hutang', 'pemasok', 'supplier', 'retur', 'pembayaran', 'menu', 'halaman',
             'neraca', 'laba', 'laporan', 'cabang', 'kasir', 'inv-',

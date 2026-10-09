@@ -31,7 +31,7 @@ class AssistantModelClient
                     'messages' => [
                         [
                             'role' => 'system',
-                            'content' => 'Anda hanya memilih alat baca untuk aplikasi Maju Bersama. Jangan menjawab pertanyaan di luar stok, piutang, penjualan, kas, jurnal, atau cara pakai aplikasi. Jangan meminta tindakan simpan, ubah, atau hapus. Panggil paling banyak tiga alat.',
+                            'content' => 'Anda hanya memilih alat baca untuk aplikasi Maju Bersama. Jangan menjawab pertanyaan di luar stok, piutang, penjualan, transaksi terbaru, kas, jurnal, atau cara pakai aplikasi. Jangan meminta tindakan simpan, ubah, atau hapus. Panggil paling banyak tiga alat.',
                         ],
                         ['role' => 'user', 'content' => $question],
                     ],
@@ -75,6 +75,7 @@ class AssistantModelClient
             ['stock_on_hand', 'Baca stok barang yang boleh dilihat pengguna.', ['query' => 'Nama atau SKU barang']],
             ['list_receivables', 'Baca piutang yang belum lunas.', ['query' => 'Nama debitur atau nomor faktur']],
             ['sales_summary', 'Baca ringkasan penjualan hari ini atau bulan ini.', ['period' => 'today atau month']],
+            ['recent_transactions', 'Baca transaksi penjualan terbaru yang boleh dilihat pengguna.', ['query' => 'Nama pelanggan atau nomor faktur, kosong jika semua transaksi terbaru']],
             ['cash_position', 'Baca saldo kas dan bank.', []],
             ['trace_document', 'Telusuri satu faktur ke pembayaran dan jurnal.', ['query' => 'Nomor faktur atau nama debitur']],
         ];

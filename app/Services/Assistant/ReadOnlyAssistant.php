@@ -148,6 +148,9 @@ class ReadOnlyAssistant
         if (str_contains($normalized, 'stok') || str_contains($normalized, 'sku') || str_contains($normalized, 'gudang')) {
             $calls[] = ['name' => 'stock_on_hand', 'arguments' => ['query' => $term]];
         }
+        if (str_contains($normalized, 'transaksi') || str_contains($normalized, 'terbaru') || str_contains($normalized, 'terakhir')) {
+            $calls[] = ['name' => 'recent_transactions', 'arguments' => ['query' => $term]];
+        }
         if (str_contains($normalized, 'penjualan') || str_contains($normalized, 'omzet')) {
             $calls[] = ['name' => 'sales_summary', 'arguments' => ['period' => str_contains($normalized, 'bulan') ? 'month' : 'today']];
         }
@@ -167,7 +170,7 @@ class ReadOnlyAssistant
             return $match[0];
         }
 
-        $cleaned = preg_replace('/\b(berapa|sisa|stok|piutang|bagaimana|cara|tolong|dimana|di|mana|nama|pelanggan|debitur|hari|ini|bulan|posisi|kas|bank|penjualan|omzet|cek|lihat|tampilkan|saldo|faktur|telusuri|jurnal|barang|dan|yang|ada|apa|arti)\b/iu', ' ', $question) ?? $question;
+        $cleaned = preg_replace('/\b(berapa|sisa|stok|piutang|bagaimana|cara|tolong|dimana|di|mana|nama|pelanggan|debitur|hari|ini|bulan|posisi|kas|bank|penjualan|omzet|cek|lihat|tampilkan|saldo|faktur|telusuri|jurnal|barang|dan|yang|ada|apa|arti|transaksi|terbaru|terakhir|data|minta|diminta|semua|seluruh|cabang)\b/iu', ' ', $question) ?? $question;
         $cleaned = preg_replace('/[^\p{L}\p{N}\s-]/u', ' ', (string) $cleaned) ?? '';
         $cleaned = trim((string) preg_replace('/\s+/', ' ', $cleaned));
 

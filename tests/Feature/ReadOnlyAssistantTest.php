@@ -54,6 +54,7 @@ class ReadOnlyAssistantTest extends TestCase
             'stock_on_hand',
             'list_receivables',
             'sales_summary',
+            'recent_transactions',
             'cash_position',
             'trace_document',
         ], AssistantContract::TOOLS);
@@ -408,5 +409,78 @@ class ReadOnlyAssistantTest extends TestCase
         $this->actingAs($this->admin)->postJson(route('backoffice.assistant.ask'), [
             'question' => 'Di mana menu stok barang?',
         ])->assertOk()->assertJsonPath('outcome', 'rate_limited');
+    }
+
+    public function test_master_and_superadmin_can_read_latest_transactions_across_branches(): void
+    {
+        $other = Branch::create([
+            'name' => 'Cabang Pusat',
+            'code' => 'UJI-03',
+            'address' => 'Jl. Pusat',
+            'phone' => '0812002',
+        ]);
+        $customer = Customer::create([
+            'branch_id' => $this->branch->id,
+            'name' => 'Bu Tini',
+            'phone' => '08111',
+        ]);
+        $otherCustomer = Customer::withoutGlobalScopes()->create([
+            'branch_id' => $other->id,
+            'name' => 'Bu Rahasia',
+            'phone' => '08222',
+        ]);
+        Sale::create([
+            'branch_id' => $this->branch->id,
+            'customer_id' => $customer->id,
+            'receipt_number' => 'INV-BARU-01',
+            'total_amount' => 120000,
+            'paid_amount' => 120000,
+            'payment_status' => 'PAID',
+            'payment_method' => 'cash',
+            'status' => 'completed',
+            'created_by' => $this->admin->id,
+        ]);
+        Sale::withoutGlobalScopes()->create([
+            'branch_id' => $other->id,
+            'customer_id' => $otherCustomer->id,
+            'receipt_number' => 'INV-PUSAT-01',
+            'total_amount' => 880000,
+            'paid_amount' => 0,
+            'payment_status' => 'UNPAID',
+            'payment_method' => 'tempo',
+            'status' => 'completed',
+            'created_by' => $this->admin->id,
+        ]);
+
+        $branchAnswer = $this->actingAs($this->admin)->postJson(route('backoffice.assistant.ask'), [
+            'question' => 'Tampilkan data transaksi terbaru',
+        ]);
+        $branchAnswer->assertOk()->assertJsonPath('outcome', 'answered');
+        $this->assertStringContainsString('INV-BARU-01', $branchAnswer->json('answer'));
+        $this->assertStringContainsString('Bu Tini', $branchAnswer->json('answer'));
+        $this->assertStringNotContainsString('INV-PUSAT-01', $branchAnswer->json('answer'));
+        $this->assertStringNotContainsString('Bu Rahasia', $branchAnswer->json('answer'));
+
+        foreach (['master', 'superadmin'] as $role) {
+            $user = User::factory()->create([
+                'role' => $role,
+                'branch_id' => $this->branch->id,
+            ]);
+
+            $this->actingAs($user)
+                ->get(route('backoffice.assistant.index'))
+                ->assertOk()
+                ->assertSee('Ito')
+                ->assertSee('Ica Taufik assistant');
+
+            $answer = $this->actingAs($user)->postJson(route('backoffice.assistant.ask'), [
+                'question' => 'Data transaksi terbaru',
+            ]);
+            $answer->assertOk()->assertJsonPath('outcome', 'answered');
+            $this->assertStringContainsString('INV-BARU-01', $answer->json('answer'));
+            $this->assertStringContainsString('INV-PUSAT-01', $answer->json('answer'));
+            $this->assertStringContainsString('Cabang Pusat', $answer->json('answer'));
+            $this->assertStringContainsString('Rp 880.000', $answer->json('answer'));
+        }
     }
 }
