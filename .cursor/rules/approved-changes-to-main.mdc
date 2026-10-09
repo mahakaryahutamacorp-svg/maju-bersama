@@ -1,0 +1,17 @@
+---
+description: Kirim perubahan yang disetujui dari branch ke main, lalu serahkan deploy ke pengguna
+alwaysApply: true
+---
+
+# Jalur branch ke main
+
+Berlaku hanya setelah pengguna menyetujui perubahan. Jangan push, merge, atau deploy atas inisiatif sendiri.
+
+Saat pengguna menyetujui:
+
+1. Commit perubahan yang disetujui bila belum tercatat.
+2. Jika kerja ada di branch lain, fast-forward atau merge branch itu ke `main`. Jangan rebase paksa dan jangan force-push.
+3. Push `main` ke `origin/main`.
+4. Berhenti. Jangan SSH, jangan menjalankan `deploy-direct.ps1`, dan jangan `git pull` di server.
+
+Setelah push selesai, beri tahu pengguna bahwa langkah berikutnya adalah menjalankan `.\deploy-direct.ps1` sendiri. Script itu yang menarik `origin/main` ke VPS.
