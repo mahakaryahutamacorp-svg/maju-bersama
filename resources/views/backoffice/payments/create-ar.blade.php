@@ -164,7 +164,9 @@
                             <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                                 <tr>
                                     <th class="px-4 py-3 w-12 text-center">Pilih</th>
-                                    <th class="px-4 py-3">No. Faktur (Receipt)</th>
+                                    <th class="px-4 py-3">Nama Debitur</th>
+                                    <th class="px-4 py-3">Tanggal</th>
+                                    <th class="px-4 py-3">Keterangan Piutang</th>
                                     <th class="px-4 py-3 text-right">Total Faktur</th>
                                     <th class="px-4 py-3 text-right">Sudah Dibayar</th>
                                     <th class="px-4 py-3 text-right">Sisa Piutang</th>
@@ -182,7 +184,12 @@
                                                 class="rounded border-slate-300 text-emerald-600 focus:ring-sky-500"
                                             >
                                         </td>
-                                        <td class="px-4 py-3 font-semibold text-slate-900" x-text="sale.receipt_number"></td>
+                                        <td class="px-4 py-3">
+                                            <p class="font-semibold text-slate-900" x-text="sale.customer_name"></p>
+                                            <p class="mt-0.5 font-mono text-[10px] text-slate-400" x-text="sale.receipt_number"></p>
+                                        </td>
+                                        <td class="px-4 py-3 whitespace-nowrap font-medium text-slate-700" x-text="sale.sale_date"></td>
+                                        <td class="px-4 py-3 max-w-xs text-slate-600" x-text="sale.description"></td>
                                         <td class="px-4 py-3 text-right font-medium text-slate-700" x-text="formatRupiah(sale.total_amount)"></td>
                                         <td class="px-4 py-3 text-right font-medium text-slate-500" x-text="formatRupiah(sale.paid_amount || 0)"></td>
                                         <td class="px-4 py-3 text-right font-bold text-amber-600" x-text="formatRupiah(sale.remaining)"></td>
@@ -210,7 +217,7 @@
                                 </template>
                                 <template x-if="salesList.length === 0">
                                     <tr>
-                                        <td colspan="6" class="px-4 py-8 text-center text-slate-400 italic">
+                                        <td colspan="8" class="px-4 py-8 text-center text-slate-400 italic">
                                             Tidak ada faktur penjualan yang memiliki piutang (semua lunas).
                                         </td>
                                     </tr>
@@ -218,7 +225,7 @@
                             </tbody>
                             <tfoot class="bg-slate-50 font-bold border-t border-slate-200">
                                 <tr>
-                                    <td colspan="5" class="px-4 py-2.5 text-right uppercase tracking-wider text-[11px] text-slate-600">Total Dialokasikan:</td>
+                                    <td colspan="7" class="px-4 py-2.5 text-right uppercase tracking-wider text-[11px] text-slate-600">Total Dialokasikan:</td>
                                     <td class="px-4 py-2.5 text-right font-bold text-emerald-700" x-text="formatRupiah(getTotalAllocated())"></td>
                                 </tr>
                             </tfoot>
@@ -302,6 +309,9 @@
                 salesList: (unpaidSales || []).map(s => ({
                     id: s.id,
                     receipt_number: s.receipt_number,
+                    customer_name: s.customer_name || 'Pelanggan Umum',
+                    sale_date: s.sale_date || '-',
+                    description: s.description || 'Piutang penjualan',
                     total_amount: parseFloat(s.total_amount) || 0,
                     paid_amount: parseFloat(s.paid_amount) || 0,
                     remaining: Math.max(0, (parseFloat(s.total_amount) || 0) - (parseFloat(s.paid_amount) || 0)),

@@ -77,10 +77,20 @@ class PaymentController extends Controller
             ->get();
 
         // Faktur penjualan yang belum lunas (UNPAID / PARTIAL)
-        $unpaidSales = Sale::where('payment_status', '!=', 'PAID')
+        $unpaidSales = Sale::with(['customer', 'items.product'])
+            ->where('payment_status', '!=', 'PAID')
             ->latest('id')
             ->limit(50)
-            ->get();
+            ->get()
+            ->map(fn (Sale $sale) => [
+                'id' => $sale->id,
+                'receipt_number' => $sale->receipt_number,
+                'customer_name' => $sale->customer?->name ?: 'Pelanggan Umum',
+                'sale_date' => $sale->created_at?->timezone(config('app.timezone'))->format('d/m/Y') ?? '-',
+                'description' => $this->receivableDescription($sale),
+                'total_amount' => $sale->total_amount,
+                'paid_amount' => $sale->paid_amount,
+            ]);
 
         return view('backoffice.payments.create-ar', [
             'currentUser' => $user,
@@ -124,6 +134,21 @@ class PaymentController extends Controller
         return redirect()
             ->route('backoffice.payments.index')
             ->with('success', "Penerimaan pembayaran piutang senilai {$formattedAmount} berhasil dibukukan dengan ref: {$payment->reference_number}.");
+    }
+
+    private function receivableDescription(Sale $sale): string
+    {
+        $items = $sale->items
+            ->map(function ($item) {
+                $name = trim((string) ($item->product?->name ?: 'Barang'));
+                $quantity = (int) $item->quantity;
+
+                return $quantity > 0 ? "{$name} x{$quantity}" : $name;
+            })
+            ->filter()
+            ->implode(', ');
+
+        return $items !== '' ? $items : 'Piutang penjualan';
     }
 
     /**

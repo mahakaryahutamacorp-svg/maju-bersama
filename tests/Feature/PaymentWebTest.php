@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Branch;
 use App\Models\ChartOfAccount;
+use App\Models\Customer;
 use App\Models\JournalHeader;
 use App\Models\Payment;
 use App\Models\PurchaseOrder;
@@ -117,6 +118,43 @@ class PaymentWebTest extends TestCase
             ->assertOk()
             ->assertSee('Pelunasan Pembayaran Hutang', false)
             ->assertSee('PT Distribusi Pangan Jaya');
+    }
+
+    public function test_receivable_payment_form_lists_debtor_name_date_and_description(): void
+    {
+        $this->actingAs($this->user);
+
+        $customer = Customer::create([
+            'branch_id' => $this->branch->id,
+            'name' => 'Bu Tini Debitur',
+            'phone' => '0812000111',
+        ]);
+
+        $sale = Sale::create([
+            'branch_id' => $this->branch->id,
+            'customer_id' => $customer->id,
+            'receipt_number' => 'INV-DEBITUR-01',
+            'total_amount' => 250000,
+            'paid_amount' => 0,
+            'payment_status' => 'UNPAID',
+            'payment_method' => 'tempo',
+            'status' => 'completed',
+            'created_by' => $this->user->id,
+        ]);
+
+        $saleDate = $sale->created_at->timezone(config('app.timezone'))->format('d/m/Y');
+
+        $response = $this->get(route('backoffice.payments.receivables.create'));
+
+        $response->assertOk()
+            ->assertSee('Nama Debitur', false)
+            ->assertSee('Tanggal', false)
+            ->assertSee('Keterangan Piutang', false)
+            ->assertSee('Bu Tini Debitur', false)
+            ->assertSee('INV-DEBITUR-01', false)
+            ->assertSee('Piutang penjualan', false);
+
+        $this->assertStringContainsString($saleDate, str_replace('\\', '', $response->getContent()));
     }
 
     /**
