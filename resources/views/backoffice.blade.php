@@ -58,11 +58,11 @@
                 {{-- RBAC: Widget backup (dan scan storage-nya) HANYA dirender untuk role master. --}}
                 @can('manage-system')
                 @php
-                    $backupDisk = \Illuminate\Support\Facades\Storage::disk(config('backup.backup.destination.disks.0', 'local'));
-                    $backupName = config('backup.backup.name', config('app.name', 'Laravel'));
                     $latestBackupFile = null;
                     $latestBackupTime = null;
                     try {
+                        $backupDisk = \Illuminate\Support\Facades\Storage::disk(config('backup.backup.destination.disks.0', 'local'));
+                        $backupName = config('backup.backup.name', config('app.name', 'Laravel'));
                         $backupFiles = $backupDisk->allFiles($backupName);
                         foreach ($backupFiles as $bf) {
                             if (str_ends_with(strtolower($bf), '.zip')) {
@@ -259,8 +259,14 @@
                     </section>
                     <section class="rounded-2xl bg-slate-900 p-6 text-white shadow-sm">
                         <p class="text-sm font-medium text-sky-300">Branch access</p>
-                        <h2 class="mt-2 text-xl font-bold">{{ $currentUser->branch->name }}</h2>
-                        <p class="mt-3 text-sm leading-6 text-slate-300">Semua transaksi operasional dan laporan pada workspace ini mengikuti branch yang sedang aktif.</p>
+                        <h2 class="mt-2 text-xl font-bold">{{ $currentUser->branch->name ?? 'Semua cabang' }}</h2>
+                        <p class="mt-3 text-sm leading-6 text-slate-300">
+                            @if ($currentUser->branch)
+                                Semua transaksi operasional dan laporan pada workspace ini mengikuti branch yang sedang aktif.
+                            @else
+                                Akun pusat ini memantau seluruh cabang. Pembukuan tiap gudang tetap tercatat pada cabangnya masing-masing.
+                            @endif
+                        </p>
                     </section>
                 </div>
             </section>
@@ -423,7 +429,7 @@
                 },
                 stats: [
                     { label: '{{ $isMaster ? 'Branch terpantau' : 'Produk aktif' }}', value: '{{ $isMaster ? $stats['branches'] : $stats['products'] }}', caption: '{{ $isMaster ? 'Pusat dan cabang' : 'Pada branch aktif' }}' },
-                    { label: 'Total stok', value: '{{ number_format($stats['stock']) }}', caption: '{{ $isMaster ? 'Seluruh branch' : 'Unit tersedia' }}' },
+                    { label: 'Total stok', value: '{{ number_format((float) ($stats['stock'] ?? 0)) }}', caption: '{{ $isMaster ? 'Seluruh branch' : 'Unit tersedia' }}' },
                     { label: 'Jurnal', value: '{{ $stats['journals'] }}', caption: '{{ $isMaster ? 'Lintas branch' : 'Transaksi tercatat' }}' },
                     { label: 'Penjualan POS', value: '{{ $stats['sales'] }}', caption: 'Transaksi otomatis' },
                 ],

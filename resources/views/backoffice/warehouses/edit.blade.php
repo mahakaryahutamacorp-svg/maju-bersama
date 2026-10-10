@@ -35,7 +35,7 @@
                     <div>
                         <h2 class="text-lg font-bold text-slate-900">Edit Gudang</h2>
                         <p class="mt-0.5 text-xs text-slate-500">
-                            Perbarui informasi gudang <strong class="font-mono">{{ $warehouse->code }}</strong> — {{ $warehouse->branch->name }}
+                            Perbarui informasi gudang <strong class="font-mono">{{ $warehouse->code }}</strong> — {{ $warehouse->branch->name ?? 'Cabang tidak aktif' }}
                         </p>
                     </div>
                 </div>
@@ -64,7 +64,7 @@
                     <input type="hidden" name="branch_id" value="{{ $warehouse->branch_id }}">
                     <div class="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                         <p class="text-xs font-semibold text-slate-500">Cabang</p>
-                        <p class="mt-0.5 font-semibold text-slate-800">{{ $warehouse->branch->name }}</p>
+                        <p class="mt-0.5 font-semibold text-slate-800">{{ $warehouse->branch->name ?? 'Cabang tidak aktif' }}</p>
                     </div>
                 @endif
 
@@ -115,8 +115,8 @@
                 <div class="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-xs text-slate-500">
                     <div class="flex flex-wrap gap-x-6 gap-y-1">
                         <span>ID: <strong class="font-mono text-slate-700">{{ $warehouse->id }}</strong></span>
-                        <span>Dibuat: <strong class="text-slate-700">{{ $warehouse->created_at->format('d M Y, H:i') }}</strong></span>
-                        <span>Diperbarui: <strong class="text-slate-700">{{ $warehouse->updated_at->format('d M Y, H:i') }}</strong></span>
+                        <span>Dibuat: <strong class="text-slate-700">{{ $warehouse->created_at?->format('d M Y, H:i') ?? '-' }}</strong></span>
+                        <span>Diperbarui: <strong class="text-slate-700">{{ $warehouse->updated_at?->format('d M Y, H:i') ?? '-' }}</strong></span>
                     </div>
                 </div>
 

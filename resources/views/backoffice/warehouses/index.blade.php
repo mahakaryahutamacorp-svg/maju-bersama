@@ -34,7 +34,7 @@
                         @if ($isMaster)
                             Pantau seluruh gudang di semua cabang. Master dapat mengatur gudang lintas cabang.
                         @else
-                            Kelola gudang-gudang dalam cabang <strong>{{ $currentUser->branch->name }}</strong>. Contoh: Etalase Depan, Gudang Belakang, Laci Kasir.
+                            Kelola gudang-gudang dalam cabang <strong>{{ $currentUser->branch->name ?? 'cabang ini' }}</strong>. Contoh: Etalase Depan, Gudang Belakang, Laci Kasir.
                         @endif
                     </p>
                 </div>
@@ -86,7 +86,7 @@
                 <div>
                     <h2 class="font-bold text-slate-900">Daftar Gudang</h2>
                     <p class="mt-0.5 text-xs text-slate-500">
-                        @if ($isMaster) Seluruh cabang @else {{ $currentUser->branch->name }} @endif
+                        @if ($isMaster) Seluruh cabang @else {{ $currentUser->branch->name ?? 'Cabang ini' }} @endif
                     </p>
                 </div>
                 <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
@@ -118,14 +118,14 @@
                                         <span class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-teal-50 text-base">🏭</span>
                                         <div>
                                             <div class="font-semibold text-slate-900">{{ $warehouse->name }}</div>
-                                            <div class="text-xs text-slate-400">Dibuat {{ $warehouse->created_at->diffForHumans() }}</div>
+                                            <div class="text-xs text-slate-400">Dibuat {{ $warehouse->created_at?->diffForHumans() ?? '-' }}</div>
                                         </div>
                                     </div>
                                 </td>
                                 @if ($isMaster)
                                     <td class="px-6 py-4">
-                                        <span class="font-medium text-slate-700">{{ $warehouse->branch->name }}</span>
-                                        <span class="ml-1.5 font-mono text-[10px] text-slate-400">{{ $warehouse->branch->code }}</span>
+                                        <span class="font-medium text-slate-700">{{ $warehouse->branch->name ?? 'Cabang tidak aktif' }}</span>
+                                        <span class="ml-1.5 font-mono text-[10px] text-slate-400">{{ $warehouse->branch->code ?? '' }}</span>
                                     </td>
                                 @endif
                                 <td class="px-6 py-4 text-center">

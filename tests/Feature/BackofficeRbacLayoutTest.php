@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Branch;
 use App\Models\Supplier;
 use App\Models\User;
+use App\Models\Warehouse;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -99,6 +100,53 @@ class BackofficeRbacLayoutTest extends TestCase
         foreach ($this->enterpriseMarkers as $marker) {
             $response->assertDontSee($marker, false);
         }
+    }
+
+    public function test_backoffice_opens_for_separate_pakan_books_and_master_without_branch(): void
+    {
+        $pupuk = Branch::create(['code' => 'PUPUK', 'name' => 'Pupuk']);
+        $pakan = Branch::create(['code' => 'PAKAN', 'name' => 'Gudang Pakan']);
+
+        Warehouse::create([
+            'branch_id' => $pupuk->id,
+            'name' => 'Gudang Utama',
+            'code' => 'GU-PUPUK',
+            'is_active' => true,
+        ]);
+        Warehouse::create([
+            'branch_id' => $pakan->id,
+            'name' => 'Gudang Pakan',
+            'code' => 'GDG-PAKAN',
+            'is_active' => true,
+        ]);
+        Warehouse::create([
+            'branch_id' => $pakan->id,
+            'name' => 'Gudang Pakan Kedua',
+            'code' => 'GDG-PAKAN-2',
+            'is_active' => true,
+        ]);
+
+        $master = User::factory()->create(['branch_id' => null, 'role' => 'master']);
+
+        $this->actingAs($master)
+            ->get('/backoffice')
+            ->assertOk()
+            ->assertSee('Semua cabang')
+            ->assertSee('Pupuk')
+            ->assertSee('Gudang Pakan');
+
+        $this->actingAs($master)
+            ->get(route('backoffice.warehouses.index'))
+            ->assertOk()
+            ->assertSee('Gudang Pakan')
+            ->assertSee('Gudang Pakan Kedua');
+
+        $pakan->delete();
+
+        $this->actingAs($master)
+            ->get(route('backoffice.warehouses.index'))
+            ->assertOk()
+            ->assertSee('Gudang Pakan');
     }
 
     public function test_master_sees_all_divisions_backup_widget_and_ledger(): void

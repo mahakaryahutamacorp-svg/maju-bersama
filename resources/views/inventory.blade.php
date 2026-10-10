@@ -8,7 +8,7 @@
             <div>
                 <p class="text-sm font-medium text-amber-600">Kontrol Stok &amp; Gudang</p>
                 <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-950">Katalog Persediaan Produk</h2>
-                <p class="mt-2 text-slate-500">Ketersediaan stok barang pada cabang {{ auth()->user()->branch->name }}.</p>
+                <p class="mt-2 text-slate-500">Ketersediaan stok barang pada cabang {{ auth()->user()->branch->name ?? 'seluruh cabang' }}.</p>
             </div>
             <div class="flex flex-col gap-3 sm:items-end">
                 <div class="text-sm text-slate-500">Diperbarui {{ now()->translatedFormat('d M Y, H:i') }}</div>
@@ -40,7 +40,7 @@
                                 <td class="whitespace-nowrap px-6 py-5 font-mono text-sm font-semibold text-sky-700">{{ $product->sku }}</td>
                                 <td class="px-6 py-5">
                                     <div class="font-semibold text-slate-900">{{ $product->name }}</div>
-                                    <div class="mt-1 text-xs text-slate-500">{{ $product->branch->name }}</div>
+                                    <div class="mt-1 text-xs text-slate-500">{{ $product->branch->name ?? 'Cabang tidak aktif' }}</div>
                                 </td>
                                 <td class="whitespace-nowrap px-6 py-5">
                                     <span class="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">{{ $product->category->name }}</span>

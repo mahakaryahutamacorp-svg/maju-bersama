@@ -36,7 +36,7 @@
                             @if ($isMaster)
                                 Tambahkan gudang baru ke cabang mana pun dalam jaringan Maju Bersama.
                             @else
-                                Tambahkan gudang baru untuk cabang <strong>{{ $currentUser->branch->name }}</strong>.<br>
+                                Tambahkan gudang baru untuk cabang <strong>{{ $currentUser->branch->name ?? 'cabang ini' }}</strong>.<br>
                                 Contoh: <span class="font-mono">Etalase Depan</span>, <span class="font-mono">Gudang Belakang</span>, <span class="font-mono">Laci Kasir</span>.
                             @endif
                         </p>
