@@ -47,8 +47,9 @@ class AgingReportService
             }
 
             // Gunakan due_date jika tersedia, atau created_at sebagai dasar
-            $baseDate = $sale->due_date ? Carbon::parse($sale->due_date) : Carbon::parse($sale->created_at);
-            $diffDays = (int) $baseDate->startOfDay()->diffInDays(now()->startOfDay(), false);
+            $hasDueDate = $sale->due_date !== null;
+            $baseDate = $hasDueDate ? Carbon::parse($sale->due_date) : Carbon::parse($sale->created_at);
+            $diffDays = (int) $baseDate->copy()->startOfDay()->diffInDays(now()->startOfDay(), false);
             if ($diffDays < 0) {
                 $diffDays = 0;
             }
@@ -67,9 +68,14 @@ class AgingReportService
                     'bucket_61_90' => 0.0,
                     'bucket_over_90' => 0.0,
                     'invoices_count' => 0,
+                    'receivables' => [],
                 ];
             }
 
+            $grouped[$customerId]['receivables'][] = [
+                'date' => $baseDate->toDateString(),
+                'has_due_date' => $hasDueDate,
+            ];
             $grouped[$customerId]['total_amount'] += $unpaid;
             $grouped[$customerId]['invoices_count'] += 1;
 
@@ -84,7 +90,14 @@ class AgingReportService
             }
         }
 
-        $rows = collect(array_values($grouped))->sortByDesc('total_amount')->values();
+        $rows = collect(array_values($grouped))
+            ->map(function (array $row) {
+                usort($row['receivables'], fn (array $left, array $right) => $left['date'] <=> $right['date']);
+
+                return $row;
+            })
+            ->sortByDesc('total_amount')
+            ->values();
 
         $totals = [
             'total_amount' => (float) $rows->sum('total_amount'),

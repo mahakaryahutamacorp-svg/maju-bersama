@@ -592,6 +592,8 @@ class ReportCenterWebTest extends TestCase
         $response->assertSee('POS-20260923-0001');
         $response->assertSee('40.000,00');
         $response->assertSee('Penjualan Tunai - Pelanggan Umum');
+        $response->assertSee('Cetak Struk');
+        $response->assertSee(url('/pos/receipt/POS-20260923-0001'), false);
     }
 
     public function test_purchases_report_renders_successfully(): void
@@ -770,8 +772,14 @@ class ReportCenterWebTest extends TestCase
         $response->assertStatus(200);
         $response->assertSee('Laporan Umur Piutang (AR Aging)');
         $response->assertSee('MAJU BERSAMA GRUP');
+        $response->assertSee('Jatuh Tempo');
         $response->assertSee('Kelompok Tani Makmur Sentosa');
         $response->assertSee('Toko Subur Tani');
+        $response->assertSee(now()->subDays(45)->format('d/m/Y'));
+        $response->assertSee(now()->subDays(110)->format('d/m/Y'));
+        $response->assertDontSee(now()->subDays(15)->format('d/m/Y'));
+        $response->assertDontSee(now()->subDays(75)->format('d/m/Y'));
+        $response->assertSee('Tgl nota, belum ada jatuh tempo');
         $response->assertSee('Total Keseluruhan');
 
         // Customer A: Sisa 800.000 (0-30) + 500.000 (31-60) = 1.300.000

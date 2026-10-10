@@ -163,6 +163,7 @@
                             <th class="py-3 px-3">Metode</th>
                             <th class="py-3 px-3 text-right">Total Jual</th>
                             <th class="py-3 px-3 text-center">Status Pembayaran</th>
+                            <th class="py-3 px-3 text-center no-print">Struk</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-200 [&>tr:nth-child(even)]:bg-slate-50/60">
@@ -200,10 +201,18 @@
                                         {{ $sale->status ?? 'completed' }}
                                     </span>
                                 </td>
+                                <td class="py-2.5 px-3 text-center whitespace-nowrap no-print">
+                                    <a href="{{ url('/pos/receipt/'.$sale->receipt_number) }}"
+                                       target="_blank"
+                                       rel="noopener"
+                                       class="inline-flex items-center rounded-md border border-slate-300 bg-white px-2 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-100">
+                                        Cetak Struk
+                                    </a>
+                                </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="py-8 text-center text-slate-400 italic">
+                                <td colspan="7" class="py-8 text-center text-slate-400 italic">
                                     Tidak ada data penjualan pada periode dan kriteria cabang yang dipilih.
                                 </td>
                             </tr>
@@ -212,7 +221,7 @@
                     @if ($sales->isNotEmpty())
                         <tfoot>
                             <tr class="bg-slate-100 font-bold border-t-2 border-slate-900 text-slate-900">
-                                <td colspan="4" class="py-3 px-3 uppercase text-right tracking-wider">
+                                <td colspan="5" class="py-3 px-3 uppercase text-right tracking-wider">
                                     Total Penjualan Bersih ({{ number_format($totalTransactions, 0, ',', '.') }} Transaksi)
                                 </td>
                                 <td class="py-3 px-3 text-right font-mono-num text-sm text-emerald-800">

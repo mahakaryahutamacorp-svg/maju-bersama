@@ -145,6 +145,7 @@
                 <table class="w-full text-left text-xs">
                     <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                         <tr>
+                            <th scope="col" class="py-3 px-4 whitespace-nowrap">Jatuh Tempo</th>
                             <th scope="col" class="py-3 px-4">Nama Pelanggan</th>
                             <th scope="col" class="py-3 px-4 text-right">Total Piutang</th>
                             <th scope="col" class="py-3 px-4 text-right">0 - 30 Hari</th>
@@ -156,31 +157,40 @@
                     <tbody class="divide-y divide-slate-200 bg-white [&>tr:nth-child(even)]:bg-slate-50/60">
                         @forelse ($rows as $row)
                             <tr class="hover:bg-slate-50 transition-colors">
-                                <td class="py-3 px-4">
+                                <td class="py-3 px-4 whitespace-nowrap" style="vertical-align: top;">
+                                    @php $firstReceivable = $row['receivables'][0] ?? null; @endphp
+                                    @if ($firstReceivable)
+                                        <div class="font-mono-num font-semibold text-slate-800">{{ \Carbon\Carbon::parse($firstReceivable['date'])->format('d/m/Y') }}</div>
+                                        @unless ($firstReceivable['has_due_date'])
+                                            <div class="text-[10px] text-slate-400">Tgl nota, belum ada jatuh tempo</div>
+                                        @endunless
+                                    @endif
+                                </td>
+                                <td class="py-3 px-4" style="vertical-align: top;">
                                     <div class="font-bold text-slate-900">{{ $row['customer_name'] }}</div>
                                     @if (!empty($row['customer']?->phone))
                                         <div class="text-[10px] text-slate-400 font-mono">{{ $row['customer']->phone }}</div>
                                     @endif
                                 </td>
-                                <td class="py-3 px-4 text-right font-bold text-slate-900 font-mono-num">
+                                <td class="py-3 px-4 text-right font-bold text-slate-900 font-mono-num" style="vertical-align: top;">
                                     {{ $formatRupiah($row['total_amount']) }}
                                 </td>
-                                <td class="py-3 px-4 text-right font-mono-num text-slate-700">
+                                <td class="py-3 px-4 text-right font-mono-num text-slate-700" style="vertical-align: top;">
                                     {{ $formatRupiah($row['bucket_0_30']) }}
                                 </td>
-                                <td class="py-3 px-4 text-right font-mono-num text-slate-700">
+                                <td class="py-3 px-4 text-right font-mono-num text-slate-700" style="vertical-align: top;">
                                     {{ $formatRupiah($row['bucket_31_60']) }}
                                 </td>
-                                <td class="py-3 px-4 text-right font-mono-num {{ $row['bucket_61_90'] > 0 ? 'text-amber-700 font-semibold' : 'text-slate-700' }}">
+                                <td class="py-3 px-4 text-right font-mono-num {{ $row['bucket_61_90'] > 0 ? 'text-amber-700 font-semibold' : 'text-slate-700' }}" style="vertical-align: top;">
                                     {{ $formatRupiah($row['bucket_61_90']) }}
                                 </td>
-                                <td class="py-3 px-4 text-right font-mono-num {{ $row['bucket_over_90'] > 0 ? 'text-rose-700 font-bold' : 'text-slate-700' }}">
+                                <td class="py-3 px-4 text-right font-mono-num {{ $row['bucket_over_90'] > 0 ? 'text-rose-700 font-bold' : 'text-slate-700' }}" style="vertical-align: top;">
                                     {{ $formatRupiah($row['bucket_over_90']) }}
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="py-8 text-center text-slate-500 italic bg-slate-50/50">
+                                <td colspan="7" class="py-8 text-center text-slate-500 italic bg-slate-50/50">
                                     Tidak ada data piutang pelanggan yang belum lunas pada cabang ini. Seluruh tagihan berada dalam status lunas (PAID).
                                 </td>
                             </tr>
@@ -188,7 +198,7 @@
                     </tbody>
                     <tfoot class="bg-slate-100 border-t-2 border-slate-900 font-bold text-slate-950">
                         <tr>
-                            <td class="py-3.5 px-4 uppercase tracking-wider text-xs">Total Keseluruhan</td>
+                            <td colspan="2" class="py-3.5 px-4 uppercase tracking-wider text-xs">Total Keseluruhan</td>
                             <td class="py-3.5 px-4 text-right font-mono-num text-sm text-slate-950">
                                 {{ $formatRupiah($totals['total_amount'] ?? 0) }}
                             </td>

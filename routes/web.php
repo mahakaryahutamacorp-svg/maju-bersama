@@ -55,7 +55,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/pos', [PosController::class, 'store'])->name('pos.store');
     Route::post('/pos/shift/open', [PosController::class, 'openShift'])->name('pos.shift.open');
     Route::post('/pos/shift/close', [PosController::class, 'closeShift'])->name('pos.shift.close');
-    Route::get('/pos/receipt/{receipt_number}', [PosController::class, 'receipt'])->name('pos.receipt');
+    Route::get('/pos/receipt/{receipt_number}', [PosController::class, 'receipt'])
+        ->where('receipt_number', '.+')
+        ->name('pos.receipt');
     Route::post('/pos/customers', [PosController::class, 'storeCustomer'])->name('pos.customers.store');
 
     Route::middleware('can:manage-branch-operations')->group(function () {

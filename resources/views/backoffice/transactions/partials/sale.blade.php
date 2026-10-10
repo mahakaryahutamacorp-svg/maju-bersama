@@ -8,6 +8,12 @@
                     Penjualan POS
                 </span>
                 <h3 class="mt-1 font-mono text-xl font-bold tracking-tight text-slate-900">{{ $sale->receipt_number }}</h3>
+                <a href="{{ url('/pos/receipt/'.$sale->receipt_number) }}"
+                   target="_blank"
+                   rel="noopener"
+                   class="mt-2 inline-flex items-center rounded-md border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 hover:bg-slate-100">
+                    Cetak Struk
+                </a>
             </div>
             <div class="text-right">
                 <span class="inline-flex rounded-md px-2.5 py-1 text-xs font-bold uppercase tracking-wider {{ $sale->status === 'completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800' }}">
