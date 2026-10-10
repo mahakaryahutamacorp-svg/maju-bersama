@@ -56,7 +56,7 @@ trait PreparesLedger
 
     protected function sellableProduct(Branch $branch, int $stock = 5, string $sellingPrice = '110000.00', string $purchasePrice = '100000.00'): Product
     {
-        $category = Category::create(['name' => 'Pupuk']);
+        $category = Category::firstOrCreate(['name' => 'Pupuk']);
 
         return Product::create([
             'branch_id' => $branch->id,

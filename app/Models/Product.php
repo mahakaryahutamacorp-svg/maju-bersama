@@ -14,6 +14,23 @@ class Product extends Model
     use HasBranchScope;
     use SoftDeletes;
 
+    /**
+     * Line-item relations that make a product part of the ledger history.
+     *
+     * @var list<string>
+     */
+    public const TRANSACTION_RELATIONS = [
+        'saleItems',
+        'goodsReceiptItems',
+        'purchaseOrderItems',
+        'salesReturnItems',
+        'purchaseReturnItems',
+        'outgoingTransferItems',
+        'incomingTransferItems',
+    ];
+
+    public const HISTORY_DELETE_MESSAGE = 'Gagal: Data ini tidak dapat dihapus karena sudah memiliki riwayat transaksi.';
+
     protected $fillable = [
         'branch_id',
         'category_id',
@@ -55,6 +72,39 @@ class Product extends Model
     public function saleItems(): HasMany
     {
         return $this->hasMany(SaleItem::class);
+    }
+
+    public function goodsReceiptItems(): HasMany
+    {
+        return $this->hasMany(GoodsReceiptItem::class);
+    }
+
+    public function purchaseOrderItems(): HasMany
+    {
+        return $this->hasMany(PurchaseOrderItem::class);
+    }
+
+    public function outgoingTransferItems(): HasMany
+    {
+        return $this->hasMany(StockTransferItem::class, 'source_product_id');
+    }
+
+    public function incomingTransferItems(): HasMany
+    {
+        return $this->hasMany(StockTransferItem::class, 'destination_product_id');
+    }
+
+    public function hasTransactionHistory(): bool
+    {
+        foreach (self::TRANSACTION_RELATIONS as $relation) {
+            $loaded = $this->getAttribute($relation.'_exists');
+
+            if ($loaded !== null ? (bool) $loaded : $this->{$relation}()->exists()) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public function prices(): HasMany

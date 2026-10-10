@@ -6,6 +6,7 @@ use App\Models\Inventory;
 use App\Models\Product;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class ProductService
 {
@@ -70,6 +71,12 @@ class ProductService
      */
     public function deleteProduct(Product $product): bool
     {
+        if ($product->hasTransactionHistory()) {
+            throw ValidationException::withMessages([
+                'product' => [Product::HISTORY_DELETE_MESSAGE],
+            ]);
+        }
+
         return DB::transaction(function () use ($product): bool {
             Inventory::withoutGlobalScopes()
                 ->where('product_id', $product->id)

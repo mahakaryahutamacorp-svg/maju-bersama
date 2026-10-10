@@ -2,8 +2,12 @@
 
 namespace Tests\Feature\Api;
 
+use App\Models\ChartOfAccount;
 use App\Models\Customer;
+use App\Models\GoodsReceipt;
 use App\Models\JournalLine;
+use App\Models\Payment;
+use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SaleItem;
 use Illuminate\Support\Facades\Schema;
@@ -17,10 +21,8 @@ class IntegrityGapApiTest extends TestCase
     use AssertsMoney;
     use PreparesLedger;
 
-    public function test_tc010_product_and_customer_with_history_can_still_be_removed(): void
+    public function test_tc010_product_and_customer_with_history_cannot_be_removed(): void
     {
-        // TODO TC010: master produk dan pelanggan yang sudah punya riwayat transaksi
-        // harus ditolak (RESTRICT). Perilaku di bawah ini adalah celah yang sedang berjalan.
         [$branch, $master] = $this->branchWithRoles();
         $product = $this->sellableProduct($branch, 5);
         $customer = Customer::create([
@@ -47,20 +49,129 @@ class IntegrityGapApiTest extends TestCase
 
         Sanctum::actingAs($master);
         $this->deleteJson('/api/products/'.$product->id)
-            ->assertOk();
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('product')
+            ->assertJsonPath('errors.product.0', Product::HISTORY_DELETE_MESSAGE);
 
-        $this->assertSoftDeleted('products', ['id' => $product->id]);
-        $this->assertDatabaseHas('sale_items', [
-            'sale_id' => $sale->id,
+        $this->actingAs($master)
+            ->delete(route('backoffice.products.destroy', $product->id))
+            ->assertRedirect(route('backoffice.products.index'))
+            ->assertSessionHas('error', Product::HISTORY_DELETE_MESSAGE);
+
+        $this->assertNotSoftDeleted('products', ['id' => $product->id]);
+
+        $this->actingAs($master)
+            ->delete(route('backoffice.customers.destroy', $customer->id))
+            ->assertRedirect(route('backoffice.customers.index'))
+            ->assertSessionHas('error', Customer::HISTORY_DELETE_MESSAGE);
+
+        $this->assertDatabaseHas('customers', ['id' => $customer->id]);
+        $this->assertSame($customer->id, $sale->fresh()->customer_id);
+    }
+
+    public function test_tc010_product_received_from_supplier_cannot_be_removed(): void
+    {
+        [$branch, $master] = $this->branchWithRoles();
+        $product = $this->sellableProduct($branch, 5);
+
+        $receipt = GoodsReceipt::create([
+            'branch_id' => $branch->id,
+            'reference_number' => 'GR-TC010',
+            'date' => '2026-10-10',
+            'total_amount' => '25000.00',
+            'payment_type' => 'cash',
+        ]);
+        $receipt->items()->create([
             'product_id' => $product->id,
+            'quantity' => 1,
+            'unit_price' => '25000.00',
+            'subtotal' => '25000.00',
+        ]);
+
+        Sanctum::actingAs($master);
+        $this->deleteJson('/api/products/'.$product->id)
+            ->assertStatus(422)
+            ->assertJsonPath('errors.product.0', Product::HISTORY_DELETE_MESSAGE);
+
+        $this->assertNotSoftDeleted('products', ['id' => $product->id]);
+    }
+
+    public function test_tc010_customer_with_receivable_payment_cannot_be_removed(): void
+    {
+        [$branch, $master] = $this->branchWithRoles();
+        $this->seedRetailAccounts();
+        $customer = Customer::create([
+            'branch_id' => $branch->id,
+            'name' => 'Pelanggan Pelunasan Piutang',
+        ]);
+
+        Payment::create([
+            'branch_id' => $branch->id,
+            'type' => 'AR',
+            'customer_id' => $customer->id,
+            'account_id' => ChartOfAccount::where('code', '1110')->value('id'),
+            'payment_date' => '2026-10-10',
+            'reference_number' => 'AR-TC010',
+            'amount' => '50000.00',
         ]);
 
         $this->actingAs($master)
             ->delete(route('backoffice.customers.destroy', $customer->id))
-            ->assertRedirect();
+            ->assertRedirect(route('backoffice.customers.index'))
+            ->assertSessionHas('error', Customer::HISTORY_DELETE_MESSAGE);
+
+        $this->assertDatabaseHas('customers', ['id' => $customer->id]);
+    }
+
+    public function test_tc010_product_and_customer_without_history_can_still_be_removed(): void
+    {
+        [$branch, $master] = $this->branchWithRoles();
+        $product = $this->sellableProduct($branch, 0);
+        $customer = Customer::create([
+            'branch_id' => $branch->id,
+            'name' => 'Pelanggan Baru',
+        ]);
+
+        Sanctum::actingAs($master);
+        $this->deleteJson('/api/products/'.$product->id)->assertOk();
+        $this->assertSoftDeleted('products', ['id' => $product->id]);
+
+        $this->actingAs($master)
+            ->delete(route('backoffice.customers.destroy', $customer->id))
+            ->assertRedirect(route('backoffice.customers.index'))
+            ->assertSessionHas('success');
 
         $this->assertDatabaseMissing('customers', ['id' => $customer->id]);
-        $this->assertNull($sale->fresh()->customer_id);
+    }
+
+    public function test_tc010_product_list_disables_delete_for_products_with_history(): void
+    {
+        [$branch, $master] = $this->branchWithRoles();
+        $usedProduct = $this->sellableProduct($branch, 5);
+        $freshProduct = $this->sellableProduct($branch, 0);
+
+        $sale = Sale::create([
+            'branch_id' => $branch->id,
+            'receipt_number' => 'INV-TC010-UI',
+            'total_amount' => 110000,
+            'payment_method' => 'cash',
+            'status' => 'completed',
+            'created_by' => $master->id,
+        ]);
+        SaleItem::create([
+            'sale_id' => $sale->id,
+            'product_id' => $usedProduct->id,
+            'quantity' => 1,
+            'price' => 110000,
+            'subtotal' => 110000,
+        ]);
+
+        $this->actingAs($master)
+            ->get(route('backoffice.products.index'))
+            ->assertOk()
+            ->assertSee('sudah memiliki riwayat transaksi sehingga tidak dapat dihapus', false)
+            ->assertSee('action="'.route('backoffice.products.destroy', $freshProduct->id).'"', false)
+            ->assertDontSee('action="'.route('backoffice.products.destroy', $usedProduct->id).'"', false);
     }
 
     public function test_tc011_receipt_money_is_still_stored_as_integer(): void

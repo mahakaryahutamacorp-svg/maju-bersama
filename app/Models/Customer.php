@@ -11,6 +11,8 @@ class Customer extends Model
 {
     use HasBranchScope;
 
+    public const HISTORY_DELETE_MESSAGE = 'Gagal: Data ini tidak dapat dihapus karena sudah memiliki riwayat transaksi.';
+
     protected $fillable = [
         'branch_id',
         'name',
@@ -33,5 +35,20 @@ class Customer extends Model
     public function sales(): HasMany
     {
         return $this->hasMany(Sale::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    /**
+     * Sales include tempo receivables, and payments cover receivable settlements.
+     * Branch scope is bypassed so history in another branch still blocks deletion.
+     */
+    public function hasTransactionHistory(): bool
+    {
+        return $this->sales()->withoutGlobalScopes()->exists()
+            || $this->payments()->withoutGlobalScopes()->exists();
     }
 }

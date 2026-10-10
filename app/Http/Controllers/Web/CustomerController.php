@@ -185,6 +185,12 @@ class CustomerController extends Controller
             abort(403, 'Akses ditolak.');
         }
 
+        if ($customer->hasTransactionHistory()) {
+            return redirect()
+                ->route('backoffice.customers.index')
+                ->with('error', Customer::HISTORY_DELETE_MESSAGE);
+        }
+
         $name = $customer->name;
         $customer->delete();
 

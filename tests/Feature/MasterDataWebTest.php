@@ -184,9 +184,8 @@ class MasterDataWebTest extends TestCase
         $this->assertEquals($this->branchB->id, $product->branch_id);
     }
 
-    public function test_product_soft_delete_archives_product_without_fk_error_when_sales_exist(): void
+    public function test_product_with_sales_history_is_not_archived(): void
     {
-        // Create a sale item referencing product A (which would trigger FK violation on hard delete)
         $sale = Sale::create([
             'branch_id' => $this->branchA->id,
             'receipt_number' => 'INV-TEST-SOFTDELETE-01',
@@ -204,19 +203,12 @@ class MasterDataWebTest extends TestCase
             'subtotal' => 50000,
         ]);
 
-        // Branch Admin A deletes product A
         $response = $this->actingAs($this->adminA)->delete(route('backoffice.products.destroy', $this->productA->id));
 
         $response->assertRedirect(route('backoffice.products.index'));
-        $response->assertSessionHas('success');
+        $response->assertSessionHas('error', Product::HISTORY_DELETE_MESSAGE);
 
-        // Product should be soft-deleted: not in default queries, but exists in database with deleted_at set
-        $this->assertNull(Product::find($this->productA->id));
-        $this->assertNotNull(Product::withTrashed()->find($this->productA->id));
-        $this->assertNotNull(Product::withTrashed()->find($this->productA->id)->deleted_at);
-        $this->assertDatabaseHas('products', [
-            'id' => $this->productA->id,
-        ]);
+        $this->assertNull(Product::withTrashed()->find($this->productA->id)->deleted_at);
         $this->assertDatabaseHas('sale_items', [
             'product_id' => $this->productA->id,
         ]);

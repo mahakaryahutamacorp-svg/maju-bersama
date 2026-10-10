@@ -148,13 +148,19 @@
                                         <a href="{{ route('backoffice.products.edit', $product->id) }}" class="rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100">
                                             Edit
                                         </a>
-                                        <form method="POST" action="{{ route('backoffice.products.destroy', $product->id) }}" onsubmit="return confirm('Apakah Anda yakin ingin mengarsipkan produk ini?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="rounded-lg bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100">
+                                        @if ($product->hasTransactionHistory())
+                                            <button type="button" disabled title="Produk ini sudah memiliki riwayat transaksi sehingga tidak dapat dihapus." class="cursor-not-allowed rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-400">
                                                 Hapus
                                             </button>
-                                        </form>
+                                        @else
+                                            <form method="POST" action="{{ route('backoffice.products.destroy', $product->id) }}" onsubmit="return confirm('Apakah Anda yakin ingin mengarsipkan produk ini?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="rounded-lg bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100">
+                                                    Hapus
+                                                </button>
+                                            </form>
+                                        @endif
                                     </div>
                                 </td>
                             </tr>

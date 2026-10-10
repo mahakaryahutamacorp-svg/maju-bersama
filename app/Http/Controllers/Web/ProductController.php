@@ -37,6 +37,7 @@ class ProductController extends Controller
 
         $query = Product::withoutGlobalScopes()
             ->with(['category', 'branch', 'productPrices'])
+            ->withExists(Product::TRANSACTION_RELATIONS)
             ->when(! $isMaster, fn ($q) => $q->where('branch_id', $user->branch_id))
             ->when($isMaster && $branchId, fn ($q) => $q->where('branch_id', $branchId))
             ->when($categoryId, fn ($q) => $q->where('category_id', $categoryId))
@@ -377,6 +378,12 @@ class ProductController extends Controller
 
             if (! $isMaster && (int) $product->branch_id !== (int) $user->branch_id) {
                 abort(403, 'Anda tidak memiliki otorisasi untuk menghapus produk cabang lain.');
+            }
+
+            if ($product->hasTransactionHistory()) {
+                return redirect()
+                    ->route('backoffice.products.index')
+                    ->with('error', Product::HISTORY_DELETE_MESSAGE);
             }
 
             $name = $product->name;
