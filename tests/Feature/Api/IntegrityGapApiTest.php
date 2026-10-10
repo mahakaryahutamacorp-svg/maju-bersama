@@ -1,0 +1,110 @@
+<?php
+
+namespace Tests\Feature\Api;
+
+use App\Models\Customer;
+use App\Models\JournalLine;
+use App\Models\Sale;
+use App\Models\SaleItem;
+use Illuminate\Support\Facades\Schema;
+use Laravel\Sanctum\Sanctum;
+use Tests\Feature\Api\Concerns\AssertsMoney;
+use Tests\Feature\Api\Concerns\PreparesLedger;
+use Tests\TestCase;
+
+class IntegrityGapApiTest extends TestCase
+{
+    use AssertsMoney;
+    use PreparesLedger;
+
+    public function test_tc010_product_and_customer_with_history_can_still_be_removed(): void
+    {
+        // TODO TC010: master produk dan pelanggan yang sudah punya riwayat transaksi
+        // harus ditolak (RESTRICT). Perilaku di bawah ini adalah celah yang sedang berjalan.
+        [$branch, $master] = $this->branchWithRoles();
+        $product = $this->sellableProduct($branch, 5);
+        $customer = Customer::create([
+            'branch_id' => $branch->id,
+            'name' => 'Pelanggan Berriwayat',
+        ]);
+
+        $sale = Sale::create([
+            'branch_id' => $branch->id,
+            'customer_id' => $customer->id,
+            'receipt_number' => 'INV-TC010',
+            'total_amount' => 110000,
+            'payment_method' => 'cash',
+            'status' => 'completed',
+            'created_by' => $master->id,
+        ]);
+        SaleItem::create([
+            'sale_id' => $sale->id,
+            'product_id' => $product->id,
+            'quantity' => 1,
+            'price' => 110000,
+            'subtotal' => 110000,
+        ]);
+
+        Sanctum::actingAs($master);
+        $this->deleteJson('/api/products/'.$product->id)
+            ->assertOk();
+
+        $this->assertSoftDeleted('products', ['id' => $product->id]);
+        $this->assertDatabaseHas('sale_items', [
+            'sale_id' => $sale->id,
+            'product_id' => $product->id,
+        ]);
+
+        $this->actingAs($master)
+            ->delete(route('backoffice.customers.destroy', $customer->id))
+            ->assertRedirect();
+
+        $this->assertDatabaseMissing('customers', ['id' => $customer->id]);
+        $this->assertNull($sale->fresh()->customer_id);
+    }
+
+    public function test_tc011_receipt_money_is_still_stored_as_integer(): void
+    {
+        // TODO TC011: sales.total_amount, sale_items.price, dan sale_items.subtotal
+        // masih integer. Jurnal memakai DECIMAL. Pecahan rupiah tidak utuh di struk.
+        [$branch, $master] = $this->branchWithRoles();
+        $this->seedRetailAccounts();
+        $product = $this->sellableProduct($branch, 5, '10.50', '0.00');
+        Sanctum::actingAs($master);
+
+        foreach (['sales', 'sale_items', 'journal_lines'] as $table) {
+            foreach (Schema::getColumns($table) as $column) {
+                $type = strtolower((string) ($column['type_name'] ?? $column['type'] ?? ''));
+                $this->assertStringNotContainsString('float', $type);
+                $this->assertStringNotContainsString('double', $type);
+            }
+        }
+
+        $priceColumn = collect(Schema::getColumns('sale_items'))->firstWhere('name', 'price');
+        $debitColumn = collect(Schema::getColumns('journal_lines'))->firstWhere('name', 'debit');
+        $this->assertSame('integer', strtolower((string) $priceColumn['type_name']));
+        $debitType = strtolower((string) ($debitColumn['type_name'] ?? ''));
+        $this->assertContains($debitType, ['decimal', 'numeric']);
+
+        $response = $this->postJson('/api/checkout', [
+            'items' => [
+                ['product_id' => $product->id, 'quantity' => 1],
+            ],
+        ])->assertCreated();
+
+        $this->assertSame(11, (int) $response->json('sale.total_amount'));
+        $this->assertSame(11, (int) $response->json('sale.items.0.price'));
+
+        $debit = JournalLine::query()->sum('debit');
+        $this->assertMoneySame($debit, '10.50');
+        $this->assertNotSame(0, bccomp($this->money($response->json('sale.total_amount')), $this->money($debit), 2));
+    }
+
+    public function test_tc012_tiered_discount_split_payment_and_project_memory_are_open_gaps(): void
+    {
+        // TODO TC012: diskon bertingkat, pembayaran split kas+bank, studi Odoo/ERPNext,
+        // stok satu produk di dua gudang satu cabang, dan catatan bug skala desimal
+        // serta beranda akun pusat tanpa cabang belum selesai.
+        $this->markTestIncomplete('Sesuai TC012: Fitur belum dimodelkan atau masih berupa celah.');
+    }
+}
