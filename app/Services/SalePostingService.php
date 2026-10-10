@@ -60,8 +60,8 @@ class SalePostingService
                 ]);
             }
 
-            $totalPrice = 0.0;
-            $totalCost = 0.0;
+            $totalPrice = '0.00';
+            $totalCost = '0.00';
             $saleItems = [];
 
             $customerId = $data['customer_id'] ?? null;
@@ -86,42 +86,43 @@ class SalePostingService
                 $inventory->decrement('quantity', $item['quantity']);
                 $product->decrement('stock', $item['quantity']);
 
-                $unitPrice = (float) ($customerGroupId !== null
+                $unitPrice = $this->money($customerGroupId !== null
                     ? $product->getPriceForGroup($customerGroupId)
                     : $product->selling_price);
 
-                $unitCost = (float) $product->purchase_price;
+                $unitCost = $this->money($product->purchase_price);
+                $quantity = (string) (int) $item['quantity'];
 
-                $subtotal = round($unitPrice * (int) $item['quantity'], 2);
-                $cost = round($unitCost * (int) $item['quantity'], 2);
+                $subtotal = bcmul($unitPrice, $quantity, 2);
+                $cost = bcmul($unitCost, $quantity, 2);
 
-                $totalPrice += $subtotal;
-                $totalCost += $cost;
+                $totalPrice = bcadd($totalPrice, $subtotal, 2);
+                $totalCost = bcadd($totalCost, $cost, 2);
 
                 $saleItems[] = [
                     'product_id' => $product->id,
                     'quantity' => (int) $item['quantity'],
-                    'price' => (int) round($unitPrice),
-                    'subtotal' => (int) round($subtotal),
+                    'price' => $unitPrice,
+                    'subtotal' => $subtotal,
                 ];
             }
 
             // Validasi & kalkulasi diskon transaksi nominal
-            $discountAmount = isset($data['discount_amount']) ? (float) $data['discount_amount'] : 0.0;
+            $discountAmount = $this->money($data['discount_amount'] ?? 0);
 
-            if ($discountAmount < 0) {
+            if (bccomp($discountAmount, '0.00', 2) < 0) {
                 throw ValidationException::withMessages([
                     'discount_amount' => ['Diskon tidak boleh bernilai negatif.'],
                 ]);
             }
 
-            if ($discountAmount > $totalPrice) {
+            if (bccomp($discountAmount, $totalPrice, 2) > 0) {
                 throw ValidationException::withMessages([
                     'discount_amount' => ['Diskon tidak boleh lebih besar dari Subtotal.'],
                 ]);
             }
 
-            $grandTotal = max(0.0, round($totalPrice - $discountAmount, 2));
+            $grandTotal = bcsub($totalPrice, $discountAmount, 2);
 
             // Tautkan secara otomatis ke sesi shift kasir yang sedang aktif
             $activeShift = CashRegisterShift::where('user_id', $actor->id)
@@ -130,7 +131,7 @@ class SalePostingService
                 ->first();
 
             $paymentStatus = in_array(strtolower($paymentMethod), ['tempo', 'piutang', 'kredit']) ? 'UNPAID' : 'PAID';
-            $paidAmount = $paymentStatus === 'PAID' ? $grandTotal : (isset($data['paid_amount']) ? (float) $data['paid_amount'] : 0.0);
+            $paidAmount = $paymentStatus === 'PAID' ? $grandTotal : $this->money($data['paid_amount'] ?? 0);
 
             $sale = Sale::create([
                 'branch_id' => $actor->branch_id,
@@ -138,7 +139,7 @@ class SalePostingService
                 'cash_register_shift_id' => $activeShift?->id ?? ($data['cash_register_shift_id'] ?? null),
                 'created_by' => $actor->id,
                 'receipt_number' => $receiptNumber,
-                'total_amount' => (int) round($grandTotal),
+                'total_amount' => $grandTotal,
                 'discount_amount' => $discountAmount,
                 'paid_amount' => $paidAmount,
                 'payment_status' => $paymentStatus,
@@ -169,10 +170,10 @@ class SalePostingService
     private function recordJournal(
         Sale $sale,
         Collection $accounts,
-        float $grandTotal,
-        float $discountAmount,
-        float $subtotal,
-        float $cost,
+        string $grandTotal,
+        string $discountAmount,
+        string $subtotal,
+        string $cost,
         User $actor,
     ): void {
         $journal = JournalHeader::create([
@@ -183,10 +184,6 @@ class SalePostingService
             'description' => 'POS Sale',
         ]);
 
-        $grandTotalFormatted = number_format($grandTotal, 2, '.', '');
-        $subtotalFormatted = number_format($subtotal, 2, '.', '');
-        $costFormatted = number_format($cost, 2, '.', '');
-
         $isTempo = in_array(strtolower($sale->payment_method ?? ''), ['tempo', 'piutang', 'kredit']);
         $debitAccountId = $isTempo ? $accounts[self::ACCOUNT_AR]->id : $accounts[self::ACCOUNT_CASH]->id;
         $debitMemo = $isTempo ? 'Piutang penjualan POS (Tempo)' : 'Penjualan tunai POS';
@@ -194,18 +191,17 @@ class SalePostingService
         $lines = [
             [
                 'chart_of_account_id' => $debitAccountId,
-                'debit' => $grandTotalFormatted,
+                'debit' => $grandTotal,
                 'credit' => 0,
                 'memo' => $debitMemo,
             ],
         ];
 
         // Jika ada diskon, debit akun Potongan Penjualan
-        if ($discountAmount > 0) {
-            $discountFormatted = number_format($discountAmount, 2, '.', '');
+        if (bccomp($discountAmount, '0.00', 2) === 1) {
             $lines[] = [
                 'chart_of_account_id' => $accounts[self::ACCOUNT_DISCOUNT]->id,
-                'debit' => $discountFormatted,
+                'debit' => $discountAmount,
                 'credit' => 0,
                 'memo' => 'Potongan penjualan POS',
             ];
@@ -215,16 +211,16 @@ class SalePostingService
         $lines[] = [
             'chart_of_account_id' => $accounts[self::ACCOUNT_REVENUE]->id,
             'debit' => 0,
-            'credit' => $subtotalFormatted,
+            'credit' => $subtotal,
             'memo' => 'Pendapatan penjualan POS',
         ];
 
         // A sale of zero-cost items still balances, but posting empty COGS lines only
         // adds noise to the ledger, so they are skipped.
-        if (bccomp($costFormatted, '0.00', 2) === 1) {
+        if (bccomp($cost, '0.00', 2) === 1) {
             $lines[] = [
                 'chart_of_account_id' => $accounts[self::ACCOUNT_COGS]->id,
-                'debit' => $costFormatted,
+                'debit' => $cost,
                 'credit' => 0,
                 'memo' => 'Harga pokok penjualan (HPP)',
             ];
@@ -232,7 +228,7 @@ class SalePostingService
             $lines[] = [
                 'chart_of_account_id' => $accounts[self::ACCOUNT_INVENTORY]->id,
                 'debit' => 0,
-                'credit' => $costFormatted,
+                'credit' => $cost,
                 'memo' => 'Barang keluar untuk penjualan',
             ];
         }
@@ -339,6 +335,24 @@ class SalePostingService
         } while (Sale::withoutGlobalScopes()->where('receipt_number', $receipt)->exists());
 
         return $receipt;
+    }
+
+    /**
+     * Normalise a price or amount to a DECIMAL(15,2) string, rounding half away from zero.
+     */
+    private function money(string|int|float|null $amount): string
+    {
+        if ($amount === null || $amount === '') {
+            return '0.00';
+        }
+
+        $value = is_float($amount)
+            ? number_format($amount, 3, '.', '')
+            : trim((string) $amount);
+
+        $half = str_starts_with($value, '-') ? '-0.005' : '0.005';
+
+        return bcadd(bcadd($value, $half, 3), '0', 2);
     }
 
     private function toCents(string|int|float $amount): int

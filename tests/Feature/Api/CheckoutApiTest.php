@@ -30,7 +30,7 @@ class CheckoutApiTest extends TestCase
         ]);
 
         $response->assertCreated()
-            ->assertJsonPath('sale.items.0.price', 110000)
+            ->assertJsonPath('sale.items.0.price', '110000.00')
             ->assertJsonPath('sale.items.0.quantity', 2);
 
         $this->assertSame(3, (int) $product->fresh()->stock);

@@ -155,19 +155,25 @@
         <!-- Daftar Barang -->
         <div>
             @php
-                $calculatedTotal = 0;
+                $rupiah = function ($amount): string {
+                    $value = number_format((float) $amount, 2, '.', '');
+                    $decimals = str_ends_with($value, '.00') ? 0 : 2;
+
+                    return number_format((float) $value, $decimals, ',', '.');
+                };
+                $calculatedTotal = '0.00';
             @endphp
             @foreach ($sale->items as $item)
                 @php
-                    $unitPrice = (int) $item->price;
-                    $itemSubtotal = (int) $item->subtotal;
-                    $calculatedTotal += $itemSubtotal;
+                    $unitPrice = (string) $item->price;
+                    $itemSubtotal = (string) $item->subtotal;
+                    $calculatedTotal = bcadd($calculatedTotal, $itemSubtotal, 2);
                 @endphp
                 <div class="item-row">
                     <div class="item-name">{{ $item->product?->name ?? 'Item Produk' }}</div>
                     <div class="item-calc">
-                        <span>{{ $item->quantity }} x {{ number_format($unitPrice, 0, ',', '.') }}</span>
-                        <span class="font-bold">{{ number_format($itemSubtotal, 0, ',', '.') }}</span>
+                        <span>{{ $item->quantity }} x {{ $rupiah($unitPrice) }}</span>
+                        <span class="font-bold">{{ $rupiah($itemSubtotal) }}</span>
                     </div>
                 </div>
             @endforeach
@@ -177,34 +183,36 @@
 
         <!-- Ringkasan Pembayaran -->
         @php
-            $realTotal = (int) $sale->total_amount;
-            $cash = $cashTendered ? (int) $cashTendered : $realTotal;
-            $change = $changeDue !== null ? (int) $changeDue : max(0, $cash - $realTotal);
+            $realTotal = (string) $sale->total_amount;
+            $cash = $cashTendered ? number_format((float) $cashTendered, 2, '.', '') : $realTotal;
+            $change = $changeDue !== null
+                ? number_format((float) $changeDue, 2, '.', '')
+                : (bccomp($cash, $realTotal, 2) === 1 ? bcsub($cash, $realTotal, 2) : '0.00');
             $hasDiscount = !empty($sale->discount_amount) && (float) $sale->discount_amount > 0;
         @endphp
 
         @if ($hasDiscount)
             <div class="summary-row">
                 <span>SUBTOTAL:</span>
-                <span>Rp {{ number_format($calculatedTotal, 0, ',', '.') }}</span>
+                <span>Rp {{ $rupiah($calculatedTotal) }}</span>
             </div>
             <div class="summary-row">
                 <span>DISKON:</span>
-                <span>- Rp {{ number_format((int) $sale->discount_amount, 0, ',', '.') }}</span>
+                <span>- Rp {{ $rupiah($sale->discount_amount) }}</span>
             </div>
         @endif
 
         <div class="summary-row total-row">
             <span>TOTAL:</span>
-            <span>Rp {{ number_format($realTotal, 0, ',', '.') }}</span>
+            <span>Rp {{ $rupiah($realTotal) }}</span>
         </div>
         <div class="summary-row">
             <span>TUNAI:</span>
-            <span>Rp {{ number_format($cash, 0, ',', '.') }}</span>
+            <span>Rp {{ $rupiah($cash) }}</span>
         </div>
         <div class="summary-row">
             <span>KEMBALIAN:</span>
-            <span>Rp {{ number_format($change, 0, ',', '.') }}</span>
+            <span>Rp {{ $rupiah($change) }}</span>
         </div>
 
         <div class="divider"></div>

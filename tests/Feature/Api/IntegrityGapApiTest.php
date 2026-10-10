@@ -174,41 +174,75 @@ class IntegrityGapApiTest extends TestCase
             ->assertDontSee('action="'.route('backoffice.products.destroy', $usedProduct->id).'"', false);
     }
 
-    public function test_tc011_receipt_money_is_still_stored_as_integer(): void
+    public function test_tc011_pos_money_columns_are_decimal_like_the_journal(): void
     {
-        // TODO TC011: sales.total_amount, sale_items.price, dan sale_items.subtotal
-        // masih integer. Jurnal memakai DECIMAL. Pecahan rupiah tidak utuh di struk.
-        [$branch, $master] = $this->branchWithRoles();
-        $this->seedRetailAccounts();
-        $product = $this->sellableProduct($branch, 5, '10.50', '0.00');
-        Sanctum::actingAs($master);
+        $tables = [
+            'sales' => ['total_amount', 'discount_amount', 'paid_amount'],
+            'sale_items' => ['price', 'subtotal'],
+            'journal_lines' => ['debit', 'credit'],
+        ];
 
-        foreach (['sales', 'sale_items', 'journal_lines'] as $table) {
-            foreach (Schema::getColumns($table) as $column) {
+        foreach ($tables as $table => $moneyColumns) {
+            $columns = collect(Schema::getColumns($table))->keyBy('name');
+
+            foreach ($columns as $column) {
                 $type = strtolower((string) ($column['type_name'] ?? $column['type'] ?? ''));
                 $this->assertStringNotContainsString('float', $type);
                 $this->assertStringNotContainsString('double', $type);
             }
-        }
 
-        $priceColumn = collect(Schema::getColumns('sale_items'))->firstWhere('name', 'price');
-        $debitColumn = collect(Schema::getColumns('journal_lines'))->firstWhere('name', 'debit');
-        $this->assertSame('integer', strtolower((string) $priceColumn['type_name']));
-        $debitType = strtolower((string) ($debitColumn['type_name'] ?? ''));
-        $this->assertContains($debitType, ['decimal', 'numeric']);
+            foreach ($moneyColumns as $name) {
+                $type = strtolower((string) ($columns[$name]['type_name'] ?? ''));
+                $this->assertContains($type, ['decimal', 'numeric'], "{$table}.{$name} must be DECIMAL.");
+            }
+        }
+    }
+
+    public function test_tc011_fractional_price_is_kept_to_the_sen_in_sale_and_journal(): void
+    {
+        $this->assertCheckoutKeepsSen('10.50', 1, '10.50');
+    }
+
+    public function test_tc011_repeating_sen_multiplies_without_rounding_drift(): void
+    {
+        $this->assertCheckoutKeepsSen('33.33', 3, '99.99');
+    }
+
+    private function assertCheckoutKeepsSen(string $unitPrice, int $quantity, string $expectedTotal): void
+    {
+        [$branch, $master] = $this->branchWithRoles();
+        $this->seedRetailAccounts();
+        $product = $this->sellableProduct($branch, 5, $unitPrice, '0.00');
+        Sanctum::actingAs($master);
 
         $response = $this->postJson('/api/checkout', [
             'items' => [
-                ['product_id' => $product->id, 'quantity' => 1],
+                ['product_id' => $product->id, 'quantity' => $quantity],
             ],
-        ])->assertCreated();
+        ])->assertCreated()
+            ->assertJsonPath('sale.total_amount', $expectedTotal)
+            ->assertJsonPath('sale.items.0.price', $unitPrice)
+            ->assertJsonPath('sale.items.0.subtotal', $expectedTotal);
 
-        $this->assertSame(11, (int) $response->json('sale.total_amount'));
-        $this->assertSame(11, (int) $response->json('sale.items.0.price'));
+        $sale = Sale::withoutGlobalScopes()->findOrFail($response->json('sale.id'));
+        $item = $sale->items()->firstOrFail();
 
-        $debit = JournalLine::query()->sum('debit');
-        $this->assertMoneySame($debit, '10.50');
-        $this->assertNotSame(0, bccomp($this->money($response->json('sale.total_amount')), $this->money($debit), 2));
+        $this->assertSame($expectedTotal, $sale->total_amount);
+        $this->assertSame($expectedTotal, $sale->paid_amount);
+        $this->assertSame($unitPrice, $item->price);
+        $this->assertSame($expectedTotal, $item->subtotal);
+
+        $lines = JournalLine::query()
+            ->whereHas('journalHeader', fn ($query) => $query->where('reference_number', $sale->receipt_number))
+            ->get();
+        $cashDebit = $lines->firstWhere('chart_of_account_id', ChartOfAccount::where('code', '1110')->value('id'));
+        $revenueCredit = $lines->firstWhere('chart_of_account_id', ChartOfAccount::where('code', '4110')->value('id'));
+
+        $this->assertNotNull($cashDebit);
+        $this->assertNotNull($revenueCredit);
+        $this->assertMoneySame($cashDebit->debit, $sale->total_amount);
+        $this->assertMoneySame($revenueCredit->credit, $item->subtotal);
+        $this->assertMoneySame($lines->sum('debit'), $lines->sum('credit'));
     }
 
     public function test_tc012_tiered_discount_split_payment_and_project_memory_are_open_gaps(): void

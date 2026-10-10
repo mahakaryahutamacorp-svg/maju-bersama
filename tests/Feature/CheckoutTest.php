@@ -32,7 +32,7 @@ class CheckoutTest extends TestCase
                 'receipt_number',
                 'sale' => ['id', 'total_amount', 'items'],
             ])
-            ->assertJsonPath('sale.total_amount', 220000)
+            ->assertJsonPath('sale.total_amount', '220000.00')
             ->assertJsonCount(1, 'sale.items');
 
         $saleId = $response->json('sale.id');
