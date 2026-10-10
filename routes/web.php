@@ -22,6 +22,7 @@ use App\Http\Controllers\Web\ExpenseCategoryController;
 use App\Http\Controllers\Web\ExpenseController;
 use App\Http\Controllers\Web\FinanceDashboardController;
 use App\Http\Controllers\Web\FixedAssetController;
+use App\Http\Controllers\Web\InternalMessageController;
 use App\Http\Controllers\Web\InventoryController;
 use App\Http\Controllers\Web\OpeningBalanceController;
 use App\Http\Controllers\Web\PaymentController;
@@ -168,6 +169,13 @@ Route::middleware('auth')->group(function () {
             Route::post('payments/receivables', [PaymentController::class, 'storeAR'])->name('payments.receivables.store');
             Route::get('payments/payables/create', [PaymentController::class, 'createAP'])->name('payments.payables.create');
             Route::post('payments/payables', [PaymentController::class, 'storeAP'])->name('payments.payables.store');
+        });
+
+        // Pesan Internal antar cabang & Pusat (Master & Branch Admin bercabang)
+        Route::middleware('can:use-internal-messages')->prefix('messages')->name('messages.')->group(function () {
+            Route::get('/', [InternalMessageController::class, 'index'])->name('index');
+            Route::get('fetch', [InternalMessageController::class, 'fetchMessages'])->middleware('throttle:60,1')->name('fetch');
+            Route::post('send', [InternalMessageController::class, 'sendMessage'])->middleware('throttle:30,1')->name('send');
         });
 
         // Modul Enterprise (HANYA Master)

@@ -97,4 +97,14 @@ class Branch extends Model
     {
         return $this->hasMany(SalesReturn::class);
     }
+
+    public function sentInternalMessages(): HasMany
+    {
+        return $this->hasMany(InternalMessage::class, 'sender_branch_id');
+    }
+
+    public function receivedInternalMessages(): HasMany
+    {
+        return $this->hasMany(InternalMessage::class, 'receiver_branch_id');
+    }
 }

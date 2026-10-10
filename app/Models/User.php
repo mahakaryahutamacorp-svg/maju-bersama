@@ -70,6 +70,11 @@ class User extends Authenticatable
         return $this->hasMany(CashRegisterShift::class);
     }
 
+    public function sentInternalMessages(): HasMany
+    {
+        return $this->hasMany(InternalMessage::class, 'sender_id');
+    }
+
     public function isMaster(): bool
     {
         return in_array($this->role, ['master', 'superadmin', 'super_admin'], true);

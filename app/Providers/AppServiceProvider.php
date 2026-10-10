@@ -52,6 +52,10 @@ class AppServiceProvider extends ServiceProvider
         Gate::define('view-sales-history', fn (User $user) => $user->isMaster() || $user->isBranchAdmin());
         Gate::define('view-ar-reports', fn (User $user) => $user->isMaster() || $user->isBranchAdmin());
 
+        // Pesan Internal: Pusat dan admin cabang yang terikat ke satu cabang.
+        Gate::define('use-internal-messages', fn (User $user) => $user->isMaster()
+            || ($user->isBranchAdmin() && $user->branch_id !== null));
+
         // Model Policies
         Gate::policy(\App\Models\Sale::class, \App\Policies\SalePolicy::class);
         Gate::policy(\App\Models\Expense::class, \App\Policies\ExpensePolicy::class);
