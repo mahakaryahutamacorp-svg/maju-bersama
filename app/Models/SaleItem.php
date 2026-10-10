@@ -12,6 +12,7 @@ class SaleItem extends Model
         'product_id',
         'quantity',
         'price',
+        'discount_amount',
         'subtotal',
     ];
 
@@ -20,6 +21,7 @@ class SaleItem extends Model
         return [
             'quantity' => 'integer',
             'price' => 'decimal:2',
+            'discount_amount' => 'decimal:2',
             'subtotal' => 'decimal:2',
         ];
     }

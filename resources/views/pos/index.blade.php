@@ -379,11 +379,53 @@
                                         @click="changeQuantity(item.product.id, 1)" 
                                         class="h-6 w-6 rounded-md border border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-200 font-bold text-xs"
                                     >+</button>
+                                    <button
+                                        type="button"
+                                        @click="toggleItemDiscount(item)"
+                                        :aria-expanded="item.showDiscount ? 'true' : 'false'"
+                                        class="ml-1 rounded-md border px-2 h-6 text-[10px] font-bold transition"
+                                        :class="lineDiscount(item) > 0 ? 'border-rose-300 bg-rose-50 text-rose-700' : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-100'"
+                                        x-text="lineDiscount(item) > 0 ? 'Diskon ✓' : '+ Diskon'"
+                                    ></button>
+                                </div>
+
+                                <div x-show="item.showDiscount" x-cloak class="mt-2 flex items-center gap-1.5">
+                                    <div class="inline-flex overflow-hidden rounded-md border border-rose-300 text-[10px] font-bold">
+                                        <button
+                                            type="button"
+                                            @click="setItemDiscountMode(item, 'rp')"
+                                            class="px-2 py-1 transition"
+                                            :class="item.discountMode === 'rp' ? 'bg-rose-600 text-white' : 'bg-white text-rose-700 hover:bg-rose-50'"
+                                        >Rp</button>
+                                        <button
+                                            type="button"
+                                            @click="setItemDiscountMode(item, 'pct')"
+                                            class="px-2 py-1 transition"
+                                            :class="item.discountMode === 'pct' ? 'bg-rose-600 text-white' : 'bg-white text-rose-700 hover:bg-rose-50'"
+                                        >%</button>
+                                    </div>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="any"
+                                        :max="item.discountMode === 'pct' ? 100 : item.price * item.quantity"
+                                        x-model.number="item.discountValue"
+                                        @input="clampItemDiscount(item)"
+                                        :aria-label="'Diskon untuk ' + item.product.name"
+                                        placeholder="0"
+                                        class="w-24 rounded-md border border-rose-300 bg-white px-2 py-1 text-xs font-bold text-rose-900 focus:border-rose-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
+                                    >
+                                    <template x-if="lineDiscount(item) > 0">
+                                        <span class="text-[10px] font-bold text-rose-600 font-mono" x-text="'- ' + formatRupiah(lineDiscount(item))"></span>
+                                    </template>
                                 </div>
                             </div>
 
                             <div class="text-right">
-                                <p class="text-xs font-black text-slate-900 font-mono" x-text="formatRupiah(item.price * item.quantity)"></p>
+                                <template x-if="lineDiscount(item) > 0">
+                                    <p class="text-[10px] text-slate-400 line-through font-mono" x-text="formatRupiah(item.price * item.quantity)"></p>
+                                </template>
+                                <p class="text-xs font-black text-slate-900 font-mono" x-text="formatRupiah(lineNet(item))"></p>
                                 <button 
                                     type="button" 
                                     @click="removeFromCart(item.product.id)" 
@@ -403,6 +445,12 @@
                         <span>Subtotal:</span>
                         <span class="font-bold text-slate-800 font-mono" x-text="formatRupiah(subtotal)"></span>
                     </div>
+                    <template x-if="itemDiscountTotal > 0">
+                        <div class="flex items-center justify-between text-xs text-rose-600">
+                            <span>Diskon Produk:</span>
+                            <span class="font-bold font-mono" x-text="'- ' + formatRupiah(itemDiscountTotal)"></span>
+                        </div>
+                    </template>
 
                     <!-- Input Diskon Nominal (Diskon Kekeluargaan Kasir) -->
                     <div class="rounded-xl border border-rose-200 bg-rose-50/50 p-2.5">
@@ -411,7 +459,7 @@
                                 <svg class="w-3.5 h-3.5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
                                 </svg>
-                                <span>Diskon (Rp)</span>
+                                <span>Diskon Transaksi (Rp)</span>
                             </label>
                             <span class="text-[10px] text-rose-500 font-semibold">Potongan Langsung</span>
                         </div>
@@ -423,7 +471,7 @@
                                 type="number" 
                                 id="pos-discount-input"
                                 min="0" 
-                                :max="subtotal"
+                                :max="netSubtotal"
                                 step="any"
                                 x-model.number="discountAmount" 
                                 @input="validateDiscount()"
@@ -486,9 +534,15 @@
                             <span>Subtotal Barang:</span>
                             <span class="font-bold text-slate-800 font-mono" x-text="formatRupiah(subtotal)"></span>
                         </div>
+                        <template x-if="itemDiscountTotal > 0">
+                            <div class="flex items-center justify-between text-xs text-rose-600">
+                                <span>Diskon Produk:</span>
+                                <span class="font-bold font-mono" x-text="'- ' + formatRupiah(itemDiscountTotal)"></span>
+                            </div>
+                        </template>
                         <template x-if="discountAmount > 0">
                             <div class="flex items-center justify-between text-xs text-rose-600">
-                                <span>Diskon Kasir:</span>
+                                <span>Diskon Transaksi:</span>
                                 <span class="font-bold font-mono" x-text="'- ' + formatRupiah(discountAmount)"></span>
                             </div>
                         </template>
@@ -1280,9 +1334,55 @@
                     return this.cart.reduce((sum, item) => sum + (Number(item.price || item.product?.selling_price || 0) * item.quantity), 0);
                 },
 
+                get itemDiscountTotal() {
+                    return this.roundSen(this.cart.reduce((sum, item) => sum + this.lineDiscount(item), 0));
+                },
+
+                get netSubtotal() {
+                    return Math.max(0, this.roundSen(this.subtotal - this.itemDiscountTotal));
+                },
+
                 get grandTotal() {
                     const disc = Math.max(0, Number(this.discountAmount || 0));
-                    return Math.max(0, this.subtotal - disc);
+                    return Math.max(0, this.roundSen(this.netSubtotal - disc));
+                },
+
+                roundSen(value) {
+                    return Math.round(Number(value || 0) * 100) / 100;
+                },
+
+                lineGross(item) {
+                    return Number(item.price || 0) * item.quantity;
+                },
+
+                // Nominal diskon baris, dibulatkan ke sen agar sama dengan yang divalidasi server
+                lineDiscount(item) {
+                    const gross = this.lineGross(item);
+                    const value = Math.max(0, Number(item.discountValue || 0));
+                    const raw = item.discountMode === 'pct' ? gross * Math.min(value, 100) / 100 : value;
+                    return Math.round(Math.min(raw, gross) * 100) / 100;
+                },
+
+                lineNet(item) {
+                    return Math.max(0, this.lineGross(item) - this.lineDiscount(item));
+                },
+
+                toggleItemDiscount(item) {
+                    item.showDiscount = !item.showDiscount;
+                },
+
+                setItemDiscountMode(item, mode) {
+                    if (item.discountMode === mode) return;
+                    item.discountMode = mode;
+                    item.discountValue = 0;
+                    this.validateDiscount();
+                },
+
+                clampItemDiscount(item) {
+                    const limit = item.discountMode === 'pct' ? 100 : this.lineGross(item);
+                    if (item.discountValue < 0) item.discountValue = 0;
+                    if (item.discountValue > limit) item.discountValue = limit;
+                    this.validateDiscount();
                 },
 
                 get changeDue() {
@@ -1291,8 +1391,8 @@
 
                 validateDiscount() {
                     if (this.discountAmount < 0) this.discountAmount = 0;
-                    if (this.subtotal > 0 && this.discountAmount > this.subtotal) {
-                        this.discountAmount = this.subtotal;
+                    if (this.discountAmount > this.netSubtotal) {
+                        this.discountAmount = this.netSubtotal;
                     }
                 },
 
@@ -1576,6 +1676,9 @@
                         base_price: basePrice,
                         quantity: 1,
                         subtotal: price * 1,
+                        showDiscount: false,
+                        discountMode: 'rp',
+                        discountValue: 0,
                     });
                 },
 
@@ -1598,10 +1701,20 @@
 
                     item.quantity = newQty;
                     item.subtotal = item.price * newQty;
+                    this.clampItemDiscount(item);
                 },
 
                 removeFromCart(productId) {
                     this.cart = this.cart.filter(i => (i.id || i.product.id) !== productId);
+                    this.validateDiscount();
+                },
+
+                checkoutItemsPayload() {
+                    return this.cart.map(i => ({
+                        product_id: i.id || i.product.id,
+                        quantity: i.quantity,
+                        discount_amount: this.lineDiscount(i),
+                    }));
                 },
 
                 clearCart() {
@@ -1676,10 +1789,7 @@
                             payment_method: this.paymentMethod,
                             due_date: this.dueDate || null,
                             discount_amount: Number(this.discountAmount || 0),
-                            items: this.cart.map(i => ({ 
-                                product_id: i.id || i.product.id, 
-                                quantity: i.quantity 
-                            })),
+                            items: this.checkoutItemsPayload(),
                         };
 
                         // Simpan payload transaksi ke Dexie IndexedDB
@@ -1741,10 +1851,7 @@
                                 payment_method: this.paymentMethod,
                                 due_date: this.dueDate || null,
                                 discount_amount: Number(this.discountAmount || 0),
-                                items: this.cart.map(i => ({ 
-                                    product_id: i.id || i.product.id, 
-                                    quantity: i.quantity 
-                                })),
+                                items: this.checkoutItemsPayload(),
                             }),
                         });
 
@@ -1878,7 +1985,9 @@
                 },
 
                 formatRupiah(num) {
-                    return 'Rp ' + Math.round(num || 0).toLocaleString('id-ID');
+                    const value = Math.round(Number(num || 0) * 100) / 100;
+                    const digits = Number.isInteger(value) ? 0 : 2;
+                    return 'Rp ' + value.toLocaleString('id-ID', { minimumFractionDigits: digits, maximumFractionDigits: digits });
                 }
             };
         }

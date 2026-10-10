@@ -37,7 +37,10 @@ class SalePostingService
     private const ACCOUNT_COGS = '5100';
 
     /**
-     * @param  array{items:array<int,array{product_id:int,quantity:int}>,payment_method?:string|null,receipt_number?:string|null,discount_amount?:float|int|numeric|null}  $data
+     * sale_items.subtotal is net of the line discount; sales.discount_amount holds only the
+     * transaction-level discount. Revenue is credited gross and every discount is debited to 4130.
+     *
+     * @param  array{items:array<int,array{product_id:int,quantity:int,discount_amount?:float|int|numeric|null}>,payment_method?:string|null,receipt_number?:string|null,discount_amount?:float|int|numeric|null}  $data
      */
     public function post(array $data, User $actor): Sale
     {
@@ -61,6 +64,7 @@ class SalePostingService
             }
 
             $totalPrice = '0.00';
+            $totalItemDiscount = '0.00';
             $totalCost = '0.00';
             $saleItems = [];
 
@@ -93,19 +97,36 @@ class SalePostingService
                 $unitCost = $this->money($product->purchase_price);
                 $quantity = (string) (int) $item['quantity'];
 
-                $subtotal = bcmul($unitPrice, $quantity, 2);
+                $grossLine = bcmul($unitPrice, $quantity, 2);
                 $cost = bcmul($unitCost, $quantity, 2);
+                $lineDiscount = $this->money($item['discount_amount']);
 
-                $totalPrice = bcadd($totalPrice, $subtotal, 2);
+                if (bccomp($lineDiscount, '0.00', 2) < 0) {
+                    throw ValidationException::withMessages([
+                        'items' => ["Diskon untuk {$product->name} tidak boleh bernilai negatif."],
+                    ]);
+                }
+
+                if (bccomp($lineDiscount, $grossLine, 2) > 0) {
+                    throw ValidationException::withMessages([
+                        'items' => ["Diskon untuk {$product->name} tidak boleh lebih besar dari harga barisnya."],
+                    ]);
+                }
+
+                $totalPrice = bcadd($totalPrice, $grossLine, 2);
+                $totalItemDiscount = bcadd($totalItemDiscount, $lineDiscount, 2);
                 $totalCost = bcadd($totalCost, $cost, 2);
 
                 $saleItems[] = [
                     'product_id' => $product->id,
                     'quantity' => (int) $item['quantity'],
                     'price' => $unitPrice,
-                    'subtotal' => $subtotal,
+                    'discount_amount' => $lineDiscount,
+                    'subtotal' => bcsub($grossLine, $lineDiscount, 2),
                 ];
             }
+
+            $netSubtotal = bcsub($totalPrice, $totalItemDiscount, 2);
 
             // Validasi & kalkulasi diskon transaksi nominal
             $discountAmount = $this->money($data['discount_amount'] ?? 0);
@@ -116,13 +137,13 @@ class SalePostingService
                 ]);
             }
 
-            if (bccomp($discountAmount, $totalPrice, 2) > 0) {
+            if (bccomp($discountAmount, $netSubtotal, 2) > 0) {
                 throw ValidationException::withMessages([
                     'discount_amount' => ['Diskon tidak boleh lebih besar dari Subtotal.'],
                 ]);
             }
 
-            $grandTotal = bcsub($totalPrice, $discountAmount, 2);
+            $grandTotal = bcsub($netSubtotal, $discountAmount, 2);
 
             // Tautkan secara otomatis ke sesi shift kasir yang sedang aktif
             $activeShift = CashRegisterShift::where('user_id', $actor->id)
@@ -150,7 +171,7 @@ class SalePostingService
 
             $sale->items()->createMany($saleItems);
 
-            $this->recordJournal($sale, $accounts, $grandTotal, $discountAmount, $totalPrice, $totalCost, $actor);
+            $this->recordJournal($sale, $accounts, $grandTotal, bcadd($totalItemDiscount, $discountAmount, 2), $totalPrice, $totalCost, $actor);
 
             return $sale->load('items.product');
         });
@@ -314,8 +335,8 @@ class SalePostingService
     }
 
     /**
-     * @param  array<int,array{product_id:int|string,quantity:int|string}>  $items
-     * @return Collection<int,array{product_id:int,quantity:int}>
+     * @param  array<int,array{product_id:int|string,quantity:int|string,discount_amount?:float|int|string|null}>  $items
+     * @return Collection<int,array{product_id:int,quantity:int,discount_amount:string}>
      */
     private function normaliseItems(array $items): Collection
     {
@@ -324,6 +345,10 @@ class SalePostingService
             ->map(fn (Collection $lines) => [
                 'product_id' => (int) $lines->first()['product_id'],
                 'quantity' => (int) $lines->sum(fn (array $line) => (int) $line['quantity']),
+                'discount_amount' => $lines->reduce(
+                    fn (string $carry, array $line) => bcadd($carry, $this->money($line['discount_amount'] ?? 0), 2),
+                    '0.00',
+                ),
             ])
             ->values();
     }

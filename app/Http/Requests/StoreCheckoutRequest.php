@@ -26,6 +26,7 @@ class StoreCheckoutRequest extends FormRequest
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.discount_amount' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'customer_id' => ['sometimes', 'nullable', 'integer'],
             'discount_amount' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'payment_method' => ['sometimes', 'nullable', 'string', 'max:255'],
@@ -46,6 +47,7 @@ class StoreCheckoutRequest extends FormRequest
             'items.*.product_id.exists' => 'One or more products do not exist.',
             'items.*.quantity.required' => 'Quantity is required for each item.',
             'items.*.quantity.min' => 'Quantity must be at least 1.',
+            'items.*.discount_amount.min' => 'Diskon produk tidak boleh bernilai negatif.',
         ];
     }
 }

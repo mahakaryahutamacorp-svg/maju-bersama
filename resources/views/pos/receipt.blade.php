@@ -162,19 +162,28 @@
                     return number_format((float) $value, $decimals, ',', '.');
                 };
                 $calculatedTotal = '0.00';
+                $itemDiscountTotal = '0.00';
             @endphp
             @foreach ($sale->items as $item)
                 @php
                     $unitPrice = (string) $item->price;
-                    $itemSubtotal = (string) $item->subtotal;
-                    $calculatedTotal = bcadd($calculatedTotal, $itemSubtotal, 2);
+                    $itemDiscount = (string) ($item->discount_amount ?? '0.00');
+                    $itemGross = bcmul($unitPrice, (string) $item->quantity, 2);
+                    $calculatedTotal = bcadd($calculatedTotal, $itemGross, 2);
+                    $itemDiscountTotal = bcadd($itemDiscountTotal, $itemDiscount, 2);
                 @endphp
                 <div class="item-row">
                     <div class="item-name">{{ $item->product?->name ?? 'Item Produk' }}</div>
                     <div class="item-calc">
                         <span>{{ $item->quantity }} x {{ $rupiah($unitPrice) }}</span>
-                        <span class="font-bold">{{ $rupiah($itemSubtotal) }}</span>
+                        <span class="font-bold">{{ $rupiah($itemGross) }}</span>
                     </div>
+                    @if (bccomp($itemDiscount, '0.00', 2) === 1)
+                        <div class="item-calc">
+                            <span>&nbsp;&nbsp;Diskon</span>
+                            <span>-{{ $rupiah($itemDiscount) }}</span>
+                        </div>
+                    @endif
                 </div>
             @endforeach
         </div>
@@ -188,18 +197,27 @@
             $change = $changeDue !== null
                 ? number_format((float) $changeDue, 2, '.', '')
                 : (bccomp($cash, $realTotal, 2) === 1 ? bcsub($cash, $realTotal, 2) : '0.00');
-            $hasDiscount = !empty($sale->discount_amount) && (float) $sale->discount_amount > 0;
+            $hasSaleDiscount = bccomp((string) ($sale->discount_amount ?? '0.00'), '0.00', 2) === 1;
+            $hasItemDiscount = bccomp($itemDiscountTotal, '0.00', 2) === 1;
         @endphp
 
-        @if ($hasDiscount)
+        @if ($hasSaleDiscount || $hasItemDiscount)
             <div class="summary-row">
                 <span>SUBTOTAL:</span>
                 <span>Rp {{ $rupiah($calculatedTotal) }}</span>
             </div>
-            <div class="summary-row">
-                <span>DISKON:</span>
-                <span>- Rp {{ $rupiah($sale->discount_amount) }}</span>
-            </div>
+            @if ($hasItemDiscount)
+                <div class="summary-row">
+                    <span>DISKON PRODUK:</span>
+                    <span>- Rp {{ $rupiah($itemDiscountTotal) }}</span>
+                </div>
+            @endif
+            @if ($hasSaleDiscount)
+                <div class="summary-row">
+                    <span>DISKON:</span>
+                    <span>- Rp {{ $rupiah($sale->discount_amount) }}</span>
+                </div>
+            @endif
         @endif
 
         <div class="summary-row total-row">

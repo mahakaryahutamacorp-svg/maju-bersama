@@ -67,7 +67,9 @@
                             </td>
                             <td class="px-4 py-3 text-right font-mono font-semibold text-slate-700">{{ number_format($item->quantity) }}</td>
                             <td class="px-4 py-3 text-right font-mono text-slate-700">Rp {{ number_format($item->price, 0, ',', '.') }}</td>
-                            <td class="px-4 py-3 text-right font-mono text-slate-500">Rp 0</td>
+                            <td class="px-4 py-3 text-right font-mono {{ (float) $item->discount_amount > 0 ? 'text-rose-600' : 'text-slate-500' }}">
+                                {{ (float) $item->discount_amount > 0 ? '- ' : '' }}Rp {{ number_format((float) $item->discount_amount, 0, ',', '.') }}
+                            </td>
                             <td class="px-4 py-3 text-right font-mono font-bold text-slate-900">Rp {{ number_format($item->subtotal, 0, ',', '.') }}</td>
                         </tr>
                     @empty

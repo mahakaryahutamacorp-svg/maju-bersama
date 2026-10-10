@@ -121,9 +121,12 @@ class PosWebTest extends TestCase
     {
         $response = $this->actingAs($this->cashier)->get('/pos');
         $response->assertOk();
-        $response->assertSee('Diskon (Rp)');
+        $response->assertSee('Diskon Transaksi (Rp)');
         $response->assertSee('pos-discount-input');
         $response->assertSee('Subtotal:');
+        $response->assertSee('Diskon Produk:');
+        $response->assertSee('toggleItemDiscount(item)', false);
+        $response->assertSee('discount_amount: this.lineDiscount(i)', false);
     }
 
     public function test_cashier_can_checkout_with_nominal_discount_and_balanced_journal(): void
