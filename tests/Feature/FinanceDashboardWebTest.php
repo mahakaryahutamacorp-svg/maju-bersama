@@ -112,10 +112,10 @@ class FinanceDashboardWebTest extends TestCase
             ->assertSee('Pendapatan')
             ->assertSee('Beban')
             ->assertSee('Catat Pengeluaran')
-            ->assertSee('Jurnal Manual')
+            ->assertDontSee('Jurnal Manual')
             ->assertSee('name="return_to"', false)
             ->assertSee('value="finance"', false)
-            ->assertSee(route('backoffice.finance.journals.store'), false)
+            ->assertDontSee(route('backoffice.finance.journals.store'), false)
             ->assertSee(route('backoffice.expenses.store'), false)
             ->assertDontSee('name="branch_id"', false);
     }
@@ -126,6 +126,8 @@ class FinanceDashboardWebTest extends TestCase
             ->get(route('backoffice.finance.dashboard'))
             ->assertOk()
             ->assertSee('name="branch_id"', false)
+            ->assertSee('Jurnal Manual')
+            ->assertSee(route('backoffice.finance.journals.store'), false)
             ->assertSee('Cabang Finance A')
             ->assertSee('Cabang Finance B');
     }
@@ -220,9 +222,33 @@ class FinanceDashboardWebTest extends TestCase
             ->assertViewHas('dashboard', fn (array $dashboard) => $dashboard['cash_total'] === 7000000.0);
     }
 
+    public function test_branch_admin_cannot_post_manual_journal(): void
+    {
+        $this->actingAs($this->adminA)->post(route('backoffice.finance.journals.store'), [
+            'transaction_date' => now()->toDateString(),
+            'description' => 'Jurnal admin cabang',
+            'reference_number' => 'JU-ADMIN-BLOCK',
+            'branch_id' => $this->branchA->id,
+            'lines' => [
+                [
+                    'chart_of_account_id' => $this->cashAccount->id,
+                    'debit' => 150000,
+                    'credit' => 0,
+                ],
+                [
+                    'chart_of_account_id' => $this->expenseAccount->id,
+                    'debit' => 0,
+                    'credit' => 150000,
+                ],
+            ],
+        ])->assertForbidden();
+
+        $this->assertDatabaseMissing('journal_headers', ['reference_number' => 'JU-ADMIN-BLOCK']);
+    }
+
     public function test_quick_action_posts_manual_journal_via_journal_posting_service(): void
     {
-        $response = $this->actingAs($this->adminA)->post(route('backoffice.finance.journals.store'), [
+        $response = $this->actingAs($this->master)->post(route('backoffice.finance.journals.store'), [
             'transaction_date' => now()->toDateString(),
             'description' => 'Koreksi saldo kas toko',
             'reference_number' => 'JU-QA-0001',
@@ -245,14 +271,14 @@ class FinanceDashboardWebTest extends TestCase
 
         $header = JournalHeader::query()->where('reference_number', 'JU-QA-0001')->first();
         $this->assertNotNull($header);
-        $this->assertSame($this->branchA->id, $header->branch_id);
+        $this->assertSame($this->branchB->id, $header->branch_id);
         $this->assertSame('Koreksi saldo kas toko', $header->description);
         $this->assertCount(2, $header->journalLines);
     }
 
     public function test_unbalanced_manual_journal_is_rejected(): void
     {
-        $this->actingAs($this->adminA)->post(route('backoffice.finance.journals.store'), [
+        $this->actingAs($this->master)->post(route('backoffice.finance.journals.store'), [
             'transaction_date' => now()->toDateString(),
             'description' => 'Jurnal timpang',
             'lines' => [

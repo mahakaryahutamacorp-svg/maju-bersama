@@ -1,117 +1,106 @@
-# TestSprite AI Comprehensive Testing & Audit Report (MCP)
-**Sistem Maju Bersama POS & Accounting Multi-Store**
+# TestSprite AI Testing Report (MCP)
 
 ---
 
-## 1️⃣ Document Metadata
-- **Project Name:** MAJUBERSAMA.POS.ACCUNTING.MULTISTORE
-- **Audit Date:** 2026-10-07
-- **Prepared by:** TestSprite AI & Autonomous Accounting Auditor Agent
-- **Account:** Muhammad Husni (`mahakaryahutama.corp@gmail.com`)
-- **Audit Framework:** TestSprite MCP Enterprise Testing Suite
-- **Interactive Dashboard:** [TestSprite MCP Web Portal](http://localhost:65341/modification) | [Cloud Portal](https://www.testsprite.com/dashboard/mcp/tests/bd783b55-cfb9-5f19-9aaf-9c090c7da439/test/c1a2eb5f-22b5-4599-970b-6da080375912)
+## 1. Document Metadata
+
+- **Project Name:** MAJUBERSAMA_CURSOR
+- **Date:** 2026-10-13
+- **Prepared by:** TestSprite AI Team
+- **Target:** `http://127.0.0.1:8000`
+- **Scope:** Backend API, kontrak `tests/Feature/Api/` plus matriks RBAC dan isolasi Pakan/Pupuk
+- **Execution:** 6 kasus, 3 lulus, 3 gagal (50%)
+- **Tokens:** Setiap peran login sendiri lewat `POST /api/login`. Token tidak dipakai silang. Akun: `master@majubersama.test`, `asep@mb.pkn`, `gudang@pakan.178`, `gudang@pupuk.178`, `admin@mb.abi`, `kasir@pakan.mb`, `pipin@kasir.pupuk`.
 
 ---
 
-## 2️⃣ Executive Summary
-Pengujian komprehensif telah dilakukan terhadap seluruh modul inti sistem Maju Bersama POS & Accounting Multi-Store, mencakup:
-1. **Otorisasi & Isolasi Multi-Cabang**
-2. **Katalog Produk & Barcode Lookup**
-3. **Pengadaan, Pembelian & Hutang Dagang (Accounts Payable)**
-4. **Distribusi Stok Antar Cabang (Inter-Branch Transfer)**
-5. **Kasir POS & Proteksi Penjualan Stok Nol**
-6. **Penjurnalan Akuntansi Otomatis Berpasangan (Double-Entry Bookkeeping)**
-7. **Pusat Pelaporan (Laporan Penjualan, Universal Transaction Viewer, Laba Rugi, & Neraca Saldo)**
+## 2. Requirement Validation Summary
+
+### Requirement: Login Sanctum
+
+#### Test TC001 sanctum_login_authentication_flow
+
+- **Test Code:** [TC001_sanctum_login_authentication_flow.py](./TC001_sanctum_login_authentication_flow.py)
+- **Test Error:** Password salah mengembalikan 422 dengan pesan `Invalid credentials.`, sementara skrip mengharapkan 401. Kasus berhenti di assert pertama, jadi profil, logout, dan pencabutan token tidak dijalankan pada putaran ini.
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/bd783b55-cfb9-5f19-9aaf-9c090c7da439/test/ffc955a0-158d-4419-8666-9e0d5a7882b2
+- **Status:** Failed
+- **Analysis / Findings:** Ini selisih kontrak status, bukan lubang login. `AuthController` dan `tests/Feature/Api/AuthApiTest.php` memang menetapkan 422 untuk kredensial salah, dan 401 hanya bila token tidak ada. Kredensial salah tetap ditolak.
+
+### Requirement: Jurnal hanya master
+
+#### Test TC002 journals_rbac_access_control
+
+- **Test Code:** [TC002_journals_rbac_access_control.py](./TC002_journals_rbac_access_control.py)
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/bd783b55-cfb9-5f19-9aaf-9c090c7da439/test/70d98254-3d8e-49c6-b4ad-533468bd1201
+- **Status:** Passed
+- **Analysis / Findings:** Tanpa token, `POST /api/journals` mengembalikan 401. `kasir@pakan.mb` dan `pipin@kasir.pupuk` menerima 403 pada GET dan POST. Empat admin cabang (`asep@mb.pkn`, `gudang@pakan.178`, `gudang@pupuk.178`, `admin@mb.abi`) juga menerima 403 pada GET dan POST. Master membuat jurnal seimbang (201) dan jurnal timpang ditolak 422 tanpa header. Tiap peran memakai token hasil loginnya sendiri.
+
+### Requirement: Neraca konsolidasi dan laporan cabang
+
+#### Test TC003 consolidated_financial_reports_access
+
+- **Test Code:** [TC003_consolidated_financial_reports_access.py](./TC003_consolidated_financial_reports_access.py)
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/bd783b55-cfb9-5f19-9aaf-9c090c7da439/test/4b81ac77-b64e-49a9-a975-05947b5a2ace
+- **Status:** Passed
+- **Analysis / Findings:** Master mendapat 200 pada `GET /api/reports/balance-sheet` dengan `difference` 0.00, dan 200 pada `GET /api/reports/income-statement`. Laporan penjualan admin cabang yang memuat `branch_id` tetap di cabang pemilik token. Kasir tidak menerima neraca cabang lain: responsnya 403, atau 200 yang `branch_id`-nya sama dengan cabang kasir. Endpoint laporan berada di luar middleware `can:view-accounting`, jadi lulus di sini bukan berarti kasir dilarang membaca neraca cabangnya sendiri.
+
+### Requirement: Master data
+
+#### Test TC004 master_data_access_authorization
+
+- **Test Code:** [TC004_master_data_access_authorization.py](./TC004_master_data_access_authorization.py)
+- **Test Error:** `kasir@pakan.mb` membuat produk dan menerima 201. Produk tersimpan: id 173, nama `cashier-product-1fc132`, SKU `BR17-L0KLFW`, `branch_id` 17 (`CBG-PKN` / TOKO PAKAN), kategori Pestisida.
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/bd783b55-cfb9-5f19-9aaf-9c090c7da439/test/195f9b0b-39b9-429c-a646-20aa648b69a3
+- **Status:** Failed
+- **Analysis / Findings:** Sebelum assert produk, kasir yang sama sudah ditolak 403 pada `GET /api/branches`, `POST /api/branches`, dan `POST /api/categories`. `GET /api/categories` tetap 200 karena kategori bersifat global. Celahnya ada di `POST /api/products`: `StoreProductRequest::authorize()` mengembalikan true untuk setiap pengguna yang sudah login. Pemeriksaan master tidak sempat jalan karena kasus berhenti di kasir.
+
+### Requirement: Isolasi Pakan dan Pupuk
+
+#### Test TC005 branch_isolation_product_visibility
+
+- **Test Code:** [TC005_branch_isolation_product_visibility.py](./TC005_branch_isolation_product_visibility.py)
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/bd783b55-cfb9-5f19-9aaf-9c090c7da439/test/ec5cd045-bc74-454f-bd68-6331370e62fa
+- **Status:** Passed
+- **Analysis / Findings:** Token terpisah untuk `asep@mb.pkn`, `gudang@pakan.178`, `gudang@pupuk.178`, dan `admin@mb.abi`. Daftar `GET /api/products`, termasuk `other_branch_stock`, tidak memuat nama cabang divisi lawan. Lookup barcode lintas divisi tidak mengembalikan 200. Batas pengujian: `branch_id` yang dikirim adalah `999999`, bukan id cabang Pupuk yang nyata, dan tidak ada SKU yang sengaja dibuat sama dengan stok di divisi lain. `ProductController::index` tetap mengisi `other_branch_stock` lewat `Product::withoutGlobalScopes()` bila SKU sama dan stok cabang lain lebih dari nol. Jalur itu tidak terpicu pada katalog yang ada hari ini.
+
+### Requirement: Checkout dan penerimaan barang
+
+#### Test TC006 checkout_and_goods_receipt_workflow
+
+- **Test Code:** [TC006_checkout_and_goods_receipt_workflow.py](./TC006_checkout_and_goods_receipt_workflow.py)
+- **Test Error:** Checkout yang sah mengembalikan 201 `Checkout completed successfully.` untuk `INV-20261013-3936` (sale id 145, produk id 175, total 30.00). Skrip mengharapkan 200, lalu berhenti.
+- **Test Visualization and Result:** https://www.testsprite.com/dashboard/mcp/tests/bd783b55-cfb9-5f19-9aaf-9c090c7da439/test/6ac33c3f-9099-4678-8c76-34f2ae6ad0a7
+- **Status:** Failed
+- **Analysis / Findings:** Penjualan tercatat dan stok produk uji berkurang dari 5 menjadi 3. Kegagalan ada pada kode status yang diharapkan skrip, bukan pada penolakan transaksi. Sisa data uji: produk 175, penjualan 145, dan penerimaan barang yang dibuat kasus ini. Pemeriksaan jurnal seimbang dan diskon tidak sempat dijalankan.
 
 ---
 
-## 3️⃣ Requirement Validation & Test Case Evaluation
+## 3. Coverage & Matching Metrics
 
-### Group A: Multi-Branch & Authentication Isolation
-- **TC005 - Branch Management & Multi-Store Isolation**:
-  - **Status:** ✅ PASSED (100%)
-  - **Findings:** Sistem isolasi tenant cabang berfungsi sempurna. Superadmin dapat membuat cabang, sementara kasir dan manager terikat pada `branch_id` masing-masing melalui global query scope (`HasBranchScope`).
+- **50.00%** of tests passed (3/6)
 
-### Group B: Point of Sale & Barcode Scanning
-- **TC004 - Quick Barcode Scanner Lookup**:
-  - **Status:** ✅ PASSED (100%)
-  - **Findings:** Endpoint `/api/products/barcode/{barcode}` merespons secara instan (<50ms) dengan metadata produk dan harga jual cabang yang tepat.
-- **TC001 / TC103 - Checkout Integrity & Zero-Stock Exploit Defense**:
-  - **Status:** ✅ VERIFIED / PROTECTED (100%)
-  - **Findings:** Percobaan transaksi kasir pada produk dengan stok 0 berhasil ditolak keras oleh backend dengan HTTP 422 *Unprocessable Entity* (`Stok tidak mencukupi`). Tidak ada bypass stok di level API.
+| Requirement | Total Tests | Passed | Failed |
+| --- | ---: | ---: | ---: |
+| Login Sanctum | 1 | 0 | 1 |
+| Jurnal hanya master | 1 | 1 | 0 |
+| Neraca dan laporan cabang | 1 | 1 | 0 |
+| Master data | 1 | 0 | 1 |
+| Isolasi Pakan dan Pupuk | 1 | 1 | 0 |
+| Checkout dan penerimaan | 1 | 0 | 1 |
 
-### Group C: End-to-End Retail & Accounting Simulation
-- **TC006 - Multi-Role End-to-End Simulation**:
-  - **Status:** ✅ PASSED (100%)
-  - **Findings:**
-    - Admin Pusat mentransfer 20 unit barang ke Cabang 1 (TRF terbit).
-    - Kasir Cabang 1 menjual 8 unit (5 unit normal + 3 unit diskon).
-    - Jurnal Akuntansi otomatis membukukan:
-      - Penjualan Kotor (Akun 4110): Rp 1.120.000,00
-      - Diskon Penjualan (Akun 4130): Rp 20.000,00 (-)
-      - Pendapatan Bersih: Rp 1.100.000,00
-      - HPP (Akun 5100): Rp 800.000,00 (-)
-      - Laba Kotor: Rp 300.000,00 (Match 100%)
-      - Kas Cabang (Akun 1110): +Rp 1.100.000,00
-      - Persediaan (Akun 1210): -Rp 800.000,00
-      - **Keseimbangan Jurnal (Debet = Kredit): 100% BALANCE.**
-
-### Group D: Distributor Accounts Payable (Hutang Dagang Fleksibel)
-- **TC007 - Purchase & Flexible Installment AP**:
-  - **Status:** ✅ PASSED (100%)
-  - **Findings:**
-    - Pembuatan faktur hutang distributor Rp 5.000.000 (status: UNPAID).
-    - Cicilan termin 1 Rp 2.000.000 sukses (status berubah otomatis ke: PARTIAL, sisa Rp 3.000.000).
-    - Uji batas keamanan: Percobaan overpayment Rp 4.000.000 saat sisa Rp 3.000.000 sukses ditolak dengan HTTP 422.
-    - Cicilan termin 2 Rp 3.000.000 sukses melunasi tagihan (status berubah ke: PAID, sisa Rp 0).
-    - Jurnal Dr. Hutang Dagang (2110) vs Cr. Kas/Bank (1110/1120) seimbang 100%.
-
-### Group E: Pusat Pelaporan & Laporan Keuangan
-- **TC104 - Report Center & Financial Statement Audit**:
-  - **Status:** ✅ PASSED (100%)
-  - **Findings:**
-    - **Laporan Penjualan**: Agregasi nominal bebas dari bug desimal 100x lipat.
-    - **Universal Transaction Viewer**: Harga satuan, subtotal, dan total struk dirender presisi.
-    - **Laba Rugi & Neraca**: Total Aset = Total Liabilitas + Ekuitas (`difference: 0.00`, 100% Balanced).
+Kontrak PHPUnit di `tests/Feature/Api/` yang terverifikasi di server hidup: TC002 jurnal seimbang/timpang, TC007 penolakan jurnal untuk kasir dan admin cabang, serta TC009 neraca master dengan selisih 0. TC001 di server hidup menolak password salah dengan 422, sesuai `AuthApiTest`. Checkout TC003 tercatat 201; assert 200 pada skrip TestSprite tidak cocok dengan respons itu.
 
 ---
 
-## 4️⃣ Coverage & Metric Summary
+## 4. Key Gaps / Risks
 
-| Domain Pengujian | Total Skenario | ✅ Passed | ⚠️ Needs Refinement | Coverage Status |
-| :--- | :---: | :---: | :---: | :---: |
-| **1. Multi-Store Authentication & Scoping** | 3 | 3 | 0 | 100% Solid |
-| **2. Catalog & Barcode Scanner Lookup** | 3 | 3 | 0 | 100% Solid |
-| **3. Inventory Deduction & Zero-Stock Guard** | 4 | 4 | 0 | 100% Solid |
-| **4. Inter-Branch Stock Transfers** | 3 | 3 | 0 | 100% Solid |
-| **5. Multi-Role POS Simulation (Cash & Discount)**| 4 | 4 | 0 | 100% Solid |
-| **6. Accounts Payable (AP) Flexible Installments**| 4 | 4 | 0 | 100% Solid |
-| **7. Double-Entry Accounting Synchronization** | 5 | 5 | 0 | 100% Solid |
-| **8. Financial Statements (Neraca & Laba Rugi)** | 3 | 3 | 0 | 100% Solid |
-| **Total Matriks Pengujian** | **29** | **29** | **0** | **100.00% Verified** |
+**Kasir tidak menembus jurnal API.** `POST` dan `GET /api/journals` mengembalikan 403 untuk `kasir@pakan.mb` dan `pipin@kasir.pupuk`. Tanpa token, hasilnya 401. Cabang dan pembuatan kategori juga 403 untuk kasir Pakan.
 
+**Kasir bisa membuat master produk.** `POST /api/products` sebagai `kasir@pakan.mb` mengembalikan 201 dan menulis produk id 173 di TOKO PAKAN. Penyebabnya `StoreProductRequest::authorize()` yang mengizinkan setiap pengguna terautentikasi. Produk uji itu masih ada di database.
+
+**Admin Pakan tidak melihat data Pupuk pada katalog yang diuji.** `GET /api/products` untuk `asep@mb.pkn` dan `gudang@pakan.178` tidak memuat nama atau stok cabang Pupuk di `data` maupun `other_branch_stock`. Arah sebaliknya sama. Celah laten tetap ada: bila SKU yang sama punya stok di divisi lain, `other_branch_stock` mengambil stok itu tanpa scope cabang. Putaran ini tidak menanam SKU bersama, jadi jalur itu belum terbukti bocor pada data hari ini.
+
+**RBAC jurnal belum selesai di web.** `POST /backoffice/finance/journals` berada di grup `can:manage-branch-operations`, yang juga dimiliki admin cabang. TestSprite tidak memanggil rute web itu. Catatan di `JournalApiTest` tetap berlaku: API 403 untuk admin cabang, sementara jurnal manual lewat backoffice belum dikunci ke master.
+
+**Sisa data uji di server lokal:** produk kasir id 173 (`cashier-product-1fc132`), produk checkout id 175, penjualan id 145 (`INV-20261013-3936`). Tidak ada perubahan kode aplikasi.
 ---
-
-## 5️⃣ Logic & Architectural Gaps Identified
-
-1. **Proteksi Produk Tanpa Harga Beli pada PO (Catalog Gap)**:
-   - *Temuan*: Terdapat produk katalog hasil import CSV mentah (misal: `PRIMA CEL 18EC`) yang memiliki `purchase_price = 0.0`.
-   - *Dampak*: Jika diproses PO/GR tanpa input harga beli manual, valuasi persediaan di neraca menjadi Rp 0.
-   - *Solusi Logika*: Tambahkan validasi pada level Purchase Order Request agar mewajibkan `price > 0`.
-
-2. **Standardisasi Error Response POS untuk Barcode Tanpa Stok**:
-   - *Temuan*: Saat ini backend melempar validasi HTTP 422 standard Laravel.
-   - *Solusi Logika*: Tambahkan flag khusus pada response API seperti `out_of_stock: true, available_qty: 0` agar frontend kasir dapat langsung menampilkan dialog pop-up konfirmasi cek stok cabang terdekat.
-
----
-
-## 6️⃣ Strategic UI/UX Recommendations
-
-1. **POS Terminal Visual Alert (Zero Stock)**:
-   - Ganti alert toast standar dengan modal dialog bernuansa Amber/Red dengan tombol satu klik: *"Cek Stok di Cabang Lain"* atau *"Request Transfer dari Pusat"*.
-2. **Universal Transaction Viewer (Struk Kasir)**:
-   - Sediakan tombol switch cepat antara tampilan **Preview Faktur Pajak/A4** dan **Format Cetak Struk Kasir Thermal (58mm/80mm)**.
-3. **Dashboard Neraca Keuangan (Live Balance Indicator)**:
-   - Tampilkan badge indikator status real-time di header laporan neraca:
-     - 🟢 **Neraca Seimbang (Aktiva = Pasiva)**
-     - 🔴 **Selisih: Rp [X]** (jika ada selisih, klik untuk diagnosa unposted journal).

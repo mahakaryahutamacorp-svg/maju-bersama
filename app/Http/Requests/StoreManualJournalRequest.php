@@ -13,7 +13,7 @@ class StoreManualJournalRequest extends FormRequest
     {
         $user = $this->user();
 
-        return $user !== null && ($user->isMaster() || $user->isBranchAdmin());
+        return $user !== null && $user->isMaster();
     }
 
     /**

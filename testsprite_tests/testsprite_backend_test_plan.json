@@ -1,62 +1,32 @@
 [
   {
     "id": "TC001",
-    "title": "login sanctum master dan tolak kredensial salah",
-    "description": "BUTIR YANG HARUS LULUS. POST /api/login dengan email master@majubersama.test dan password password mengembalikan 200 plus token Sanctum. GET /api/user dengan Authorization Bearer mengembalikan profil. POST /api/logout mencabut token. Login dengan password salah mengembalikan 401. GET /api/user tanpa token mengembalikan 401."
+    "title": "sanctum_login_authentication_flow",
+    "description": "Test the Sanctum login endpoint with valid and invalid credentials to verify token issuance and error handling. Verify profile retrieval with valid token and error on missing token. Test logout revokes the token successfully."
   },
   {
     "id": "TC002",
-    "title": "jurnal double entry seimbang dan timpang",
-    "description": "BUTIR 1 SUDAH, HARUS LULUS. Sebagai master, POST /api/journals dengan minimal dua akun dan total debit sama dengan total kredit (skala 2) diterima. POST /api/journals dengan debit tidak sama dengan kredit ditolak 422 dan tidak menulis header jurnal. Bandingkan nominal dengan dua desimal, jangan memakai float."
+    "title": "journals_rbac_access_control",
+    "description": "Verify that only master users can create and list journals via the API. Ensure balanced journals are accepted with 201, unbalanced journals rejected with 422. Confirm cashier and branch admin receive 403 on journal endpoints, and unauthenticated users receive 401."
   },
   {
     "id": "TC003",
-    "title": "checkout pos memotong stok dan jurnal seimbang",
-    "description": "BUTIR 3 DAN 7 SUDAH/SEBAGIAN, HARUS LULUS. Sebagai master, POST /api/checkout untuk satu produk yang stoknya cukup. Harga satuan harus mengikuti selling_price master meskipun klien mengirim harga berbeda. Stok berkurang sesuai kuantitas. Jurnal penjualan seimbang: debit 1110 Kas atau 1130 Piutang, kredit 4110 sebesar subtotal, dan bila ada harga pokok maka debit 5100 serta kredit 1210. Tidak boleh ada selisih ratusan kali lipat antara harga master, total struk, dan jurnal."
+    "title": "consolidated_financial_reports_access",
+    "description": "Test that master users can access consolidated balance sheet and income statement reports with correct data (balance sheet difference equals 0.00). Verify branch admins receive sales reports scoped to their branch only. Confirm access restrictions and data isolation for non-master roles."
   },
   {
     "id": "TC004",
-    "title": "checkout stok habis membatalkan stok dan jurnal",
-    "description": "BUTIR 4 SUDAH, HARUS LULUS. POST /api/checkout dengan kuantitas di atas stok ditolak 422. Stok tidak berubah, tidak ada baris penjualan baru, dan tidak ada jurnal baru untuk percobaan itu."
+    "title": "master_data_access_authorization",
+    "description": "Ensure only superadmin or master roles can list and create branches. Verify categories can be read by authenticated users but only created by authorized roles. Confirm product creation is forbidden for cashiers and allowed for authorized roles."
   },
   {
     "id": "TC005",
-    "title": "penerimaan barang menambah stok pesanan beli tidak",
-    "description": "BUTIR 3 SUDAH, HARUS LULUS. Membuat pesanan beli tidak mengubah kuantitas stok. POST /api/goods-receipts untuk pesanan itu menambah stok dan menulis jurnal seimbang, debit 1210 Persediaan dan kredit kas atau 2110 Hutang Dagang sesuai cara bayar."
+    "title": "branch_isolation_product_visibility",
+    "description": "Test that branch admins can only see products and stock for their own branch. Verify that querying products with other branch_id does not leak data or other_branch_stock from other divisions. Confirm barcode lookup returns 404 for products outside caller's branch."
   },
   {
     "id": "TC006",
-    "title": "diskon satu tingkat dibatasi server",
-    "description": "BUTIR 7 DAN 10 SEBAGIAN, HARUS LULUS UNTUK DISKON SATU TINGKAT. POST /api/checkout dengan discount_amount negatif atau lebih besar dari subtotal ditolak 422. Diskon yang sah mengurangi total, mendebit 4130 Potongan Penjualan, dan jurnal tetap seimbang. Jangan menguji diskon bertingkat sebagai fitur yang sudah ada."
-  },
-  {
-    "id": "TC007",
-    "title": "api jurnal hanya master",
-    "description": "BUTIR 8 SEBAGIAN, HARUS LULUS DI API. POST /api/journals tanpa token mengembalikan 401. Kasir dan admin cabang yang memanggil POST /api/journals menerima 403. Master menerima jurnal yang seimbang. Catat sebagai celah, jangan ditandai lulus sebagai RBAC selesai: admin cabang masih dapat membuat jurnal manual lewat POST /backoffice/finance/journals. Belum ada rute ubah, hapus, atau pembatalan jurnal khusus master."
-  },
-  {
-    "id": "TC008",
-    "title": "input berbahaya diperlakukan sebagai teks",
-    "description": "BUTIR 9 SUDAH, HARUS LULUS. Kirim nama pelanggan atau kata pencarian yang berisi tanda kutip dan OR 1=1 ke endpoint daftar yang memakai filter teks. Server mengembalikan hasil normal atau validasi, tidak mengembalikan seluruh isi tabel."
-  },
-  {
-    "id": "TC009",
-    "title": "neraca tetap seimbang setelah rangkaian uji",
-    "description": "BUTIR 10 SEBAGIAN, HARUS LULUS UNTUK NERACA. GET /api/reports/balance-sheet dan GET /api/reports/income-statement sebagai master. Selisih neraca harus 0 pada skala dua desimal. Laporan tidak menampilkan nilai yang membengkak sekitar seratus kali dari transaksi yang baru dibuat."
-  },
-  {
-    "id": "TC010",
-    "title": "catat celah hapus master produk dan pelanggan",
-    "description": "BUTIR 5 SEBAGIAN, INI CATATAN CELAH BUKAN FITUR YANG BOLEH DITANDAI SELESAI. Amati penghapusan produk yang sudah punya sale_items dan penghapusan pelanggan yang sudah punya penjualan. Perilaku hari ini masih mengizinkan penghapusan katalog produk dan melepas tautan pelanggan. Target yang benar: keduanya ditolak selama riwayat transaksi ada. Tulis hasil amatan sebagai celah. Jangan mengubah kode aplikasi."
-  },
-  {
-    "id": "TC011",
-    "title": "catat celah tipe uang integer pada struk",
-    "description": "BUTIR 6 SEBAGIAN, INI CATATAN CELAH. Pastikan tidak ada kolom uang float atau double. Jurnal, diskon, dan pembayaran memakai DECIMAL. sales.total_amount, sale_items.price, dan sale_items.subtotal masih integer, jadi pecahan rupiah tidak utuh di dokumen struk. Catat sebagai celah. Jangan menandai akurasi uang sebagai selesai."
-  },
-  {
-    "id": "TC012",
-    "title": "catat celah diskon bertingkat pembayaran split dan dokumen",
-    "description": "BUTIR 2, 10, 11, DAN 12. INI CATATAN CELAH, BUKAN UJI YANG BOLEH LULUS SEBAGAI FITUR. Diskon bertingkat dan pembayaran split kas plus bank dalam satu struk belum dimodelkan. Belum ada studi tabel Odoo atau ERPNext. Satu produk masih satu baris stok per cabang. BUG_REGISTRY belum memuat bug skala desimal dan error beranda akun pusat tanpa cabang. Tuliskan butir ini sebagai BELUM atau SEBAGIAN di laporan. Jangan membuat data produksi dan jangan menganggap ketiadaan fitur itu sebagai kegagalan acak server."
+    "title": "checkout_and_goods_receipt_workflow",
+    "description": "Validate POS checkout reduces stock and posts balanced journals. Confirm checkout rejects quantities above stock and invalid discounts with 422 and no stock change. Verify goods receipt increases stock and posts balanced inventory journals. Test discount validation on both checkout and goods receipt."
   }
 ]

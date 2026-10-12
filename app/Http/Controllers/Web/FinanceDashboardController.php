@@ -57,6 +57,8 @@ class FinanceDashboardController extends Controller
 
     public function storeJournal(StoreManualJournalRequest $request): RedirectResponse
     {
+        abort_if(! $request->user()?->isMaster(), 403, 'Hanya Master yang dapat membuat jurnal manual.');
+
         $validated = $request->validated();
         $user = $request->user();
 

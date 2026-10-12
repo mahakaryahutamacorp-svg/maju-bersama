@@ -31,11 +31,13 @@ class ProductApiTest extends TestCase
         $this->userA = User::factory()->create([
             'branch_id' => $this->branchA->id,
             'email' => 'userA@example.com',
+            'role' => 'branch_admin',
         ]);
 
         $this->userB = User::factory()->create([
             'branch_id' => $this->branchB->id,
             'email' => 'userB@example.com',
+            'role' => 'branch_admin',
         ]);
 
         $this->category = Category::create(['name' => 'Electronics']);
@@ -89,6 +91,40 @@ class ProductApiTest extends TestCase
 
         $response = $this->getJson("/api/products/{$productB->id}");
         $response->assertNotFound();
+    }
+
+    public function test_cashier_cannot_create_or_update_products(): void
+    {
+        $cashier = User::factory()->create([
+            'branch_id' => $this->branchA->id,
+            'role' => 'cashier',
+        ]);
+
+        $product = Product::create([
+            'branch_id' => $this->branchA->id,
+            'category_id' => $this->category->id,
+            'sku' => 'PROD-CASHIER',
+            'name' => 'Produk Kasir',
+            'purchase_price' => 100,
+            'selling_price' => 150,
+            'stock' => 10,
+        ]);
+
+        Sanctum::actingAs($cashier);
+
+        $this->postJson('/api/products', [
+            'category_id' => $this->category->id,
+            'name' => 'Produk Baru Kasir',
+            'purchase_price' => 100,
+            'selling_price' => 150,
+        ])->assertForbidden();
+
+        $this->putJson("/api/products/{$product->id}", [
+            'name' => 'Diubah Kasir',
+        ])->assertForbidden();
+
+        $this->assertDatabaseMissing('products', ['name' => 'Produk Baru Kasir']);
+        $this->assertDatabaseHas('products', ['id' => $product->id, 'name' => 'Produk Kasir']);
     }
 
     public function test_user_can_create_product_with_auto_generated_sku(): void

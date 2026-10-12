@@ -31,9 +31,11 @@
                     <button type="button" @click="expenseOpen = true" class="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-rose-500">
                         + Pengeluaran
                     </button>
-                    <button type="button" @click="journalOpen = true" class="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-2 text-xs font-bold text-amber-300 shadow-xs hover:bg-slate-800">
-                        + Jurnal Manual
-                    </button>
+                    @if ($isMaster)
+                        <button type="button" @click="journalOpen = true" class="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3.5 py-2 text-xs font-bold text-amber-300 shadow-xs hover:bg-slate-800">
+                            + Jurnal Manual
+                        </button>
+                    @endif
                     <a href="{{ route('reports.index') }}" class="rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">Pusat Laporan</a>
                 </div>
             </div>
@@ -160,7 +162,9 @@
             <section x-show="tab === 'jurnal'" x-cloak class="space-y-4">
                 <div class="flex items-center justify-between">
                     <h3 class="text-sm font-bold text-slate-900">Buku Besar per Tipe Akun</h3>
-                    <button type="button" @click="journalOpen = true" class="text-xs font-semibold text-sky-700 hover:underline">Tambah jurnal manual</button>
+                    @if ($isMaster)
+                        <button type="button" @click="journalOpen = true" class="text-xs font-semibold text-sky-700 hover:underline">Tambah jurnal manual</button>
+                    @endif
                 </div>
                 <div class="space-y-2">
                     @foreach ($dashboard['ledger_groups'] as $typeKey => $group)
@@ -303,6 +307,8 @@
         </div>
 
         @include('backoffice.finance.partials.modal-expense')
-        @include('backoffice.finance.partials.modal-journal')
+        @if ($isMaster)
+            @include('backoffice.finance.partials.modal-journal')
+        @endif
     </main>
 </x-app-layout>

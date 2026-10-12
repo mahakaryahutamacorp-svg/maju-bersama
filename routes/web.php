@@ -144,7 +144,9 @@ Route::middleware('auth')->group(function () {
 
             // Dasbor Akuntansi (4 pilar: kas, jurnal, pengeluaran, laporan)
             Route::get('finance', [FinanceDashboardController::class, 'index'])->name('finance.dashboard');
-            Route::post('finance/journals', [FinanceDashboardController::class, 'storeJournal'])->name('finance.journals.store');
+            Route::post('finance/journals', [FinanceDashboardController::class, 'storeJournal'])
+                ->middleware('can:view-accounting')
+                ->name('finance.journals.store');
 
             // Expense Categories & Expenses (Biaya Operasional Cabang)
             Route::resource('expense-categories', ExpenseCategoryController::class);

@@ -102,8 +102,7 @@ class JournalApiTest extends TestCase
         $this->assertMoneySame($lines->sum('debit'), $lines->sum('credit'));
         $this->assertMoneySame($lines->sum('debit'), '25.00');
 
-        // TODO TC007: admin cabang masih bisa membuat jurnal manual lewat
-        // POST /backoffice/finance/journals. Belum ada rute ubah, hapus,
-        // atau pembatalan jurnal yang dikunci ke master.
+        // Jurnal manual web POST /backoffice/finance/journals dikunci ke master.
+        // Belum ada rute ubah, hapus, atau pembatalan jurnal.
     }
 }
