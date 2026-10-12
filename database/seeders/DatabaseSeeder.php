@@ -152,5 +152,9 @@ class DatabaseSeeder extends Seeder
 
         // 10. Product Catalog (Stock = 0, Inventory = 0)
         $this->call(ProductSeeder::class);
+
+        // Referensi struktur final Pupuk & Pakan. Jalankan terpisah agar seeder
+        // master data di atas tidak ikut menimpa cabang produksi:
+        // php artisan db:seed --class=BusinessStructureSeeder
     }
 }
