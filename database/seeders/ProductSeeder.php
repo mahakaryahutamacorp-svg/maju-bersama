@@ -23,12 +23,16 @@ class ProductSeeder extends Seeder
     public function run(): void
     {
         $categories = [
-            'Pestisida' => Category::firstOrCreate(['name' => 'Pestisida']),
-            'Pupuk' => Category::firstOrCreate(['name' => 'Pupuk']),
-            'ZPT' => Category::firstOrCreate(['name' => 'ZPT']),
-            'Pertanian' => Category::firstOrCreate(['name' => 'Pertanian']),
-            'Elektronik' => Category::firstOrCreate(['name' => 'Elektronik']),
+            'Pestisida' => Category::firstOrCreate(['name' => 'Pestisida'], ['catalog' => Category::CATALOG_PUPUK]),
+            'Pupuk' => Category::firstOrCreate(['name' => 'Pupuk'], ['catalog' => Category::CATALOG_PUPUK]),
+            'ZPT' => Category::firstOrCreate(['name' => 'ZPT'], ['catalog' => Category::CATALOG_PUPUK]),
+            'Pertanian' => Category::firstOrCreate(['name' => 'Pertanian'], ['catalog' => Category::CATALOG_PUPUK]),
+            'Elektronik' => Category::firstOrCreate(['name' => 'Elektronik'], ['catalog' => Category::CATALOG_PUPUK]),
         ];
+
+        foreach (Category::PAKAN_NAMES as $name) {
+            Category::firstOrCreate(['name' => $name], ['catalog' => Category::CATALOG_PAKAN]);
+        }
 
         $centralBranch = Branch::query()->whereNull('parent_id')->first()
             ?? Branch::query()->first();

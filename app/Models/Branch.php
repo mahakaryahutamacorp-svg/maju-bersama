@@ -48,6 +48,27 @@ class Branch extends Model
         return $this->belongsTo(self::class, 'parent_id');
     }
 
+    public function productCatalog(): string
+    {
+        $current = $this;
+
+        for ($depth = 0; $depth < 6 && $current; $depth++) {
+            if (in_array($current->code, ['OFFICE-PAKAN', 'GUDANG-PAKAN', 'CBG-PKN'], true)) {
+                return Category::CATALOG_PAKAN;
+            }
+
+            if (! $current->parent_id) {
+                break;
+            }
+
+            $current = $current->relationLoaded('parent') && $current->parent
+                ? $current->parent
+                : static::query()->find($current->parent_id);
+        }
+
+        return Category::CATALOG_PUPUK;
+    }
+
     public function children(): HasMany
     {
         return $this->hasMany(self::class, 'parent_id');

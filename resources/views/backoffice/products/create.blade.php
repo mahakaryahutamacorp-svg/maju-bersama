@@ -131,7 +131,7 @@
                         <select id="category_id" name="category_id" required class="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
                             <option value="">Pilih Kategori...</option>
                             @foreach ($categories as $category)
-                                <option value="{{ $category->id }}" {{ old('category_id') == $category->id ? 'selected' : '' }}>
+                                <option value="{{ $category->id }}" data-catalog="{{ $category->catalog ?: 'pupuk' }}" {{ old('category_id') == $category->id ? 'selected' : '' }}>
                                     {{ $category->name }}
                                 </option>
                             @endforeach
@@ -156,10 +156,10 @@
                             Cabang Penempatan <span class="text-rose-500">*</span>
                         </label>
                         @if ($isMaster)
-                            <select id="branch_id" name="branch_id" required class="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
+                            <select id="branch_id" name="branch_id" required onchange="syncProductCategories()" class="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
                                 <option value="">Pilih Cabang...</option>
                                 @foreach ($branches as $branch)
-                                    <option value="{{ $branch->id }}" {{ old('branch_id') == $branch->id ? 'selected' : '' }}>
+                                    <option value="{{ $branch->id }}" data-catalog="{{ $branch->productCatalog() }}" {{ old('branch_id') == $branch->id ? 'selected' : '' }}>
                                         {{ $branch->name }} ({{ $branch->code }})
                                     </option>
                                 @endforeach
@@ -372,4 +372,29 @@
             </form>
         </div>
     </main>
+    <script>
+        function syncProductCategories() {
+            const branch = document.getElementById('branch_id');
+            const select = document.getElementById('category_id');
+            if (!branch || !select) {
+                return;
+            }
+
+            const catalog = branch.selectedOptions[0]?.dataset.catalog || '';
+            for (const option of select.options) {
+                if (!option.value) {
+                    continue;
+                }
+                const visible = catalog !== '' && option.dataset.catalog === catalog;
+                option.hidden = !visible;
+                option.disabled = !visible;
+            }
+
+            if (select.selectedOptions[0]?.disabled) {
+                select.value = '';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', syncProductCategories);
+    </script>
 </x-app-layout>

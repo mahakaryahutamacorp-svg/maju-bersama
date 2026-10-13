@@ -140,6 +140,8 @@ class PosController extends Controller
             return $product;
         });
 
+        $catalog = $user->branch?->productCatalog() ?? Category::CATALOG_PUPUK;
+
         $categories = Category::withCount(['products' => function ($query) use ($branchId) {
             $query->withoutGlobalScopes()
                 ->whereNull('deleted_at');
@@ -147,6 +149,7 @@ class PosController extends Controller
                 $query->where('branch_id', $branchId);
             }
         }])
+            ->forCatalog($catalog)
             ->orderBy('name')
             ->get();
 

@@ -15,12 +15,17 @@ class CategoryController extends Controller
      * Display a listing of all categories.
      * Categories are global (shared across all branches), so all users can view them.
      */
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $categories = Category::orderBy('name')->get();
+        $user = $request->user();
+        $query = Category::query()->orderBy('name');
+
+        if ($user && ! $user->isMaster()) {
+            $query->forCatalog($user->branch?->productCatalog() ?? Category::CATALOG_PUPUK);
+        }
 
         return response()->json([
-            'data' => $categories,
+            'data' => $query->get(),
         ]);
     }
 

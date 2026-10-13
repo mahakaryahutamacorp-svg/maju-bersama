@@ -23,12 +23,11 @@ class CategoryController extends Controller
             ->when($search, fn ($q) => $q->where('name', 'like', "%{$search}%"))
             ->orderBy('name');
 
-        $categories = $query->paginate(15)->withQueryString();
-
         return view('backoffice.categories.index', [
             'currentUser' => $user,
             'isMaster' => $user->isMaster(),
-            'categories' => $categories,
+            'pupukCategories' => (clone $query)->forCatalog(Category::CATALOG_PUPUK)->get(),
+            'pakanCategories' => (clone $query)->forCatalog(Category::CATALOG_PAKAN)->get(),
             'search' => $search,
         ]);
     }
@@ -40,6 +39,7 @@ class CategoryController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', 'unique:categories,name'],
+            'catalog' => ['nullable', 'string', Rule::in([Category::CATALOG_PUPUK, Category::CATALOG_PAKAN])],
         ], [
             'name.required' => 'Nama kategori wajib diisi.',
             'name.unique' => 'Nama kategori ini sudah terdaftar.',
@@ -61,10 +61,15 @@ class CategoryController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('categories', 'name')->ignore($category->id)],
+            'catalog' => ['nullable', 'string', Rule::in([Category::CATALOG_PUPUK, Category::CATALOG_PAKAN])],
         ], [
             'name.required' => 'Nama kategori wajib diisi.',
             'name.unique' => 'Nama kategori ini sudah digunakan.',
         ]);
+
+        if (empty($validated['catalog'])) {
+            unset($validated['catalog']);
+        }
 
         $category->update($validated);
 

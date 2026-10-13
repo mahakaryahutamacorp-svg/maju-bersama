@@ -59,68 +59,70 @@
         </div>
 
         <!-- Categories Table -->
-        <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <div class="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-                <h2 class="font-bold text-slate-900">Daftar Kategori Produk</h2>
-                <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">Total: {{ $categories->total() }} kategori</span>
-            </div>
-
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm text-slate-600">
-                    <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
-                        <tr>
-                            <th class="px-6 py-3">No</th>
-                            <th class="px-6 py-3">Nama Kategori</th>
-                            <th class="px-6 py-3 text-center">Jumlah Produk Terkait</th>
-                            <th class="px-6 py-3 text-center">Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100 [&>tr:nth-child(even)]:bg-slate-50/60">
-                        @forelse ($categories as $index => $category)
-                            <tr class="hover:bg-slate-50/80 transition-colors">
-                                <td class="px-6 py-4 text-xs text-slate-400">
-                                    {{ $categories->firstItem() + $index }}
-                                </td>
-                                <td class="px-6 py-4 font-semibold text-slate-900">
-                                    {{ $category->name }}
-                                </td>
-                                <td class="px-6 py-4 text-center">
-                                    <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $category->products_count > 0 ? 'bg-sky-50 text-sky-700' : 'bg-slate-100 text-slate-500' }}">
-                                        {{ $category->products_count }} produk
-                                    </span>
-                                </td>
-                                <td class="px-6 py-4 text-center">
-                                    <div class="inline-flex items-center gap-2">
-                                        <button type="button" @click="openEditModal({{ $category->id }}, '{{ addslashes($category->name) }}')" class="rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100">
-                                            Edit
-                                        </button>
-                                        <form method="POST" action="{{ route('backoffice.categories.destroy', $category->id) }}" onsubmit="return confirm('Apakah Anda yakin ingin menghapus kategori \'{{ $category->name }}\'?');">
-                                            @csrf
-                                            @method('DELETE')
-                                            <button type="submit" class="rounded-lg bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100">
-                                                Hapus
-                                            </button>
-                                        </form>
-                                    </div>
-                                </td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="4" class="px-6 py-12 text-center text-slate-500">
-                                    Tidak ada kategori produk yang terdaftar.
-                                </td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-
-            @if ($categories->hasPages())
-                <div class="border-t border-slate-100 px-6 py-4">
-                    {{ $categories->links() }}
+        @foreach ([
+            ['title' => 'Kategori Toko Pupuk', 'hint' => 'Pestisida, pupuk, dan ZPT', 'rows' => $pupukCategories],
+            ['title' => 'Kategori Toko Pakan', 'hint' => 'Kategori yang dipakai di toko pakan', 'rows' => $pakanCategories],
+        ] as $group)
+            <div class="mb-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div class="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+                    <div>
+                        <h2 class="font-bold text-slate-900">{{ $group['title'] }}</h2>
+                        <p class="text-xs text-slate-500">{{ $group['hint'] }}</p>
+                    </div>
+                    <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">Total: {{ $group['rows']->count() }} kategori</span>
                 </div>
-            @endif
-        </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-600">
+                        <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
+                            <tr>
+                                <th class="px-6 py-3">No</th>
+                                <th class="px-6 py-3">Nama Kategori</th>
+                                <th class="px-6 py-3 text-center">Jumlah Produk Terkait</th>
+                                <th class="px-6 py-3 text-center">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 [&>tr:nth-child(even)]:bg-slate-50/60">
+                            @forelse ($group['rows'] as $index => $category)
+                                <tr class="hover:bg-slate-50/80 transition-colors">
+                                    <td class="px-6 py-4 text-xs text-slate-400">
+                                        {{ $index + 1 }}
+                                    </td>
+                                    <td class="px-6 py-4 font-semibold text-slate-900">
+                                        {{ $category->name }}
+                                    </td>
+                                    <td class="px-6 py-4 text-center">
+                                        <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold {{ $category->products_count > 0 ? 'bg-sky-50 text-sky-700' : 'bg-slate-100 text-slate-500' }}">
+                                            {{ $category->products_count }} produk
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 text-center">
+                                        <div class="inline-flex items-center gap-2">
+                                            <button type="button" @click="openEditModal({{ $category->id }}, '{{ addslashes($category->name) }}', '{{ $category->catalog ?: 'pupuk' }}')" class="rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100">
+                                                Edit
+                                            </button>
+                                            <form method="POST" action="{{ route('backoffice.categories.destroy', $category->id) }}" onsubmit="return confirm('Apakah Anda yakin ingin menghapus kategori \'{{ $category->name }}\'?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="rounded-lg bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100">
+                                                    Hapus
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="4" class="px-6 py-12 text-center text-slate-500">
+                                        Tidak ada kategori pada kelompok ini.
+                                    </td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @endforeach
     </main>
 
     <div x-show="showModal" style="display: none;" class="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
@@ -135,6 +137,16 @@
                 <template x-if="isEdit">
                     <input type="hidden" name="_method" value="PUT">
                 </template>
+
+                <div class="mb-5">
+                    <label for="modal-catalog" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
+                        Kelompok Toko <span class="text-rose-500">*</span>
+                    </label>
+                    <select id="modal-catalog" name="catalog" x-model="catalog" class="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
+                        <option value="pupuk">Toko Pupuk</option>
+                        <option value="pakan">Toko Pakan</option>
+                    </select>
+                </div>
 
                 <div class="mb-5">
                     <label for="modal-name" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
@@ -163,18 +175,21 @@
                 showModal: false,
                 isEdit: false,
                 categoryName: '',
+                catalog: 'pupuk',
                 formAction: '{{ route('backoffice.categories.store') }}',
 
                 openCreateModal() {
                     this.isEdit = false;
                     this.categoryName = '';
+                    this.catalog = 'pupuk';
                     this.formAction = '{{ route('backoffice.categories.store') }}';
                     this.showModal = true;
                 },
 
-                openEditModal(id, name) {
+                openEditModal(id, name, catalog) {
                     this.isEdit = true;
                     this.categoryName = name;
+                    this.catalog = catalog || 'pupuk';
                     this.formAction = '/backoffice/categories/' + id;
                     this.showModal = true;
                 }

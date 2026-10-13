@@ -14,6 +14,8 @@ use App\Services\ProductService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -52,7 +54,7 @@ class ProductController extends Controller
         $products = $query->paginate(15)->withQueryString();
 
         $branches = $isMaster ? Branch::orderBy('name')->get() : collect([$user->branch]);
-        $categories = Category::orderBy('name')->get();
+        $categories = $this->categoriesFor($isMaster ? $this->branchFromId($branchId) : $user->branch, ! $isMaster || (bool) $branchId);
 
         return view('backoffice.products.index', [
             'currentUser' => $user,
@@ -79,7 +81,7 @@ class ProductController extends Controller
         if ($allBranches->isEmpty()) {
             $allBranches = Branch::orderBy('name')->get();
         }
-        $categories = Category::orderBy('name')->get();
+        $categories = $this->categoriesFor($isMaster ? null : $user->branch, ! $isMaster);
         $customerGroups = CustomerGroup::orderBy('id')->get();
         $priceLevels = PriceLevel::where('is_active', true)
             ->orderByDesc('is_default')
@@ -158,6 +160,8 @@ class ProductController extends Controller
             ? (int) $validated['branch_id']
             : (int) ($user->branch_id ?: Branch::whereNull('parent_id')->value('id') ?: Branch::value('id'));
 
+        $this->ensureCategoryMatchesBranch((int) $validated['category_id'], $targetBranchId);
+
         $product = $this->productService->createProduct($validated, $targetBranchId);
 
         // Sync tiered product prices (PriceLevel compatibility)
@@ -194,7 +198,10 @@ class ProductController extends Controller
         if ($allBranches->isEmpty()) {
             $allBranches = Branch::orderBy('name')->get();
         }
-        $categories = Category::orderBy('name')->get();
+        $categories = $this->categoriesFor($product->branch, true);
+        if ($product->category && ! $categories->contains('id', $product->category_id)) {
+            $categories->prepend($product->category);
+        }
         $customerGroups = CustomerGroup::orderBy('id')->get();
         $priceLevels = PriceLevel::where('is_active', true)
             ->orderByDesc('is_default')
@@ -259,6 +266,8 @@ class ProductController extends Controller
         ];
 
         $validated = $request->validate($rules);
+
+        $this->ensureCategoryMatchesBranch((int) $validated['category_id'], (int) $product->branch_id);
 
         $this->productService->updateProduct($product, $validated);
 
@@ -434,5 +443,39 @@ class ProductController extends Controller
             });
 
         return response()->json(['matches' => $matches]);
+    }
+
+    private function branchFromId(mixed $branchId): ?Branch
+    {
+        return $branchId ? Branch::query()->find($branchId) : null;
+    }
+
+    private function categoriesFor(?Branch $branch, bool $restrict): Collection
+    {
+        $query = Category::query()->orderBy('name');
+
+        if ($restrict && $branch) {
+            $query->forCatalog($branch->productCatalog());
+        }
+
+        return $query->get();
+    }
+
+    private function ensureCategoryMatchesBranch(int $categoryId, int $branchId): void
+    {
+        $category = Category::query()->find($categoryId);
+        $branch = Branch::query()->find($branchId);
+
+        if (! $category || ! $branch) {
+            return;
+        }
+
+        $categoryCatalog = $category->catalog ?: Category::CATALOG_PUPUK;
+
+        if ($categoryCatalog !== $branch->productCatalog()) {
+            throw ValidationException::withMessages([
+                'category_id' => 'Kategori ini tidak tersedia untuk cabang tersebut.',
+            ]);
+        }
     }
 }

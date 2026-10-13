@@ -47,11 +47,32 @@
                     <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Kategori</label>
                     <select name="category_id" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
                         <option value="">Semua Kategori</option>
-                        @foreach ($categories as $category)
-                            <option value="{{ $category->id }}" {{ (string)$selectedCategoryId === (string)$category->id ? 'selected' : '' }}>
-                                {{ $category->name }}
-                            </option>
-                        @endforeach
+                        @php
+                            $showCategoryGroups = $categories->contains(fn ($category) => $category->catalog === 'pakan')
+                                && $categories->contains(fn ($category) => $category->catalog !== 'pakan');
+                        @endphp
+                        @if ($showCategoryGroups)
+                            <optgroup label="Toko Pupuk">
+                                @foreach ($categories->where('catalog', '!=', 'pakan') as $category)
+                                    <option value="{{ $category->id }}" {{ (string)$selectedCategoryId === (string)$category->id ? 'selected' : '' }}>
+                                        {{ $category->name }}
+                                    </option>
+                                @endforeach
+                            </optgroup>
+                            <optgroup label="Toko Pakan">
+                                @foreach ($categories->where('catalog', 'pakan') as $category)
+                                    <option value="{{ $category->id }}" {{ (string)$selectedCategoryId === (string)$category->id ? 'selected' : '' }}>
+                                        {{ $category->name }}
+                                    </option>
+                                @endforeach
+                            </optgroup>
+                        @else
+                            @foreach ($categories as $category)
+                                <option value="{{ $category->id }}" {{ (string)$selectedCategoryId === (string)$category->id ? 'selected' : '' }}>
+                                    {{ $category->name }}
+                                </option>
+                            @endforeach
+                        @endif
                     </select>
                 </div>
 
