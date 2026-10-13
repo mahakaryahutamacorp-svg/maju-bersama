@@ -189,6 +189,7 @@ return new class extends Migration
         $targets = DB::table('branches')
             ->where('id', '!=', $source->id)
             ->where('code', 'not like', 'OFFICE-%')
+            ->where('code', '!=', 'GUDANG-PAKAN')
             ->orderBy('id')
             ->get();
 
