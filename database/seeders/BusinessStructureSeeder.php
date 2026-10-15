@@ -69,9 +69,7 @@ class BusinessStructureSeeder extends Seeder
         $this->ensureBranch('CBG-TULUSAYU', 'TOKO MUTIARA TANI', $pupukOffice->id);
         $this->ensureBranch('CBG-LUBUKHARJO', 'TOKO LUBUK HARJO', $pupukOffice->id);
 
-        $pakanOffice = $this->ensureBranch('OFFICE-PAKAN', 'CV.DEKA AGRO MANDIRI');
-        $this->ensureBranch('GUDANG-PAKAN', 'CV.DEKA AGRO MANDIRI', $pakanOffice->id);
-        $this->ensureBranch('CBG-PKN', 'TOKO PAKAN', $pakanOffice->id);
+        $pakan = $this->ensureBranch('PAKAN', 'CV.DEKA AGRO MANDIRI');
 
         $this->ensureUser('gudang@pupuk.178', 'Gudang Pupuk', 'GUDANG-PUPUK', 'branch_admin');
         $this->ensureUser('admin@mb.abi', 'Admin ABI', 'CBG-ABI', 'branch_admin');
@@ -81,9 +79,10 @@ class BusinessStructureSeeder extends Seeder
         $this->ensureUser('ipin@admin.178', 'Ipin', 'CBG-TULUSAYU', 'branch_admin');
         $this->ensureUser('triono@admin.pupuk', 'Triono', 'CBG-LUBUKHARJO', 'branch_admin');
 
-        $this->ensureUser('gudang@pakan.178', 'Gudang Pakan', 'GUDANG-PAKAN', 'branch_admin');
-        $this->ensureUser('asep@mb.pkn', 'Asep', 'CBG-PKN', 'branch_admin');
-        $this->ensureUser('kasir@pakan.mb', 'Kasir Pakan', 'CBG-PKN', 'cashier');
+        $this->ensureUser('gudang@pakan.178', 'Gudang Pakan', 'PAKAN', 'branch_admin');
+        $this->ensureUser('asep@mb.pkn', 'Asep', 'PAKAN', 'branch_admin');
+        $this->ensureUser('kasir@pakan.mb', 'Kasir Pakan', 'PAKAN', 'cashier');
+        $this->command?->info("Pakan disatukan pada {$pakan->name} ({$pakan->code}), terpisah dari pupuk.");
     }
 
     /**
@@ -213,9 +212,7 @@ class BusinessStructureSeeder extends Seeder
             'CBG-AROFAH',
             'CBG-TULUSAYU',
             'CBG-LUBUKHARJO',
-            'OFFICE-PAKAN',
-            'GUDANG-PAKAN',
-            'CBG-PKN',
+            'PAKAN',
         ], true);
     }
 }

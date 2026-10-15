@@ -53,7 +53,7 @@ class Branch extends Model
         $current = $this;
 
         for ($depth = 0; $depth < 6 && $current; $depth++) {
-            if (in_array($current->code, ['OFFICE-PAKAN', 'GUDANG-PAKAN', 'CBG-PKN'], true)) {
+            if (in_array($current->code, ['PAKAN', 'OFFICE-PAKAN', 'GUDANG-PAKAN', 'CBG-PKN'], true)) {
                 return Category::CATALOG_PAKAN;
             }
 

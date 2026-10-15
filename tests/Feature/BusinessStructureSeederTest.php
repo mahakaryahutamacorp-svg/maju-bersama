@@ -39,16 +39,17 @@ class BusinessStructureSeederTest extends TestCase
         $this->assertDatabaseHas('users', ['email' => 'admin@mb.abi', 'branch_id' => $abi->id, 'role' => 'branch_admin']);
         $this->assertDatabaseHas('users', ['email' => 'pipin@kasir.pupuk', 'branch_id' => $abi->id, 'role' => 'cashier']);
 
-        $pakanOffice = Branch::where('code', 'OFFICE-PAKAN')->firstOrFail();
-        $pakanStore = Branch::where('code', 'CBG-PKN')->firstOrFail();
-        $this->assertSame('TOKO PAKAN', $pakanStore->name);
-        $this->assertSame($pakanOffice->id, $pakanStore->parent_id);
-        $this->assertSame($kept->id, $pakanStore->id);
-        $this->assertDatabaseHas('users', ['email' => 'asep@mb.pkn', 'branch_id' => $pakanStore->id, 'role' => 'branch_admin']);
-        $this->assertDatabaseHas('users', ['email' => 'kasir@pakan.mb', 'role' => 'cashier']);
+        $pakan = Branch::where('code', 'PAKAN')->firstOrFail();
+        $this->assertSame('CV.DEKA AGRO MANDIRI', $pakan->name);
+        $this->assertNull($pakan->parent_id);
+        $this->assertSame(\App\Models\Category::CATALOG_PAKAN, $pakan->productCatalog());
+        $this->assertNotSame($office->id, $pakan->id);
+        $this->assertDatabaseMissing('branches', ['code' => 'OFFICE-PAKAN']);
+        $this->assertDatabaseMissing('branches', ['code' => 'GUDANG-PAKAN']);
+        $this->assertDatabaseHas('users', ['email' => 'asep@mb.pkn', 'branch_id' => $pakan->id, 'role' => 'branch_admin']);
+        $this->assertDatabaseHas('users', ['email' => 'kasir@pakan.mb', 'branch_id' => $pakan->id, 'role' => 'cashier']);
+        $this->assertDatabaseHas('users', ['email' => 'gudang@pakan.178', 'branch_id' => $pakan->id, 'role' => 'branch_admin']);
         $this->assertDatabaseHas('users', ['email' => 'gudang@pupuk.178', 'role' => 'branch_admin']);
-        $this->assertDatabaseHas('users', ['email' => 'gudang@pakan.178', 'role' => 'branch_admin']);
-        $this->assertSame(0, $pakanOffice->users()->count());
     }
 
     public function test_seeder_keeps_a_dummy_branch_that_already_has_a_sale(): void
