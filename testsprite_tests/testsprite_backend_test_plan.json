@@ -1,32 +1,32 @@
 [
   {
     "id": "TC001",
-    "title": "sanctum_login_authentication_flow",
-    "description": "Test the Sanctum login endpoint with valid and invalid credentials to verify token issuance and error handling. Verify profile retrieval with valid token and error on missing token. Test logout revokes the token successfully."
+    "title": "sanctum_login_with_valid_and_invalid_credentials",
+    "description": "Test POST /api/login with valid master and cashier credentials to receive 200 and a Sanctum token, and with invalid password to receive 401. Verify GET /api/user with valid token returns user profile and with missing or revoked token returns 401. Test POST /api/logout revokes token and subsequent GET /api/user returns 401."
   },
   {
     "id": "TC002",
-    "title": "journals_rbac_access_control",
-    "description": "Verify that only master users can create and list journals via the API. Ensure balanced journals are accepted with 201, unbalanced journals rejected with 422. Confirm cashier and branch admin receive 403 on journal endpoints, and unauthenticated users receive 401."
+    "title": "journals_rbac_access_control_and_validation",
+    "description": "Test POST /api/journals endpoint to ensure only master users can create journals. Verify balanced journal lines return 201 and unbalanced lines return 422. Confirm cashier and branch admin roles receive 403 on POST and GET /api/journals. Unauthenticated requests return 401."
   },
   {
     "id": "TC003",
-    "title": "consolidated_financial_reports_access",
-    "description": "Test that master users can access consolidated balance sheet and income statement reports with correct data (balance sheet difference equals 0.00). Verify branch admins receive sales reports scoped to their branch only. Confirm access restrictions and data isolation for non-master roles."
+    "title": "consolidated_financial_reports_access_and_data_scope",
+    "description": "Test GET /api/reports/balance-sheet, /income-statement, and /sales endpoints with master and non-master tokens. Verify master receives consolidated data with zero difference in balance sheet. Non-master users receive branch-scoped data without leakage. Unauthenticated requests receive 401."
   },
   {
     "id": "TC004",
-    "title": "master_data_access_authorization",
-    "description": "Ensure only superadmin or master roles can list and create branches. Verify categories can be read by authenticated users but only created by authorized roles. Confirm product creation is forbidden for cashiers and allowed for authorized roles."
+    "title": "master_data_access_control_for_branches_categories_and_products",
+    "description": "Test GET and POST on /api/branches, /api/categories, and /api/products with master, branch admin, and cashier roles. Verify only master can create branches and categories. Confirm cashier receives 403 on product creation. Authenticated users can read categories. Branch admin can create products if allowed by policy."
   },
   {
     "id": "TC005",
-    "title": "branch_isolation_product_visibility",
-    "description": "Test that branch admins can only see products and stock for their own branch. Verify that querying products with other branch_id does not leak data or other_branch_stock from other divisions. Confirm barcode lookup returns 404 for products outside caller's branch."
+    "title": "branch_isolation_in_product_listing_and_barcode_lookup",
+    "description": "Test GET /api/products and /api/products/barcode/{barcode} with tokens from Pakan and Pupuk branch admins. Verify product listings and barcode lookups are limited to caller's branch and do not leak data from other division branches, including other_branch_stock field. Requests without token return 401."
   },
   {
     "id": "TC006",
-    "title": "checkout_and_goods_receipt_workflow",
-    "description": "Validate POS checkout reduces stock and posts balanced journals. Confirm checkout rejects quantities above stock and invalid discounts with 422 and no stock change. Verify goods receipt increases stock and posts balanced inventory journals. Test discount validation on both checkout and goods receipt."
+    "title": "checkout_and_goods_receipt_stock_and_accounting_integration",
+    "description": "Test POST /api/checkout with valid in-stock items and discounts to receive 200 and balanced journal entries. Verify over-stock quantity or invalid discounts return 422 and no stock change. Test POST /api/goods-receipts increases stock and posts balanced inventory journal. Confirm purchase orders alone do not change stock."
   }
 ]

@@ -1,0 +1,357 @@
+[
+  {
+    "id": "TC001",
+    "title": "Staff can sign in and reach the backoffice",
+    "description": "This verifies that a valid staff login succeeds and the user lands in the protected backoffice area.",
+    "category": "Login",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user lands in the backoffice area"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify authorized backoffice content is displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC002",
+    "title": "Unauthenticated user is redirected away from cashier screen",
+    "description": "This verifies that accessing the cashier screen without signing in does not expose protected content and sends the user to the login page.",
+    "category": "Cashier",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /pos"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user is sent to the login page"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the cashier screen is not displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC003",
+    "title": "Unauthenticated user is redirected away from protected product catalog",
+    "description": "This verifies that accessing the product catalog without signing in does not expose protected content and sends the user to the login page.",
+    "category": "Product catalog",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /backoffice/products"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user is sent to the login page"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify protected product catalog content is not displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC004",
+    "title": "Authenticated staff can open the cashier screen",
+    "description": "This verifies that a signed-in staff member can reach the cashier screen for in-store sales.",
+    "category": "Cashier",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the cashier screen"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the cashier screen is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify cashier controls are available"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC005",
+    "title": "Branch staff can browse their product catalog",
+    "description": "This verifies that an authenticated branch user can open the product catalog and see the products for their branch.",
+    "category": "Product catalog",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the product catalog"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the product table is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify branch-scoped products are displayed"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC006",
+    "title": "Branch staff can open the new product form",
+    "description": "This verifies that an authenticated user can open the new product form from the product catalog area.",
+    "category": "Product catalog",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the new product form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the new product form is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify product creation inputs are available"
+      }
+    ],
+    "priority": "High"
+  },
+  {
+    "id": "TC007",
+    "title": "Master staff can view the complete branch list",
+    "description": "This verifies that an authenticated master or admin user can open the branch listing and confirm the company branch list is shown.",
+    "category": "Branches",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the branch list"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the branch list is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify company branches are displayed"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC008",
+    "title": "View the full branch list",
+    "description": "A master or authorized staff member can open the branch management page and see the company branch list.",
+    "category": "Branch management",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the login form"
+      },
+      {
+        "type": "action",
+        "description": "Navigate to /backoffice/branches"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the branch table is displayed"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the company branch list is visible"
+      }
+    ],
+    "priority": "Medium"
+  },
+  {
+    "id": "TC009",
+    "title": "Staff sees validation for incorrect login credentials",
+    "description": "This verifies that invalid login credentials are rejected and the login page shows validation feedback instead of granting access.",
+    "category": "Login",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with invalid@example.com"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with invalid-password"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify login validation feedback is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify protected backoffice content is not displayed"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC010",
+    "title": "Staff sees validation for missing login details",
+    "description": "This verifies that submitting the sign-in form with missing required values keeps the user on the login page and shows validation feedback.",
+    "category": "Login",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form without entering credentials"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify login validation feedback is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the user remains on the login page"
+      }
+    ],
+    "priority": "Low"
+  },
+  {
+    "id": "TC011",
+    "title": "Empty product catalog state is shown after cleanup",
+    "description": "This verifies that when the product catalog has no items, the product table shows an empty state instead of breaking the page.",
+    "category": "Product catalog",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to /login"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the email field with {{LOGIN_USER}}"
+      },
+      {
+        "type": "action",
+        "description": "Fill in the password field with {{LOGIN_PASSWORD}}"
+      },
+      {
+        "type": "action",
+        "description": "Submit the sign-in form"
+      },
+      {
+        "type": "action",
+        "description": "Click the link to open the product catalog"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an empty state message is visible"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the product catalog page still loads successfully"
+      }
+    ],
+    "priority": "Low"
+  }
+]
