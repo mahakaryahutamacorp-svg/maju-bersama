@@ -73,9 +73,16 @@
                         <label for="unit" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
                             Satuan Barang <span class="text-rose-500">*</span>
                         </label>
+                        @php
+                            $unitOptions = ['pcs', 'kg', 'gram', 'liter', 'botol', 'sak', 'kardus', 'karung', 'ton', 'renceng', 'pak'];
+                            $selectedUnit = old('unit', $product->unit ?? 'pcs');
+                            if ($selectedUnit && ! in_array($selectedUnit, $unitOptions, true)) {
+                                array_unshift($unitOptions, $selectedUnit);
+                            }
+                        @endphp
                         <select id="unit" name="unit" class="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
-                            @foreach (['pcs', 'kg', 'gram', 'liter', 'botol', 'sak', 'kardus', 'karung', 'ton', 'renceng', 'pak'] as $u)
-                                <option value="{{ $u }}" {{ old('unit', $product->unit ?? 'pcs') == $u ? 'selected' : '' }}>
+                            @foreach ($unitOptions as $u)
+                                <option value="{{ $u }}" {{ $selectedUnit == $u ? 'selected' : '' }}>
                                     {{ $u }}
                                 </option>
                             @endforeach

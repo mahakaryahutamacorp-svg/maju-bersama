@@ -69,9 +69,9 @@ class ProductService
     /**
      * Delete a product and its associated inventory.
      */
-    public function deleteProduct(Product $product): bool
+    public function deleteProduct(Product $product, bool $allowWithHistory = false): bool
     {
-        if ($product->hasTransactionHistory()) {
+        if (! $allowWithHistory && $product->hasTransactionHistory()) {
             throw ValidationException::withMessages([
                 'product' => [Product::HISTORY_DELETE_MESSAGE],
             ]);

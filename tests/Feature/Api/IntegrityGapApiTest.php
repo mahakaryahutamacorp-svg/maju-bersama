@@ -47,18 +47,15 @@ class IntegrityGapApiTest extends TestCase
             'subtotal' => 110000,
         ]);
 
-        Sanctum::actingAs($master);
-        $this->deleteJson('/api/products/'.$product->id)
-            ->assertStatus(422)
-            ->assertJsonValidationErrors('product')
-            ->assertJsonPath('errors.product.0', Product::HISTORY_DELETE_MESSAGE);
-
         $this->actingAs($master)
             ->delete(route('backoffice.products.destroy', $product->id))
             ->assertRedirect(route('backoffice.products.index'))
-            ->assertSessionHas('error', Product::HISTORY_DELETE_MESSAGE);
+            ->assertSessionHas('success');
 
-        $this->assertNotSoftDeleted('products', ['id' => $product->id]);
+        $this->assertSoftDeleted('products', ['id' => $product->id]);
+        $this->assertDatabaseHas('sale_items', [
+            'product_id' => $product->id,
+        ]);
 
         $this->actingAs($master)
             ->delete(route('backoffice.customers.destroy', $customer->id))
@@ -90,10 +87,9 @@ class IntegrityGapApiTest extends TestCase
 
         Sanctum::actingAs($master);
         $this->deleteJson('/api/products/'.$product->id)
-            ->assertStatus(422)
-            ->assertJsonPath('errors.product.0', Product::HISTORY_DELETE_MESSAGE);
+            ->assertOk();
 
-        $this->assertNotSoftDeleted('products', ['id' => $product->id]);
+        $this->assertSoftDeleted('products', ['id' => $product->id]);
     }
 
     public function test_tc010_customer_with_receivable_payment_cannot_be_removed(): void
@@ -169,9 +165,10 @@ class IntegrityGapApiTest extends TestCase
         $this->actingAs($master)
             ->get(route('backoffice.products.index'))
             ->assertOk()
-            ->assertSee('sudah memiliki riwayat transaksi sehingga tidak dapat dihapus', false)
+            ->assertSee('href="'.route('backoffice.products.edit', $usedProduct->id).'"', false)
             ->assertSee('action="'.route('backoffice.products.destroy', $freshProduct->id).'"', false)
-            ->assertDontSee('action="'.route('backoffice.products.destroy', $usedProduct->id).'"', false);
+            ->assertSee('action="'.route('backoffice.products.destroy', $usedProduct->id).'"', false)
+            ->assertSee('Arsipkan dari katalog', false);
     }
 
     public function test_tc011_pos_money_columns_are_decimal_like_the_journal(): void

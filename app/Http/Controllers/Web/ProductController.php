@@ -267,7 +267,9 @@ class ProductController extends Controller
 
         $validated = $request->validate($rules);
 
-        $this->ensureCategoryMatchesBranch((int) $validated['category_id'], (int) $product->branch_id);
+        if (! $isMaster) {
+            $this->ensureCategoryMatchesBranch((int) $validated['category_id'], (int) $product->branch_id);
+        }
 
         $this->productService->updateProduct($product, $validated);
 
@@ -389,14 +391,14 @@ class ProductController extends Controller
                 abort(403, 'Anda tidak memiliki otorisasi untuk menghapus produk cabang lain.');
             }
 
-            if ($product->hasTransactionHistory()) {
+            if (! $isMaster && $product->hasTransactionHistory()) {
                 return redirect()
                     ->route('backoffice.products.index')
                     ->with('error', Product::HISTORY_DELETE_MESSAGE);
             }
 
             $name = $product->name;
-            $product->delete();
+            $this->productService->deleteProduct($product, $isMaster);
 
             return redirect()
                 ->route('backoffice.products.index')
