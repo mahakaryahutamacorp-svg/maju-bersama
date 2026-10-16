@@ -6,7 +6,6 @@
         body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
         [x-cloak] { display: none !important; }
         .font-mono-code { font-family: 'JetBrains Mono', monospace; }
-        a[data-coming-soon] > div > div:last-child { display: none; }
     </style>
     </x-slot:head>
 
@@ -562,8 +561,7 @@
                                 </div>
                             </a>
 
-                            <a data-coming-soon aria-disabled="true" title="Laporan ini sedang disiapkan" class="relative block cursor-not-allowed rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 opacity-75">
-                                <span class="absolute right-3 top-3 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">Segera hadir</span>
+                            <a href="{{ route('reports.sales-returns') }}" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-start gap-3.5">
                                         <div class="rounded-lg bg-rose-100 text-rose-800 p-2.5 mt-0.5 group-hover:scale-105 transition-transform">
@@ -672,8 +670,7 @@
                                 </div>
                             </a>
 
-                            <a data-coming-soon aria-disabled="true" title="Laporan ini sedang disiapkan" class="relative block cursor-not-allowed rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 opacity-75">
-                                <span class="absolute right-3 top-3 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">Segera hadir</span>
+                            <a href="{{ route('reports.supplier-payments') }}" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-start gap-3.5">
                                         <div class="rounded-lg bg-teal-100 text-teal-800 p-2.5 mt-0.5 group-hover:scale-105 transition-transform">
@@ -758,8 +755,7 @@
                             </a>
 
                             <!-- 2. Daftar Barang per Gudang -->
-                            <a data-coming-soon aria-disabled="true" title="Laporan ini sedang disiapkan" class="relative block cursor-not-allowed rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 opacity-75">
-                                <span class="absolute right-3 top-3 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">Segera hadir</span>
+                            <a href="{{ route('reports.warehouse-inventory') }}" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-start gap-3.5">
                                         <div class="rounded-lg bg-teal-100 text-teal-800 p-2.5 mt-0.5 group-hover:scale-105 transition-transform">
@@ -842,8 +838,7 @@
                                 </div>
                             </a>
 
-                            <a data-coming-soon aria-disabled="true" title="Laporan ini sedang disiapkan" class="relative block cursor-not-allowed rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 opacity-75">
-                                <span class="absolute right-3 top-3 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">Segera hadir</span>
+                            <a href="{{ route('reports.depreciation') }}" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-start gap-3.5">
                                         <div class="rounded-lg bg-pink-100 text-pink-800 p-2.5 mt-0.5 group-hover:scale-105 transition-transform">
@@ -869,8 +864,7 @@
                                 </div>
                             </a>
 
-                            <a data-coming-soon aria-disabled="true" title="Laporan ini sedang disiapkan" class="relative block cursor-not-allowed rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 opacity-75">
-                                <span class="absolute right-3 top-3 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">Segera hadir</span>
+                            <a href="{{ route('reports.asset-book-value') }}" class="group block rounded-xl border border-slate-200 bg-white p-4 shadow-xs transition-all duration-150 hover:border-amber-400 hover:shadow-md hover:bg-amber-50/20">
                                 <div class="flex items-center justify-between">
                                     <div class="flex items-start gap-3.5">
                                         <div class="rounded-lg bg-amber-100 text-amber-800 p-2.5 mt-0.5 group-hover:scale-105 transition-transform">
@@ -902,8 +896,8 @@
                 <!-- Footer Status & Tips Kolom Kanan -->
                 <div class="mt-8 pt-4 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
                     <div class="flex items-center gap-2">
-                        <span class="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600">Segera hadir</span>
-                        <span>Laporan bertanda ini sedang disiapkan dan belum bisa dibuka.</span>
+                        <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Aktif</span>
+                        <span>Semua laporan di katalog ini membaca data yang sudah tercatat dan tidak mengubah transaksi.</span>
                     </div>
                     <div class="flex items-center gap-3">
                         <span class="font-mono text-slate-400">Pusat Laporan &bull; Maju Bersama POS-Accounting</span>

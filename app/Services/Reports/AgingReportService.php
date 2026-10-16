@@ -2,13 +2,17 @@
 
 namespace App\Services\Reports;
 
-use App\Models\PurchaseOrder;
 use App\Models\Sale;
+use App\Models\Supplier;
+use App\Services\SupplierLedgerService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
 class AgingReportService
 {
+    public function __construct(
+        private SupplierLedgerService $supplierLedger
+    ) {}
     /**
      * Menghitung Laporan Umur Piutang (AR Aging) per Pelanggan.
      *
@@ -135,59 +139,57 @@ class AgingReportService
      */
     public function getApAging(?int $branchId = null): array
     {
-        $query = PurchaseOrder::withoutGlobalScopes()
-            ->with(['supplier', 'branch'])
-            ->where('payment_status', '!=', 'PAID')
-            ->orderBy('id', 'desc');
+        $suppliers = Supplier::withoutGlobalScopes()
+            ->when($branchId !== null, fn ($query) => $query->where('branch_id', $branchId))
+            ->orderBy('name')
+            ->get();
 
-        if ($branchId !== null) {
-            $query->where('branch_id', $branchId);
-        }
-
-        $pos = $query->get();
         $grouped = [];
 
-        foreach ($pos as $po) {
-            $unpaid = (float) $po->total_amount - (float) ($po->paid_amount ?? 0);
-            if ($unpaid <= 0) {
-                continue;
-            }
+        foreach ($suppliers as $supplier) {
+            $openInvoices = $this->supplierLedger->build($supplier)['open_invoices'];
 
-            // Gunakan due_date jika tersedia, atau order_date / created_at sebagai dasar
-            $baseDate = $po->due_date ? Carbon::parse($po->due_date) : ($po->order_date ? Carbon::parse($po->order_date) : Carbon::parse($po->created_at));
-            $diffDays = (int) $baseDate->startOfDay()->diffInDays(now()->startOfDay(), false);
-            if ($diffDays < 0) {
-                $diffDays = 0;
-            }
+            foreach ($openInvoices as $invoice) {
+                $unpaid = round((float) $invoice['outstanding'], 2);
+                if ($unpaid <= 0) {
+                    continue;
+                }
 
-            $supplierId = $po->supplier_id ?? 0;
-            $supplierName = $po->supplier ? $po->supplier->name : 'Supplier Lainnya';
+                $baseDate = ! empty($invoice['due_date'])
+                    ? Carbon::parse($invoice['due_date'])
+                    : Carbon::parse($invoice['date'] ?? now());
+                $diffDays = (int) $baseDate->copy()->startOfDay()->diffInDays(now()->startOfDay(), false);
+                if ($diffDays < 0) {
+                    $diffDays = 0;
+                }
 
-            if (! isset($grouped[$supplierId])) {
-                $grouped[$supplierId] = [
-                    'supplier_id' => $supplierId,
-                    'supplier_name' => $supplierName,
-                    'supplier' => $po->supplier,
-                    'total_amount' => 0.0,
-                    'bucket_0_30' => 0.0,
-                    'bucket_31_60' => 0.0,
-                    'bucket_61_90' => 0.0,
-                    'bucket_over_90' => 0.0,
-                    'invoices_count' => 0,
-                ];
-            }
+                $supplierId = $supplier->id;
+                if (! isset($grouped[$supplierId])) {
+                    $grouped[$supplierId] = [
+                        'supplier_id' => $supplierId,
+                        'supplier_name' => $supplier->name,
+                        'supplier' => $supplier,
+                        'total_amount' => 0.0,
+                        'bucket_0_30' => 0.0,
+                        'bucket_31_60' => 0.0,
+                        'bucket_61_90' => 0.0,
+                        'bucket_over_90' => 0.0,
+                        'invoices_count' => 0,
+                    ];
+                }
 
-            $grouped[$supplierId]['total_amount'] += $unpaid;
-            $grouped[$supplierId]['invoices_count'] += 1;
+                $grouped[$supplierId]['total_amount'] += $unpaid;
+                $grouped[$supplierId]['invoices_count'] += 1;
 
-            if ($diffDays <= 30) {
-                $grouped[$supplierId]['bucket_0_30'] += $unpaid;
-            } elseif ($diffDays <= 60) {
-                $grouped[$supplierId]['bucket_31_60'] += $unpaid;
-            } elseif ($diffDays <= 90) {
-                $grouped[$supplierId]['bucket_61_90'] += $unpaid;
-            } else {
-                $grouped[$supplierId]['bucket_over_90'] += $unpaid;
+                if ($diffDays <= 30) {
+                    $grouped[$supplierId]['bucket_0_30'] += $unpaid;
+                } elseif ($diffDays <= 60) {
+                    $grouped[$supplierId]['bucket_31_60'] += $unpaid;
+                } elseif ($diffDays <= 90) {
+                    $grouped[$supplierId]['bucket_61_90'] += $unpaid;
+                } else {
+                    $grouped[$supplierId]['bucket_over_90'] += $unpaid;
+                }
             }
         }
 

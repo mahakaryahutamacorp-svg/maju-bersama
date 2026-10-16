@@ -45,11 +45,16 @@ class PurchaseReportService
 
         $purchases = $query->get();
 
-        $totalPurchases = (float) $purchases->sum('total_amount');
-        $totalOrders = $purchases->count();
-        $completedOrders = $purchases->filter(fn ($p) => in_array(strtolower($p->status ?? ''), ['completed', 'received', 'closed'], true))->count();
+        $activePurchases = $purchases->reject(
+            fn ($purchase) => strtolower((string) ($purchase->status ?? '')) === 'cancelled'
+        );
+        $totalPurchases = (float) $activePurchases->sum('total_amount');
+        $totalOrders = $activePurchases->count();
+        $completedOrders = $activePurchases->filter(
+            fn ($purchase) => in_array(strtolower((string) ($purchase->status ?? '')), ['completed', 'received', 'closed'], true)
+        )->count();
         $pendingOrders = $totalOrders - $completedOrders;
-        $totalItems = (int) $purchases->sum(fn ($p) => $p->items->sum('quantity'));
+        $totalItems = (int) $activePurchases->sum(fn ($purchase) => $purchase->items->sum('quantity'));
 
         return [
             'purchases' => $purchases,

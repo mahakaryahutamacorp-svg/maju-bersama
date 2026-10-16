@@ -62,6 +62,7 @@ class IncomeStatementService
 
         $expenseAccounts = [];
         $totalExpenses = 0.0;
+        $classifier = new ProfitAndLossClassifier;
 
         foreach ($lines as $line) {
             $debit = (float) $line->total_debit;
@@ -69,52 +70,41 @@ class IncomeStatementService
             $code = (string) $line->account_code;
             $name = (string) $line->account_name;
             $type = (string) $line->account_type;
+            $bucket = $classifier->classify($code, $name, $type);
 
-            // 1. Pendapatan (Revenue) - Akun Kepala 4 (Saldo Normal: Kredit)
-            if (str_starts_with($code, '4') || $type === 'revenue') {
+            if ($bucket === ProfitAndLossClassifier::REVENUE) {
                 $amount = round($credit - $debit, 2);
-                if (abs($amount) > 0.0001) {
-                    $revenueAccounts[] = [
-                        'id' => $line->account_id,
-                        'code' => $code,
-                        'name' => $name,
-                        'amount' => $amount,
-                    ];
-                    $totalRevenue += $amount;
-                }
-            }
-            // 3. Beban Operasional (Expenses) - Akun Kepala 6 atau Akun Beban Non-HPP (Saldo Normal: Debit)
-            elseif (
-                str_starts_with($code, '6')
-                || str_starts_with($code, '511')
-                || $code === '5110'
-                || str_contains(strtolower($name), 'operasional')
-                || str_contains(strtolower($name), 'biaya')
-                || str_contains(strtolower($name), 'beban')
-            ) {
+                $target = 'revenue';
+            } elseif ($bucket === ProfitAndLossClassifier::COGS) {
                 $amount = round($debit - $credit, 2);
-                if (abs($amount) > 0.0001) {
-                    $expenseAccounts[] = [
-                        'id' => $line->account_id,
-                        'code' => $code,
-                        'name' => $name,
-                        'amount' => $amount,
-                    ];
-                    $totalExpenses += $amount;
-                }
-            }
-            // 2. Harga Pokok Penjualan (COGS) - Akun Kepala 5 / HPP (Saldo Normal: Debit)
-            elseif (str_starts_with($code, '5') || $type === 'expense') {
+                $target = 'cogs';
+            } elseif ($bucket === ProfitAndLossClassifier::OPERATING) {
                 $amount = round($debit - $credit, 2);
-                if (abs($amount) > 0.0001) {
-                    $cogsAccounts[] = [
-                        'id' => $line->account_id,
-                        'code' => $code,
-                        'name' => $name,
-                        'amount' => $amount,
-                    ];
-                    $totalCogs += $amount;
-                }
+                $target = 'expense';
+            } else {
+                continue;
+            }
+
+            if (abs($amount) <= 0.0001) {
+                continue;
+            }
+
+            $row = [
+                'id' => $line->account_id,
+                'code' => $code,
+                'name' => $name,
+                'amount' => $amount,
+            ];
+
+            if ($target === 'revenue') {
+                $revenueAccounts[] = $row;
+                $totalRevenue += $amount;
+            } elseif ($target === 'cogs') {
+                $cogsAccounts[] = $row;
+                $totalCogs += $amount;
+            } else {
+                $expenseAccounts[] = $row;
+                $totalExpenses += $amount;
             }
         }
 

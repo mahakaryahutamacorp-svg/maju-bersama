@@ -57,6 +57,8 @@ class BalanceSheetService
         $totalCogs = 0.0;
         $totalExpenses = 0.0;
 
+        $classifier = new ProfitAndLossClassifier;
+
         foreach ($lines as $line) {
             $debit = (float) $line->total_debit;
             $credit = (float) $line->total_credit;
@@ -76,9 +78,12 @@ class BalanceSheetService
                     ];
                     $totalAssets += $amount;
                 }
+
+                continue;
             }
+
             // 2. KEWAJIBAN / HUTANG - Kepala 2 atau tipe liability (Normal: Kredit)
-            elseif (str_starts_with($code, '2') || $type === 'liability') {
+            if (str_starts_with($code, '2') || $type === 'liability') {
                 $amount = round($credit - $debit, 2);
                 if (abs($amount) > 0.0001) {
                     $liabilityAccounts[] = [
@@ -89,9 +94,12 @@ class BalanceSheetService
                     ];
                     $totalLiabilities += $amount;
                 }
+
+                continue;
             }
+
             // 3. MODAL / EKUITAS - Kepala 3 atau tipe equity (Normal: Kredit)
-            elseif (str_starts_with($code, '3') || $type === 'equity') {
+            if (str_starts_with($code, '3') || $type === 'equity') {
                 $amount = round($credit - $debit, 2);
                 if (abs($amount) > 0.0001) {
                     $equityAccounts[] = [
@@ -102,25 +110,17 @@ class BalanceSheetService
                     ];
                     $totalEquityBase += $amount;
                 }
+
+                continue;
             }
-            // 4. PENDAPATAN (Akun Kepala 4)
-            elseif (str_starts_with($code, '4') || $type === 'revenue') {
+
+            $bucket = $classifier->classify($code, $name, $type);
+            if ($bucket === ProfitAndLossClassifier::REVENUE) {
                 $totalRevenue += round($credit - $debit, 2);
-            }
-            // 5. BEBAN OPERASIONAL (Akun Kepala 6 atau beban non-HPP)
-            elseif (
-                str_starts_with($code, '6')
-                || str_starts_with($code, '511')
-                || $code === '5110'
-                || str_contains(strtolower($name), 'operasional')
-                || str_contains(strtolower($name), 'biaya')
-                || str_contains(strtolower($name), 'beban')
-            ) {
-                $totalExpenses += round($debit - $credit, 2);
-            }
-            // 6. HARGA POKOK PENJUALAN (Akun Kepala 5)
-            elseif (str_starts_with($code, '5') || $type === 'expense') {
+            } elseif ($bucket === ProfitAndLossClassifier::COGS) {
                 $totalCogs += round($debit - $credit, 2);
+            } elseif ($bucket === ProfitAndLossClassifier::OPERATING) {
+                $totalExpenses += round($debit - $credit, 2);
             }
         }
 

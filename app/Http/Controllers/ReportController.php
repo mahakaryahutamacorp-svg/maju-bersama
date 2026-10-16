@@ -12,8 +12,11 @@ use App\Services\Reports\IncomeStatementService;
 use App\Services\Reports\InventoryReportService;
 use App\Services\Reports\PurchaseReportService;
 use App\Services\Reports\SalesReportService;
+use App\Services\Reports\SalesReturnReportService;
+use App\Services\Reports\SupplierPaymentReportService;
 use App\Services\Reports\TransactionLedgerService;
 use App\Services\Reports\TrialBalanceService;
+use App\Services\Reports\WarehouseInventoryReportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -270,7 +273,7 @@ class ReportController extends Controller
             'branches' => $branches,
             'startDate' => $startDate,
             'endDate' => $endDate,
-            'selectedBranchId' => $branchId,
+            'selectedBranchId' => $branchId ?? ($report['branch']->id ?? null),
             'selectedProductId' => $productId ?? ($report['product']->id ?? null),
         ]);
     }
@@ -349,6 +352,107 @@ class ReportController extends Controller
             'branches' => $branches,
             'selectedBranchId' => $branchId,
         ]);
+    }
+
+    public function salesReturns(Request $request, SalesReturnReportService $service): View
+    {
+        [$currentUser, $isMaster, $branchId, $branches, $startDate, $endDate] = $this->reportContext($request);
+
+        return view('backoffice.reports.sales-returns', [
+            'currentUser' => $currentUser,
+            'isMaster' => $isMaster,
+            'report' => $service->getReturns($startDate, $endDate, $branchId),
+            'branches' => $branches,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'selectedBranchId' => $branchId,
+        ]);
+    }
+
+    public function supplierPayments(Request $request, SupplierPaymentReportService $service): View
+    {
+        [$currentUser, $isMaster, $branchId, $branches, $startDate, $endDate] = $this->reportContext($request);
+
+        return view('backoffice.reports.supplier-payments', [
+            'currentUser' => $currentUser,
+            'isMaster' => $isMaster,
+            'report' => $service->getPayments($startDate, $endDate, $branchId),
+            'branches' => $branches,
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'selectedBranchId' => $branchId,
+        ]);
+    }
+
+    public function warehouseInventory(Request $request, WarehouseInventoryReportService $service): View
+    {
+        [$currentUser, $isMaster, $branchId, $branches] = $this->reportContext($request, false);
+
+        return view('backoffice.reports.warehouse-inventory', [
+            'currentUser' => $currentUser,
+            'isMaster' => $isMaster,
+            'report' => $service->getInventory($branchId),
+            'branches' => $branches,
+            'selectedBranchId' => $branchId,
+        ]);
+    }
+
+    public function depreciation(Request $request, FixedAssetReportService $service): View
+    {
+        [$currentUser, $isMaster, $branchId, $branches] = $this->reportContext($request, false);
+        $asOfDate = $request->input('as_of_date', now()->toDateString());
+
+        return view('backoffice.reports.depreciation', [
+            'currentUser' => $currentUser,
+            'isMaster' => $isMaster,
+            'assets' => $service->getAssets($branchId, $asOfDate),
+            'branches' => $branches,
+            'selectedBranchId' => $branchId,
+            'asOfDate' => $asOfDate,
+        ]);
+    }
+
+    public function assetBookValue(Request $request, FixedAssetReportService $service): View
+    {
+        [$currentUser, $isMaster, $branchId, $branches] = $this->reportContext($request, false);
+        $asOfDate = $request->input('as_of_date', now()->toDateString());
+
+        return view('backoffice.reports.asset-book-value', [
+            'currentUser' => $currentUser,
+            'isMaster' => $isMaster,
+            'assets' => $service->getAssets($branchId, $asOfDate),
+            'branches' => $branches,
+            'selectedBranchId' => $branchId,
+            'asOfDate' => $asOfDate,
+        ]);
+    }
+
+    /**
+     * @return array{0: \App\Models\User, 1: bool, 2: int|null, 3: \Illuminate\Support\Collection, 4?: string, 5?: string}
+     */
+    private function reportContext(Request $request, bool $withDates = true): array
+    {
+        $currentUser = $request->user()->load('branch');
+        $isMaster = $currentUser->isMaster();
+        $branchId = $isMaster
+            ? ($request->filled('branch_id') ? (int) $request->input('branch_id') : null)
+            : (int) $currentUser->branch_id;
+        $branches = $isMaster
+            ? Branch::query()->orderBy('id')->get()
+            : Branch::query()->where('id', $currentUser->branch_id)->get();
+
+        if (! $withDates) {
+            return [$currentUser, $isMaster, $branchId, $branches];
+        }
+
+        return [
+            $currentUser,
+            $isMaster,
+            $branchId,
+            $branches,
+            $request->input('start_date', now()->startOfMonth()->toDateString()),
+            $request->input('end_date', now()->toDateString()),
+        ];
     }
 
     public function journal(Request $request): View

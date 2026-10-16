@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AssetDepreciation;
 use App\Models\Branch;
 use App\Models\CashTransfer;
 use App\Models\Category;
@@ -9,6 +10,7 @@ use App\Models\ChartOfAccount;
 use App\Models\Customer;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
+use App\Models\FixedAsset;
 use App\Models\GoodsReceipt;
 use App\Models\Inventory;
 use App\Models\JournalHeader;
@@ -16,9 +18,11 @@ use App\Models\Payment;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\Sale;
+use App\Models\SalesReturn;
 use App\Models\StockAdjustment;
 use App\Models\Supplier;
 use App\Models\User;
+use App\Models\Warehouse;
 use App\Services\Reports\IncomeStatementService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -62,7 +66,12 @@ class ReportCenterWebTest extends TestCase
         $response->assertSee('Pusat Laporan');
         $response->assertSee('Keterangan Transaksi');
         $response->assertSee('Uang Masuk');
-        $response->assertSee('Segera hadir');
+        $response->assertSee(route('reports.sales-returns'), false);
+        $response->assertSee(route('reports.supplier-payments'), false);
+        $response->assertSee(route('reports.warehouse-inventory'), false);
+        $response->assertSee(route('reports.depreciation'), false);
+        $response->assertSee(route('reports.asset-book-value'), false);
+        $response->assertDontSee('data-coming-soon', false);
         $response->assertDontSee('href="#"', false);
         $response->assertSee('name="start_date"', false);
         $response->assertSee('name="end_date"', false);
@@ -425,6 +434,41 @@ class ReportCenterWebTest extends TestCase
         $response->assertSee('150.000,00');
         $response->assertSee('250.000,00');
         $response->assertSee('Surplus');
+    }
+
+    public function test_inventory_variance_stays_in_cogs_while_daily_cost_stays_operating(): void
+    {
+        $cash = ChartOfAccount::create(['code' => '1110', 'name' => 'Kas', 'type' => 'asset']);
+        $revenue = ChartOfAccount::create(['code' => '4110', 'name' => 'Pendapatan', 'type' => 'revenue']);
+        $cogs = ChartOfAccount::create(['code' => '5100', 'name' => 'Harga Pokok Penjualan', 'type' => 'expense']);
+        $variance = ChartOfAccount::create(['code' => '5120', 'name' => 'Beban Selisih Persediaan', 'type' => 'expense']);
+        $daily = ChartOfAccount::create(['code' => '5110', 'name' => 'Biaya Harian', 'type' => 'expense']);
+
+        $journal = JournalHeader::create([
+            'branch_id' => $this->branch->id,
+            'user_id' => $this->user->id,
+            'transaction_date' => now()->toDateString(),
+            'reference_number' => 'JRN-LR-5120',
+            'description' => 'Klasifikasi HPP',
+        ]);
+        $journal->journalLines()->createMany([
+            ['chart_of_account_id' => $cash->id, 'debit' => 1000000, 'credit' => 0, 'memo' => 'Kas'],
+            ['chart_of_account_id' => $revenue->id, 'debit' => 0, 'credit' => 1000000, 'memo' => 'Pendapatan'],
+            ['chart_of_account_id' => $cogs->id, 'debit' => 600000, 'credit' => 0, 'memo' => 'HPP'],
+            ['chart_of_account_id' => $variance->id, 'debit' => 80000, 'credit' => 0, 'memo' => 'Selisih'],
+            ['chart_of_account_id' => $daily->id, 'debit' => 20000, 'credit' => 0, 'memo' => 'Harian'],
+            ['chart_of_account_id' => $cash->id, 'debit' => 0, 'credit' => 700000, 'memo' => 'Kas keluar'],
+        ]);
+
+        $data = (new IncomeStatementService)->generate(
+            now()->startOfMonth()->toDateString(),
+            now()->endOfMonth()->toDateString(),
+            $this->branch->id
+        );
+
+        $this->assertEquals(680000.0, $data['cogs']['total']);
+        $this->assertEquals(20000.0, $data['operating_expenses']['total']);
+        $this->assertEquals(300000.0, $data['net_profit']);
     }
 
     public function test_report_center_links_to_all_financial_reports(): void
@@ -870,6 +914,35 @@ class ReportCenterWebTest extends TestCase
             'status' => 'completed',
         ]);
 
+        foreach (PurchaseOrder::query()->where('reference_number', 'like', 'PO-AP-00%')->get() as $order) {
+            GoodsReceipt::create([
+                'branch_id' => $this->branch->id,
+                'purchase_order_id' => $order->id,
+                'supplier_id' => $order->supplier_id,
+                'reference_number' => 'GR-'.$order->reference_number,
+                'supplier_name' => $order->supplier?->name,
+                'date' => $order->order_date,
+                'total_amount' => $order->total_amount,
+                'paid_amount' => 0,
+                'payment_type' => 'credit',
+            ]);
+        }
+
+        $unreceivedSupplier = Supplier::create([
+            'branch_id' => $this->branch->id,
+            'name' => 'Supplier Belum Kirim',
+        ]);
+        PurchaseOrder::create([
+            'branch_id' => $this->branch->id,
+            'supplier_id' => $unreceivedSupplier->id,
+            'reference_number' => 'PO-AP-DRAFT',
+            'order_date' => now()->subDays(20)->toDateString(),
+            'total_amount' => 999999,
+            'paid_amount' => 0,
+            'payment_status' => 'UNPAID',
+            'status' => 'pending',
+        ]);
+
         $response = $this->actingAs($this->user)->get(route('reports.ap-aging'));
 
         $response->assertStatus(200);
@@ -877,6 +950,7 @@ class ReportCenterWebTest extends TestCase
         $response->assertSee('MAJU BERSAMA GRUP');
         $response->assertSee('PT Petrokimia Kayaku');
         $response->assertSee('CV Benih Unggul Nusantara');
+        $response->assertDontSee('Supplier Belum Kirim');
         $response->assertSee('Total Keseluruhan');
 
         // Supplier A: Sisa 1.500.000 (0-30) + 1.000.000 (31-60) = 2.500.000
@@ -891,5 +965,124 @@ class ReportCenterWebTest extends TestCase
 
         // Grand Total: 2.500.000 + 3.800.000 = 6.300.000
         $response->assertSee('Rp 6.300.000');
+    }
+
+    public function test_newly_opened_reports_read_recorded_documents_without_changing_them(): void
+    {
+        $cash = ChartOfAccount::create(['code' => '1110', 'name' => 'Kas', 'type' => 'asset', 'is_active' => true]);
+        $assetAccount = ChartOfAccount::create(['code' => '1310', 'name' => 'Aktiva Tetap', 'type' => 'asset', 'is_active' => true]);
+        $accumAccount = ChartOfAccount::create(['code' => '1320', 'name' => 'Akumulasi Penyusutan', 'type' => 'asset', 'is_active' => true]);
+        $expenseAccount = ChartOfAccount::create(['code' => '6500', 'name' => 'Beban Penyusutan', 'type' => 'expense', 'is_active' => true]);
+
+        SalesReturn::create([
+            'branch_id' => $this->branch->id,
+            'user_id' => $this->user->id,
+            'customer_name' => 'Ibu Retur Tani',
+            'return_date' => now()->toDateString(),
+            'reference_number' => 'RTR-001',
+            'refund_method' => 'cash',
+            'chart_of_account_id' => $cash->id,
+            'total_amount' => 25000,
+            'total_cost' => 18000,
+            'status' => 'completed',
+            'reason' => 'Barang pecah',
+        ]);
+
+        $supplier = Supplier::create(['branch_id' => $this->branch->id, 'name' => 'CV Sumber Pupuk', 'is_active' => true]);
+        Payment::create([
+            'branch_id' => $this->branch->id,
+            'type' => 'AP',
+            'supplier_id' => $supplier->id,
+            'account_id' => $cash->id,
+            'payment_date' => now()->toDateString(),
+            'reference_number' => 'AP-PAY-001',
+            'amount' => 75000,
+            'notes' => 'Pelunasan nota pupuk',
+        ]);
+
+        $category = Category::create(['name' => 'Pupuk']);
+        $product = Product::create([
+            'branch_id' => $this->branch->id,
+            'category_id' => $category->id,
+            'sku' => 'GDG-001',
+            'name' => 'Urea Karung 50kg',
+            'unit' => 'Karung',
+            'purchase_price' => 10000,
+            'selling_price' => 12000,
+            'stock' => 4,
+        ]);
+        $warehouse = Warehouse::create([
+            'branch_id' => $this->branch->id,
+            'name' => 'Gudang Utama',
+            'code' => 'GU-1',
+            'is_active' => true,
+        ]);
+        Inventory::create([
+            'branch_id' => $this->branch->id,
+            'warehouse_id' => $warehouse->id,
+            'product_id' => $product->id,
+            'quantity' => 4,
+        ]);
+
+        $purchaseDate = now()->startOfMonth()->subMonths(3)->toDateString();
+        $asset = FixedAsset::create([
+            'branch_id' => $this->branch->id,
+            'name' => 'Timbangan Digital',
+            'purchase_date' => $purchaseDate,
+            'purchase_price' => 12000000,
+            'salvage_value' => 0,
+            'useful_life_months' => 12,
+            'asset_account_id' => $assetAccount->id,
+            'depreciation_account_id' => $accumAccount->id,
+            'expense_account_id' => $expenseAccount->id,
+            'status' => 'ACTIVE',
+        ]);
+        AssetDepreciation::create([
+            'fixed_asset_id' => $asset->id,
+            'depreciation_date' => now()->startOfMonth()->subMonths(2)->toDateString(),
+            'amount' => 1000000,
+        ]);
+
+        $asOf = now()->startOfMonth()->toDateString();
+
+        $this->actingAs($this->user)
+            ->get(route('reports.sales-returns'))
+            ->assertOk()
+            ->assertSee('LAPORAN RETUR PENJUALAN')
+            ->assertSee('RTR-001')
+            ->assertSee('Ibu Retur Tani')
+            ->assertSee('25.000,00');
+
+        $this->actingAs($this->user)
+            ->get(route('reports.supplier-payments'))
+            ->assertOk()
+            ->assertSee('PEMBAYARAN HUTANG SUPPLIER')
+            ->assertSee('AP-PAY-001')
+            ->assertSee('CV Sumber Pupuk')
+            ->assertSee('75.000,00');
+
+        $this->actingAs($this->user)
+            ->get(route('reports.warehouse-inventory'))
+            ->assertOk()
+            ->assertSee('PERSEDIAAN PER GUDANG')
+            ->assertSee('Gudang Utama')
+            ->assertSee('Urea Karung 50kg')
+            ->assertSee('40.000,00');
+
+        $this->actingAs($this->user)
+            ->get(route('reports.depreciation', ['as_of_date' => $asOf]))
+            ->assertOk()
+            ->assertSee('JADWAL PENYUSUTAN')
+            ->assertSee('Timbangan Digital')
+            ->assertSee('3.000.000,00')
+            ->assertSee('1.000.000,00')
+            ->assertSee('tidak membuat jurnal');
+
+        $this->actingAs($this->user)
+            ->get(route('reports.asset-book-value', ['as_of_date' => $asOf]))
+            ->assertOk()
+            ->assertSee('REKAP NILAI BUKU ASET')
+            ->assertSee('12.000.000,00')
+            ->assertSee('11.000.000,00');
     }
 }

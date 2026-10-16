@@ -208,6 +208,9 @@ Route::middleware('auth')->group(function () {
         Route::get('/reports/sales', [ReportController::class, 'sales']);
         Route::get('/backoffice/reports/ar-aging', [ReportController::class, 'arAging'])->name('reports.ar-aging');
         Route::get('/reports/ar-aging', [ReportController::class, 'arAging']);
+        Route::get('/backoffice/reports/sales-returns', [ReportController::class, 'salesReturns'])->name('reports.sales-returns');
+        Route::get('/backoffice/reports/fixed-assets/depreciation', [ReportController::class, 'depreciation'])->name('reports.depreciation');
+        Route::get('/backoffice/reports/fixed-assets/book-value', [ReportController::class, 'assetBookValue'])->name('reports.asset-book-value');
     });
 
     Route::middleware('can:view-accounting')->group(function () {
@@ -220,6 +223,8 @@ Route::middleware('auth')->group(function () {
             Route::get('/purchases', [ReportController::class, 'purchases'])->name('reports.purchases');
             Route::get('/inventory/stock-card', [ReportController::class, 'stockCard'])->name('reports.stock-card');
             Route::get('/ap-aging', [ReportController::class, 'apAging'])->name('reports.ap-aging');
+            Route::get('/supplier-payments', [ReportController::class, 'supplierPayments'])->name('reports.supplier-payments');
+            Route::get('/inventory/warehouses', [ReportController::class, 'warehouseInventory'])->name('reports.warehouse-inventory');
         });
     });
 });

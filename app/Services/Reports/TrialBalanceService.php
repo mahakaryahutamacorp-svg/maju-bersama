@@ -30,6 +30,9 @@ class TrialBalanceService
         $totalEndingDebit = 0.0;
         $totalEndingCredit = 0.0;
 
+        $movementByAccount = $this->sumLines($startDate, $endDate, $branchId, false);
+        $cumulativeByAccount = $this->sumLines($startDate, $endDate, $branchId, true);
+
         foreach ($accounts as $account) {
             $code = (string) $account->code;
             $type = (string) $account->type;
@@ -43,30 +46,11 @@ class TrialBalanceService
                 default => (str_starts_with($code, '1') || str_starts_with($code, '5') || str_starts_with($code, '6')) ? 'debit' : 'credit',
             };
 
-            // Calculate Period Mutations
-            $movementSum = JournalLine::query()
-                ->join('journal_headers', 'journal_lines.journal_header_id', '=', 'journal_headers.id')
-                ->where('journal_lines.chart_of_account_id', $account->id)
-                ->whereNull('journal_headers.deleted_at')
-                ->whereDate('journal_headers.transaction_date', '>=', $startDate)
-                ->whereDate('journal_headers.transaction_date', '<=', $endDate)
-                ->when($branchId, fn ($q) => $q->where('journal_headers.branch_id', $branchId))
-                ->selectRaw('COALESCE(SUM(journal_lines.debit), 0) as total_debit, COALESCE(SUM(journal_lines.credit), 0) as total_credit')
-                ->first();
-
+            $movementSum = $movementByAccount->get($account->id);
             $debit = (float) ($movementSum->total_debit ?? 0);
             $credit = (float) ($movementSum->total_credit ?? 0);
 
-            // Calculate Cumulative Balance up to $endDate
-            $cumSum = JournalLine::query()
-                ->join('journal_headers', 'journal_lines.journal_header_id', '=', 'journal_headers.id')
-                ->where('journal_lines.chart_of_account_id', $account->id)
-                ->whereNull('journal_headers.deleted_at')
-                ->whereDate('journal_headers.transaction_date', '<=', $endDate)
-                ->when($branchId, fn ($q) => $q->where('journal_headers.branch_id', $branchId))
-                ->selectRaw('COALESCE(SUM(journal_lines.debit), 0) as total_debit, COALESCE(SUM(journal_lines.credit), 0) as total_credit')
-                ->first();
-
+            $cumSum = $cumulativeByAccount->get($account->id);
             $cumDebit = (float) ($cumSum->total_debit ?? 0);
             $cumCredit = (float) ($cumSum->total_credit ?? 0);
 
@@ -127,5 +111,27 @@ class TrialBalanceService
             'is_balanced' => $isBalanced,
             'difference' => $difference,
         ];
+    }
+
+    /**
+     * @return \Illuminate\Support\Collection<int, object>
+     */
+    private function sumLines(string $startDate, string $endDate, ?int $branchId, bool $cumulative): \Illuminate\Support\Collection
+    {
+        return JournalLine::query()
+            ->join('journal_headers', 'journal_lines.journal_header_id', '=', 'journal_headers.id')
+            ->whereNull('journal_headers.deleted_at')
+            ->when(
+                $cumulative,
+                fn ($query) => $query->whereDate('journal_headers.transaction_date', '<=', $endDate),
+                fn ($query) => $query
+                    ->whereDate('journal_headers.transaction_date', '>=', $startDate)
+                    ->whereDate('journal_headers.transaction_date', '<=', $endDate)
+            )
+            ->when($branchId, fn ($query) => $query->where('journal_headers.branch_id', $branchId))
+            ->groupBy('journal_lines.chart_of_account_id')
+            ->selectRaw('journal_lines.chart_of_account_id as account_id, COALESCE(SUM(journal_lines.debit), 0) as total_debit, COALESCE(SUM(journal_lines.credit), 0) as total_credit')
+            ->get()
+            ->keyBy('account_id');
     }
 }

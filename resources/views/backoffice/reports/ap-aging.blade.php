@@ -39,7 +39,7 @@
                     </span>
                     <h2 class="text-lg font-bold text-slate-900">Laporan Umur Hutang (AP Aging)</h2>
                 </div>
-                <p class="text-xs text-slate-500 mt-0.5">Klasifikasi sisa kewajiban pembayaran kepada supplier berdasarkan jatuh tempo</p>
+                <p class="text-xs text-slate-500 mt-0.5">Sisa hutang dihitung dari barang yang sudah diterima, dikurangi retur dan pembayaran. Pesanan yang belum datang tidak dihitung sebagai hutang.</p>
             </div>
 
             <!-- Form Filter Cabang & Tombol Cetak -->
