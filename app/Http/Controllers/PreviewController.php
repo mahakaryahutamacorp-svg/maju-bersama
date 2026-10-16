@@ -2,10 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Branch;
 use App\Models\ChartOfAccount;
-use App\Models\User;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 class PreviewController extends Controller
 {
@@ -16,13 +15,10 @@ class PreviewController extends Controller
             abort(403, 'Akses terbatas: Halaman Pratinjau Sistem hanya dapat diakses oleh akun Master Administrator.');
         }
 
-        $branches = DB::table('branches')
-            ->get()
-            ->map(function ($branch) {
-                $branch->users = User::where('branch_id', $branch->id)->get();
-
-                return $branch;
-            });
+        $branches = Branch::query()
+            ->with(['users' => fn ($query) => $query->orderBy('id')])
+            ->orderBy('id')
+            ->get();
 
         $chartOfAccounts = ChartOfAccount::all();
 
