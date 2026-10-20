@@ -43,6 +43,14 @@
             font-size: 14px;
             font-weight: bold;
             margin-bottom: 2px;
+            line-height: 1.25;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+        .shop-meta {
+            font-size: 10px;
+            overflow-wrap: anywhere;
+            word-break: break-word;
         }
         .info-row {
             display: flex;
@@ -130,19 +138,13 @@
     <div class="receipt-container">
         <!-- Header Toko & Cabang -->
         <div class="text-center">
+            <h1 class="shop-title">{{ $sale->branch?->name }}</h1>
             @if ($sale->branch?->address)
-                <p style="font-size: 10px;">{{ $sale->branch->address }}</p>
+                <p class="shop-meta">{{ $sale->branch->address }}</p>
             @endif
             @if ($sale->branch?->phone)
-                <p style="font-size: 10px;">Telp: {{ $sale->branch->phone }}</p>
+                <p class="shop-meta">Telp: {{ $sale->branch->phone }}</p>
             @endif
-            <h1 class="shop-title">Maju Bersama Grup</h1>
-            <p class="font-bold" style="font-size: 10px;">Kantor Pusat</p>
-            <p style="font-size: 10px;">Jalan Nusa Indah Ujung BK 10</p>
-            <p style="font-size: 10px;">Gumawang Belitang OKU Timur</p>
-            <p style="font-size: 10px;">Sumatra Selatan</p>
-            <p style="font-size: 10px;">0851-9854-8662</p>
-            <p style="font-size: 10px;">0821-8051-6300</p>
         </div>
 
         <div class="divider"></div>
