@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Branch;
 use App\Models\CashRegisterShift;
 use App\Models\ChartOfAccount;
 use App\Models\Customer;
@@ -34,6 +35,8 @@ class SalePostingService
 
     private const ACCOUNT_DISCOUNT = '4130';
 
+    private const ACCOUNT_PPN = '2130';
+
     private const ACCOUNT_COGS = '5100';
 
     /**
@@ -50,6 +53,13 @@ class SalePostingService
 
         return DB::transaction(function () use ($items, $actor, $receiptNumber, $paymentMethod, $data): Sale {
             $accounts = $this->resolveAccounts();
+            $tax = new InclusiveTaxCalculator;
+            $branch = Branch::query()->find($actor->branch_id);
+            $taxEnabled = (bool) ($branch?->tax_enabled);
+            $taxRate = $tax->money($branch?->tax_rate ?? '11.00');
+            if (bccomp($taxRate, '0.00', 2) !== 1) {
+                $taxRate = '11.00';
+            }
 
             $products = Product::query()
                 ->whereIn('id', $items->pluck('product_id'))
@@ -66,7 +76,7 @@ class SalePostingService
             $totalPrice = '0.00';
             $totalItemDiscount = '0.00';
             $totalCost = '0.00';
-            $saleItems = [];
+            $preparedLines = [];
 
             $customerId = $data['customer_id'] ?? null;
             $customerGroupId = null;
@@ -117,12 +127,14 @@ class SalePostingService
                 $totalItemDiscount = bcadd($totalItemDiscount, $lineDiscount, 2);
                 $totalCost = bcadd($totalCost, $cost, 2);
 
-                $saleItems[] = [
+                $preparedLines[] = [
                     'product_id' => $product->id,
                     'quantity' => (int) $item['quantity'],
                     'price' => $unitPrice,
                     'discount_amount' => $lineDiscount,
-                    'subtotal' => bcsub($grossLine, $lineDiscount, 2),
+                    'gross_line' => $grossLine,
+                    'line_net' => bcsub($grossLine, $lineDiscount, 2),
+                    'is_taxable' => $taxEnabled && (bool) $product->is_taxable,
                 ];
             }
 
@@ -144,6 +156,73 @@ class SalePostingService
             }
 
             $grandTotal = bcsub($netSubtotal, $discountAmount, 2);
+            $discountShares = $tax->allocateDiscount(
+                $discountAmount,
+                array_map(fn (array $line) => $line['line_net'], $preparedLines),
+            );
+
+            $subtotalNonTax = '0.00';
+            $dppTaxable = '0.00';
+            $taxTotal = '0.00';
+            $nonTaxGross = '0.00';
+            $nonTaxDiscount = '0.00';
+            $taxableDppGross = '0.00';
+            $taxableDppDiscount = '0.00';
+            $saleItems = [];
+
+            foreach ($preparedLines as $index => $line) {
+                $share = $discountShares[$index] ?? '0.00';
+                $netAfterDiscount = bcsub($line['line_net'], $share, 2);
+                if (bccomp($netAfterDiscount, '0.00', 2) === -1) {
+                    $netAfterDiscount = '0.00';
+                }
+
+                if ($line['is_taxable']) {
+                    $grossSplit = $tax->split($line['gross_line'], $taxRate);
+                    $netSplit = $tax->split($netAfterDiscount, $taxRate);
+                    $dppDiscount = bcsub($grossSplit['dpp'], $netSplit['dpp'], 2);
+                    if (bccomp($dppDiscount, '0.00', 2) === -1) {
+                        $dppDiscount = '0.00';
+                    }
+
+                    $taxableDppGross = bcadd($taxableDppGross, $grossSplit['dpp'], 2);
+                    $taxableDppDiscount = bcadd($taxableDppDiscount, $dppDiscount, 2);
+                    $dppTaxable = bcadd($dppTaxable, $netSplit['dpp'], 2);
+                    $taxTotal = bcadd($taxTotal, $netSplit['tax'], 2);
+                    $itemRate = $taxRate;
+                    $itemDpp = $netSplit['dpp'];
+                    $itemTax = $netSplit['tax'];
+                } else {
+                    $nonTaxGross = bcadd($nonTaxGross, $line['gross_line'], 2);
+                    $nonTaxDiscount = bcadd($nonTaxDiscount, bcadd($line['discount_amount'], $share, 2), 2);
+                    $subtotalNonTax = bcadd($subtotalNonTax, $netAfterDiscount, 2);
+                    $itemRate = '0.00';
+                    $itemDpp = '0.00';
+                    $itemTax = '0.00';
+                }
+
+                $saleItems[] = [
+                    'product_id' => $line['product_id'],
+                    'quantity' => $line['quantity'],
+                    'price' => $line['price'],
+                    'discount_amount' => $line['discount_amount'],
+                    'subtotal' => $line['line_net'],
+                    'is_taxable' => $line['is_taxable'],
+                    'tax_rate' => $itemRate,
+                    'dpp_amount' => $itemDpp,
+                    'tax_amount' => $itemTax,
+                ];
+            }
+
+            $composed = bcadd(bcadd($subtotalNonTax, $dppTaxable, 2), $taxTotal, 2);
+            if (bccomp($composed, $grandTotal, 2) !== 0) {
+                throw ValidationException::withMessages([
+                    'items' => ["Rincian pajak tidak seimbang dengan total bayar ({$composed} vs {$grandTotal})."],
+                ]);
+            }
+
+            $revenueCredit = bcadd($nonTaxGross, $taxableDppGross, 2);
+            $discountCredit = bcadd($nonTaxDiscount, $taxableDppDiscount, 2);
 
             // Tautkan secara otomatis ke sesi shift kasir yang sedang aktif
             $activeShift = CashRegisterShift::where('user_id', $actor->id)
@@ -161,6 +240,9 @@ class SalePostingService
                 'created_by' => $actor->id,
                 'receipt_number' => $receiptNumber,
                 'total_amount' => $grandTotal,
+                'subtotal_non_tax' => $subtotalNonTax,
+                'dpp_taxable' => $dppTaxable,
+                'tax_total' => $taxTotal,
                 'discount_amount' => $discountAmount,
                 'paid_amount' => $paidAmount,
                 'payment_status' => $paymentStatus,
@@ -171,20 +253,27 @@ class SalePostingService
 
             $sale->items()->createMany($saleItems);
 
-            $this->recordJournal($sale, $accounts, $grandTotal, bcadd($totalItemDiscount, $discountAmount, 2), $totalPrice, $totalCost, $actor);
+            $this->recordJournal($sale, $accounts, $grandTotal, $discountCredit, $revenueCredit, $taxTotal, $totalCost, $actor);
 
             return $sale->load('items.product');
         });
     }
 
     /**
-     * Write the four line entry that a retail sale produces:
+     * Cabang tanpa barang kena pajak:
      *
-     *   Dr Cash                 (asset increases by the amount collected - Grand Total)
-     *   Dr Sales Discount       (contra-revenue recognised - discount amount)
-     *     Cr Revenue            (income earned - gross subtotal)
-     *   Dr Cost of goods sold   (expense recognised)
-     *     Cr Inventory          (asset released from the warehouse)
+     *   Dr Kas / Piutang        (uang yang dibayar)
+     *   Dr Potongan Penjualan   (diskon, bila ada)
+     *     Cr Pendapatan         (harga kotor)
+     *   Dr HPP / Cr Persediaan
+     *
+     * Cabang berpajak (harga sudah termasuk PPN):
+     *
+     *   Dr Kas / Piutang
+     *   Dr Potongan Penjualan   (diskon bebas pajak + porsi DPP dari diskon kena pajak)
+     *     Cr Pendapatan         (penjualan bebas pajak kotor + DPP kotor)
+     *     Cr PPN Keluaran       (PPN dari uang neto barang kena pajak)
+     *   Dr HPP / Cr Persediaan
      *
      * @param  Collection<string,ChartOfAccount>  $accounts
      */
@@ -193,7 +282,8 @@ class SalePostingService
         Collection $accounts,
         string $grandTotal,
         string $discountAmount,
-        string $subtotal,
+        string $revenueCredit,
+        string $taxCredit,
         string $cost,
         User $actor,
     ): void {
@@ -228,13 +318,26 @@ class SalePostingService
             ];
         }
 
-        // Kredit pendapatan penjualan sebesar subtotal kotor
         $lines[] = [
             'chart_of_account_id' => $accounts[self::ACCOUNT_REVENUE]->id,
             'debit' => 0,
-            'credit' => $subtotal,
+            'credit' => $revenueCredit,
             'memo' => 'Pendapatan penjualan POS',
         ];
+
+        if (bccomp($taxCredit, '0.00', 2) === 1) {
+            $ppnAccount = ChartOfAccount::firstOrCreate(
+                ['code' => self::ACCOUNT_PPN],
+                ['name' => 'PPN Keluaran', 'type' => 'liability']
+            );
+
+            $lines[] = [
+                'chart_of_account_id' => $ppnAccount->id,
+                'debit' => 0,
+                'credit' => $taxCredit,
+                'memo' => 'PPN keluaran penjualan POS',
+            ];
+        }
 
         // A sale of zero-cost items still balances, but posting empty COGS lines only
         // adds noise to the ledger, so they are skipped.
@@ -252,6 +355,19 @@ class SalePostingService
                 'credit' => $cost,
                 'memo' => 'Barang keluar untuk penjualan',
             ];
+        }
+
+        $totalDebit = '0.00';
+        $totalCredit = '0.00';
+        foreach ($lines as $line) {
+            $totalDebit = bcadd($totalDebit, (string) $line['debit'], 2);
+            $totalCredit = bcadd($totalCredit, (string) $line['credit'], 2);
+        }
+
+        if (bccomp($totalDebit, $totalCredit, 2) !== 0) {
+            throw ValidationException::withMessages([
+                'items' => ["Jurnal penjualan tidak seimbang. Debit {$totalDebit} kredit {$totalCredit}."],
+            ]);
         }
 
         $journal->journalLines()->createMany($lines);

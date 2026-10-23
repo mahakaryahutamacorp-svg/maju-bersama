@@ -19,12 +19,16 @@ class Branch extends Model
         'phone',
         'timezone',
         'is_active',
+        'tax_enabled',
+        'tax_rate',
     ];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'tax_enabled' => 'boolean',
+            'tax_rate' => 'decimal:2',
         ];
     }
 

@@ -88,6 +88,8 @@ class ProductController extends Controller
             ->orderBy('id')
             ->get();
 
+        $initialBranchId = $isMaster ? (int) old('branch_id') : (int) $user->branch_id;
+
         return view('backoffice.products.create', [
             'currentUser' => $user,
             'isMaster' => $isMaster,
@@ -96,6 +98,9 @@ class ProductController extends Controller
             'categories' => $categories,
             'customerGroups' => $customerGroups,
             'priceLevels' => $priceLevels,
+            'showTaxField' => $branches->contains(
+                fn (Branch $branch) => (int) $branch->id === $initialBranchId && $branch->tax_enabled
+            ),
         ]);
     }
 
@@ -160,6 +165,8 @@ class ProductController extends Controller
             ? (int) $validated['branch_id']
             : (int) ($user->branch_id ?: Branch::whereNull('parent_id')->value('id') ?: Branch::value('id'));
 
+        $validated = $this->applyTaxFlag($request, $validated, $targetBranchId);
+
         $this->ensureCategoryMatchesBranch((int) $validated['category_id'], $targetBranchId);
 
         $product = $this->productService->createProduct($validated, $targetBranchId);
@@ -217,6 +224,7 @@ class ProductController extends Controller
             'categories' => $categories,
             'customerGroups' => $customerGroups,
             'priceLevels' => $priceLevels,
+            'showTaxField' => (bool) $product->branch?->tax_enabled,
         ]);
     }
 
@@ -266,6 +274,7 @@ class ProductController extends Controller
         ];
 
         $validated = $request->validate($rules);
+        $validated = $this->applyTaxFlag($request, $validated, (int) $product->branch_id);
 
         if (! $isMaster) {
             $this->ensureCategoryMatchesBranch((int) $validated['category_id'], (int) $product->branch_id);
@@ -285,6 +294,20 @@ class ProductController extends Controller
         return redirect()
             ->route('backoffice.products.index')
             ->with('success', "Data produk '{$product->name}' berhasil diperbarui!");
+    }
+
+    /**
+     * Pajak penjualan hanya boleh ditandai pada cabang yang tax_enabled.
+     *
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    protected function applyTaxFlag(Request $request, array $validated, int $branchId): array
+    {
+        $taxEnabled = (bool) Branch::query()->whereKey($branchId)->value('tax_enabled');
+        $validated['is_taxable'] = $taxEnabled && $request->boolean('is_taxable');
+
+        return $validated;
     }
 
     /**

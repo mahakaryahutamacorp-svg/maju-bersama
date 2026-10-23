@@ -8,6 +8,7 @@ use App\Models\ChartOfAccount;
 use App\Models\Inventory;
 use App\Models\Product;
 use App\Models\Sale;
+use App\Models\SaleItem;
 use App\Models\SalesReturn;
 use App\Models\SalesReturnItem;
 use App\Models\User;
@@ -28,9 +29,11 @@ class SalesReturnService
     public const ACCOUNT_AR = JournalPostingService::ACCOUNT_AR;
 
     public function __construct(
-        protected ?JournalPostingService $journalPostingService = null
+        protected ?JournalPostingService $journalPostingService = null,
+        protected ?InclusiveTaxCalculator $taxCalculator = null,
     ) {
         $this->journalPostingService = $journalPostingService ?? app(JournalPostingService::class);
+        $this->taxCalculator = $taxCalculator ?? new InclusiveTaxCalculator;
     }
 
     /**
@@ -81,7 +84,7 @@ class SalesReturnService
             $status = $data['status'] ?? 'completed';
             $reason = $data['reason'] ?? $data['notes'] ?? null;
 
-            [$totalAmount, $totalCost, $processedItems] = $this->processItems(
+            [$totalAmount, $totalCost, $taxAmount, $processedItems] = $this->processItems(
                 $returnItems,
                 $branch->id,
                 $sale
@@ -118,6 +121,7 @@ class SalesReturnService
                 'description' => $description,
                 'refund_account_id' => $refundAccount->id,
                 'total_amount' => $totalAmount,
+                'tax_amount' => $taxAmount,
                 'total_cost' => $totalCost,
             ]);
 
@@ -237,12 +241,13 @@ class SalesReturnService
     }
 
     /**
-     * @return array{0: string, 1: string, 2: array<int, array<string, mixed>>}
+     * @return array{0: string, 1: string, 2: string, 3: array<int, array<string, mixed>>}
      */
     protected function processItems(array $returnItems, int $branchId, ?Sale $sale): array
     {
         $totalAmount = '0.00';
         $totalCost = '0.00';
+        $taxAmount = '0.00';
         $processedItems = [];
 
         foreach ($returnItems as $index => $itemData) {
@@ -272,20 +277,31 @@ class SalesReturnService
             }
 
             $saleItem = $sale?->items->firstWhere('product_id', $productId);
-            $unitPrice = isset($itemData['unit_price'])
-                ? (string) $itemData['unit_price']
-                : (string) ($saleItem?->price ?? $product->selling_price ?? '0.00');
             $unitCost = isset($itemData['unit_cost'])
                 ? (string) $itemData['unit_cost']
                 : (string) ($product->purchase_price ?? '0.00');
 
-            $subtotal = isset($itemData['subtotal'])
-                ? (string) $itemData['subtotal']
-                : bcmul($unitPrice, (string) $quantity, 2);
+            $dppAmount = '0.00';
+            $lineTax = '0.00';
+
+            if ($saleItem && $saleItem->is_taxable) {
+                [$dppAmount, $lineTax] = $this->taxShareForReturn($sale, $saleItem, $quantity);
+                $subtotal = bcadd($dppAmount, $lineTax, 2);
+                $unitPrice = (string) ($saleItem->price ?? '0.00');
+            } else {
+                $unitPrice = isset($itemData['unit_price'])
+                    ? (string) $itemData['unit_price']
+                    : (string) ($saleItem?->price ?? $product->selling_price ?? '0.00');
+                $subtotal = isset($itemData['subtotal'])
+                    ? (string) $itemData['subtotal']
+                    : bcmul($unitPrice, (string) $quantity, 2);
+            }
+
             $subtotalCost = bcmul($unitCost, (string) $quantity, 2);
 
             $totalAmount = bcadd($totalAmount, $subtotal, 2);
             $totalCost = bcadd($totalCost, $subtotalCost, 2);
+            $taxAmount = bcadd($taxAmount, $lineTax, 2);
 
             $inventory = $this->lockInventory($branchId, $product->id);
             $inventory->increment('quantity', $quantity);
@@ -297,11 +313,64 @@ class SalesReturnService
                 'unit_price' => $unitPrice,
                 'unit_cost' => $unitCost,
                 'subtotal' => $subtotal,
+                'dpp_amount' => $dppAmount,
+                'tax_amount' => $lineTax,
                 'subtotal_cost' => $subtotalCost,
             ];
         }
 
-        return [$totalAmount, $totalCost, $processedItems];
+        return [$totalAmount, $totalCost, $taxAmount, $processedItems];
+    }
+
+    /**
+     * @return array{0: string, 1: string}
+     */
+    protected function taxShareForReturn(Sale $sale, SaleItem $saleItem, int $quantity): array
+    {
+        $soldQty = (int) $saleItem->quantity;
+        $prior = SalesReturnItem::query()
+            ->where('product_id', $saleItem->product_id)
+            ->whereIn(
+                'sales_return_id',
+                SalesReturn::withoutGlobalScopes()->where('sale_id', $sale->id)->select('id')
+            )
+            ->get(['quantity', 'dpp_amount', 'tax_amount']);
+
+        $alreadyQty = (int) $prior->sum('quantity');
+        $alreadyDpp = $prior->reduce(
+            fn (string $carry, SalesReturnItem $item) => bcadd($carry, (string) $item->dpp_amount, 2),
+            '0.00',
+        );
+        $alreadyTax = $prior->reduce(
+            fn (string $carry, SalesReturnItem $item) => bcadd($carry, (string) $item->tax_amount, 2),
+            '0.00',
+        );
+
+        $remainingDpp = bcsub((string) $saleItem->dpp_amount, $alreadyDpp, 2);
+        $remainingTax = bcsub((string) $saleItem->tax_amount, $alreadyTax, 2);
+        if (bccomp($remainingDpp, '0.00', 2) === -1) {
+            $remainingDpp = '0.00';
+        }
+        if (bccomp($remainingTax, '0.00', 2) === -1) {
+            $remainingTax = '0.00';
+        }
+
+        $remainingQty = $soldQty - $alreadyQty;
+        if ($remainingQty <= 0 || $quantity >= $remainingQty) {
+            return [$remainingDpp, $remainingTax];
+        }
+
+        $dpp = $this->taxCalculator->share((string) $saleItem->dpp_amount, $quantity, $soldQty);
+        $tax = $this->taxCalculator->share((string) $saleItem->tax_amount, $quantity, $soldQty);
+
+        if (bccomp($dpp, $remainingDpp, 2) === 1) {
+            $dpp = $remainingDpp;
+        }
+        if (bccomp($tax, $remainingTax, 2) === 1) {
+            $tax = $remainingTax;
+        }
+
+        return [$dpp, $tax];
     }
 
     protected function assertReturnableQuantity(Sale $sale, int $productId, int $quantity, int $index): void

@@ -127,14 +127,21 @@ class BusinessStructureSeeder extends Seeder
 
     private function ensureBranch(string $code, string $name, ?int $parentId = null): Branch
     {
+        $attributes = [
+            'name' => $name,
+            'parent_id' => $parentId,
+            'is_active' => true,
+            'timezone' => 'Asia/Jakarta',
+        ];
+
+        if ($code === 'CBG-MAMA') {
+            $attributes['tax_enabled'] = true;
+            $attributes['tax_rate'] = '11.00';
+        }
+
         $branch = Branch::withTrashed()->updateOrCreate(
             ['code' => $code],
-            [
-                'name' => $name,
-                'parent_id' => $parentId,
-                'is_active' => true,
-                'timezone' => 'Asia/Jakarta',
-            ],
+            $attributes,
         );
 
         if ($branch->trashed()) {

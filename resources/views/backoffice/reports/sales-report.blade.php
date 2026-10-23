@@ -29,6 +29,14 @@
         $averagePerTransaction = $report['average_per_transaction'] ?? 0;
         $cashSales = $report['cash_sales'] ?? 0;
         $nonCashSales = $report['non_cash_sales'] ?? 0;
+        $taxEnabled = $taxEnabled ?? false;
+        $taxScope = $taxScope ?? 'all';
+        $amounts = $report['amounts'] ?? collect();
+        $salesTotalLabel = match ($taxScope) {
+            'taxable' => 'Penjualan Kena Pajak',
+            'exempt' => 'Penjualan Bebas Pajak',
+            default => 'Total Penjualan Bersih',
+        };
     @endphp
 
     <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-6xl flex flex-col justify-start">
@@ -72,12 +80,29 @@
                     </div>
                 @endif
 
+                @if ($taxEnabled)
+                    <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs">
+                        <label for="tax_scope" class="text-slate-500 font-medium">Pajak:</label>
+                        <select id="tax_scope" name="tax_scope" class="bg-transparent text-slate-800 font-semibold focus:outline-none">
+                            <option value="all" {{ $taxScope === 'all' ? 'selected' : '' }}>Semua</option>
+                            <option value="taxable" {{ $taxScope === 'taxable' ? 'selected' : '' }}>Kena Pajak</option>
+                            <option value="exempt" {{ $taxScope === 'exempt' ? 'selected' : '' }}>Bebas Pajak</option>
+                        </select>
+                    </div>
+                @endif
+
                 <button type="submit" class="inline-flex items-center gap-1.5 rounded-lg bg-sky-600 px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-sky-700 focus:outline-none transition">
                     <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
                     </svg>
                     <span>Filter</span>
                 </button>
+
+                @if ($taxEnabled)
+                    <a href="{{ route('reports.sales.tax-export', array_filter(['start_date' => $startDate, 'end_date' => $endDate, 'branch_id' => $selectedBranchId])) }}" class="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50 px-3.5 py-2 text-xs font-bold text-amber-900 shadow-xs hover:bg-amber-100 focus:outline-none transition">
+                        Ekspor PPN
+                    </a>
+                @endif
 
                 <button type="button" onclick="window.print()" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-xs hover:bg-slate-100 hover:text-slate-900 focus:outline-none transition">
                     <span>🖨️ Cetak</span>
@@ -134,9 +159,13 @@
                 </div>
 
                 <div class="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3.5">
-                    <p class="text-[11px] font-semibold uppercase text-emerald-800">Total Penjualan Bersih</p>
+                    <p class="text-[11px] font-semibold uppercase text-emerald-800">{{ $salesTotalLabel }}</p>
                     <p class="text-xl font-extrabold text-emerald-700 font-mono-num mt-1">{{ $formatRupiah($totalSales) }}</p>
-                    <p class="text-[10px] text-emerald-600 mt-0.5">Omzet Periode Ini</p>
+                    @if ($taxScope === 'taxable')
+                        <p class="text-[10px] text-emerald-700 mt-0.5">DPP {{ $formatRupiah($report['dpp_total'] ?? 0) }} · PPN {{ $formatRupiah($report['ppn_total'] ?? 0) }}</p>
+                    @else
+                        <p class="text-[10px] text-emerald-600 mt-0.5">Omzet Periode Ini</p>
+                    @endif
                 </div>
 
                 <div class="rounded-xl border border-sky-200 bg-sky-50/50 p-3.5">
@@ -194,7 +223,7 @@
                                     </span>
                                 </td>
                                 <td class="py-2.5 px-3 text-right font-mono-num font-bold text-slate-900 whitespace-nowrap">
-                                    {{ $formatRupiah((float) $sale->total_amount) }}
+                                    {{ $formatRupiah((float) ($amounts[$sale->id] ?? $sale->total_amount)) }}
                                 </td>
                                 <td class="py-2.5 px-3 text-center whitespace-nowrap">
                                     <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase {{ in_array(strtolower($sale->status ?? ''), ['completed', 'success'], true) ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-amber-100 text-amber-800 border border-amber-200' }}">

@@ -17,6 +17,8 @@ class JournalPostingService
 
     public const ACCOUNT_REVENUE = '4110';
 
+    public const ACCOUNT_PPN = '2130';
+
     public const ACCOUNT_COGS = '5100';
 
     /**
@@ -30,13 +32,19 @@ class JournalPostingService
      *     description: string,
      *     refund_account_id: int,
      *     total_amount: float|int|string,
+     *     tax_amount?: float|int|string,
      *     total_cost: float|int|string
      * }  $data
      */
     public function postSalesReturn(array $data): ?JournalHeader
     {
         $totalAmount = number_format((float) $data['total_amount'], 2, '.', '');
+        $taxAmount = number_format((float) ($data['tax_amount'] ?? 0), 2, '.', '');
         $totalCost = number_format((float) $data['total_cost'], 2, '.', '');
+
+        if (bccomp($taxAmount, $totalAmount, 2) === 1) {
+            $taxAmount = $totalAmount;
+        }
 
         if (bccomp($totalAmount, '0.00', 2) === 0 && bccomp($totalCost, '0.00', 2) === 0) {
             return null;
@@ -51,12 +59,27 @@ class JournalPostingService
         $lines = [];
 
         if (bccomp($totalAmount, '0.00', 2) > 0) {
-            $lines[] = [
-                'chart_of_account_id' => $revenueAccount->id,
-                'debit' => $totalAmount,
-                'credit' => 0,
-                'memo' => "Pengurangan pendapatan atas retur penjualan {$reference}",
-            ];
+            $revenueReversal = bcsub($totalAmount, $taxAmount, 2);
+
+            if (bccomp($revenueReversal, '0.00', 2) > 0) {
+                $lines[] = [
+                    'chart_of_account_id' => $revenueAccount->id,
+                    'debit' => $revenueReversal,
+                    'credit' => 0,
+                    'memo' => "Pengurangan pendapatan atas retur penjualan {$reference}",
+                ];
+            }
+
+            if (bccomp($taxAmount, '0.00', 2) > 0) {
+                $ppnAccount = $this->firstOrCreateAccount(self::ACCOUNT_PPN, 'PPN Keluaran', 'liability');
+                $lines[] = [
+                    'chart_of_account_id' => $ppnAccount->id,
+                    'debit' => $taxAmount,
+                    'credit' => 0,
+                    'memo' => "Pengurangan PPN keluaran atas retur penjualan {$reference}",
+                ];
+            }
+
             $lines[] = [
                 'chart_of_account_id' => (int) $data['refund_account_id'],
                 'debit' => 0,

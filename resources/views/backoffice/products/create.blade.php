@@ -159,7 +159,7 @@
                             <select id="branch_id" name="branch_id" required onchange="syncProductCategories()" class="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
                                 <option value="">Pilih Cabang...</option>
                                 @foreach ($branches as $branch)
-                                    <option value="{{ $branch->id }}" data-catalog="{{ $branch->productCatalog() }}" {{ old('branch_id') == $branch->id ? 'selected' : '' }}>
+                                    <option value="{{ $branch->id }}" data-catalog="{{ $branch->productCatalog() }}" data-tax="{{ $branch->tax_enabled ? '1' : '0' }}" {{ old('branch_id') == $branch->id ? 'selected' : '' }}>
                                         {{ $branch->name }} ({{ $branch->code }})
                                     </option>
                                 @endforeach
@@ -184,6 +184,10 @@
                     </div>
                     <p class="text-[11px] text-slate-400 mt-1">Biaya pokok pembelian untuk perhitungan laba kotor.</p>
                 </div>
+
+                @if ($isMaster || $showTaxField)
+                    @include('backoffice.products.partials.taxable-field', ['showTaxField' => $showTaxField, 'isTaxable' => false])
+                @endif
 
                 <!-- Section: Penetapan Tingkat Harga -->
                 <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
@@ -378,6 +382,18 @@
             const select = document.getElementById('category_id');
             if (!branch || !select) {
                 return;
+            }
+
+            const taxField = document.getElementById('taxable-field');
+            if (taxField) {
+                const taxable = branch.selectedOptions[0]?.dataset.tax === '1';
+                taxField.classList.toggle('hidden', !taxable);
+                if (!taxable) {
+                    const box = taxField.querySelector('input[name="is_taxable"]');
+                    if (box) {
+                        box.checked = false;
+                    }
+                }
             }
 
             const catalog = branch.selectedOptions[0]?.dataset.catalog || '';

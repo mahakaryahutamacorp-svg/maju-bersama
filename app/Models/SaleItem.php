@@ -14,6 +14,10 @@ class SaleItem extends Model
         'price',
         'discount_amount',
         'subtotal',
+        'is_taxable',
+        'tax_rate',
+        'dpp_amount',
+        'tax_amount',
     ];
 
     protected function casts(): array
@@ -23,6 +27,10 @@ class SaleItem extends Model
             'price' => 'decimal:2',
             'discount_amount' => 'decimal:2',
             'subtotal' => 'decimal:2',
+            'is_taxable' => 'boolean',
+            'tax_rate' => 'decimal:2',
+            'dpp_amount' => 'decimal:2',
+            'tax_amount' => 'decimal:2',
         ];
     }
 

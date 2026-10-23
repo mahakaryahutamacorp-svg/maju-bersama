@@ -205,6 +205,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/backoffice/reports', [ReportController::class, 'index'])->name('reports.index');
         Route::get('/backoffice/reports/fixed-assets', [ReportController::class, 'fixedAssets'])->name('reports.fixed-assets');
         Route::get('/backoffice/reports/sales', [ReportController::class, 'sales'])->name('reports.sales');
+        Route::get('/backoffice/reports/sales/tax-export', [ReportController::class, 'salesTaxExport'])->name('reports.sales.tax-export');
         Route::get('/reports/sales', [ReportController::class, 'sales']);
         Route::get('/backoffice/reports/ar-aging', [ReportController::class, 'arAging'])->name('reports.ar-aging');
         Route::get('/reports/ar-aging', [ReportController::class, 'arAging']);

@@ -17,6 +17,9 @@ class Sale extends Model
         'cash_register_shift_id',
         'receipt_number',
         'total_amount',
+        'subtotal_non_tax',
+        'dpp_taxable',
+        'tax_total',
         'discount_amount',
         'paid_amount',
         'payment_status',
@@ -30,6 +33,9 @@ class Sale extends Model
     {
         return [
             'total_amount' => 'decimal:2',
+            'subtotal_non_tax' => 'decimal:2',
+            'dpp_taxable' => 'decimal:2',
+            'tax_total' => 'decimal:2',
             'discount_amount' => 'decimal:2',
             'paid_amount' => 'decimal:2',
             'due_date' => 'date',

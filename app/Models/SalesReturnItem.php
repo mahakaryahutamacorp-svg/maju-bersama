@@ -14,6 +14,8 @@ class SalesReturnItem extends Model
         'unit_price',
         'unit_cost',
         'subtotal',
+        'dpp_amount',
+        'tax_amount',
         'subtotal_cost',
     ];
 
@@ -24,6 +26,8 @@ class SalesReturnItem extends Model
             'unit_price' => 'decimal:2',
             'unit_cost' => 'decimal:2',
             'subtotal' => 'decimal:2',
+            'dpp_amount' => 'decimal:2',
+            'tax_amount' => 'decimal:2',
             'subtotal_cost' => 'decimal:2',
         ];
     }

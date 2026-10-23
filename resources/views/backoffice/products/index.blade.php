@@ -134,7 +134,12 @@
                         @forelse ($products as $product)
                             <tr class="hover:bg-slate-50/80 transition-colors">
                                 <td class="px-6 py-4">
-                                    <div class="font-semibold text-slate-900">{{ $product->name }}</div>
+                                    <div class="font-semibold text-slate-900">
+                                        {{ $product->name }}
+                                        @if ($product->is_taxable)
+                                            <span class="ml-1 inline-flex items-center rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">PPN</span>
+                                        @endif
+                                    </div>
                                     <div class="font-mono text-xs text-sky-700 mt-0.5">{{ $product->sku }}</div>
                                 </td>
                                 <td class="px-6 py-4">

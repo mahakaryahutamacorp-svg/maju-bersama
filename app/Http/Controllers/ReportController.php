@@ -20,6 +20,7 @@ use App\Services\Reports\WarehouseInventoryReportService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportController extends Controller
 {
@@ -193,7 +194,12 @@ class ReportController extends Controller
             ? ($request->filled('branch_id') ? (int) $request->input('branch_id') : null)
             : (int) $currentUser->branch_id;
 
-        $report = $service->getSales($startDate, $endDate, $branchId);
+        $taxEnabled = $branchId
+            ? (bool) Branch::query()->whereKey($branchId)->value('tax_enabled')
+            : false;
+        $taxScope = $taxEnabled ? (string) $request->input('tax_scope', 'all') : 'all';
+
+        $report = $service->getSales($startDate, $endDate, $branchId, $taxScope);
 
         if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
             return response()->json([
@@ -214,6 +220,38 @@ class ReportController extends Controller
             'startDate' => $startDate,
             'endDate' => $endDate,
             'selectedBranchId' => $branchId,
+            'taxEnabled' => $taxEnabled,
+            'taxScope' => $report['tax_scope'],
+        ]);
+    }
+
+    public function salesTaxExport(Request $request, SalesReportService $service): StreamedResponse
+    {
+        $currentUser = $request->user();
+        $branchId = $currentUser->isMaster()
+            ? (int) $request->input('branch_id')
+            : (int) $currentUser->branch_id;
+
+        $branch = Branch::query()->find($branchId);
+        if (! $branch || ! $branch->tax_enabled) {
+            abort(404);
+        }
+
+        $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
+        $endDate = $request->input('end_date', now()->toDateString());
+        $rows = $service->taxableExportRows($startDate, $endDate, (int) $branch->id);
+        $filename = 'rekap-ppn-'.$startDate.'-'.$endDate.'.csv';
+
+        return response()->streamDownload(function () use ($rows): void {
+            $output = fopen('php://output', 'w');
+            fwrite($output, "\xEF\xBB\xBF");
+            fputcsv($output, ['Tanggal', 'Nomor Invoice', 'Nama Pelanggan', 'Nama Barang', 'DPP', 'PPN']);
+            foreach ($rows as $row) {
+                fputcsv($output, $row);
+            }
+            fclose($output);
+        }, $filename, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
         ]);
     }
 

@@ -39,6 +39,7 @@ class Product extends Model
         'unit',
         'purchase_price',
         'selling_price',
+        'is_taxable',
         'stock',
     ];
 
@@ -47,6 +48,7 @@ class Product extends Model
         return [
             'purchase_price' => 'decimal:2',
             'selling_price' => 'decimal:2',
+            'is_taxable' => 'boolean',
             'stock' => 'integer',
         ];
     }
