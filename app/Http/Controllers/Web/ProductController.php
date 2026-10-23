@@ -36,6 +36,12 @@ class ProductController extends Controller
         $branchId = $isMaster ? $request->input('branch_id') : $user->branch_id;
         $categoryId = $request->input('category_id');
         $search = $request->input('search');
+        $canManageCatalog = $user->can('manage-catalog');
+        $taxBranch = $branchId ? Branch::query()->find($branchId) : null;
+        $showTaxFilter = $canManageCatalog && (bool) ($taxBranch?->tax_enabled);
+        $taxStatus = $showTaxFilter && in_array($request->input('tax_status'), ['taxable', 'exempt'], true)
+            ? (string) $request->input('tax_status')
+            : 'all';
 
         $query = Product::withoutGlobalScopes()
             ->with(['category', 'branch', 'productPrices'])
@@ -49,6 +55,8 @@ class ProductController extends Controller
                         ->orWhere('sku', 'like', "%{$search}%");
                 });
             })
+            ->when($taxStatus === 'taxable', fn ($q) => $q->where('is_taxable', true))
+            ->when($taxStatus === 'exempt', fn ($q) => $q->where('is_taxable', false))
             ->orderBy('name');
 
         $products = $query->paginate(15)->withQueryString();
@@ -65,6 +73,9 @@ class ProductController extends Controller
             'selectedBranchId' => $branchId,
             'selectedCategoryId' => $categoryId,
             'search' => $search,
+            'showTaxFilter' => $showTaxFilter,
+            'taxStatus' => $taxStatus,
+            'canManageCatalog' => $canManageCatalog,
         ]);
     }
 
@@ -88,8 +99,6 @@ class ProductController extends Controller
             ->orderBy('id')
             ->get();
 
-        $initialBranchId = $isMaster ? (int) old('branch_id') : (int) $user->branch_id;
-
         return view('backoffice.products.create', [
             'currentUser' => $user,
             'isMaster' => $isMaster,
@@ -98,9 +107,7 @@ class ProductController extends Controller
             'categories' => $categories,
             'customerGroups' => $customerGroups,
             'priceLevels' => $priceLevels,
-            'showTaxField' => $branches->contains(
-                fn (Branch $branch) => (int) $branch->id === $initialBranchId && $branch->tax_enabled
-            ),
+            'showTaxField' => true,
         ]);
     }
 
@@ -165,7 +172,7 @@ class ProductController extends Controller
             ? (int) $validated['branch_id']
             : (int) ($user->branch_id ?: Branch::whereNull('parent_id')->value('id') ?: Branch::value('id'));
 
-        $validated = $this->applyTaxFlag($request, $validated, $targetBranchId);
+        $validated = $this->applyTaxFlag($request, $validated);
 
         $this->ensureCategoryMatchesBranch((int) $validated['category_id'], $targetBranchId);
 
@@ -224,7 +231,7 @@ class ProductController extends Controller
             'categories' => $categories,
             'customerGroups' => $customerGroups,
             'priceLevels' => $priceLevels,
-            'showTaxField' => (bool) $product->branch?->tax_enabled,
+            'showTaxField' => true,
         ]);
     }
 
@@ -274,7 +281,7 @@ class ProductController extends Controller
         ];
 
         $validated = $request->validate($rules);
-        $validated = $this->applyTaxFlag($request, $validated, (int) $product->branch_id);
+        $validated = $this->applyTaxFlag($request, $validated);
 
         if (! $isMaster) {
             $this->ensureCategoryMatchesBranch((int) $validated['category_id'], (int) $product->branch_id);
@@ -297,15 +304,14 @@ class ProductController extends Controller
     }
 
     /**
-     * Pajak penjualan hanya boleh ditandai pada cabang yang tax_enabled.
+     * Harga katalog sudah termasuk PPN. Centang non-pajak mematikan pemecahan DPP.
      *
      * @param  array<string, mixed>  $validated
      * @return array<string, mixed>
      */
-    protected function applyTaxFlag(Request $request, array $validated, int $branchId): array
+    protected function applyTaxFlag(Request $request, array $validated): array
     {
-        $taxEnabled = (bool) Branch::query()->whereKey($branchId)->value('tax_enabled');
-        $validated['is_taxable'] = $taxEnabled && $request->boolean('is_taxable');
+        $validated['is_taxable'] = ! $request->boolean('is_tax_exempt');
 
         return $validated;
     }

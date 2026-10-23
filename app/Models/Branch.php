@@ -11,6 +11,11 @@ class Branch extends Model
 {
     use SoftDeletes;
 
+    protected $attributes = [
+        'tax_enabled' => true,
+        'tax_rate' => '11.00',
+    ];
+
     protected $fillable = [
         'parent_id',
         'code',

@@ -59,7 +59,7 @@ class BackofficeRbacLayoutTest extends TestCase
             ->assertDontSee('3. Buku Pemasok &amp; Hutang', false)
             ->assertDontSee(route('backoffice.purchase-orders.index'), false)
             ->assertDontSee('Pengaturan</span>', false)
-            ->assertDontSee('Katalog Produk')
+            ->assertSee('Katalog Produk')
             ->assertDontSee('Jualan</span>', false)
             ->assertDontSee('Uang &amp; Akuntansi', false)
             ->assertDontSee('Pusat Laporan')

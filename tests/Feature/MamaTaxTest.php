@@ -26,9 +26,9 @@ class MamaTaxTest extends TestCase
         $this->assertSame('5500.00', $split['tax']);
     }
 
-    public function test_non_tax_branch_keeps_the_full_amount_in_revenue(): void
+    public function test_exempt_product_keeps_the_full_amount_in_revenue(): void
     {
-        [$user, $product] = $this->branchWithProduct(taxEnabled: false, taxableProduct: true);
+        [$user, $product] = $this->branchWithProduct(taxEnabled: true, taxableProduct: false, code: 'GUDANG-PUPUK');
         Sanctum::actingAs($user);
 
         $response = $this->postJson('/api/checkout', [
@@ -196,7 +196,7 @@ class MamaTaxTest extends TestCase
             'end_date' => now()->toDateString(),
         ]));
         $taxable->assertOk();
-        $taxable->assertSee('Kena Pajak');
+        $taxable->assertSee('Khusus Pajak');
         $taxable->assertSee('Rp 55.500,00');
         $taxable->assertSee('Rp 50.000,00');
         $taxable->assertSee('Rp 5.500,00');
@@ -227,59 +227,53 @@ class MamaTaxTest extends TestCase
         $this->assertStringNotContainsString('Pupuk Uji', $content);
     }
 
-    public function test_tax_flag_can_be_saved_only_on_a_tax_enabled_branch(): void
+    public function test_non_tax_checkbox_marks_a_product_exempt_on_any_branch(): void
     {
-        $category = Category::create(['name' => 'Pestisida']);
-        $plain = Branch::create(['code' => 'CBG-ABI', 'name' => 'ABI', 'tax_enabled' => false]);
-        $mama = Branch::create([
-            'code' => 'CBG-MAMA',
-            'name' => 'TOKO MAJU BERSAMA MAMA',
-            'tax_enabled' => true,
-            'tax_rate' => '11.00',
-        ]);
+        $category = Category::create(['name' => 'Pestisida', 'catalog' => 'pupuk']);
+        $warehouse = Branch::create(['code' => 'GUDANG-PUPUK', 'name' => 'Gudang']);
+        $store = Branch::create(['code' => 'CBG-ABI', 'name' => 'ABI']);
         $admin = User::factory()->create([
-            'branch_id' => $plain->id,
+            'branch_id' => $warehouse->id,
             'role' => 'branch_admin',
         ]);
 
+        $this->actingAs($admin)->get(route('backoffice.products.create'))->assertSee('Non Pajak');
         $this->actingAs($admin)->post(route('backoffice.products.store'), [
-            'name' => 'Pupuk Biasa',
+            'name' => 'Pupuk Termasuk Pajak',
             'sku' => 'PPK-1',
             'category_id' => $category->id,
             'purchase_price' => 1000,
             'selling_price' => 2000,
-            'is_taxable' => '1',
         ])->assertRedirect();
 
-        $this->assertFalse((bool) Product::withoutGlobalScopes()->where('sku', 'PPK-1')->value('is_taxable'));
-        $this->actingAs($admin)->get(route('backoffice.products.create'))->assertDontSee('Kena PPN');
+        $this->assertTrue((bool) Product::withoutGlobalScopes()->where('sku', 'PPK-1')->value('is_taxable'));
 
-        $mamaAdmin = User::factory()->create([
-            'branch_id' => $mama->id,
-            'role' => 'branch_admin',
-        ]);
-
-        $this->actingAs($mamaAdmin)->get(route('backoffice.products.create'))->assertSee('Kena PPN');
-        $this->actingAs($mamaAdmin)->post(route('backoffice.products.store'), [
-            'name' => 'Pestisida Kena Pajak',
-            'sku' => 'PST-1',
+        $this->actingAs($admin)->post(route('backoffice.products.store'), [
+            'name' => 'Benih Bebas Pajak',
+            'sku' => 'BNH-1',
             'category_id' => $category->id,
             'purchase_price' => 1000,
-            'selling_price' => 55500,
-            'is_taxable' => '1',
+            'selling_price' => 2000,
+            'is_tax_exempt' => '1',
         ])->assertRedirect();
 
-        $this->assertTrue((bool) Product::withoutGlobalScopes()->where('sku', 'PST-1')->value('is_taxable'));
+        $this->assertFalse((bool) Product::withoutGlobalScopes()->where('sku', 'BNH-1')->value('is_taxable'));
+
+        $storeAdmin = User::factory()->create([
+            'branch_id' => $store->id,
+            'role' => 'branch_admin',
+        ]);
+        $this->actingAs($storeAdmin)->get(route('backoffice.products.create'))->assertSee('Non Pajak');
     }
 
     /**
      * @return array{0: User, 1: Product}
      */
-    private function branchWithProduct(bool $taxEnabled, bool $taxableProduct): array
+    private function branchWithProduct(bool $taxEnabled, bool $taxableProduct, string $code = 'CBG-X'): array
     {
         $this->seedAccounts();
         $branch = Branch::create([
-            'code' => 'CBG-X',
+            'code' => $code,
             'name' => 'Cabang Uji',
             'tax_enabled' => $taxEnabled,
             'tax_rate' => '11.00',

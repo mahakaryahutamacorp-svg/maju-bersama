@@ -185,9 +185,7 @@
                     <p class="text-[11px] text-slate-400 mt-1">Biaya pokok pembelian untuk perhitungan laba kotor.</p>
                 </div>
 
-                @if ($isMaster || $showTaxField)
-                    @include('backoffice.products.partials.taxable-field', ['showTaxField' => $showTaxField, 'isTaxable' => false])
-                @endif
+                @include('backoffice.products.partials.taxable-field', ['isTaxExempt' => false])
 
                 <!-- Section: Penetapan Tingkat Harga -->
                 <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
@@ -382,18 +380,6 @@
             const select = document.getElementById('category_id');
             if (!branch || !select) {
                 return;
-            }
-
-            const taxField = document.getElementById('taxable-field');
-            if (taxField) {
-                const taxable = branch.selectedOptions[0]?.dataset.tax === '1';
-                taxField.classList.toggle('hidden', !taxable);
-                if (!taxable) {
-                    const box = taxField.querySelector('input[name="is_taxable"]');
-                    if (box) {
-                        box.checked = false;
-                    }
-                }
             }
 
             const catalog = branch.selectedOptions[0]?.dataset.catalog || '';

@@ -98,6 +98,14 @@
             </a>
         </div>
 
+        @can('view-sellable-catalog')
+            @cannot('manage-catalog')
+                <a href="{{ route('backoffice.products.index') }}" class="{{ $topLinkClass($isProductsActive) }}">
+                    Katalog Produk
+                </a>
+            @endcannot
+        @endcan
+
         @can('manage-branch-operations')
             <x-sidebar.group label="Jualan" hint="Riwayat, piutang, retur pelanggan" tone="emerald" :open="$isJualanOpen">
                 <x-slot:icon>

@@ -84,9 +84,9 @@
                     <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-300 rounded-lg px-2.5 py-1.5 text-xs">
                         <label for="tax_scope" class="text-slate-500 font-medium">Pajak:</label>
                         <select id="tax_scope" name="tax_scope" class="bg-transparent text-slate-800 font-semibold focus:outline-none">
-                            <option value="all" {{ $taxScope === 'all' ? 'selected' : '' }}>Semua</option>
-                            <option value="taxable" {{ $taxScope === 'taxable' ? 'selected' : '' }}>Kena Pajak</option>
-                            <option value="exempt" {{ $taxScope === 'exempt' ? 'selected' : '' }}>Bebas Pajak</option>
+                            <option value="all" {{ $taxScope === 'all' ? 'selected' : '' }}>Semua / Gabungan</option>
+                            <option value="taxable" {{ $taxScope === 'taxable' ? 'selected' : '' }}>Khusus Pajak (Ada PPN)</option>
+                            <option value="exempt" {{ $taxScope === 'exempt' ? 'selected' : '' }}>Khusus Non-Pajak (Bebas PPN)</option>
                         </select>
                     </div>
                 @endif
@@ -104,9 +104,9 @@
                     </a>
                 @endif
 
-                <button type="button" onclick="window.print()" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-xs hover:bg-slate-100 hover:text-slate-900 focus:outline-none transition">
-                    <span>🖨️ Cetak</span>
-                </button>
+                <a href="{{ route('reports.sales.print', array_filter(['start_date' => $startDate, 'end_date' => $endDate, 'branch_id' => $selectedBranchId, 'tax_scope' => $taxEnabled ? $taxScope : null])) }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 shadow-xs hover:bg-slate-100 hover:text-slate-900 focus:outline-none transition">
+                    Cetak Rekap
+                </a>
             </form>
         </div>
     </div>

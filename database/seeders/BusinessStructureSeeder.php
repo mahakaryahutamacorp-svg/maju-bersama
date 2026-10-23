@@ -132,12 +132,9 @@ class BusinessStructureSeeder extends Seeder
             'parent_id' => $parentId,
             'is_active' => true,
             'timezone' => 'Asia/Jakarta',
+            'tax_enabled' => true,
+            'tax_rate' => '11.00',
         ];
-
-        if ($code === 'CBG-MAMA') {
-            $attributes['tax_enabled'] = true;
-            $attributes['tax_rate'] = '11.00';
-        }
 
         $branch = Branch::withTrashed()->updateOrCreate(
             ['code' => $code],

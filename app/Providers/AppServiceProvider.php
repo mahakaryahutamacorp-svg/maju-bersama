@@ -45,6 +45,9 @@ class AppServiceProvider extends ServiceProvider
         // Sebagian Master Data: Katalog Produk & Data Pelanggan.
         Gate::define('manage-catalog', fn (User $user) => $user->isMaster() || $user->isBranchAdmin());
 
+        // Kasir boleh melihat katalog jual cabangnya, tanpa data pajak atau harga pokok.
+        Gate::define('view-sellable-catalog', fn (User $user) => $user->isMaster() || $user->isBranchAdmin() || $user->isCashier());
+
         // Operasional Cabang: Kas, Biaya (Expenses), Aset Tetap, Pembelian PO & Retur, Mutasi, Pembayaran.
         Gate::define('manage-branch-operations', fn (User $user) => $user->isMaster() || $user->isBranchAdmin());
 

@@ -108,9 +108,14 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::prefix('backoffice')->name('backoffice.')->group(function () {
-        // Products (Katalog Produk)
-        Route::get('products/check-duplicate', [ProductController::class, 'checkDuplicate'])->name('products.check-duplicate');
-        Route::resource('products', ProductController::class)->except(['show']);
+        // Kasir hanya melihat daftar jual. Mengubah katalog tetap milik admin.
+        Route::get('products', [ProductController::class, 'index'])
+            ->middleware('can:view-sellable-catalog')
+            ->name('products.index');
+        Route::middleware('can:manage-catalog')->group(function () {
+            Route::get('products/check-duplicate', [ProductController::class, 'checkDuplicate'])->name('products.check-duplicate');
+            Route::resource('products', ProductController::class)->except(['show', 'index']);
+        });
 
         // Customers (Pelanggan & Multi-Price)
         Route::resource('customers', CustomerController::class);
@@ -205,6 +210,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/backoffice/reports', [ReportController::class, 'index'])->name('reports.index');
         Route::get('/backoffice/reports/fixed-assets', [ReportController::class, 'fixedAssets'])->name('reports.fixed-assets');
         Route::get('/backoffice/reports/sales', [ReportController::class, 'sales'])->name('reports.sales');
+        Route::get('/backoffice/reports/sales/print', [ReportController::class, 'salesPrint'])->name('reports.sales.print');
         Route::get('/backoffice/reports/sales/tax-export', [ReportController::class, 'salesTaxExport'])->name('reports.sales.tax-export');
         Route::get('/reports/sales', [ReportController::class, 'sales']);
         Route::get('/backoffice/reports/ar-aging', [ReportController::class, 'arAging'])->name('reports.ar-aging');

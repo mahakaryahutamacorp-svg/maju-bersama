@@ -78,7 +78,9 @@ class ProductController extends Controller
             }
         }
 
-        $products = $products->map(function (Product $product) use ($customerGroupId, $branchId, $otherStockMap) {
+        $hideTax = (bool) $request->user()?->isCashier();
+
+        $products = $products->map(function (Product $product) use ($customerGroupId, $branchId, $otherStockMap, $hideTax) {
             $basePrice = (float) $product->getPriceForBranch($branchId);
             $product->base_price = $basePrice;
             $product->original_selling_price = $basePrice;
@@ -93,6 +95,10 @@ class ProductController extends Controller
             }
 
             $product->other_branch_stock = $otherStockMap[$product->sku] ?? [];
+
+            if ($hideTax) {
+                $product->makeHidden(['is_taxable']);
+            }
 
             return $product;
         });

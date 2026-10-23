@@ -31,6 +31,10 @@ class ProductService
             $data['stock'] = 0;
         }
 
+        if (! array_key_exists('is_taxable', $data)) {
+            $data['is_taxable'] = true;
+        }
+
         return DB::transaction(function () use ($data, $branchId): Product {
             $product = Product::create($data);
 

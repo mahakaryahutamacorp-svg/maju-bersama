@@ -112,9 +112,7 @@
                     <p class="text-[11px] text-slate-400 mt-1">Biaya pokok pembelian untuk perhitungan laba kotor.</p>
                 </div>
 
-                @if ($showTaxField)
-                    @include('backoffice.products.partials.taxable-field', ['showTaxField' => true, 'isTaxable' => $product->is_taxable])
-                @endif
+                @include('backoffice.products.partials.taxable-field', ['isTaxExempt' => ! $product->is_taxable])
 
                 <!-- Section: Penetapan Tingkat Harga -->
                 <div class="rounded-2xl border border-slate-200 bg-slate-50/70 p-5">

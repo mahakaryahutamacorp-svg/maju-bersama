@@ -8,9 +8,11 @@
                 <p class="text-sm font-semibold uppercase tracking-wider text-amber-600">Pengaturan</p>
                 <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Katalog Produk</h2>
             </div>
-            <a href="{{ route('backoffice.products.create') }}" class="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-sky-700">
-                + Tambah Produk
-            </a>
+            @if ($canManageCatalog)
+                <a href="{{ route('backoffice.products.create') }}" class="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-sky-700">
+                    + Tambah Produk
+                </a>
+            @endif
         </div>
 
 
@@ -76,6 +78,17 @@
                     </select>
                 </div>
 
+                @if ($showTaxFilter ?? false)
+                    <div class="lg:col-span-3">
+                        <label for="tax_status" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Status Pajak</label>
+                        <select id="tax_status" name="tax_status" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500">
+                            <option value="all" {{ ($taxStatus ?? 'all') === 'all' ? 'selected' : '' }}>Semua Produk</option>
+                            <option value="taxable" {{ ($taxStatus ?? '') === 'taxable' ? 'selected' : '' }}>Kena PPN</option>
+                            <option value="exempt" {{ ($taxStatus ?? '') === 'exempt' ? 'selected' : '' }}>Bebas PPN</option>
+                        </select>
+                    </div>
+                @endif
+
                 @if ($isMaster)
                     <div class="lg:col-span-3">
                         <label class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Filter Cabang</label>
@@ -101,7 +114,7 @@
                     <button type="submit" class="w-full rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white hover:bg-sky-700 shadow-sm">
                         Filter
                     </button>
-                    @if ($search || $selectedCategoryId || $selectedBranchId)
+                    @if ($search || $selectedCategoryId || $selectedBranchId || (($taxStatus ?? 'all') !== 'all'))
                         <a href="{{ route('backoffice.products.index') }}" class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50" title="Reset filter">
                             ↺
                         </a>
@@ -124,10 +137,14 @@
                             <th class="px-6 py-3">Produk &amp; SKU</th>
                             <th class="px-6 py-3">Kategori</th>
                             <th class="px-6 py-3">Cabang</th>
-                            <th class="px-6 py-3 text-right">Harga Beli (HPP)</th>
+                            @if ($canManageCatalog)
+                                <th class="px-6 py-3 text-right">Harga Beli (HPP)</th>
+                            @endif
                             <th class="px-6 py-3 text-right">Harga Jual</th>
                             <th class="px-6 py-3 text-right">Stok</th>
-                            <th class="px-6 py-3 text-center">Aksi</th>
+                            @if ($canManageCatalog)
+                                <th class="px-6 py-3 text-center">Aksi</th>
+                            @endif
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 [&>tr:nth-child(even)]:bg-slate-50/60">
@@ -136,8 +153,8 @@
                                 <td class="px-6 py-4">
                                     <div class="font-semibold text-slate-900">
                                         {{ $product->name }}
-                                        @if ($product->is_taxable)
-                                            <span class="ml-1 inline-flex items-center rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">PPN</span>
+                                        @if ($canManageCatalog && ! $product->is_taxable)
+                                            <span class="ml-1 inline-flex items-center rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-bold text-slate-700">Non Pajak</span>
                                         @endif
                                     </div>
                                     <div class="font-mono text-xs text-sky-700 mt-0.5">{{ $product->sku }}</div>
@@ -151,9 +168,11 @@
                                     <div class="text-xs font-medium text-slate-700">{{ $product->branch?->name ?? 'Pusat' }}</div>
                                     <div class="font-mono text-[10px] text-slate-400">{{ $product->branch?->code }}</div>
                                 </td>
-                                <td class="px-6 py-4 text-right font-medium text-slate-700">
-                                    Rp {{ number_format($product->purchase_price, 0, ',', '.') }}
-                                </td>
+                                @if ($canManageCatalog)
+                                    <td class="px-6 py-4 text-right font-medium text-slate-700">
+                                        Rp {{ number_format($product->purchase_price, 0, ',', '.') }}
+                                    </td>
+                                @endif
                                 <td class="px-6 py-4 text-right">
                                     <div class="font-semibold text-emerald-700">
                                         Rp {{ number_format($product->getPrice(), 0, ',', '.') }}
@@ -169,6 +188,7 @@
                                 <td class="px-6 py-4 text-right font-semibold text-slate-800">
                                     {{ number_format($product->stock, 0, ',', '.') }}
                                 </td>
+                                @if ($canManageCatalog)
                                 <td class="px-6 py-4 text-center">
                                     <div class="inline-flex items-center gap-1.5">
                                         <a href="{{ route('backoffice.products.edit', $product->id) }}" class="rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100">
@@ -189,6 +209,7 @@
                                         @endif
                                     </div>
                                 </td>
+                                @endif
                             </tr>
                         @empty
                             <tr>

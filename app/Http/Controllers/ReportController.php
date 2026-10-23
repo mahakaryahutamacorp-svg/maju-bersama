@@ -185,6 +185,9 @@ class ReportController extends Controller
     public function sales(Request $request, SalesReportService $service): View|JsonResponse
     {
         $currentUser = $request->user();
+        if ($currentUser->isCashier()) {
+            abort(403);
+        }
         $isMaster = $currentUser->isMaster();
 
         $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
@@ -196,7 +199,7 @@ class ReportController extends Controller
 
         $taxEnabled = $branchId
             ? (bool) Branch::query()->whereKey($branchId)->value('tax_enabled')
-            : false;
+            : Branch::query()->where('tax_enabled', true)->exists();
         $taxScope = $taxEnabled ? (string) $request->input('tax_scope', 'all') : 'all';
 
         $report = $service->getSales($startDate, $endDate, $branchId, $taxScope);
@@ -225,21 +228,54 @@ class ReportController extends Controller
         ]);
     }
 
+    public function salesPrint(Request $request, SalesReportService $service): View
+    {
+        $currentUser = $request->user();
+        if ($currentUser->isCashier()) {
+            abort(403);
+        }
+
+        $isMaster = $currentUser->isMaster();
+        $branchId = $isMaster
+            ? ($request->filled('branch_id') ? (int) $request->input('branch_id') : null)
+            : (int) $currentUser->branch_id;
+        $taxEnabled = $branchId
+            ? (bool) Branch::query()->whereKey($branchId)->value('tax_enabled')
+            : Branch::query()->where('tax_enabled', true)->exists();
+        $taxScope = $taxEnabled ? (string) $request->input('tax_scope', 'all') : 'all';
+        $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
+        $endDate = $request->input('end_date', now()->toDateString());
+        $branch = $branchId ? Branch::query()->find($branchId) : null;
+
+        return view('backoffice.reports.sales-print', [
+            'lines' => $service->printLines($startDate, $endDate, $branchId, $taxScope),
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'branchName' => $branch?->name ?? 'Seluruh Cabang',
+            'taxScope' => in_array($taxScope, ['taxable', 'exempt'], true) ? $taxScope : 'all',
+        ]);
+    }
+
     public function salesTaxExport(Request $request, SalesReportService $service): StreamedResponse
     {
         $currentUser = $request->user();
+        if ($currentUser->isCashier()) {
+            abort(403);
+        }
         $branchId = $currentUser->isMaster()
-            ? (int) $request->input('branch_id')
+            ? ($request->filled('branch_id') ? (int) $request->input('branch_id') : null)
             : (int) $currentUser->branch_id;
 
-        $branch = Branch::query()->find($branchId);
-        if (! $branch || ! $branch->tax_enabled) {
-            abort(404);
+        if ($branchId !== null) {
+            $branch = Branch::query()->find($branchId);
+            if (! $branch || ! $branch->tax_enabled) {
+                abort(404);
+            }
         }
 
         $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
         $endDate = $request->input('end_date', now()->toDateString());
-        $rows = $service->taxableExportRows($startDate, $endDate, (int) $branch->id);
+        $rows = $service->taxableExportRows($startDate, $endDate, $branchId);
         $filename = 'rekap-ppn-'.$startDate.'-'.$endDate.'.csv';
 
         return response()->streamDownload(function () use ($rows): void {

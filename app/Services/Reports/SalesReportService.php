@@ -95,7 +95,7 @@ class SalesReportService
      *
      * @return list<array{0: string, 1: string, 2: string, 3: string, 4: string, 5: string}>
      */
-    public function taxableExportRows(string $startDate, string $endDate, int $branchId): array
+    public function taxableExportRows(string $startDate, string $endDate, ?int $branchId = null): array
     {
         $start = Carbon::parse($startDate)->startOfDay();
         $end = Carbon::parse($endDate)->endOfDay();
@@ -104,8 +104,8 @@ class SalesReportService
             ->with(['sale.customer', 'product'])
             ->where('is_taxable', true)
             ->whereHas('sale', function ($query) use ($start, $end, $branchId) {
-                $query->where('branch_id', $branchId)
-                    ->whereBetween('created_at', [$start, $end]);
+                $query->whereBetween('created_at', [$start, $end])
+                    ->when($branchId, fn ($sale) => $sale->where('branch_id', $branchId));
             })
             ->get()
             ->sortBy(fn (SaleItem $item) => $item->sale?->created_at?->timestamp ?? 0);
@@ -124,6 +124,70 @@ class SalesReportService
         }
 
         return $rows;
+    }
+
+    /**
+     * Baris cetak mengikuti filter pajak. Item di luar filter tidak ikut.
+     *
+     * @return array{
+     *     scope: string,
+     *     rows: list<array{date: string, receipt: string, item: string, non_tax: string, dpp: string, tax: string, total: string}>,
+     *     non_tax_total: string,
+     *     dpp_total: string,
+     *     ppn_total: string,
+     *     grand_total: string
+     * }
+     */
+    public function printLines(string $startDate, string $endDate, ?int $branchId = null, string $taxScope = 'all'): array
+    {
+        $taxScope = in_array($taxScope, ['taxable', 'exempt'], true) ? $taxScope : 'all';
+        $sales = $this->getSales($startDate, $endDate, $branchId, $taxScope)['sales'];
+        $rows = [];
+        $nonTax = '0.00';
+        $dpp = '0.00';
+        $ppn = '0.00';
+
+        foreach ($sales as $sale) {
+            foreach ($sale->items as $item) {
+                $taxable = (bool) $item->is_taxable;
+                if ($taxScope === 'taxable' && ! $taxable) {
+                    continue;
+                }
+                if ($taxScope === 'exempt' && $taxable) {
+                    continue;
+                }
+
+                $lineDpp = $taxable ? $this->money($item->dpp_amount) : '0.00';
+                $lineTax = $taxable ? $this->money($item->tax_amount) : '0.00';
+                $lineNonTax = $taxable ? '0.00' : $this->money($item->subtotal);
+                $lineTotal = $taxable
+                    ? bcadd($lineDpp, $lineTax, 2)
+                    : $lineNonTax;
+
+                $nonTax = bcadd($nonTax, $lineNonTax, 2);
+                $dpp = bcadd($dpp, $lineDpp, 2);
+                $ppn = bcadd($ppn, $lineTax, 2);
+
+                $rows[] = [
+                    'date' => $sale->created_at?->format('d/m/Y H:i') ?? '',
+                    'receipt' => (string) $sale->receipt_number,
+                    'item' => (string) ($item->product?->name ?? 'Produk'),
+                    'non_tax' => $lineNonTax,
+                    'dpp' => $lineDpp,
+                    'tax' => $lineTax,
+                    'total' => $lineTotal,
+                ];
+            }
+        }
+
+        return [
+            'scope' => $taxScope,
+            'rows' => $rows,
+            'non_tax_total' => $nonTax,
+            'dpp_total' => $dpp,
+            'ppn_total' => $ppn,
+            'grand_total' => bcadd(bcadd($nonTax, $dpp, 2), $ppn, 2),
+        ];
     }
 
     private function scopedAmount(Sale $sale, string $taxScope): string
