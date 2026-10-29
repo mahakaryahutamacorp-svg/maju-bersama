@@ -153,12 +153,9 @@ class DatabaseSeeder extends Seeder
         // 10. Product Catalog (Stock = 0, Inventory = 0)
         $this->call(ProductSeeder::class);
 
-        // 11. Ledger v2: entitas, COA per entitas (termasuk akun laci & bank), dan mapping akun
-        $this->call([
-            EntitySeeder::class,
-            ChartOfAccountsV2Seeder::class,
-            AccountMappingSeeder::class,
-        ]);
+        // Seeder ledger v2 (EntitySeeder, ChartOfAccountsV2Seeder, AccountMappingSeeder) sengaja tidak
+        // dipanggil: posting service lama memilih akun hanya berdasarkan kode, sehingga COA per entitas
+        // membuat jurnal POS jatuh ke akun DEKA. Jalankan setelah posting service sadar entitas.
 
         // Referensi struktur final Pupuk & Pakan. Jalankan terpisah agar seeder
         // master data di atas tidak ikut menimpa cabang produksi:
