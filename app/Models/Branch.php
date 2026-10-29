@@ -57,6 +57,11 @@ class Branch extends Model
         return $this->belongsTo(self::class, 'parent_id');
     }
 
+    public function entity(): BelongsTo
+    {
+        return $this->belongsTo(Entity::class);
+    }
+
     public function productCatalog(): string
     {
         $current = $this;
