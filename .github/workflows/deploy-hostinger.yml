@@ -3,6 +3,7 @@ name: Deploy Laravel to Hostinger
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -28,20 +29,70 @@ jobs:
       - name: Install Composer dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
+      - name: Prepare CI environment
+        run: cp .env.example .env && php artisan key:generate
+
       - name: Run test suite
-        run: php artisan test --no-interaction
+        run: php artisan test
         env:
           APP_ENV: testing
           DB_CONNECTION: sqlite
           DB_DATABASE: ':memory:'
 
+  # Trigger dan CHECK constraint ledger hanya ada di MySQL (versi sama dengan produksi).
+  test-ledger-mysql:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0.45
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root
+          MYSQL_DATABASE: majubersama_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pci-root"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, dom, fileinfo, pdo_mysql
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Prepare CI environment
+        run: cp .env.example .env && php artisan key:generate
+
+      - name: Run ledger tests on MySQL
+        run: vendor/bin/phpunit tests/Feature/Ledger tests/Unit/Enums
+        env:
+          APP_ENV: testing
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 3306
+          DB_DATABASE: majubersama_test
+          DB_USERNAME: root
+          DB_PASSWORD: ci-root
+
   # ──────────────────────────────────────────────
-  # Job 2: Deploy to VPS via SSH after tests pass
+  # Job 2: Deploy (NONAKTIF)
+  # Produksi berjalan di VPS aaPanel dan dideploy manual oleh pemilik lewat
+  # deploy-direct.ps1. Target secret HOSTINGER_* adalah hosting lama; job ini
+  # menjalankan migrate --force sehingga tidak boleh aktif tanpa persetujuan pemilik.
   # ──────────────────────────────────────────────
   deploy:
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: ${{ false }}
     env:
       HOSTINGER_HOST: ${{ secrets.HOSTINGER_HOST }}
       HOSTINGER_PORT: ${{ secrets.HOSTINGER_PORT }}
