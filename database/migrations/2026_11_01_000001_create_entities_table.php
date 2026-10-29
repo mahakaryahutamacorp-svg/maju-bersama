@@ -9,6 +9,8 @@ return new class extends Migration
 {
     public function up(): void
     {
+        $this->assertLedgerTriggersCanBeCreated();
+
         if (Schema::hasTable('entities')) {
             return;
         }
@@ -33,5 +35,34 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('entities');
+    }
+
+    /**
+     * Migrasi 12 membuat trigger. Dengan binary log aktif dan log_bin_trust_function_creators=0,
+     * CREATE TRIGGER butuh SUPER (MySQL 1419). Gagal di sini mencegah migrasi 01–11 terpasang tanpa trigger.
+     */
+    private function assertLedgerTriggersCanBeCreated(): void
+    {
+        if (DB::getDriverName() !== 'mysql') {
+            return;
+        }
+
+        $variables = DB::selectOne('SELECT @@log_bin AS log_bin, @@log_bin_trust_function_creators AS trust_function_creators');
+
+        if ($variables === null || (int) $variables->log_bin === 0 || (int) $variables->trust_function_creators === 1) {
+            return;
+        }
+
+        $hasSuper = collect(DB::select('SHOW GRANTS'))
+            ->flatMap(fn (object $row) => array_values((array) $row))
+            ->contains(fn (string $grant) => preg_match('/^GRANT (ALL PRIVILEGES|[^`]*\bSUPER\b[^`]*) ON \*\.\* TO /', $grant) === 1);
+
+        if (! $hasSuper) {
+            throw new RuntimeException(
+                'Migrasi ledger v2 dibatalkan sebelum mengubah apa pun: binary log aktif, log_bin_trust_function_creators=0, '
+                .'dan user database tidak punya SUPER, sehingga trigger di migrasi 12 akan gagal (MySQL 1419). '
+                .'Minta admin MySQL menjalankan: SET PERSIST log_bin_trust_function_creators = 1; lalu ulangi migrate.'
+            );
+        }
     }
 };
