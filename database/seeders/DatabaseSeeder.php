@@ -153,6 +153,13 @@ class DatabaseSeeder extends Seeder
         // 10. Product Catalog (Stock = 0, Inventory = 0)
         $this->call(ProductSeeder::class);
 
+        // 11. Ledger v2: entitas, COA per entitas (termasuk akun laci & bank), dan mapping akun
+        $this->call([
+            EntitySeeder::class,
+            ChartOfAccountsV2Seeder::class,
+            AccountMappingSeeder::class,
+        ]);
+
         // Referensi struktur final Pupuk & Pakan. Jalankan terpisah agar seeder
         // master data di atas tidak ikut menimpa cabang produksi:
         // php artisan db:seed --class=BusinessStructureSeeder

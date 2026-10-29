@@ -3,7 +3,10 @@
 namespace Database\Seeders;
 
 use App\Models\ChartOfAccount;
+use App\Models\Entity;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class ChartOfAccountSeeder extends Seeder
 {
@@ -64,11 +67,39 @@ class ChartOfAccountSeeder extends Seeder
             ['code' => '6900', 'name' => 'Beban Lain-lain', 'type' => 'expense'],
         ];
 
+        $ledgerEntityId = $this->ledgerV2LegacyEntityId();
+
         foreach ($accounts as $account) {
-            ChartOfAccount::updateOrCreate(
-                ['code' => $account['code']],
-                $account + ['is_active' => true],
-            );
+            if ($ledgerEntityId === null) {
+                ChartOfAccount::updateOrCreate(
+                    ['code' => $account['code']],
+                    $account + ['is_active' => true],
+                );
+
+                continue;
+            }
+
+            // Setelah COA v2 di-seed, kode yang sama juga ada di entitas lain dan
+            // nama/status akun dikelola ChartOfAccountsV2Seeder: hanya lengkapi yang hilang.
+            $exists = ChartOfAccount::withTrashed()
+                ->where('code', $account['code'])
+                ->where(fn ($query) => $query->where('entity_id', $ledgerEntityId)->orWhereNull('entity_id'))
+                ->exists();
+
+            if (! $exists) {
+                ChartOfAccount::create($account + ['entity_id' => $ledgerEntityId, 'is_active' => true]);
+            }
         }
+    }
+
+    private function ledgerV2LegacyEntityId(): ?int
+    {
+        if (! Schema::hasTable('entities') || ! Schema::hasColumn('chart_of_accounts', 'entity_id')) {
+            return null;
+        }
+
+        $entityId = DB::table('entities')->where('code', Entity::CODE_MB_PUPUK)->value('id');
+
+        return $entityId === null ? null : (int) $entityId;
     }
 }
