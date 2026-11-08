@@ -46,6 +46,7 @@ class ProductController extends Controller
             : 'all';
 
         $query = Product::withoutGlobalScopes()
+            ->whereNull('deleted_at')
             ->with(['category', 'branch', 'productPrices'])
             ->withExists(Product::TRANSACTION_RELATIONS)
             ->when(! $isMaster, fn ($q) => $q->where('branch_id', $user->branch_id))
@@ -447,6 +448,7 @@ class ProductController extends Controller
         }
 
         $matches = Product::withoutGlobalScopes()
+            ->whereNull('deleted_at')
             ->with('branch:id,name,code')
             ->where(function ($q) use ($query) {
                 $q->where('name', 'like', "%{$query}%")

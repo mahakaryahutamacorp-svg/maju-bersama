@@ -370,6 +370,9 @@ dari ledger.
 - Gate `manage-master-catalog` (khusus master) untuk membuat produk dan mengubah nama, SKU, harga modal, harga jual. Admin cabang hanya mengubah kategori, satuan, dan status pajak di cabangnya sendiri.
 - Harga khusus per cabang dihapus dari aplikasi; POS dan API memakai `selling_price`. Tabel `product_branch_prices` dibiarkan sebagai arsip.
 - `php artisan catalog:sync-master --source=KODE` menyamakan data lama dari satu cabang acuan per grup (simulasi secara bawaan, tulis dengan `--apply`).
+  - `--match-name` menghubungkan produk cabang yang namanya sama dengan acuan dengan cara mengganti SKU-nya, sehingga stok dan riwayatnya ikut.
+  - `--hold-cases` mengarsipkan produk cabang yang tidak cocok dan mengisi `catalog_hold_reason`. Stok tidak diubah, dan daftarnya disimpan ke `storage/app/catalog-sync/`.
+  - `php artisan catalog:held-products` menampilkan produk yang diarsipkan. `--purge` menghapus permanen produk yang tidak punya riwayat transaksi, stok opname, HPP, atau jurnal. Produk yang punya riwayat tetap diarsipkan.
 
 **Konsekuensi:**
 - Kasir tetap tidak melihat harga modal.

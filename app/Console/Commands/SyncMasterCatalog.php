@@ -8,12 +8,16 @@ use App\Services\MasterCatalogService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 
 class SyncMasterCatalog extends Command
 {
+    public const REASON_NOT_IN_SOURCE = 'Tidak ada di acuan';
+
     protected $signature = 'catalog:sync-master
         {--source=* : Kode cabang acuan per grup, misalnya GUDANG-PUPUK atau PAKAN}
         {--match-name : Produk cabang yang namanya sama persis dengan produk acuan tetapi SKU-nya beda diganti ke SKU acuan, sehingga stok dan riwayatnya tetap}
+        {--hold-cases : Arsipkan produk cabang yang tidak bisa disamakan otomatis agar diinput ulang manual}
         {--apply : Tulis perubahan. Tanpa opsi ini hanya simulasi}';
 
     protected $description = 'Samakan nama, harga modal, harga jual, dan harga bertingkat produk ke semua cabang satu grup dari cabang acuan';
@@ -25,6 +29,9 @@ class SyncMasterCatalog extends Command
 
     /** @var list<string> */
     private array $sourceCodes;
+
+    /** @var list<array{branch: string, sku: string, name: string, stock: int, reason: string}> */
+    private array $heldRows = [];
 
     public function handle(MasterCatalogService $catalog): int
     {
@@ -44,13 +51,13 @@ class SyncMasterCatalog extends Command
         }
 
         $this->newLine();
-        if ($summary['pending'] === 0 && $summary['relinked'] === 0) {
+        if ($summary['pending'] === 0 && $summary['relinked'] === 0 && $summary['held'] === 0) {
             $this->info('Semua grup sudah sama dengan cabang acuannya.');
 
             return self::SUCCESS;
         }
 
-        $message = "{$summary['pending']} produk acuan perlu disamakan, {$summary['relinked']} produk cabang dihubungkan lewat nama";
+        $message = "{$summary['pending']} produk acuan perlu disamakan, {$summary['relinked']} produk cabang dihubungkan lewat nama, {$summary['held']} produk cabang disembunyikan";
         if (! $apply) {
             $this->info("{$message}. Jalankan ulang dengan --apply untuk menulis perubahan.");
 
@@ -63,20 +70,23 @@ class SyncMasterCatalog extends Command
             return self::SUCCESS;
         }
 
+        $this->heldRows = [];
         DB::transaction(fn () => $this->syncGroups(report: false, write: true));
 
         $this->info("Selesai: {$message}.");
+        if ($this->heldRows !== []) {
+            $this->info('Daftar produk yang disembunyikan: '.$this->writeHeldReport());
+        }
 
         return self::SUCCESS;
     }
 
     /**
-     * @return array{pending: int, relinked: int}
+     * @return array{pending: int, relinked: int, held: int}
      */
     private function syncGroups(bool $report, bool $write): array
     {
-        $pendingTotal = 0;
-        $relinkedTotal = 0;
+        $totals = ['pending' => 0, 'relinked' => 0, 'held' => 0];
 
         foreach ($this->catalog->groups() as $rootId => $branchIds) {
             if (count($branchIds) < 2) {
@@ -93,20 +103,20 @@ class SyncMasterCatalog extends Command
                 $this->newLine();
             }
             if ($products->isEmpty()) {
-                if ($report) {
-                    $this->line("Grup {$root->code}: tidak ada produk di cabang acuan, dilewati.");
-                }
+                $this->reportLine($report, "Grup {$root->code}: tidak ada produk di cabang acuan, dilewati.");
 
                 continue;
             }
 
-            if ($report) {
-                $this->line("Grup {$root->code} - acuan {$source->code} ({$source->name}), {$products->count()} produk");
+            $this->reportLine($report, "Grup {$root->code} - acuan {$source->code} ({$source->name}), {$products->count()} produk");
+
+            $reasons = [];
+            if ($this->option('match-name')) {
+                $totals['relinked'] += $this->relinkByName($branchIds, $source, $products, $reasons, $report);
             }
 
-            if ($this->option('match-name')) {
-                $relinkedTotal += $this->relinkByName($branchIds, $source, $products, $report);
-            }
+            $cases = $this->unmatchedProducts($branchIds, $source, $products)
+                ->each(fn (Product $product) => $product->setAttribute('hold_reason', $reasons[$product->id] ?? self::REASON_NOT_IN_SOURCE));
 
             $created = array_fill_keys($branchIds, 0);
             $updated = array_fill_keys($branchIds, 0);
@@ -123,10 +133,10 @@ class SyncMasterCatalog extends Command
                     $pending[] = $product;
                 }
             }
-            $pendingTotal += count($pending);
+            $totals['pending'] += count($pending);
 
             if ($report) {
-                $this->reportGroup($branchIds, $source, $products, $created, $updated);
+                $this->reportGroup($branchIds, $source, $products, $cases, $created, $updated);
             }
 
             if ($write) {
@@ -134,56 +144,56 @@ class SyncMasterCatalog extends Command
                     $this->catalog->syncToGroup($product);
                 }
             }
+
+            if ($this->option('hold-cases')) {
+                $totals['held'] += $cases->count();
+                if ($write) {
+                    $cases->each(fn (Product $product) => $this->hold($product));
+                }
+            }
         }
 
-        return ['pending' => $pendingTotal, 'relinked' => $relinkedTotal];
+        return $totals;
     }
 
     /**
      * @param  list<int>  $branchIds
      * @param  Collection<int, Product>  $sourceProducts
+     * @param  array<int, string>  $reasons  filled with the reason a product could not be linked
      */
-    private function relinkByName(array $branchIds, Branch $source, Collection $sourceProducts, bool $report): int
+    private function relinkByName(array $branchIds, Branch $source, Collection $sourceProducts, array &$reasons, bool $report): int
     {
         $skusByName = $sourceProducts->groupBy(fn (Product $product) => $this->normalizeName($product->name))
             ->map(fn (Collection $group) => $group->pluck('sku')->unique()->values());
 
-        $candidates = Product::withoutGlobalScopes()
-            ->whereNull('deleted_at')
-            ->whereIn('branch_id', $branchIds)
-            ->where('branch_id', '!=', $source->id)
-            ->whereNotIn('sku', $sourceProducts->pluck('sku')->all())
-            ->orderBy('branch_id')
-            ->orderBy('id')
-            ->get();
-
         $relinked = 0;
-        foreach ($candidates as $product) {
+        foreach ($this->unmatchedProducts($branchIds, $source, $sourceProducts) as $product) {
             $skus = $skusByName->get($this->normalizeName($product->name));
             if ($skus === null) {
                 continue;
             }
 
-            $label = "[{$this->branches[$product->branch_id]->code}] {$product->sku} {$product->name} (stok {$product->stock})";
-
             if ($skus->count() > 1) {
-                $this->reportLine($report, "  ! Nama ganda di acuan ({$skus->implode(', ')}), tidak dihubungkan: {$label}");
+                $reasons[$product->id] = "Nama ganda di acuan ({$skus->implode(', ')})";
 
                 continue;
             }
 
             $targetSku = (string) $skus->first();
-            $taken = Product::withoutGlobalScopes()
+            $holder = Product::withoutGlobalScopes()
                 ->where('branch_id', $product->branch_id)
                 ->where('sku', $targetSku)
-                ->exists();
+                ->first();
 
-            if ($taken) {
-                $this->reportLine($report, "  ! Cabang sudah punya SKU {$targetSku}, perlu digabung manual: {$label}");
+            if ($holder !== null) {
+                $reasons[$product->id] = $holder->deleted_at === null
+                    ? "Cabang sudah punya SKU {$targetSku}, perlu digabung manual"
+                    : "SKU {$targetSku} di cabang ini sudah diarsipkan, perlu digabung manual";
 
                 continue;
             }
 
+            $label = $this->label($product);
             $product->forceFill(['sku' => $targetSku])->save();
             $relinked++;
             $this->reportLine($report, "  = Dihubungkan ke {$targetSku}: {$label}");
@@ -193,26 +203,75 @@ class SyncMasterCatalog extends Command
     }
 
     /**
+     * Active products in the other branches of the group whose SKU is not in the source branch.
+     *
      * @param  list<int>  $branchIds
      * @param  Collection<int, Product>  $sourceProducts
+     * @return Collection<int, Product>
+     */
+    private function unmatchedProducts(array $branchIds, Branch $source, Collection $sourceProducts): Collection
+    {
+        return Product::withoutGlobalScopes()
+            ->whereNull('deleted_at')
+            ->whereIn('branch_id', $branchIds)
+            ->where('branch_id', '!=', $source->id)
+            ->whereNotIn('sku', $sourceProducts->pluck('sku')->all())
+            ->orderBy('branch_id')
+            ->orderBy('name')
+            ->get();
+    }
+
+    private function hold(Product $product): void
+    {
+        $reason = (string) $product->getAttribute('hold_reason');
+        $this->heldRows[] = [
+            'branch' => (string) $this->branches[$product->branch_id]->code,
+            'sku' => (string) $product->sku,
+            'name' => (string) $product->name,
+            'stock' => (int) $product->stock,
+            'reason' => $reason,
+        ];
+
+        Product::withoutGlobalScopes()->whereKey($product->id)->update([
+            'catalog_hold_reason' => $reason,
+            'deleted_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
+    private function writeHeldReport(): string
+    {
+        $path = storage_path('app/catalog-sync/disembunyikan-'.now()->format('Ymd-His').'.csv');
+        File::ensureDirectoryExists(dirname($path));
+
+        $handle = fopen($path, 'w');
+        fputcsv($handle, ['Cabang', 'SKU', 'Nama', 'Stok', 'Alasan']);
+        foreach ($this->heldRows as $row) {
+            fputcsv($handle, array_values($row));
+        }
+        fclose($handle);
+
+        return $path;
+    }
+
+    /**
+     * @param  list<int>  $branchIds
+     * @param  Collection<int, Product>  $sourceProducts
+     * @param  Collection<int, Product>  $cases
      * @param  array<int, int>  $created
      * @param  array<int, int>  $updated
      */
-    private function reportGroup(array $branchIds, Branch $source, Collection $sourceProducts, array $created, array $updated): void
+    private function reportGroup(array $branchIds, Branch $source, Collection $sourceProducts, Collection $cases, array $created, array $updated): void
     {
-        $others = Product::withoutGlobalScopes()
+        $archived = Product::withoutGlobalScopes()
+            ->whereNotNull('deleted_at')
             ->whereIn('branch_id', $branchIds)
             ->where('branch_id', '!=', $source->id)
-            ->orderBy('branch_id')
-            ->orderBy('name')
-            ->get(['id', 'branch_id', 'sku', 'name', 'stock', 'deleted_at']);
-
-        $sourceSkus = $sourceProducts->pluck('sku')->flip();
-        $extras = $others->filter(fn (Product $product) => $product->deleted_at === null && ! $sourceSkus->has($product->sku));
-        $archived = $others->filter(fn (Product $product) => $product->deleted_at !== null && $sourceSkus->has($product->sku));
+            ->whereIn('sku', $sourceProducts->pluck('sku')->all())
+            ->get(['id', 'branch_id']);
 
         $this->table(
-            ['Cabang', 'Nama', 'Produk baru', 'Disamakan', 'Diarsipkan', 'Tidak ada di acuan'],
+            ['Cabang', 'Nama', 'Produk baru', 'Disamakan', 'Diarsipkan', 'Perlu input manual'],
             collect($branchIds)
                 ->reject(fn (int $id) => $id === (int) $source->id)
                 ->map(fn (int $id) => [
@@ -221,14 +280,14 @@ class SyncMasterCatalog extends Command
                     $created[$id],
                     $updated[$id],
                     $archived->where('branch_id', $id)->count(),
-                    $extras->where('branch_id', $id)->count(),
+                    $cases->where('branch_id', $id)->count(),
                 ])
                 ->values()
                 ->all(),
         );
 
-        foreach ($extras as $extra) {
-            $this->line("  - Tidak ada di acuan: [{$this->branches[$extra->branch_id]->code}] {$extra->sku} {$extra->name} (stok {$extra->stock})");
+        foreach ($cases as $product) {
+            $this->line("  ! {$product->getAttribute('hold_reason')}: {$this->label($product)}");
         }
     }
 
@@ -253,6 +312,11 @@ class SyncMasterCatalog extends Command
             ->first();
 
         return $busiest ? $this->branches[(int) $busiest->branch_id] : null;
+    }
+
+    private function label(Product $product): string
+    {
+        return "[{$this->branches[$product->branch_id]->code}] {$product->sku} {$product->name} (stok {$product->stock})";
     }
 
     private function normalizeName(?string $name): string

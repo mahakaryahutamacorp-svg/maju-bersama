@@ -7,6 +7,7 @@ use App\Models\Category;
 use App\Models\CustomerGroup;
 use App\Models\Product;
 use App\Models\ProductPrice;
+use App\Models\Sale;
 use App\Models\User;
 use Tests\TestCase;
 
@@ -184,7 +185,7 @@ class MasterCatalogSyncTest extends TestCase
         $this->assertNull(Product::withoutGlobalScopes()->where('branch_id', $this->office->id)->where('sku', 'SP36')->first());
 
         $this->artisan('catalog:sync-master', ['--source' => ['GUDANG-PUPUK'], '--apply' => true])
-            ->expectsConfirmation('1 produk acuan perlu disamakan, 0 produk cabang dihubungkan lewat nama. Lanjutkan?', 'yes')
+            ->expectsConfirmation('1 produk acuan perlu disamakan, 0 produk cabang dihubungkan lewat nama, 0 produk cabang disembunyikan. Lanjutkan?', 'yes')
             ->assertSuccessful();
 
         $this->assertSame('SP-36', $this->productIn($this->store, 'SP36')->name);
@@ -212,7 +213,7 @@ class MasterCatalogSyncTest extends TestCase
         $this->assertSame('BR2-ZAYYIM', $storeAji->fresh()->sku);
 
         $this->artisan('catalog:sync-master', ['--source' => ['GUDANG-PUPUK'], '--match-name' => true, '--apply' => true])
-            ->expectsConfirmation('2 produk acuan perlu disamakan, 1 produk cabang dihubungkan lewat nama. Lanjutkan?', 'yes')
+            ->expectsConfirmation('2 produk acuan perlu disamakan, 1 produk cabang dihubungkan lewat nama, 0 produk cabang disembunyikan. Lanjutkan?', 'yes')
             ->assertSuccessful();
 
         $storeAji->refresh();
@@ -225,6 +226,49 @@ class MasterCatalogSyncTest extends TestCase
 
         $this->assertSame('BR2-OM5OHZ', $storeOmniDuplicate->fresh()->sku);
         $this->assertEquals(9500, (float) $storeOmniDuplicate->fresh()->selling_price);
+    }
+
+    public function test_hold_cases_hides_unmatched_products_and_purge_keeps_those_with_history(): void
+    {
+        $cashier = User::factory()->create(['branch_id' => $this->store->id, 'role' => 'cashier']);
+        $this->makeProduct($this->warehouse, 'OMNI-1', 'OMNI NET 200GR*50', 7000, 9000);
+        $this->makeProduct($this->store, 'OMNI-1', 'OMNI NET 200GR*50', 7000, 9000);
+        $duplicate = $this->makeProduct($this->store, 'BR2-OM5OHZ', 'OMNI NET 200GR*50', 7000, 9500);
+        $storeOnly = $this->makeProduct($this->store, 'BR2-PRIMA', 'PRIMA BOMB 1L*20', 30000, 40000);
+        $storeOnly->update(['stock' => 3]);
+        Sale::create([
+            'branch_id' => $this->store->id,
+            'receipt_number' => 'INV-HOLD-01',
+            'total_amount' => 40000,
+            'payment_method' => 'cash',
+            'status' => 'completed',
+            'created_by' => $cashier->id,
+        ])->items()->create(['product_id' => $storeOnly->id, 'quantity' => 1, 'price' => 40000, 'subtotal' => 40000]);
+
+        $this->artisan('catalog:sync-master', ['--source' => ['GUDANG-PUPUK'], '--match-name' => true, '--hold-cases' => true, '--apply' => true])
+            ->expectsOutputToContain('Cabang sudah punya SKU OMNI-1, perlu digabung manual: [CBG-ABI] BR2-OM5OHZ')
+            ->expectsOutputToContain('Tidak ada di acuan: [CBG-ABI] BR2-PRIMA PRIMA BOMB 1L*20 (stok 3)')
+            ->expectsConfirmation('1 produk acuan perlu disamakan, 0 produk cabang dihubungkan lewat nama, 2 produk cabang disembunyikan. Lanjutkan?', 'yes')
+            ->expectsOutputToContain('Daftar produk yang disembunyikan:')
+            ->assertSuccessful();
+
+        $this->assertSoftDeleted('products', ['id' => $duplicate->id]);
+        $this->assertSoftDeleted('products', ['id' => $storeOnly->id, 'stock' => 3, 'catalog_hold_reason' => 'Tidak ada di acuan']);
+        $this->actingAs($cashier)->get('/pos')->assertOk()->assertDontSee('PRIMA BOMB');
+        $master = User::factory()->create(['branch_id' => $this->warehouse->id, 'role' => 'master']);
+        $this->actingAs($master)->get(route('backoffice.products.index', ['branch_id' => $this->store->id]))
+            ->assertOk()->assertSee('OMNI-1')->assertDontSee('BR2-PRIMA');
+
+        $this->artisan('catalog:held-products')
+            ->expectsOutputToContain('BR2-OM5OHZ')
+            ->assertSuccessful();
+
+        $this->artisan('catalog:held-products', ['--purge' => true])
+            ->expectsConfirmation('1 produk akan dihapus permanen, 1 produk tetap diarsipkan karena punya riwayat. Lanjutkan?', 'yes')
+            ->assertSuccessful();
+
+        $this->assertDatabaseMissing('products', ['id' => $duplicate->id]);
+        $this->assertSoftDeleted('products', ['id' => $storeOnly->id]);
     }
 
     private function makeProduct(Branch $branch, string $sku, string $name, int $cost, int $price): Product

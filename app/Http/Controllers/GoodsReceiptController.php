@@ -101,12 +101,13 @@ class GoodsReceiptController extends Controller
 
         // Fetch products available at target branch (or fallback to all products if target branch has none)
         $products = Product::withoutGlobalScopes()
+            ->whereNull('deleted_at')
             ->when($targetBranch, fn ($q) => $q->where('branch_id', $targetBranch->id))
             ->orderBy('name')
             ->get();
 
         if ($products->isEmpty()) {
-            $products = Product::withoutGlobalScopes()->orderBy('name')->get();
+            $products = Product::withoutGlobalScopes()->whereNull('deleted_at')->orderBy('name')->get();
         }
 
         $productsData = $products->map(fn (Product $p) => [

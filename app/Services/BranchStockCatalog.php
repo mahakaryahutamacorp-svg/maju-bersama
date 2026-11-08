@@ -47,13 +47,14 @@ class BranchStockCatalog
     public function productsFor(Branch $branch): Collection
     {
         $products = Product::withoutGlobalScopes()
+            ->whereNull('deleted_at')
             ->with('category:id,name')
             ->where('branch_id', $branch->id)
             ->orderBy('name')
             ->get();
 
         if ($products->isEmpty()) {
-            $products = Product::withoutGlobalScopes()->with('category:id,name')->orderBy('name')->get();
+            $products = Product::withoutGlobalScopes()->whereNull('deleted_at')->with('category:id,name')->orderBy('name')->get();
         }
 
         $quantities = Inventory::withoutGlobalScopes()
