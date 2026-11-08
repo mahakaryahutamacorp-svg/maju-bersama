@@ -62,6 +62,15 @@ class OpeningBalanceService
     }
 
     /**
+     * True when the branch's opening balance journal already debits the inventory account.
+     */
+    public static function hasInventoryInOpeningBalance(?int $branchId): bool
+    {
+        return (bool) self::getExistingOpeningBalance($branchId)?->journalLines
+            ->contains(fn ($line) => $line->chartOfAccount?->code === self::CODE_INVENTORY && (float) $line->debit > 0);
+    }
+
+    /**
      * Membukukan Saldo Awal (Opening Balance) perusahaan/cabang.
      *
      * Logika Akuntansi:

@@ -198,12 +198,12 @@
                                             <button type="button" disabled title="Produk mengikuti cabang acuan. Hapus dari Gudang Pupuk agar tersembunyi di semua cabang." class="cursor-not-allowed rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-400">
                                                 Hapus
                                             </button>
-                                        @elseif ($product->hasTransactionHistory() && ! $isMaster)
+                                        @elseif ($product->hasTransactionHistory() && ! $canManageMasterCatalog)
                                             <button type="button" disabled title="Produk ini sudah memiliki riwayat transaksi sehingga tidak dapat dihapus." class="cursor-not-allowed rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-400">
                                                 Hapus
                                             </button>
                                         @else
-                                            <form method="POST" action="{{ route('backoffice.products.destroy', $product->id) }}" onsubmit="return confirm('{{ $product->hasTransactionHistory() ? 'Produk ini punya riwayat transaksi. Arsipkan dari katalog? Faktur lama tetap menyimpan datanya.' : 'Apakah Anda yakin ingin mengarsipkan produk ini?' }}');">
+                                            <form method="POST" action="{{ route('backoffice.products.destroy', $product->id) }}" onsubmit="return confirm('{{ $product->hasTransactionHistory() ? 'Produk ini punya riwayat transaksi. Arsipkan dari katalog? Faktur lama tetap menyimpan datanya.' : 'Apakah Anda yakin ingin mengarsipkan produk ini?' }}{{ in_array($product->branch?->code, \App\Services\MasterCatalogService::SOURCE_BRANCH_CODES, true) ? ' Produk juga akan disembunyikan di semua cabang dalam grupnya.' : '' }}');">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit" class="rounded-lg bg-rose-50 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100">

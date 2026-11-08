@@ -277,8 +277,11 @@ class ProductController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($product): void {
-            $this->productService->deleteProduct($product, (bool) request()->user()?->isMaster());
+        $user = request()->user();
+        $canArchiveWithHistory = $user !== null && $this->masterCatalog->canManageMasterFieldsIn($user, (int) $product->branch_id);
+
+        DB::transaction(function () use ($product, $canArchiveWithHistory): void {
+            $this->productService->deleteProduct($product, $canArchiveWithHistory);
 
             if ($this->masterCatalog->isSourceBranch((int) $product->branch_id)) {
                 $this->masterCatalog->hideInGroup($product);

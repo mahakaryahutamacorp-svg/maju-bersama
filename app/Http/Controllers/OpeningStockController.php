@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Branch;
 use App\Services\BranchStockCatalog;
 use App\Services\OpeningBalanceService;
 use App\Services\StockAdjustmentService;
@@ -34,7 +33,7 @@ class OpeningStockController extends Controller
             'currentBranch' => $currentBranch,
             'branches' => $this->catalog->selectableBranches($user, $currentBranch),
             'products' => $this->catalog->productsFor($currentBranch),
-            'inventoryAlreadyInOpeningBalance' => $this->inventoryAlreadyInOpeningBalance($currentBranch),
+            'inventoryAlreadyInOpeningBalance' => OpeningBalanceService::hasInventoryInOpeningBalance($currentBranch->id),
         ]);
     }
 
@@ -75,13 +74,5 @@ class OpeningStockController extends Controller
         return redirect()
             ->route('inventory.adjustments.show', $adjustment->id)
             ->with('success', "Stok awal {$adjustment->lines->count()} produk tersimpan (dokumen #{$adjustment->reference_number}).");
-    }
-
-    private function inventoryAlreadyInOpeningBalance(Branch $branch): bool
-    {
-        $openingBalance = OpeningBalanceService::getExistingOpeningBalance($branch->id);
-
-        return (bool) $openingBalance?->journalLines
-            ->contains(fn ($line) => $line->chartOfAccount?->code === OpeningBalanceService::CODE_INVENTORY && (float) $line->debit > 0);
     }
 }

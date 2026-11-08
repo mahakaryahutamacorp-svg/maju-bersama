@@ -270,6 +270,32 @@ class MasterCatalogSyncTest extends TestCase
         $this->assertNotSoftDeleted('products', ['id' => $otherProduct->id]);
     }
 
+    public function test_warehouse_admin_archives_product_with_history_in_every_branch(): void
+    {
+        $warehouseAdmin = User::factory()->create(['branch_id' => $this->warehouse->id, 'role' => 'branch_admin']);
+        $warehouseProduct = $this->makeProduct($this->warehouse, 'HIST-1', 'Produk Berriwayat', 1000, 1500);
+        $storeProduct = $this->makeProduct($this->store, 'HIST-1', 'Produk Berriwayat', 1000, 1500);
+        Sale::create([
+            'branch_id' => $this->warehouse->id,
+            'receipt_number' => 'INV-HIST-01',
+            'total_amount' => 1500,
+            'payment_method' => 'cash',
+            'status' => 'completed',
+            'created_by' => $warehouseAdmin->id,
+        ])->items()->create(['product_id' => $warehouseProduct->id, 'quantity' => 1, 'price' => 1500, 'subtotal' => 1500]);
+
+        $this->actingAs($warehouseAdmin)->get(route('backoffice.products.index'))
+            ->assertOk()
+            ->assertSee(route('backoffice.products.destroy', $warehouseProduct->id), false);
+
+        $this->actingAs($warehouseAdmin)->delete(route('backoffice.products.destroy', $warehouseProduct->id))
+            ->assertSessionHas('success');
+
+        $this->assertSoftDeleted('products', ['id' => $warehouseProduct->id]);
+        $this->assertSoftDeleted('products', ['id' => $storeProduct->id, 'stock' => 10]);
+        $this->assertDatabaseHas('sale_items', ['product_id' => $warehouseProduct->id]);
+    }
+
     public function test_new_warehouse_product_restores_archived_store_row_with_its_stock(): void
     {
         $archived = $this->makeProduct($this->store, 'KAPUR-1', 'Kapur Lama', 100, 200);

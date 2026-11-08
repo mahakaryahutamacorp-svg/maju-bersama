@@ -433,15 +433,16 @@ class ProductController extends Controller
                     ->with('error', $this->sourceOnlyMessage((int) $product->branch_id, 'dihapus'));
             }
 
-            if (! $isMaster && $product->hasTransactionHistory()) {
+            $canArchiveWithHistory = $this->masterCatalog->canManageMasterFieldsIn($user, (int) $product->branch_id);
+            if (! $canArchiveWithHistory && $product->hasTransactionHistory()) {
                 return redirect()
                     ->route('backoffice.products.index')
                     ->with('error', Product::HISTORY_DELETE_MESSAGE);
             }
 
             $name = $product->name;
-            $hidden = DB::transaction(function () use ($product, $isMaster): int {
-                $this->productService->deleteProduct($product, $isMaster);
+            $hidden = DB::transaction(function () use ($product, $canArchiveWithHistory): int {
+                $this->productService->deleteProduct($product, $canArchiveWithHistory);
 
                 return $this->masterCatalog->isSourceBranch((int) $product->branch_id)
                     ? $this->masterCatalog->hideInGroup($product)
