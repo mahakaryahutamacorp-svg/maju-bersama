@@ -184,13 +184,47 @@ class MasterCatalogSyncTest extends TestCase
         $this->assertNull(Product::withoutGlobalScopes()->where('branch_id', $this->office->id)->where('sku', 'SP36')->first());
 
         $this->artisan('catalog:sync-master', ['--source' => ['GUDANG-PUPUK'], '--apply' => true])
-            ->expectsConfirmation('1 produk acuan akan disamakan ke cabang lain dalam grupnya. Lanjutkan?', 'yes')
+            ->expectsConfirmation('1 produk acuan perlu disamakan, 0 produk cabang dihubungkan lewat nama. Lanjutkan?', 'yes')
             ->assertSuccessful();
 
         $this->assertSame('SP-36', $this->productIn($this->store, 'SP36')->name);
         $this->assertEquals(4000, (float) $this->productIn($this->store, 'SP36')->selling_price);
+        $this->assertSame(10, $this->productIn($this->store, 'SP36')->stock);
         $this->assertEquals(4000, (float) $this->productIn($this->office, 'SP36')->selling_price);
+        $this->assertSame(0, $this->productIn($this->office, 'SP36')->stock);
         $this->assertSame('Produk Toko Saja', $this->productIn($this->store, 'ONLY-STORE')->name);
+    }
+
+    public function test_sync_command_relinks_same_name_products_without_duplicates_or_stock_changes(): void
+    {
+        $this->makeProduct($this->warehouse, 'AJQ-1', 'AJI QUAT 1L*20', 50000, 60000);
+        $this->makeProduct($this->warehouse, 'OMNI-1', 'OMNI NET 200GR*50', 7000, 9000);
+        $storeAji = $this->makeProduct($this->store, 'BR2-ZAYYIM', 'aji quat  1l*20', 48000, 65000);
+        $storeAji->update(['stock' => 7]);
+        $this->makeProduct($this->store, 'OMNI-1', 'OMNI NET 200GR*50', 7000, 9000);
+        $storeOmniDuplicate = $this->makeProduct($this->store, 'BR2-OM5OHZ', 'OMNI NET 200GR*50', 7000, 9500);
+
+        $this->artisan('catalog:sync-master', ['--source' => ['GUDANG-PUPUK'], '--match-name' => true])
+            ->expectsOutputToContain('Dihubungkan ke AJQ-1: [CBG-ABI] BR2-ZAYYIM')
+            ->expectsOutputToContain('Cabang sudah punya SKU OMNI-1, perlu digabung manual: [CBG-ABI] BR2-OM5OHZ')
+            ->assertSuccessful();
+
+        $this->assertSame('BR2-ZAYYIM', $storeAji->fresh()->sku);
+
+        $this->artisan('catalog:sync-master', ['--source' => ['GUDANG-PUPUK'], '--match-name' => true, '--apply' => true])
+            ->expectsConfirmation('2 produk acuan perlu disamakan, 1 produk cabang dihubungkan lewat nama. Lanjutkan?', 'yes')
+            ->assertSuccessful();
+
+        $storeAji->refresh();
+        $this->assertSame('AJQ-1', $storeAji->sku);
+        $this->assertSame('AJI QUAT 1L*20', $storeAji->name);
+        $this->assertEquals(50000, (float) $storeAji->purchase_price);
+        $this->assertEquals(60000, (float) $storeAji->selling_price);
+        $this->assertSame(7, $storeAji->stock);
+        $this->assertSame(1, Product::withoutGlobalScopes()->where('branch_id', $this->store->id)->where('sku', 'AJQ-1')->count());
+
+        $this->assertSame('BR2-OM5OHZ', $storeOmniDuplicate->fresh()->sku);
+        $this->assertEquals(9500, (float) $storeOmniDuplicate->fresh()->selling_price);
     }
 
     private function makeProduct(Branch $branch, string $sku, string $name, int $cost, int $price): Product
