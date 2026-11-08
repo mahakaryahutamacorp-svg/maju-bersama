@@ -14,7 +14,7 @@ class StoreProductRequest extends FormRequest
     {
         $user = $this->user();
 
-        return $user !== null && $user->can('manage-catalog');
+        return $user !== null && $user->can('manage-master-catalog');
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Services\MasterCatalogService;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -24,7 +25,7 @@ class UpdateProductRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        $rules = [
             'category_id' => ['sometimes', 'integer', 'exists:categories,id'],
             'sku' => ['nullable', 'string', 'max:50'],
             'name' => ['sometimes', 'string', 'max:255'],
@@ -33,6 +34,14 @@ class UpdateProductRequest extends FormRequest
             'selling_price' => ['sometimes', 'numeric', 'min:0', 'decimal:0,2'],
             'stock' => ['sometimes', 'integer', 'min:0'],
         ];
+
+        if (! $this->user()?->can('manage-master-catalog')) {
+            foreach (MasterCatalogService::MASTER_FIELDS as $field) {
+                $rules[$field] = ['prohibited'];
+            }
+        }
+
+        return $rules;
     }
 
     /**
@@ -45,6 +54,7 @@ class UpdateProductRequest extends FormRequest
         return [
             'category_id.exists' => 'Selected category does not exist.',
             'stock.min' => 'Stock cannot be negative.',
+            '*.prohibited' => 'Nama, SKU, harga beli, dan harga jual hanya dapat diubah oleh akun master.',
         ];
     }
 }

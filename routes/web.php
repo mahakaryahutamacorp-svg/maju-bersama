@@ -116,9 +116,13 @@ Route::middleware('auth')->group(function () {
         Route::get('products', [ProductController::class, 'index'])
             ->middleware('can:view-sellable-catalog')
             ->name('products.index');
-        Route::middleware('can:manage-catalog')->group(function () {
+        // Produk baru langsung terdaftar di semua cabang satu grup, jadi hanya master yang membuatnya.
+        Route::middleware('can:manage-master-catalog')->group(function () {
             Route::get('products/check-duplicate', [ProductController::class, 'checkDuplicate'])->name('products.check-duplicate');
-            Route::resource('products', ProductController::class)->except(['show', 'index']);
+            Route::resource('products', ProductController::class)->only(['create', 'store']);
+        });
+        Route::middleware('can:manage-catalog')->group(function () {
+            Route::resource('products', ProductController::class)->only(['edit', 'update', 'destroy']);
         });
 
         // Customers (Pelanggan & Multi-Price)

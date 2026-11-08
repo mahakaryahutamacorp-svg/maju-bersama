@@ -19,6 +19,8 @@ class ProductApiTest extends TestCase
 
     private User $userB;
 
+    private User $master;
+
     private Category $category;
 
     protected function setUp(): void
@@ -38,6 +40,12 @@ class ProductApiTest extends TestCase
             'branch_id' => $this->branchB->id,
             'email' => 'userB@example.com',
             'role' => 'branch_admin',
+        ]);
+
+        $this->master = User::factory()->create([
+            'branch_id' => $this->branchA->id,
+            'email' => 'master@example.com',
+            'role' => 'master',
         ]);
 
         $this->category = Category::create(['name' => 'Electronics']);
@@ -127,9 +135,23 @@ class ProductApiTest extends TestCase
         $this->assertDatabaseHas('products', ['id' => $product->id, 'name' => 'Produk Kasir']);
     }
 
-    public function test_user_can_create_product_with_auto_generated_sku(): void
+    public function test_branch_admin_cannot_create_product(): void
     {
         Sanctum::actingAs($this->userA);
+
+        $this->postJson('/api/products', [
+            'category_id' => $this->category->id,
+            'name' => 'Produk Admin Cabang',
+            'purchase_price' => 100,
+            'selling_price' => 150,
+        ])->assertForbidden();
+
+        $this->assertDatabaseMissing('products', ['name' => 'Produk Admin Cabang']);
+    }
+
+    public function test_master_can_create_product_with_auto_generated_sku(): void
+    {
+        Sanctum::actingAs($this->master);
 
         $response = $this->postJson('/api/products', [
             'category_id' => $this->category->id,
@@ -148,9 +170,9 @@ class ProductApiTest extends TestCase
         $this->assertStringStartsWith('BR'.$this->branchA->id.'-', $product->sku);
     }
 
-    public function test_user_can_create_product_with_custom_sku(): void
+    public function test_master_can_create_product_with_custom_sku(): void
     {
-        Sanctum::actingAs($this->userA);
+        Sanctum::actingAs($this->master);
 
         $response = $this->postJson('/api/products', [
             'category_id' => $this->category->id,
@@ -170,7 +192,39 @@ class ProductApiTest extends TestCase
         ]);
     }
 
-    public function test_user_can_update_product_in_their_branch(): void
+    public function test_branch_admin_can_update_unit_but_not_name_or_prices(): void
+    {
+        $product = Product::create([
+            'branch_id' => $this->branchA->id,
+            'category_id' => $this->category->id,
+            'sku' => 'PROD-A1',
+            'name' => 'Original Name',
+            'unit' => 'pcs',
+            'purchase_price' => 100,
+            'selling_price' => 150,
+            'stock' => 10,
+        ]);
+
+        Sanctum::actingAs($this->userA);
+
+        $this->putJson("/api/products/{$product->id}", ['unit' => 'kg'])
+            ->assertOk()
+            ->assertJsonPath('message', 'Product updated successfully.')
+            ->assertJsonPath('data.unit', 'kg');
+
+        $this->putJson("/api/products/{$product->id}", [
+            'name' => 'Updated Name',
+            'selling_price' => 200,
+        ])->assertUnprocessable()->assertJsonValidationErrors(['name', 'selling_price']);
+
+        $this->assertDatabaseHas('products', [
+            'id' => $product->id,
+            'name' => 'Original Name',
+            'selling_price' => 150,
+        ]);
+    }
+
+    public function test_master_can_update_product_name_and_price(): void
     {
         $product = Product::create([
             'branch_id' => $this->branchA->id,
@@ -182,20 +236,17 @@ class ProductApiTest extends TestCase
             'stock' => 10,
         ]);
 
-        Sanctum::actingAs($this->userA);
+        Sanctum::actingAs($this->master);
 
-        $response = $this->putJson("/api/products/{$product->id}", [
+        $this->putJson("/api/products/{$product->id}", [
             'name' => 'Updated Name',
             'selling_price' => 200,
-        ]);
-
-        $response->assertOk()
-            ->assertJsonPath('message', 'Product updated successfully.')
-            ->assertJsonPath('data.name', 'Updated Name');
+        ])->assertOk()->assertJsonPath('data.name', 'Updated Name');
 
         $this->assertDatabaseHas('products', [
             'id' => $product->id,
             'name' => 'Updated Name',
+            'selling_price' => 200,
         ]);
     }
 
@@ -274,7 +325,7 @@ class ProductApiTest extends TestCase
 
     public function test_create_product_validation_fails_without_required_fields(): void
     {
-        Sanctum::actingAs($this->userA);
+        Sanctum::actingAs($this->master);
 
         $response = $this->postJson('/api/products', []);
 
@@ -284,7 +335,7 @@ class ProductApiTest extends TestCase
 
     public function test_create_product_validation_fails_with_negative_stock(): void
     {
-        Sanctum::actingAs($this->userA);
+        Sanctum::actingAs($this->master);
 
         $response = $this->postJson('/api/products', [
             'category_id' => $this->category->id,

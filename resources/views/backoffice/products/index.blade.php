@@ -8,7 +8,7 @@
                 <p class="text-sm font-semibold uppercase tracking-wider text-amber-600">Pengaturan</p>
                 <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Katalog Produk</h2>
             </div>
-            @if ($canManageCatalog)
+            @if ($canManageMasterCatalog)
                 <a href="{{ route('backoffice.products.create') }}" class="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-sky-700">
                     + Tambah Produk
                 </a>

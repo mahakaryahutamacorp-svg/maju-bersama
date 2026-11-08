@@ -34,9 +34,6 @@ class ImportPestisidaCsv extends Command
         $branchPusat = Branch::where('code', 'MBP')->orWhere('name', 'MB PUSAT')->first()
             ?? Branch::create(['code' => 'MBP', 'name' => 'MB PUSAT', 'is_active' => true]);
 
-        $branchArofah = Branch::where('code', 'ARF')->orWhere('name', 'AROFAH')->first()
-            ?? Branch::create(['code' => 'ARF', 'name' => 'AROFAH', 'is_active' => true]);
-
         // Pastikan Price Level Eceran dan Grosir tersedia
         $levelEceran = PriceLevel::firstOrCreate(
             ['name' => 'Harga Eceran'],
@@ -110,11 +107,8 @@ class ImportPestisidaCsv extends Command
                     if ($isFormatWithMargin) {
                         $hargaGrosir = $parseNumber($data[2] ?? '0'); // 7%
                         $hargaEcer = $parseNumber($data[3] ?? '0');   // 10%
-                        $hargaPusat = $hargaEcer > 0 ? $hargaEcer : ($hargaGrosir > 0 ? $hargaGrosir : $modal);
-                        $hargaArofah = $hargaPusat;
                     } else {
                         $hargaPusat = $parseNumber($data[2] ?? '0');
-                        $hargaArofah = $parseNumber($data[3] ?? '0');
                         $hargaEcer = $hargaPusat;
                         $hargaGrosir = round($modal > 0 ? $modal * 1.07 : $hargaPusat * 0.95);
                     }
@@ -166,18 +160,7 @@ class ImportPestisidaCsv extends Command
                         ['price' => $hargaGrosir, 'customer_group_id' => $groupGrosir->id, 'updated_at' => now()]
                     );
 
-                    // 2. Sync Branch Prices
-                    $product->branchPrices()->updateOrCreate(
-                        ['branch_id' => $branchPusat->id],
-                        ['price' => $hargaPusat]
-                    );
-
-                    $product->branchPrices()->updateOrCreate(
-                        ['branch_id' => $branchArofah->id],
-                        ['price' => $hargaArofah]
-                    );
-
-                    // 3. Ensure inventory rows exist with quantity = 0
+                    // 2. Ensure inventory rows exist with quantity = 0
                     foreach ($activeBranches as $b) {
                         $wh = Warehouse::withoutGlobalScopes()->where('branch_id', $b->id)->where('is_active', true)->first();
                         if ($wh) {

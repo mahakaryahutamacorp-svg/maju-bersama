@@ -228,7 +228,10 @@ class MultiPriceWebTest extends TestCase
 
     public function test_backoffice_product_store_and_update_with_customer_group_prices(): void
     {
-        $admin = $this->user;
+        $admin = User::factory()->create([
+            'branch_id' => $this->branch->id,
+            'role' => 'master',
+        ]);
 
         // 1. Simpan produk baru dengan harga khusus CustomerGroup
         $response = $this->actingAs($admin)->post(route('backoffice.products.store'), [

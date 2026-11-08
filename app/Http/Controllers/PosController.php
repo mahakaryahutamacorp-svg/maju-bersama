@@ -101,7 +101,7 @@ class PosController extends Controller
         }
 
         $products = $productsQuery
-            ->with(['category', 'productPrices', 'branchPrices'])
+            ->with(['category', 'productPrices'])
             ->orderBy('name')
             ->get();
 
@@ -129,8 +129,8 @@ class PosController extends Controller
             }
         }
 
-        $products = $products->map(function (Product $product) use ($branchId, $otherStockMap) {
-            $basePrice = (float) $product->getPriceForBranch($branchId);
+        $products = $products->map(function (Product $product) use ($otherStockMap) {
+            $basePrice = (float) $product->selling_price;
             $product->base_price = $basePrice;
             $product->original_selling_price = $basePrice;
             $product->selling_price = $basePrice;

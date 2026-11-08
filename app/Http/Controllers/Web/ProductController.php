@@ -8,13 +8,14 @@ use App\Models\Category;
 use App\Models\CustomerGroup;
 use App\Models\PriceLevel;
 use App\Models\Product;
-use App\Models\ProductBranchPrice;
 use App\Models\ProductPrice;
+use App\Services\MasterCatalogService;
 use App\Services\ProductService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -22,7 +23,8 @@ use Symfony\Component\HttpKernel\Exception\HttpException;
 class ProductController extends Controller
 {
     public function __construct(
-        protected ProductService $productService
+        protected ProductService $productService,
+        protected MasterCatalogService $masterCatalog,
     ) {}
 
     /**
@@ -76,6 +78,7 @@ class ProductController extends Controller
             'showTaxFilter' => $showTaxFilter,
             'taxStatus' => $taxStatus,
             'canManageCatalog' => $canManageCatalog,
+            'canManageMasterCatalog' => $user->can('manage-master-catalog'),
         ]);
     }
 
@@ -88,10 +91,6 @@ class ProductController extends Controller
         $isMaster = $user->isMaster();
 
         $branches = $isMaster ? Branch::orderBy('name')->get() : collect([$user->branch]);
-        $allBranches = Branch::where('is_active', true)->orderBy('name')->get();
-        if ($allBranches->isEmpty()) {
-            $allBranches = Branch::orderBy('name')->get();
-        }
         $categories = $this->categoriesFor($isMaster ? null : $user->branch, ! $isMaster);
         $customerGroups = CustomerGroup::orderBy('id')->get();
         $priceLevels = PriceLevel::where('is_active', true)
@@ -103,7 +102,6 @@ class ProductController extends Controller
             'currentUser' => $user,
             'isMaster' => $isMaster,
             'branches' => $branches,
-            'allBranches' => $allBranches,
             'categories' => $categories,
             'customerGroups' => $customerGroups,
             'priceLevels' => $priceLevels,
@@ -112,7 +110,7 @@ class ProductController extends Controller
     }
 
     /**
-     * Store a newly created product.
+     * Store a newly created product and register it in every branch of the same group.
      */
     public function store(Request $request): RedirectResponse
     {
@@ -157,8 +155,6 @@ class ProductController extends Controller
             'customer_group_prices.*' => ['nullable', 'numeric', 'min:0'],
             'group_prices' => ['nullable', 'array'],
             'group_prices.*' => ['nullable', 'numeric', 'min:0'],
-            'branch_prices' => ['nullable', 'array'],
-            'branch_prices.*' => ['nullable', 'numeric', 'min:0'],
         ];
 
         if ($isMaster) {
@@ -176,20 +172,23 @@ class ProductController extends Controller
 
         $this->ensureCategoryMatchesBranch((int) $validated['category_id'], $targetBranchId);
 
-        $product = $this->productService->createProduct($validated, $targetBranchId);
+        $product = DB::transaction(function () use ($request, $validated, $targetBranchId): Product {
+            $product = $this->productService->createProduct($validated, $targetBranchId);
 
-        // Sync tiered product prices (PriceLevel compatibility)
-        $this->syncProductPrices($product, $request->input('prices', []));
+            // Sync tiered product prices (PriceLevel compatibility)
+            $this->syncProductPrices($product, $request->input('prices', []));
 
-        // Sync CustomerGroup tiered prices
-        $this->syncCustomerGroupPrices($product, $request->input('customer_group_prices', $request->input('group_prices', [])));
+            // Sync CustomerGroup tiered prices
+            $this->syncCustomerGroupPrices($product, $request->input('customer_group_prices', $request->input('group_prices', [])));
 
-        // Sync Branch-level price overrides
-        $this->syncBranchPrices($product, $request->input('branch_prices', []));
+            $this->masterCatalog->syncToGroup($product);
+
+            return $product;
+        });
 
         return redirect()
             ->route('backoffice.products.index')
-            ->with('success', "Produk '{$product->name}' (SKU: {$product->sku}) berhasil ditambahkan!");
+            ->with('success', "Produk '{$product->name}' (SKU: {$product->sku}) berhasil ditambahkan ke semua cabang dalam grupnya!");
     }
 
     /**
@@ -200,7 +199,7 @@ class ProductController extends Controller
         $user = $request->user()->load('branch');
         $isMaster = $user->isMaster();
 
-        $product = Product::withoutGlobalScopes()->with(['category', 'branch', 'productPrices', 'branchPrices'])->findOrFail($id);
+        $product = Product::withoutGlobalScopes()->with(['category', 'branch', 'productPrices'])->findOrFail($id);
 
         // Security: Non-master cannot edit products belonging to other branches
         if (! $isMaster && (int) $product->branch_id !== (int) $user->branch_id) {
@@ -208,10 +207,6 @@ class ProductController extends Controller
         }
 
         $branches = $isMaster ? Branch::orderBy('name')->get() : collect([$product->branch]);
-        $allBranches = Branch::where('is_active', true)->orderBy('name')->get();
-        if ($allBranches->isEmpty()) {
-            $allBranches = Branch::orderBy('name')->get();
-        }
         $categories = $this->categoriesFor($product->branch, true);
         if ($product->category && ! $categories->contains('id', $product->category_id)) {
             $categories->prepend($product->category);
@@ -227,11 +222,11 @@ class ProductController extends Controller
             'isMaster' => $isMaster,
             'product' => $product,
             'branches' => $branches,
-            'allBranches' => $allBranches,
             'categories' => $categories,
             'customerGroups' => $customerGroups,
             'priceLevels' => $priceLevels,
             'showTaxField' => true,
+            'canEditMasterFields' => $user->can('manage-master-catalog'),
         ]);
     }
 
@@ -248,6 +243,10 @@ class ProductController extends Controller
         // Security: Non-master cannot edit products belonging to other branches
         if (! $isMaster && (int) $product->branch_id !== (int) $user->branch_id) {
             abort(403, 'Anda tidak memiliki otorisasi untuk mengubah produk cabang lain.');
+        }
+
+        if (! $user->can('manage-master-catalog')) {
+            return $this->updateBranchFields($request, $product);
         }
 
         $defaultPriceLevel = PriceLevel::where('is_default', true)->first();
@@ -276,27 +275,47 @@ class ProductController extends Controller
             'customer_group_prices.*' => ['nullable', 'numeric', 'min:0'],
             'group_prices' => ['nullable', 'array'],
             'group_prices.*' => ['nullable', 'numeric', 'min:0'],
-            'branch_prices' => ['nullable', 'array'],
-            'branch_prices.*' => ['nullable', 'numeric', 'min:0'],
         ];
 
         $validated = $request->validate($rules);
         $validated = $this->applyTaxFlag($request, $validated);
 
-        if (! $isMaster) {
-            $this->ensureCategoryMatchesBranch((int) $validated['category_id'], (int) $product->branch_id);
-        }
+        $synced = DB::transaction(function () use ($request, $product, $validated): array {
+            $previousSku = (string) $product->sku;
+            $this->masterCatalog->assertSkuAvailable($product, (string) $validated['sku']);
+
+            $this->productService->updateProduct($product, $validated);
+
+            // Sync tiered product prices (PriceLevel compatibility)
+            $this->syncProductPrices($product, $request->input('prices', []));
+
+            // Sync CustomerGroup tiered prices
+            $this->syncCustomerGroupPrices($product, $request->input('customer_group_prices', $request->input('group_prices', [])));
+
+            return $this->masterCatalog->syncToGroup($product->fresh(), $previousSku);
+        });
+
+        $branchCount = $synced['created'] + $synced['updated'];
+
+        return redirect()
+            ->route('backoffice.products.index')
+            ->with('success', "Data produk '{$product->name}' berhasil diperbarui dan disamakan ke {$branchCount} cabang lain dalam grupnya!");
+    }
+
+    /**
+     * Admin cabang hanya mengatur kategori, satuan, dan status pajak di cabangnya sendiri.
+     */
+    protected function updateBranchFields(Request $request, Product $product): RedirectResponse
+    {
+        $validated = $request->validate([
+            'category_id' => ['required', 'integer', 'exists:categories,id'],
+            'unit' => ['nullable', 'string', 'max:50'],
+        ]);
+        $validated = $this->applyTaxFlag($request, $validated);
+
+        $this->ensureCategoryMatchesBranch((int) $validated['category_id'], (int) $product->branch_id);
 
         $this->productService->updateProduct($product, $validated);
-
-        // Sync tiered product prices (PriceLevel compatibility)
-        $this->syncProductPrices($product, $request->input('prices', []));
-
-        // Sync CustomerGroup tiered prices
-        $this->syncCustomerGroupPrices($product, $request->input('customer_group_prices', $request->input('group_prices', [])));
-
-        // Sync Branch-level price overrides
-        $this->syncBranchPrices($product, $request->input('branch_prices', []));
 
         return redirect()
             ->route('backoffice.products.index')
@@ -314,31 +333,6 @@ class ProductController extends Controller
         $validated['is_taxable'] = ! $request->boolean('is_tax_exempt');
 
         return $validated;
-    }
-
-    /**
-     * Synchronize price overrides for branches.
-     */
-    protected function syncBranchPrices(Product $product, array $prices): void
-    {
-        foreach ($prices as $branchId => $price) {
-            $branchId = (int) $branchId;
-            if ($price !== null && $price !== '') {
-                ProductBranchPrice::updateOrCreate(
-                    [
-                        'product_id' => $product->id,
-                        'branch_id' => $branchId,
-                    ],
-                    [
-                        'price' => $price,
-                    ]
-                );
-            } else {
-                ProductBranchPrice::where('product_id', $product->id)
-                    ->where('branch_id', $branchId)
-                    ->delete();
-            }
-        }
     }
 
     /**

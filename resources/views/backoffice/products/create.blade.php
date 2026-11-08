@@ -164,6 +164,7 @@
                                     </option>
                                 @endforeach
                             </select>
+                            <p class="text-[11px] text-slate-400 mt-1">Produk otomatis didaftarkan ke semua cabang dalam grup yang sama. Stok awal hanya untuk cabang ini.</p>
                         @else
                             <input type="text" disabled value="{{ $currentUser->branch?->name }} ({{ $currentUser->branch?->code }})" class="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm text-slate-600">
                             <p class="text-[11px] text-slate-400 mt-1">Admin cabang otomatis terikat pada cabangnya sendiri.</p>
@@ -295,57 +296,6 @@
                                     </div>
                                     <p class="text-[10px] text-slate-400 mt-1">
                                         {{ $cg->notes ?? 'Harga khusus anggota grup ' . $cg->name }}
-                                    </p>
-                                </div>
-                            @endforeach
-                        </div>
-                    </div>
-                @endif
-
-                <!-- Section: Penetapan Harga Override Per Cabang (Branch-Level Pricing) -->
-                @if (isset($allBranches) && $allBranches->isNotEmpty())
-                    <div x-data="{ openBranchPrices: true }" class="rounded-2xl border border-indigo-200 bg-indigo-50/50 p-5">
-                        <div class="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
-                            <div>
-                                <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
-                                    <svg class="h-4 w-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-                                    </svg>
-                                    Harga Jual Per Cabang (Branch-Level Pricing)
-                                </h3>
-                                <p class="text-xs text-slate-500 mt-0.5">Tentukan harga jual spesifik untuk masing-masing cabang. Jika dikosongkan, kasir cabang otomatis menggunakan harga standar pusat.</p>
-                            </div>
-                            <span class="inline-flex self-start sm:self-auto items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-[11px] font-semibold text-indigo-800">
-                                Multi-Branch
-                            </span>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            @foreach ($allBranches as $b)
-                                <div class="rounded-xl border border-indigo-200 bg-white p-3.5 shadow-xs">
-                                    <div class="flex items-center justify-between mb-1.5">
-                                        <label for="branch_price_{{ $b->id }}" class="text-xs font-bold text-slate-800">
-                                            {{ $b->name }}
-                                        </label>
-                                        <span class="text-[10px] text-slate-400 font-mono">{{ $b->code }}</span>
-                                    </div>
-                                    <div class="relative mt-1">
-                                        <div class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                                            <span class="text-xs font-semibold text-slate-400">Rp</span>
-                                        </div>
-                                        <input
-                                            type="number"
-                                            step="any"
-                                            min="0"
-                                            id="branch_price_{{ $b->id }}"
-                                            name="branch_prices[{{ $b->id }}]"
-                                            value="{{ old("branch_prices.{$b->id}") }}"
-                                            placeholder="Sama dgn harga pusat"
-                                            class="w-full rounded-lg border border-slate-300 pl-9 pr-3 py-2 text-sm font-semibold text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
-                                        >
-                                    </div>
-                                    <p class="text-[10px] text-slate-400 mt-1">
-                                        Override harga untuk kasir {{ $b->name }}.
                                     </p>
                                 </div>
                             @endforeach

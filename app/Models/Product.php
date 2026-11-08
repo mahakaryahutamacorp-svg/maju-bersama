@@ -57,7 +57,6 @@ class Product extends Model
     {
         static::deleting(function (Product $product) {
             $product->productPrices()->delete();
-            $product->branchPrices()->delete();
         });
     }
 
@@ -117,11 +116,6 @@ class Product extends Model
     public function productPrices(): HasMany
     {
         return $this->hasMany(ProductPrice::class);
-    }
-
-    public function branchPrices(): HasMany
-    {
-        return $this->hasMany(ProductBranchPrice::class);
     }
 
     /**
@@ -214,30 +208,6 @@ class Product extends Model
 
             if ($productPrice !== null && $productPrice->price !== null) {
                 return $productPrice->price;
-            }
-        }
-
-        return $this->price;
-    }
-
-    /**
-     * Helper untuk mengambil harga khusus cabang (Branch-Level Pricing).
-     * Cari harga di product_branch_prices untuk $branchId tersebut.
-     * Jika tidak ada, fallback ke $this->price (harga standar pusat).
-     */
-    public function getPriceForBranch(?int $branchId = null): float|int|string
-    {
-        if ($branchId !== null) {
-            $branchPrice = null;
-
-            if ($this->relationLoaded('branchPrices')) {
-                $branchPrice = $this->branchPrices->firstWhere('branch_id', $branchId);
-            } else {
-                $branchPrice = $this->branchPrices()->where('branch_id', $branchId)->first();
-            }
-
-            if ($branchPrice !== null && $branchPrice->price !== null) {
-                return $branchPrice->price;
             }
         }
 

@@ -20,6 +20,8 @@ class MultiPricingWebTest extends TestCase
 
     private User $admin;
 
+    private User $master;
+
     private Category $category;
 
     protected function setUp(): void
@@ -34,6 +36,11 @@ class MultiPricingWebTest extends TestCase
         $this->admin = User::factory()->create([
             'branch_id' => $this->branch->id,
             'role' => 'admin',
+        ]);
+
+        $this->master = User::factory()->create([
+            'branch_id' => $this->branch->id,
+            'role' => 'master',
         ]);
 
         $this->category = Category::create([
@@ -108,7 +115,7 @@ class MultiPricingWebTest extends TestCase
         $groupPetani = CustomerGroup::firstOrCreate(['name' => 'Petani']);
         $groupRetailer = CustomerGroup::firstOrCreate(['name' => 'Retailer']);
 
-        $response = $this->actingAs($this->admin)->get(route('backoffice.products.create'));
+        $response = $this->actingAs($this->master)->get(route('backoffice.products.create'));
         $response->assertOk();
         $response->assertSee('Petani');
         $response->assertSee('Retailer');
@@ -136,7 +143,7 @@ class MultiPricingWebTest extends TestCase
         $groupRetailer = CustomerGroup::firstOrCreate(['name' => 'Retailer']);
 
         // 1. Simpan produk baru dengan harga khusus grup
-        $storeResponse = $this->actingAs($this->admin)->post(route('backoffice.products.store'), [
+        $storeResponse = $this->actingAs($this->master)->post(route('backoffice.products.store'), [
             'name' => 'Herbisida Gramoxone 1L',
             'sku' => 'HRB-001',
             'category_id' => $this->category->id,
@@ -172,7 +179,7 @@ class MultiPricingWebTest extends TestCase
         $this->assertEquals(75000, (float) $product->getPriceForGroup(null));
 
         // 2. Update harga khusus grup
-        $updateResponse = $this->actingAs($this->admin)->put(route('backoffice.products.update', $product->id), [
+        $updateResponse = $this->actingAs($this->master)->put(route('backoffice.products.update', $product->id), [
             'name' => 'Herbisida Gramoxone 1L Updated',
             'sku' => 'HRB-001',
             'category_id' => $this->category->id,

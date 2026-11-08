@@ -360,6 +360,23 @@ dari ledger.
 
 ---
 
+## ADR-020: Master Data Produk per Grup Cabang [2026-11-08]
+
+**Konteks:** Owner meminta nama produk, harga modal, dan harga jual sama di gudang, kantor, dan seluruh cabang. Sebelumnya setiap admin cabang dapat mengubah harga di cabangnya, dan ada harga khusus per cabang (`product_branch_prices`), sehingga harga antar cabang bisa berbeda.
+
+**Keputusan:**
+- Grup cabang = cabang induk teratas beserta seluruh turunannya (contoh: OFFICE-PUPUK dengan GUDANG-PUPUK dan semua CBG-*; PAKAN terpisah). Pupuk dan pakan tidak saling menyamakan.
+- Baris produk tetap per cabang dan terhubung lewat SKU. `MasterCatalogService::syncToGroup()` menyalin nama, SKU, harga modal, harga jual, serta harga bertingkat (`product_prices`) ke semua cabang dalam grup dan membuat produk di cabang yang belum memilikinya (stok 0).
+- Gate `manage-master-catalog` (khusus master) untuk membuat produk dan mengubah nama, SKU, harga modal, harga jual. Admin cabang hanya mengubah kategori, satuan, dan status pajak di cabangnya sendiri.
+- Harga khusus per cabang dihapus dari aplikasi; POS dan API memakai `selling_price`. Tabel `product_branch_prices` dibiarkan sebagai arsip.
+- `php artisan catalog:sync-master --source=KODE` menyamakan data lama dari satu cabang acuan per grup (simulasi secara bawaan, tulis dengan `--apply`).
+
+**Konsekuensi:**
+- Kasir tetap tidak melihat harga modal.
+- Produk di cabang lain yang SKU-nya tidak ada di cabang acuan tidak disentuh; perintah sinkronisasi hanya melaporkannya.
+
+---
+
 ## Standar Arsitektur & Fakta Proyek yang Stabil
 
 ### 1. Arsitektur Multi-Tenancy
@@ -384,7 +401,8 @@ dari ledger.
 | :--- | :---: | :---: | :---: |
 | **Kasir POS & Cetak Struk** | ✅ Akses Penuh | ✅ Akses Penuh | ✅ Akses Penuh |
 | **Katalog Stok Sendiri** | ❌ Terbatas | ✅ Akses Penuh | ✅ Lintas Cabang |
-| **Kelola Produk & Harga** | ❌ Ditolak | ✅ Cabang Sendiri | ✅ Bebas Pilih Cabang |
+| **Tambah Produk, Nama & Harga** | ❌ Ditolak | ❌ Ditolak | ✅ Berlaku ke Satu Grup Cabang |
+| **Kategori, Satuan & Status Pajak Produk** | ❌ Ditolak | ✅ Cabang Sendiri | ✅ Bebas Pilih Cabang |
 | **Kategori Produk** | ❌ Ditolak | ✅ Kelola (Read/Write) | ✅ Kelola (Read/Write) |
 | **Staf & Kasir Cabang** | ❌ Ditolak | ✅ Khusus Cabang Sendiri | ✅ Seluruh Cabang & Role |
 | **Penerimaan Barang Supplier**| ❌ Ditolak | ❌ Ditolak | ✅ Khusus Admin Pusat |

@@ -232,26 +232,28 @@ class MamaTaxTest extends TestCase
         $category = Category::create(['name' => 'Pestisida', 'catalog' => 'pupuk']);
         $warehouse = Branch::create(['code' => 'GUDANG-PUPUK', 'name' => 'Gudang']);
         $store = Branch::create(['code' => 'CBG-ABI', 'name' => 'ABI']);
-        $admin = User::factory()->create([
+        $master = User::factory()->create([
             'branch_id' => $warehouse->id,
-            'role' => 'branch_admin',
+            'role' => 'master',
         ]);
 
-        $this->actingAs($admin)->get(route('backoffice.products.create'))->assertSee('Non Pajak');
-        $this->actingAs($admin)->post(route('backoffice.products.store'), [
+        $this->actingAs($master)->get(route('backoffice.products.create'))->assertSee('Non Pajak');
+        $this->actingAs($master)->post(route('backoffice.products.store'), [
             'name' => 'Pupuk Termasuk Pajak',
             'sku' => 'PPK-1',
             'category_id' => $category->id,
+            'branch_id' => $warehouse->id,
             'purchase_price' => 1000,
             'selling_price' => 2000,
         ])->assertRedirect();
 
         $this->assertTrue((bool) Product::withoutGlobalScopes()->where('sku', 'PPK-1')->value('is_taxable'));
 
-        $this->actingAs($admin)->post(route('backoffice.products.store'), [
+        $this->actingAs($master)->post(route('backoffice.products.store'), [
             'name' => 'Benih Bebas Pajak',
             'sku' => 'BNH-1',
             'category_id' => $category->id,
+            'branch_id' => $warehouse->id,
             'purchase_price' => 1000,
             'selling_price' => 2000,
             'is_tax_exempt' => '1',
@@ -263,7 +265,24 @@ class MamaTaxTest extends TestCase
             'branch_id' => $store->id,
             'role' => 'branch_admin',
         ]);
-        $this->actingAs($storeAdmin)->get(route('backoffice.products.create'))->assertSee('Non Pajak');
+        $storeProduct = Product::withoutGlobalScopes()->create([
+            'branch_id' => $store->id,
+            'category_id' => $category->id,
+            'sku' => 'ABI-1',
+            'name' => 'Pupuk Toko',
+            'purchase_price' => 1000,
+            'selling_price' => 2000,
+            'is_taxable' => true,
+        ]);
+
+        $this->actingAs($storeAdmin)->get(route('backoffice.products.edit', $storeProduct->id))->assertSee('Non Pajak');
+        $this->actingAs($storeAdmin)->put(route('backoffice.products.update', $storeProduct->id), [
+            'category_id' => $category->id,
+            'unit' => 'pcs',
+            'is_tax_exempt' => '1',
+        ])->assertRedirect();
+
+        $this->assertFalse((bool) $storeProduct->fresh()->is_taxable);
     }
 
     /**

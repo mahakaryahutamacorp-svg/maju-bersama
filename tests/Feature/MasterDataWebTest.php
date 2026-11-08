@@ -116,9 +116,23 @@ class MasterDataWebTest extends TestCase
         $response->assertDontSee('Benih Jagung Manis 500g');
     }
 
-    public function test_branch_admin_can_create_product_with_auto_generated_sku_when_empty(): void
+    public function test_branch_admin_cannot_create_product(): void
     {
-        $response = $this->actingAs($this->adminA)->post(route('backoffice.products.store'), [
+        $this->actingAs($this->adminA)->get(route('backoffice.products.create'))->assertForbidden();
+
+        $this->actingAs($this->adminA)->post(route('backoffice.products.store'), [
+            'name' => 'Pupuk Hayati Organik',
+            'category_id' => $this->categoryPupuk->id,
+            'purchase_price' => 30000,
+            'selling_price' => 42000,
+        ])->assertForbidden();
+
+        $this->assertDatabaseMissing('products', ['name' => 'Pupuk Hayati Organik']);
+    }
+
+    public function test_master_can_create_product_with_auto_generated_sku_when_empty(): void
+    {
+        $response = $this->actingAs($this->masterUser)->post(route('backoffice.products.store'), [
             'name' => 'Pupuk Hayati Organik',
             'sku' => '', // Empty SKU to trigger auto-generation
             'category_id' => $this->categoryPupuk->id,

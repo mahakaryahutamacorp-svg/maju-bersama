@@ -151,7 +151,7 @@ class MultiPriceTest extends TestCase
         $category = Category::create(['name' => 'General']);
         $admin = User::factory()->create([
             'branch_id' => $branch->id,
-            'role' => 'admin',
+            'role' => 'master',
         ]);
 
         $createResponse = $this->actingAs($admin)->get(route('backoffice.products.create'));
@@ -184,7 +184,7 @@ class MultiPriceTest extends TestCase
         $category = Category::create(['name' => 'General']);
         $admin = User::factory()->create([
             'branch_id' => $branch->id,
-            'role' => 'admin',
+            'role' => 'master',
         ]);
 
         $eceran = PriceLevel::where('name', 'Harga Eceran')->first();
@@ -240,7 +240,7 @@ class MultiPriceTest extends TestCase
         $category = Category::create(['name' => 'General']);
         $admin = User::factory()->create([
             'branch_id' => $branch->id,
-            'role' => 'admin',
+            'role' => 'master',
         ]);
 
         $eceran = PriceLevel::where('name', 'Harga Eceran')->first();

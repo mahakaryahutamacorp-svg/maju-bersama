@@ -7,17 +7,22 @@ use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\UpdateProductRequest;
 use App\Models\Customer;
 use App\Models\Product;
+use App\Services\MasterCatalogService;
 use App\Services\ProductService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class ProductController extends Controller
 {
     protected ProductService $productService;
 
-    public function __construct(ProductService $productService)
+    protected MasterCatalogService $masterCatalog;
+
+    public function __construct(ProductService $productService, MasterCatalogService $masterCatalog)
     {
         $this->productService = $productService;
+        $this->masterCatalog = $masterCatalog;
     }
 
     /**
@@ -38,7 +43,7 @@ class ProductController extends Controller
         $branchId = $request->user()?->branch_id ?? $request->input('branch_id');
         $search = $request->input('search') ?? $request->input('q');
 
-        $query = Product::with(['category', 'branch', 'productPrices', 'branchPrices']);
+        $query = Product::with(['category', 'branch', 'productPrices']);
 
         $requestedBranchId = $request->input('branch_id');
         if ($requestedBranchId) {
@@ -80,8 +85,8 @@ class ProductController extends Controller
 
         $hideTax = (bool) $request->user()?->isCashier();
 
-        $products = $products->map(function (Product $product) use ($customerGroupId, $branchId, $otherStockMap, $hideTax) {
-            $basePrice = (float) $product->getPriceForBranch($branchId);
+        $products = $products->map(function (Product $product) use ($customerGroupId, $otherStockMap, $hideTax) {
+            $basePrice = (float) $product->selling_price;
             $product->base_price = $basePrice;
             $product->original_selling_price = $basePrice;
 
@@ -114,10 +119,15 @@ class ProductController extends Controller
      */
     public function store(StoreProductRequest $request): JsonResponse
     {
-        $product = $this->productService->createProduct(
-            $request->validated(),
-            $request->user()->branch_id
-        );
+        $product = DB::transaction(function () use ($request): Product {
+            $product = $this->productService->createProduct(
+                $request->validated(),
+                $request->user()->branch_id
+            );
+            $this->masterCatalog->syncToGroup($product);
+
+            return $product;
+        });
 
         return response()->json([
             'message' => 'Product created successfully.',
@@ -132,10 +142,10 @@ class ProductController extends Controller
      */
     public function show(Request $request, Product $product): JsonResponse
     {
-        $product->load(['category', 'branch', 'productPrices', 'branchPrices']);
+        $product->load(['category', 'branch', 'productPrices']);
 
         $branchId = $request->user()?->branch_id ?? $request->input('branch_id');
-        $basePrice = (float) $product->getPriceForBranch($branchId);
+        $basePrice = (float) $product->selling_price;
         $product->base_price = $basePrice;
         $product->original_selling_price = $basePrice;
 
@@ -178,12 +188,12 @@ class ProductController extends Controller
      */
     public function byBarcode(Request $request, string $barcode): JsonResponse
     {
-        $product = Product::with(['category', 'branch', 'productPrices', 'branchPrices'])
+        $product = Product::with(['category', 'branch', 'productPrices'])
             ->where('sku', $barcode)
             ->firstOrFail();
 
         $branchId = $request->user()?->branch_id ?? $request->input('branch_id');
-        $basePrice = (float) $product->getPriceForBranch($branchId);
+        $basePrice = (float) $product->selling_price;
         $product->base_price = $basePrice;
         $product->original_selling_price = $basePrice;
 
@@ -227,10 +237,22 @@ class ProductController extends Controller
      */
     public function update(UpdateProductRequest $request, Product $product): JsonResponse
     {
-        $updatedProduct = $this->productService->updateProduct(
-            $product,
-            $request->validated()
-        );
+        $validated = $request->validated();
+
+        $updatedProduct = DB::transaction(function () use ($request, $product, $validated): Product {
+            $previousSku = (string) $product->sku;
+            if (isset($validated['sku'])) {
+                $this->masterCatalog->assertSkuAvailable($product, (string) $validated['sku']);
+            }
+
+            $updatedProduct = $this->productService->updateProduct($product, $validated);
+
+            if ($request->user()->can('manage-master-catalog')) {
+                $this->masterCatalog->syncToGroup($updatedProduct, $previousSku);
+            }
+
+            return $updatedProduct;
+        });
 
         return response()->json([
             'message' => 'Product updated successfully.',
