@@ -34,7 +34,11 @@
                 </span>
             </div>
 
-            @if ($canEditMasterFields)
+            @if ($editsSourceFromBranch)
+                <div class="mb-6 rounded-xl border border-sky-200 bg-sky-50 p-4 text-xs text-sky-800">
+                    Anda mengedit sebagai owner dari cabang {{ $product->branch?->name }}. Perubahan nama, SKU, harga beli, dan harga jual diterapkan ke cabang acuan {{ $sourceBranch?->name }} ({{ $sourceBranch?->code }}) lalu disamakan ke semua cabang. Kategori, satuan, pajak, dan koreksi stok hanya berlaku untuk cabang ini.
+                </div>
+            @elseif ($canEditMasterFields)
                 <div class="mb-6 rounded-xl border border-sky-200 bg-sky-50 p-4 text-xs text-sky-800">
                     Nama, SKU, harga beli, dan harga jual yang Anda simpan akan disamakan ke semua cabang dalam grup yang sama.
                 </div>
@@ -255,6 +259,39 @@
                                 </div>
                             @endforeach
                         </div>
+                    </div>
+                @endif
+
+                @if ($canCorrectStock)
+                    <div class="rounded-2xl border border-violet-200 bg-violet-50/60 p-5">
+                        <div class="mb-4">
+                            <h3 class="text-sm font-bold text-slate-900">Koreksi Stok Cepat (Owner)</h3>
+                            <p class="mt-0.5 text-xs text-slate-500">
+                                Stok sistem di {{ $product->branch?->name }} saat ini <b>{{ number_format($currentStock, 0, ',', '.') }}</b>. Isi jumlah fisik yang benar untuk mengoreksinya; kosongkan bila stok tidak diubah.
+                            </p>
+                        </div>
+                        <div class="grid gap-4 sm:grid-cols-3">
+                            <div>
+                                <label for="stock_actual" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Stok Fisik</label>
+                                <input type="number" min="0" step="1" id="stock_actual" name="stock_actual" value="{{ old('stock_actual') }}" placeholder="{{ $currentStock }}" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500">
+                            </div>
+                            <div>
+                                <label for="stock_reason" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Jenis Koreksi</label>
+                                <select id="stock_reason" name="stock_reason" class="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500">
+                                    <option value="correction" @selected(old('stock_reason', 'correction') === 'correction')>Selisih stok (opname)</option>
+                                    <option value="opening" @selected(old('stock_reason') === 'opening')>Stok awal</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="stock_note" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Catatan</label>
+                                <input type="text" id="stock_note" name="stock_note" value="{{ old('stock_note') }}" maxlength="255" placeholder="Opsional" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500">
+                            </div>
+                        </div>
+                        <p class="mt-3 text-[11px] text-slate-500">
+                            Koreksi dicatat sebagai dokumen penyesuaian stok di Kartu Stok dengan jurnal otomatis senilai selisih × harga beli:
+                            selisih lebih Dr 1210 Persediaan / Cr 4120 Pendapatan Lain-lain, selisih kurang Dr 5120 Beban Selisih Persediaan / Cr 1210 Persediaan.
+                            Untuk stok awal, kreditnya 3110 Modal Awal, atau tanpa jurnal bila persediaan cabang sudah ada di Saldo Awal.
+                        </p>
                     </div>
                 @endif
 

@@ -9,12 +9,16 @@ use App\Models\CustomerGroup;
 use App\Models\PriceLevel;
 use App\Models\Product;
 use App\Models\ProductPrice;
+use App\Models\StockAdjustment;
 use App\Models\User;
 use App\Services\MasterCatalogService;
+use App\Services\OpeningBalanceService;
 use App\Services\ProductService;
+use App\Services\StockAdjustmentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -26,6 +30,7 @@ class ProductController extends Controller
     public function __construct(
         protected ProductService $productService,
         protected MasterCatalogService $masterCatalog,
+        protected StockAdjustmentService $stockAdjustmentService,
     ) {}
 
     /**
@@ -223,6 +228,7 @@ class ProductController extends Controller
             ->orderBy('id')
             ->get();
         $sourceProduct = $this->masterCatalog->sourceProductFor($product);
+        $masterFieldsTarget = $this->masterFieldsTarget($user, $product);
 
         return view('backoffice.products.edit', [
             'currentUser' => $user,
@@ -233,7 +239,10 @@ class ProductController extends Controller
             'customerGroups' => $customerGroups,
             'priceLevels' => $priceLevels,
             'showTaxField' => true,
-            'canEditMasterFields' => $this->masterCatalog->canManageMasterFieldsIn($user, (int) $product->branch_id),
+            'canEditMasterFields' => $masterFieldsTarget !== null,
+            'editsSourceFromBranch' => $masterFieldsTarget !== null && $masterFieldsTarget->isNot($product),
+            'canCorrectStock' => $isMaster,
+            'currentStock' => $product->availableQuantity(),
             'sourceBranch' => $this->masterCatalog->followsSource((int) $product->branch_id)
                 ? $this->masterCatalog->sourceBranch((int) $product->branch_id)
                 : null,
@@ -258,7 +267,8 @@ class ProductController extends Controller
             abort(403, 'Anda tidak memiliki otorisasi untuk mengubah produk cabang lain.');
         }
 
-        if (! $this->masterCatalog->canManageMasterFieldsIn($user, (int) $product->branch_id)) {
+        $target = $this->masterFieldsTarget($user, $product);
+        if ($target === null) {
             return $this->updateBranchFields($request, $product);
         }
 
@@ -288,31 +298,111 @@ class ProductController extends Controller
             'customer_group_prices.*' => ['nullable', 'numeric', 'min:0'],
             'group_prices' => ['nullable', 'array'],
             'group_prices.*' => ['nullable', 'numeric', 'min:0'],
+            ...$this->stockCorrectionRules($user),
         ];
 
         $validated = $request->validate($rules);
         $validated = $this->applyTaxFlag($request, $validated);
 
-        $synced = DB::transaction(function () use ($request, $product, $validated): array {
-            $previousSku = (string) $product->sku;
-            $this->masterCatalog->assertSkuAvailable($product, (string) $validated['sku']);
+        [$synced, $adjustment] = DB::transaction(function () use ($request, $product, $target, $validated, $user): array {
+            $previousSku = (string) $target->sku;
+            $this->masterCatalog->assertSkuAvailable($target, (string) $validated['sku']);
 
-            $this->productService->updateProduct($product, $validated);
+            $this->productService->updateProduct(
+                $target,
+                $target->is($product) ? $validated : Arr::only($validated, MasterCatalogService::MASTER_FIELDS),
+            );
 
             // Sync tiered product prices (PriceLevel compatibility)
-            $this->syncProductPrices($product, $request->input('prices', []));
+            $this->syncProductPrices($target, $request->input('prices', []));
 
             // Sync CustomerGroup tiered prices
-            $this->syncCustomerGroupPrices($product, $request->input('customer_group_prices', $request->input('group_prices', [])));
+            $this->syncCustomerGroupPrices($target, $request->input('customer_group_prices', $request->input('group_prices', [])));
 
-            return $this->masterCatalog->syncToGroup($product->fresh(), $previousSku);
+            $synced = $this->masterCatalog->syncToGroup($target->fresh(), $previousSku);
+
+            if ($target->isNot($product)) {
+                $this->productService->updateProduct($product->fresh(), Arr::only($validated, ['category_id', 'unit', 'is_taxable']));
+            }
+
+            return [$synced, $this->correctStock($product->fresh(), $validated, $user)];
         });
 
         $branchCount = $synced['created'] + $synced['updated'];
 
         return redirect()
             ->route('backoffice.products.index')
-            ->with('success', "Data produk '{$product->name}' berhasil diperbarui dan disamakan ke {$branchCount} cabang lain dalam grupnya!");
+            ->with('success', "Data produk '{$product->name}' berhasil diperbarui dan disamakan ke {$branchCount} cabang lain dalam grupnya!".$this->stockCorrectionMessage($adjustment));
+    }
+
+    /**
+     * The row whose master fields $user changes when editing $product: the row itself, or for
+     * the owner editing a branch that follows a source branch, the matching source row.
+     */
+    private function masterFieldsTarget(User $user, Product $product): ?Product
+    {
+        if ($this->masterCatalog->canManageMasterFieldsIn($user, (int) $product->branch_id)) {
+            return $product;
+        }
+
+        return $user->isMaster() ? $this->masterCatalog->sourceProductFor($product) : null;
+    }
+
+    /**
+     * @return array<string, list<string>>
+     */
+    private function stockCorrectionRules(User $user): array
+    {
+        if (! $user->isMaster()) {
+            return [];
+        }
+
+        return [
+            'stock_actual' => ['nullable', 'integer', 'min:0'],
+            'stock_reason' => ['nullable', 'in:correction,opening'],
+            'stock_note' => ['nullable', 'string', 'max:255'],
+        ];
+    }
+
+    /**
+     * Owner-only quick fix: sets the branch stock to the counted quantity through a stock
+     * adjustment document, so the stock card and journal follow automatically.
+     *
+     * @param  array<string, mixed>  $validated
+     */
+    private function correctStock(Product $product, array $validated, User $user): ?StockAdjustment
+    {
+        if (! $user->isMaster() || ! isset($validated['stock_actual'])) {
+            return null;
+        }
+
+        $actualQuantity = (int) $validated['stock_actual'];
+        if ($actualQuantity === $product->availableQuantity()) {
+            return null;
+        }
+
+        $isOpeningStock = ($validated['stock_reason'] ?? 'correction') === 'opening';
+        $notes = trim(($isOpeningStock ? StockAdjustmentService::OPENING_STOCK_NOTE : 'Koreksi stok oleh owner').' '.($validated['stock_note'] ?? ''));
+
+        return $this->stockAdjustmentService->processAdjustment([
+            'branch_id' => $product->branch_id,
+            'date' => now()->toDateString(),
+            'notes' => $notes,
+            'is_opening_stock' => $isOpeningStock,
+            'record_journal' => ! $isOpeningStock || ! OpeningBalanceService::hasInventoryInOpeningBalance((int) $product->branch_id),
+        ], [['product_id' => $product->id, 'actual_qty' => $actualQuantity, 'reason' => $notes]], $user);
+    }
+
+    private function stockCorrectionMessage(?StockAdjustment $adjustment): string
+    {
+        if ($adjustment === null) {
+            return '';
+        }
+
+        $line = $adjustment->lines->first();
+
+        return " Stok dikoreksi {$line?->system_qty} → {$line?->actual_qty} (dokumen #{$adjustment->reference_number}"
+            .($adjustment->journal_header_id ? ', jurnal otomatis dibuat' : '').').';
     }
 
     /**
@@ -320,19 +410,25 @@ class ProductController extends Controller
      */
     protected function updateBranchFields(Request $request, Product $product): RedirectResponse
     {
+        $user = $request->user();
         $validated = $request->validate([
             'category_id' => ['required', 'integer', 'exists:categories,id'],
             'unit' => ['nullable', 'string', 'max:50'],
+            ...$this->stockCorrectionRules($user),
         ]);
         $validated = $this->applyTaxFlag($request, $validated);
 
         $this->ensureCategoryMatchesBranch((int) $validated['category_id'], (int) $product->branch_id);
 
-        $this->productService->updateProduct($product, $validated);
+        $adjustment = DB::transaction(function () use ($product, $validated, $user): ?StockAdjustment {
+            $this->productService->updateProduct($product, Arr::only($validated, ['category_id', 'unit', 'is_taxable']));
+
+            return $this->correctStock($product->fresh(), $validated, $user);
+        });
 
         return redirect()
             ->route('backoffice.products.index')
-            ->with('success', "Data produk '{$product->name}' berhasil diperbarui!");
+            ->with('success', "Data produk '{$product->name}' berhasil diperbarui!".$this->stockCorrectionMessage($adjustment));
     }
 
     /**

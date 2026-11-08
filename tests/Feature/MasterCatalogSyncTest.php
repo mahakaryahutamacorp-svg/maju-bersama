@@ -5,9 +5,11 @@ namespace Tests\Feature;
 use App\Models\Branch;
 use App\Models\Category;
 use App\Models\CustomerGroup;
+use App\Models\Inventory;
 use App\Models\Product;
 use App\Models\ProductPrice;
 use App\Models\Sale;
+use App\Models\StockAdjustment;
 use App\Models\User;
 use Tests\TestCase;
 
@@ -158,30 +160,92 @@ class MasterCatalogSyncTest extends TestCase
         $this->assertTrue($warehouseProduct->fresh()->is_taxable);
     }
 
-    public function test_store_rows_follow_the_warehouse_even_when_master_edits_them(): void
+    public function test_owner_quick_edit_from_a_store_updates_the_warehouse_and_every_branch(): void
     {
         $warehouseProduct = $this->makeProduct($this->warehouse, 'TSP-1', 'TSP 50kg', 5000, 7000);
         $storeProduct = $this->makeProduct($this->store, 'TSP-1', 'TSP 50kg', 5000, 7000);
 
         $this->actingAs($this->master)->get(route('backoffice.products.edit', $storeProduct->id))
             ->assertOk()
-            ->assertSee('mengikuti cabang acuan', false)
-            ->assertSee(route('backoffice.products.edit', $warehouseProduct->id), false);
+            ->assertSee('Anda mengedit sebagai owner', false)
+            ->assertSee('Koreksi Stok Cepat (Owner)');
 
         $this->actingAs($this->master)->put(route('backoffice.products.update', $storeProduct->id), [
-            'name' => 'Diubah Dari Toko',
+            'name' => 'TSP Super 50kg',
             'sku' => 'TSP-1',
             'category_id' => $this->category->id,
             'unit' => 'sak',
-            'purchase_price' => 1,
-            'selling_price' => 1,
+            'purchase_price' => 5500,
+            'selling_price' => 7500,
         ])->assertRedirect(route('backoffice.products.index'));
 
-        $this->assertSame('TSP 50kg', $storeProduct->fresh()->name);
-        $this->assertEquals(7000, (float) $storeProduct->fresh()->selling_price);
+        foreach ([$warehouseProduct, $storeProduct, $this->productIn($this->office, 'TSP-1')] as $product) {
+            $product = $product->fresh();
+            $this->assertSame('TSP Super 50kg', $product->name);
+            $this->assertEquals(5500, (float) $product->purchase_price);
+            $this->assertEquals(7500, (float) $product->selling_price);
+        }
         $this->assertSame('sak', $storeProduct->fresh()->unit);
-        $this->assertSame('TSP 50kg', $warehouseProduct->fresh()->name);
-        $this->assertEquals(7000, (float) $warehouseProduct->fresh()->selling_price);
+        $this->assertSame('pcs', $warehouseProduct->fresh()->unit);
+        $this->assertSame(10, $warehouseProduct->fresh()->stock);
+        $this->assertSame(10, $storeProduct->fresh()->stock);
+    }
+
+    public function test_owner_stock_correction_posts_a_stock_document_and_journal(): void
+    {
+        $storeProduct = $this->makeProduct($this->store, 'KCL-9', 'KCL 50kg', 4000, 6000);
+        Inventory::withoutGlobalScopes()->create(['branch_id' => $this->store->id, 'product_id' => $storeProduct->id, 'quantity' => 10]);
+        $payload = [
+            'name' => 'KCL 50kg',
+            'sku' => 'KCL-9',
+            'category_id' => $this->category->id,
+            'purchase_price' => 4000,
+            'selling_price' => 6000,
+        ];
+
+        $this->actingAs($this->master)->put(route('backoffice.products.update', $storeProduct->id), [
+            ...$payload,
+            'stock_actual' => 7,
+            'stock_note' => 'Hitung ulang',
+        ])->assertSessionHas('success', fn (string $message) => str_contains($message, 'Stok dikoreksi 10 → 7'));
+
+        $loss = StockAdjustment::latest('id')->firstOrFail();
+        $this->assertSame('Koreksi stok oleh owner Hitung ulang', $loss->notes);
+        $this->assertEquals(12000, (float) $loss->total_loss_value);
+        $this->assertSame(['5120' => 12000.0, '1210' => -12000.0], $this->journalNet($loss));
+        $this->assertSame(7, $storeProduct->fresh()->stock);
+
+        $this->actingAs($this->master)->put(route('backoffice.products.update', $storeProduct->id), [
+            ...$payload,
+            'stock_actual' => 9,
+            'stock_reason' => 'opening',
+        ])->assertRedirect(route('backoffice.products.index'));
+
+        $gain = StockAdjustment::latest('id')->firstOrFail();
+        $this->assertSame('Input Stok Awal', $gain->notes);
+        $this->assertSame(['1210' => 8000.0, '3110' => -8000.0], $this->journalNet($gain));
+        $this->assertSame(9, (int) Inventory::withoutGlobalScopes()->where('product_id', $storeProduct->id)->value('quantity'));
+
+        $this->actingAs($this->master)->put(route('backoffice.products.update', $storeProduct->id), [...$payload, 'stock_actual' => 9]);
+        $this->assertSame(2, StockAdjustment::count());
+    }
+
+    public function test_branch_admin_cannot_correct_stock_from_the_product_form(): void
+    {
+        $admin = User::factory()->create(['branch_id' => $this->store->id, 'role' => 'branch_admin']);
+        $storeProduct = $this->makeProduct($this->store, 'ZA-9', 'ZA', 1000, 1500);
+
+        $this->actingAs($admin)->get(route('backoffice.products.edit', $storeProduct->id))
+            ->assertOk()
+            ->assertDontSee('Koreksi Stok Cepat');
+
+        $this->actingAs($admin)->put(route('backoffice.products.update', $storeProduct->id), [
+            'category_id' => $this->category->id,
+            'stock_actual' => 99,
+        ])->assertRedirect(route('backoffice.products.index'));
+
+        $this->assertSame(10, $storeProduct->fresh()->stock);
+        $this->assertSame(0, StockAdjustment::count());
     }
 
     public function test_warehouse_admin_creates_and_edits_products_for_every_branch_of_the_group(): void
@@ -490,6 +554,16 @@ class MasterCatalogSyncTest extends TestCase
             'stock' => 10,
             'is_taxable' => true,
         ]);
+    }
+
+    /**
+     * @return array<string, float> debit minus credit per account code
+     */
+    private function journalNet(StockAdjustment $adjustment): array
+    {
+        return $adjustment->journal->journalLines()->with('chartOfAccount')->get()
+            ->mapWithKeys(fn ($line) => [$line->chartOfAccount->code => (float) $line->debit - (float) $line->credit])
+            ->all();
     }
 
     private function productIn(Branch $branch, string $sku): Product

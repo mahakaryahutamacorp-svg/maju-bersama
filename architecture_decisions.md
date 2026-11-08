@@ -375,7 +375,9 @@ dari ledger.
   - `php artisan catalog:held-products` menampilkan produk yang diarsipkan. `--purge` menghapus permanen produk yang tidak punya riwayat transaksi, stok opname, HPP, atau jurnal. Produk yang punya riwayat tetap diarsipkan.
 
 - **Cabang acuan (pembaruan 2026-11-08):** `MasterCatalogService::SOURCE_BRANCH_CODES` (saat ini `GUDANG-PUPUK`) menjadikan satu cabang sebagai sumber tunggal grupnya.
-  - Produk grup pupuk hanya bisa ditambahkan, diubah nama/SKU/harganya, dan dihapus dari Gudang Pupuk, oleh master atau admin Gudang Pupuk. Cabang pupuk lain mengikuti otomatis; master pun tidak bisa mengubah empat kolom itu dari baris cabang.
+  - Produk grup pupuk hanya bisa ditambahkan, diubah nama/SKU/harganya, dan dihapus dari Gudang Pupuk, oleh master atau admin Gudang Pupuk. Cabang pupuk lain mengikuti otomatis.
+  - Edit cepat owner: master yang mengedit produk dari baris cabang mana pun menulis nama/SKU/harga ke baris Gudang Pupuk lalu menyamakannya ke semua cabang; kategori, satuan, dan pajak tetap untuk baris cabang itu.
+  - Koreksi stok owner di form edit produk (khusus master) membuat dokumen penyesuaian stok lewat `StockAdjustmentService`, sehingga Kartu Stok dan jurnal (Dr/Cr 1210 dengan 4120 atau 5120; stok awal ke 3110 atau tanpa jurnal bila persediaan sudah di Saldo Awal) mengikuti otomatis.
   - Menghapus produk di Gudang Pupuk ikut menyembunyikan (soft delete) baris ber-SKU sama di semua cabang pupuk. Stok, inventori, dan harga bertingkat cabang tidak diubah.
   - Produk baru dari Gudang Pupuk memulihkan baris cabang yang diarsipkan dengan SKU sama, termasuk stoknya.
   - Cabang baru (atau cabang yang induknya dipindah) ke grup yang memiliki cabang acuan langsung menerima semua produk aktif cabang acuan beserta harga bertingkatnya, dengan stok 0, lewat `MasterCatalogService::seedBranchFromSource()`. Admin cabang itu bisa langsung memakai Input Stok Awal.
