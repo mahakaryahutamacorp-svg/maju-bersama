@@ -32,6 +32,10 @@ class StockAdjustmentService
 
     public const ACCOUNT_REVENUE_ADJUSTMENT = '4120';
 
+    public const ACCOUNT_OPENING_EQUITY = '3110';
+
+    public const OPENING_STOCK_NOTE = 'Input Stok Awal';
+
     public function __construct(
         protected ?JournalEntryService $journalEntryService = null
     ) {
@@ -41,6 +45,9 @@ class StockAdjustmentService
     /**
      * Process stock adjustment atomically.
      * Supports both processAdjustment($data, $lines) and processAdjustment($data, $actor).
+     *
+     * $data['is_opening_stock'] credits surplus to 3110 Modal Awal instead of 4120.
+     * $data['record_journal'] = false updates stock and documents without a journal.
      *
      * @throws ValidationException
      */
@@ -190,13 +197,16 @@ class StockAdjustmentService
             }
 
             // Langkah C: Buat Jurnal Ganda Otomatis via JournalEntryService
-            $this->recordJournal(
-                $adjustment,
-                $branch->id,
-                $actor?->id ?? auth()->id() ?? User::value('id'),
-                $totalLossValue,
-                $totalGainValue
-            );
+            if ($data['record_journal'] ?? true) {
+                $this->recordJournal(
+                    $adjustment,
+                    $branch->id,
+                    $actor?->id ?? auth()->id() ?? User::value('id'),
+                    $totalLossValue,
+                    $totalGainValue,
+                    (bool) ($data['is_opening_stock'] ?? false)
+                );
+            }
 
             return $adjustment->load(['lines.product', 'items.product', 'branch', 'journal']);
         });
@@ -280,14 +290,15 @@ class StockAdjustmentService
      *
      * If Gain > 0 (Surplus):
      *   Dr. 1210 Persediaan
-     *     Cr. 4120 Pendapatan Lain-lain
+     *     Cr. 4120 Pendapatan Lain-lain (opname) / 3110 Modal Awal (input stok awal)
      */
     private function recordJournal(
         StockAdjustment $adjustment,
         int $branchId,
         int $actorId,
         string $totalLossValue,
-        string $totalGainValue
+        string $totalGainValue,
+        bool $isOpeningStock = false
     ): void {
         $hasLoss = bccomp($totalLossValue, '0.00', 2) > 0;
         $hasGain = bccomp($totalGainValue, '0.00', 2) > 0;
@@ -298,7 +309,9 @@ class StockAdjustmentService
 
         $inventoryAccount = $this->resolveAccount(self::ACCOUNT_INVENTORY, 'Persediaan', 'asset');
         $expenseAccount = $this->resolveAccount(self::ACCOUNT_EXPENSE_ADJUSTMENT, 'Beban Selisih Persediaan', 'expense');
-        $revenueAccount = $this->resolveAccount(self::ACCOUNT_REVENUE_ADJUSTMENT, 'Pendapatan Lain-lain', 'revenue');
+        $revenueAccount = $isOpeningStock
+            ? $this->resolveAccount(self::ACCOUNT_OPENING_EQUITY, 'Modal Awal', 'equity')
+            : $this->resolveAccount(self::ACCOUNT_REVENUE_ADJUSTMENT, 'Pendapatan Lain-lain', 'revenue');
 
         $journalLines = [];
 
@@ -325,18 +338,21 @@ class StockAdjustmentService
                 'chart_of_account_id' => $inventoryAccount->id,
                 'debit' => (float) $totalGainValue,
                 'credit' => 0,
-                'memo' => 'Penambahan persediaan fisik opname',
+                'memo' => $isOpeningStock ? 'Persediaan awal hasil hitung fisik' : 'Penambahan persediaan fisik opname',
             ];
 
             $journalLines[] = [
                 'chart_of_account_id' => $revenueAccount->id,
                 'debit' => 0,
                 'credit' => (float) $totalGainValue,
-                'memo' => 'Pendapatan selisih lebih opname persediaan',
+                'memo' => $isOpeningStock ? 'Modal awal berupa persediaan barang' : 'Pendapatan selisih lebih opname persediaan',
             ];
         }
 
-        $description = "Penyesuaian Stok (Opname) #{$adjustment->reference_number}".($adjustment->notes ? " - {$adjustment->notes}" : '');
+        // Jangan memakai frasa "Saldo Awal": OpeningBalanceService menganggapnya jurnal saldo awal cabang.
+        $title = $isOpeningStock ? self::OPENING_STOCK_NOTE : 'Penyesuaian Stok (Opname)';
+        $notes = $adjustment->notes && $adjustment->notes !== self::OPENING_STOCK_NOTE ? " - {$adjustment->notes}" : '';
+        $description = "{$title} #{$adjustment->reference_number}{$notes}";
 
         $journal = $this->journalEntryService->createEntry([
             'branch_id' => $branchId,

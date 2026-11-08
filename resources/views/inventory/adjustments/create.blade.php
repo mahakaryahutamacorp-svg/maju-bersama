@@ -101,7 +101,7 @@
                         <div class="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
                             <div>
                                 <h3 class="text-sm font-bold text-slate-900">Pilih Produk Yang Diperiksa</h3>
-                                <p class="text-xs text-slate-500">Cari berdasarkan SKU atau Nama Produk untuk dimasukkan ke tabel audit.</p>
+                                <p class="text-xs text-slate-500">Ketik sebagian nama, SKU, atau kategori. Urutan kata bebas dan salah ketik kecil tetap ditemukan.</p>
                             </div>
                             <button 
                                 type="button" 
@@ -123,29 +123,48 @@
                             </div>
                             <input 
                                 type="text" 
+                                x-ref="productSearch"
                                 x-model="searchQuery" 
+                                @input="activeIndex = 0; showDropdown = true"
                                 @keydown.escape="showDropdown = false"
+                                @keydown.arrow-down.prevent="moveActive(1)"
+                                @keydown.arrow-up.prevent="moveActive(-1)"
+                                @keydown.enter.prevent="selectActive()"
                                 @focus="showDropdown = true"
-                                placeholder="Ketik nama atau SKU produk (misal: Minyak, Beras, PRD-001)..." 
+                                autocomplete="off"
+                                placeholder="Ketik nama, SKU, atau kategori (misal: roundup 1 liter, PST-001)..." 
                                 class="block w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-4 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                             >
+
+                            <div
+                                x-show="showDropdown && searchQuery.trim() !== '' && filteredProducts.length === 0"
+                                class="absolute z-20 mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-500 shadow-xl"
+                            >
+                                Produk "<span class="font-semibold text-slate-700" x-text="searchQuery"></span>" tidak ditemukan.
+                            </div>
 
                             <!-- Dropdown List Hasil Pencarian -->
                             <div 
                                 x-show="showDropdown && filteredProducts.length > 0" 
                                 @click.away="showDropdown = false"
-                                class="absolute z-20 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
+                                class="absolute z-20 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
                             >
-                                <template x-for="product in filteredProducts" :key="product.id">
+                                <template x-for="(product, resultIndex) in filteredProducts" :key="product.id">
                                     <button 
                                         type="button" 
                                         @click="addProduct(product)" 
+                                        @mouseenter="activeIndex = resultIndex"
+                                        :class="resultIndex === activeIndex ? 'bg-indigo-50' : ''"
                                         class="flex w-full items-center justify-between px-4 py-2.5 text-left text-sm transition hover:bg-indigo-50"
                                     >
                                         <div>
-                                            <p class="font-semibold text-slate-900" x-text="product.name"></p>
+                                            <p class="font-semibold text-slate-900" x-html="highlight(product.name)"></p>
                                             <p class="text-xs text-slate-500">
-                                                SKU: <span class="font-mono" x-text="product.sku"></span> | HPP: <span x-text="formatRupiah(product.purchase_price)"></span>
+                                                SKU: <span class="font-mono" x-html="highlight(product.sku)"></span>
+                                                <template x-if="product.category">
+                                                    <span> | <span x-html="highlight(product.category)"></span></span>
+                                                </template>
+                                                | HPP: <span x-text="formatRupiah(product.purchase_price)"></span>
                                             </p>
                                         </div>
                                         <div class="text-right">
@@ -158,6 +177,7 @@
                                 </template>
                             </div>
                         </div>
+                        <p class="mt-1.5 text-[11px] text-slate-500">Tombol ↑ ↓ untuk memilih, Enter untuk menambahkan. Scanner barcode SKU langsung menambahkan produk.</p>
                     </div>
 
                     <!-- Tabel Item Hasil Pemeriksaan Fisik -->
@@ -177,6 +197,19 @@
                             </button>
                         </div>
 
+                        <div class="border-b border-slate-200 px-6 py-3" x-show="items.length > 5">
+                            <input
+                                type="text"
+                                x-model="itemFilter"
+                                autocomplete="off"
+                                placeholder="Cari di daftar audit untuk mengisi stok fisik..."
+                                class="block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                            >
+                            <p class="mt-1 text-[11px] text-slate-500" x-show="itemFilter.trim() !== ''">
+                                Menampilkan <span class="font-semibold" x-text="visibleItemCount"></span> dari <span x-text="items.length"></span> item.
+                            </p>
+                        </div>
+
                         <div class="w-full overflow-x-auto">
                             <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
                                 <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
@@ -193,6 +226,8 @@
                                 <tbody class="divide-y divide-slate-100 [&>tr:nth-child(even)]:bg-slate-50/60">
                                     <template x-for="(item, index) in items" :key="item.product_id">
                                         <tr 
+                                            x-show="matchesItemFilter(item)"
+                                            :id="'audit-row-' + item.product_id"
                                             class="transition" 
                                             :class="{
                                                 'bg-rose-50/80 border-l-4 border-rose-500': item.actual_qty - item.expected_qty < 0,
@@ -207,8 +242,8 @@
 
                                             <!-- Info Produk -->
                                             <td class="px-4 py-3">
-                                                <p class="font-semibold text-slate-900" x-text="item.name"></p>
-                                                <p class="font-mono text-xs text-slate-500" x-text="item.sku"></p>
+                                                <p class="font-semibold text-slate-900" x-html="highlightItem(item.name)"></p>
+                                                <p class="font-mono text-xs text-slate-500" x-html="highlightItem(item.sku)"></p>
                                             </td>
 
                                             <!-- Stok Sistem (Expected) -->
@@ -221,9 +256,11 @@
                                                 <input 
                                                     type="number" 
                                                     min="0" 
+                                                    :id="'actual-qty-' + item.product_id"
                                                     :name="'items[' + index + '][actual_qty]'" 
                                                     x-model.number="item.actual_qty" 
                                                     @input="recalculate()"
+                                                    @keydown.enter.prevent="focusProductSearch()"
                                                     required 
                                                     class="w-24 rounded-lg border border-slate-300 px-2.5 py-1.5 text-center font-bold text-slate-900 shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
                                                 >
@@ -466,6 +503,7 @@
     </main>
 
     <x-slot:scripts>
+    @include('inventory.partials.smart-search-script')
     <script>
         function stockAdjustmentForm(initialProducts, initialBranchId) {
             return {
@@ -475,42 +513,78 @@
                 notes: '',
                 searchQuery: '',
                 showDropdown: false,
+                activeIndex: 0,
+                itemFilter: '',
                 isSubmitting: false,
                 items: [],
 
-                // Filter produk untuk autocomplete
                 get filteredProducts() {
-                    if (!this.searchQuery.trim()) {
-                        return this.availableProducts.slice(0, 10);
-                    }
-                    const q = this.searchQuery.toLowerCase();
-                    return this.availableProducts.filter(p => 
-                        p.name.toLowerCase().includes(q) || 
-                        p.sku.toLowerCase().includes(q)
-                    ).slice(0, 15);
+                    return ProductSmartSearch.search(this.availableProducts, this.searchQuery, 20);
                 },
 
-                // Tambahkan produk ke tabel
-                addProduct(product) {
-                    const existingIndex = this.items.findIndex(i => i.product_id === product.id);
-                    if (existingIndex !== -1) {
-                        alert('Produk ' + product.name + ' sudah ada di tabel!');
-                        this.showDropdown = false;
-                        this.searchQuery = '';
-                        return;
-                    }
+                highlight(text) {
+                    return ProductSmartSearch.highlight(text, this.searchQuery);
+                },
 
-                    this.items.push({
-                        product_id: product.id,
-                        name: product.name,
-                        sku: product.sku,
-                        expected_qty: parseInt(product.stock) || 0,
-                        actual_qty: parseInt(product.stock) || 0, // default ke expected
-                        unit_cost: parseFloat(product.purchase_price) || 0,
+                highlightItem(text) {
+                    return ProductSmartSearch.highlight(text, this.itemFilter);
+                },
+
+                matchesItemFilter(item) {
+                    return ProductSmartSearch.matches(item, this.itemFilter);
+                },
+
+                get visibleItemCount() {
+                    return this.items.filter(item => this.matchesItemFilter(item)).length;
+                },
+
+                moveActive(step) {
+                    const total = this.filteredProducts.length;
+                    if (total === 0) return;
+                    this.showDropdown = true;
+                    this.activeIndex = (this.activeIndex + step + total) % total;
+                },
+
+                selectActive() {
+                    const product = ProductSmartSearch.exactSku(this.availableProducts, this.searchQuery)
+                        ?? this.filteredProducts[this.activeIndex];
+                    if (product) this.addProduct(product);
+                },
+
+                focusProductSearch() {
+                    this.$refs.productSearch.focus();
+                },
+
+                focusQuantity(productId) {
+                    this.itemFilter = '';
+                    this.$nextTick(() => {
+                        const input = document.getElementById('actual-qty-' + productId);
+                        if (!input) return;
+                        input.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                        input.focus();
+                        input.select();
                     });
+                },
 
+                addProduct(product) {
                     this.showDropdown = false;
                     this.searchQuery = '';
+                    this.activeIndex = 0;
+
+                    if (!this.items.some(i => i.product_id === product.id)) {
+                        this.items.push({
+                            product_id: product.id,
+                            name: product.name,
+                            sku: product.sku,
+                            category: product.category,
+                            unit: product.unit,
+                            expected_qty: parseInt(product.stock) || 0,
+                            actual_qty: parseInt(product.stock) || 0, // default ke expected
+                            unit_cost: parseFloat(product.purchase_price) || 0,
+                        });
+                    }
+
+                    this.focusQuantity(product.id);
                 },
 
                 // Tambahkan semua produk cabang sekaligus
@@ -529,6 +603,8 @@
                                 product_id: p.id,
                                 name: p.name,
                                 sku: p.sku,
+                                category: p.category,
+                                unit: p.unit,
                                 expected_qty: parseInt(p.stock) || 0,
                                 actual_qty: parseInt(p.stock) || 0,
                                 unit_cost: parseFloat(p.purchase_price) || 0,

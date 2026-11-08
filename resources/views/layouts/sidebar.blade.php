@@ -24,7 +24,8 @@
     $isOpnameActive = request()->is('inventory/adjustments*');
     $isStockCardActive = request()->is('reports/inventory/stock-card*');
     $isWarehouseActive = request()->is('backoffice/warehouses*');
-    $isStokOpen = $isInventoryActive || $isStockTransferActive || $isOpnameActive || $isStockCardActive || $isWarehouseActive;
+    $isOpeningStockActive = request()->is('inventory/opening-stock*');
+    $isStokOpen = $isInventoryActive || $isStockTransferActive || $isOpnameActive || $isOpeningStockActive || $isStockCardActive || $isWarehouseActive;
 
     $isFinanceActive = request()->is('backoffice/finance*');
     $financeTab = $isFinanceActive ? request('tab') : null;
@@ -149,6 +150,7 @@
                 </x-slot:icon>
                 <x-sidebar.link href="/inventory" :active="$isInventoryActive">Stok Barang</x-sidebar.link>
                 <x-sidebar.link :href="route('stock-transfer')" :active="$isStockTransferActive">Transfer Stok</x-sidebar.link>
+                <x-sidebar.link :href="route('inventory.opening-stock.create')" :active="$isOpeningStockActive">Input Stok Awal</x-sidebar.link>
                 <x-sidebar.link :href="route('inventory.adjustments.index')" :active="$isOpnameActive">Hitung Ulang Stok (Opname)</x-sidebar.link>
                 @can('view-accounting')
                     <x-sidebar.link :href="route('reports.inventory.stock-card')" :active="$isStockCardActive">Kartu Stok</x-sidebar.link>

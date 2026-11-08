@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountingReportController;
 use App\Http\Controllers\BackofficeController;
 use App\Http\Controllers\GoodsReceiptController;
+use App\Http\Controllers\OpeningStockController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\PreviewController;
 use App\Http\Controllers\ReportController;
@@ -75,6 +76,9 @@ Route::middleware('auth')->group(function () {
             Route::post('/', [StockAdjustmentController::class, 'store'])->name('store');
             Route::get('/{id}', [StockAdjustmentController::class, 'show'])->name('show');
         });
+
+        Route::get('/inventory/opening-stock', [OpeningStockController::class, 'create'])->name('inventory.opening-stock.create');
+        Route::post('/inventory/opening-stock', [OpeningStockController::class, 'store'])->name('inventory.opening-stock.store');
 
         Route::prefix('purchases/goods-receipts')->name('purchases.goods-receipts.')->middleware(EnsureCentralAdmin::class)->group(function () {
             Route::get('/', [GoodsReceiptController::class, 'index'])->name('index');

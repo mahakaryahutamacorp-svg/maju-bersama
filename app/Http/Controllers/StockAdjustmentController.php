@@ -3,9 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Branch;
-use App\Models\Inventory;
-use App\Models\Product;
 use App\Models\StockAdjustment;
+use App\Services\BranchStockCatalog;
 use App\Services\StockAdjustmentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -75,59 +74,17 @@ class StockAdjustmentController extends Controller
     /**
      * Show the form for creating a new stock adjustment.
      */
-    public function create(Request $request): View
+    public function create(Request $request, BranchStockCatalog $catalog): View
     {
         $user = $request->user()->load('branch');
-        $isMaster = in_array($user->role, ['master', 'superadmin'], true);
-
-        // Resolve branch to perform opname on
-        $selectedBranchId = $request->input('branch_id');
-        if (! $isMaster || ! $selectedBranchId) {
-            $currentBranch = $user->branch
-                ?? Branch::whereNull('parent_id')->first()
-                ?? Branch::where('code', 'PUSAT')->first()
-                ?? Branch::first();
-        } else {
-            $currentBranch = Branch::find($selectedBranchId) ?? $user->branch;
-        }
-
-        // Fetch products applicable to this branch
-        $products = Product::withoutGlobalScopes()
-            ->when($currentBranch, fn ($q) => $q->where('branch_id', $currentBranch->id))
-            ->orderBy('name')
-            ->get();
-
-        if ($products->isEmpty()) {
-            $products = Product::withoutGlobalScopes()->orderBy('name')->get();
-        }
-
-        // Prepare products JSON payload for Alpine.js
-        $productsData = $products->map(function (Product $p) use ($currentBranch) {
-            $inventory = Inventory::withoutGlobalScopes()
-                ->where('branch_id', $currentBranch->id)
-                ->where('product_id', $p->id)
-                ->first();
-
-            $onHandQty = $inventory?->quantity ?? (int) $p->stock;
-
-            return [
-                'id' => $p->id,
-                'sku' => $p->sku,
-                'name' => $p->name,
-                'purchase_price' => (float) $p->purchase_price,
-                'selling_price' => (float) $p->selling_price,
-                'stock' => (int) $onHandQty,
-            ];
-        })->values();
-
-        $branches = $isMaster ? Branch::orderBy('name')->get() : collect([$currentBranch]);
+        $currentBranch = $catalog->resolveBranch($user, $request->input('branch_id'));
 
         return view('inventory.adjustments.create', [
             'currentUser' => $user,
-            'isMaster' => $isMaster,
+            'isMaster' => $catalog->isMaster($user),
             'currentBranch' => $currentBranch,
-            'branches' => $branches,
-            'products' => $productsData,
+            'branches' => $catalog->selectableBranches($user, $currentBranch),
+            'products' => $catalog->productsFor($currentBranch),
         ]);
     }
 
