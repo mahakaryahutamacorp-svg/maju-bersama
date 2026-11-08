@@ -1,453 +1,408 @@
+from datetime import date
+import json
+
 import requests
-import time
-import sys
 
-BASE_URL = "http://127.0.0.1:8000"
-TIMEOUT = 30.0
-
-MASTER_EMAIL = "master@majubersama.test"
-MASTER_PASSWORD = "password"
+BASE_URL = "http://localhost:8000"
 
 
-def _extract_token(resp_json):
-    # Try common shapes
-    if not resp_json:
+def _bootstrap_headers(token: str) -> dict:
+    return {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}",
+    }
+
+
+def _first_product_id(products_body) -> int | None:
+    data = products_body.get("data", products_body)
+    if isinstance(data, list) and data:
+        return data[0].get("id")
+    return None
+
+
+def _branch_id(branches_body, code: str) -> int | None:
+    data = branches_body.get("data", branches_body)
+    if not isinstance(data, list):
         return None
-    if "token" in resp_json:
-        return resp_json["token"]
-    if "data" in resp_json and isinstance(resp_json["data"], dict) and "token" in resp_json["data"]:
-        return resp_json["data"]["token"]
-    if "access_token" in resp_json:
-        return resp_json["access_token"]
+    for branch in data:
+        if isinstance(branch, dict) and branch.get("code") == code:
+            return branch.get("id")
     return None
 
 
-def _get_auth_headers(token):
-    return {"Authorization": f"Bearer {token}", "Accept": "application/json"}
-
-
-def _find_product_in_list(products, product_id=None, name=None):
-    for p in products:
-        if product_id is not None and (p.get("id") == product_id or str(p.get("id")) == str(product_id)):
-            return p
-        if name is not None and p.get("name") == name:
-            return p
-    return None
-
-
-def _product_stock_value(prod):
-    # Try common stock field names
-    for k in ("stock", "quantity", "qty", "available_stock", "current_stock", "on_hand"):
-        if k in prod:
-            try:
-                return float(prod[k])
-            except Exception:
-                pass
-    # Sometimes stock is nested or in balances
-    if "stocks" in prod and isinstance(prod["stocks"], (list, dict)):
-        # if list, sum quantities
-        if isinstance(prod["stocks"], list):
-            s = 0.0
-            for item in prod["stocks"]:
-                for k in ("quantity", "qty", "stock"):
-                    if k in item:
-                        try:
-                            s += float(item[k])
-                            break
-                        except Exception:
-                            pass
-            return s
-    return None
+def bootstrap_pakan_sellable(base_url: str, login, *, timeout: int = 30, min_stock: int = 5) -> int:
+    master_token = login("master@majubersama.test")
+    master_headers = _bootstrap_headers(master_token)
+    kasir_headers = _bootstrap_headers(login("kasir@pakan.mb"))
+    listed = requests.get(f"{base_url}/api/products", headers=kasir_headers, timeout=timeout)
+    assert listed.status_code == 200, listed.text
+    rows = listed.json().get("data", listed.json())
+    if isinstance(rows, list):
+        for row in rows:
+            stock = row.get("stock")
+            if row.get("id") and isinstance(stock, (int, float)) and stock >= 1:
+                return int(row["id"])
+    branches = requests.get(f"{base_url}/api/branches", headers=master_headers, timeout=timeout)
+    assert branches.status_code == 200, branches.text
+    pakan_id = _branch_id(branches.json(), "PAKAN")
+    pusat_id = _branch_id(branches.json(), "PUSAT")
+    if pusat_id is None:
+        data = branches.json().get("data", [])
+        pusat_id = data[0]["id"] if data else None
+    assert pakan_id and pusat_id, "PAKAN/PUSAT branch ids required"
+    master_products = requests.get(f"{base_url}/api/products", headers=master_headers, timeout=timeout)
+    assert master_products.status_code == 200, master_products.text
+    source_product_id = _first_product_id(master_products.json())
+    assert source_product_id is not None, "Master catalog has no products"
+    adjustment = requests.post(
+        f"{base_url}/api/stock-adjustments",
+        headers=master_headers,
+        json={"branch_id": pusat_id, "items": [{"product_id": source_product_id, "actual_qty": min_stock}]},
+        timeout=timeout,
+    )
+    assert adjustment.status_code == 201, adjustment.text
+    transfer = requests.post(
+        f"{base_url}/api/stock-transfers",
+        headers=master_headers,
+        json={
+            "source_branch_id": pusat_id,
+            "destination_branch_id": pakan_id,
+            "items": [{"product_id": source_product_id, "quantity": min_stock}],
+        },
+        timeout=timeout,
+    )
+    assert transfer.status_code == 201, transfer.text
+    listed = requests.get(f"{base_url}/api/products", headers=kasir_headers, timeout=timeout)
+    assert listed.status_code == 200, listed.text
+    rows = listed.json().get("data", listed.json())
+    assert isinstance(rows, list) and rows, json.dumps(listed.json())[:300]
+    destination = next(
+        (row for row in rows if isinstance(row.get("stock"), (int, float)) and row["stock"] >= 1),
+        rows[0],
+    )
+    product_id = destination.get("id")
+    assert product_id is not None
+    return int(product_id)
 
 
 def test_checkout_and_goods_receipt_stock_and_accounting_integration():
-    passes = 0
-    fails = 0
-
     session = requests.Session()
+    session.headers.update({"Accept": "application/json"})
 
-    product_id = None
-    created_product_name = f"TEST-PROD-{int(time.time())}"
+    def api(method, path, token=None, **kwargs):
+        headers = kwargs.pop("headers", {})
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        response = session.request(
+            method,
+            f"{BASE_URL}{path}",
+            headers=headers,
+            timeout=30,
+            **kwargs,
+        )
+        return response
 
-    try:
-        # 1) Login as master
+    def response_json(response):
         try:
-            r = session.post(f"{BASE_URL}/api/login", json={"email": MASTER_EMAIL, "password": MASTER_PASSWORD}, timeout=TIMEOUT)
-            assert r.status_code == 200, f"Login expected 200 but got {r.status_code} - {r.text}"
-            token = _extract_token(r.json())
-            assert token, "No token found in login response"
-            headers = _get_auth_headers(token)
-            passes += 1
-            print("PASS: Master login")
-        except Exception as e:
-            fails += 1
-            print("FAIL: Master login -", e)
-            raise
+            return response.json()
+        except ValueError:
+            return {}
 
-        # helper: get journals
-        def get_journals():
-            jr = session.get(f"{BASE_URL}/api/journals", headers=headers, timeout=TIMEOUT)
-            if jr.status_code == 200:
-                return jr.json()
-            return None
+    def login(email):
+        response = api(
+            "POST",
+            "/api/login",
+            json={"email": email, "password": "password"},
+        )
+        assert response.status_code == 200, (
+            f"Login failed for {email}: {response.status_code} {response.text}"
+        )
+        data = response_json(response)
+        token = data.get("token") or data.get("access_token")
+        if not token and isinstance(data.get("data"), dict):
+            token = data["data"].get("token") or data["data"].get("access_token")
+        assert token, f"No Sanctum token returned for {email}: {data}"
+        return token
 
-        # helper: get all products
-        def get_products():
-            pr = session.get(f"{BASE_URL}/api/products", headers=headers, params={"per_page": 200}, timeout=TIMEOUT)
-            if pr.status_code in (200,):
-                pj = pr.json()
-                # normalize list extraction
-                if isinstance(pj, dict):
-                    if "data" in pj and isinstance(pj["data"], list):
-                        return pj["data"]
-                    # sometimes returns list directly inside data or root list
-                    for v in pj.values():
-                        if isinstance(v, list):
-                            return v
-                elif isinstance(pj, list):
-                    return pj
+    def records_from(data):
+        if isinstance(data, list):
+            return data
+        if not isinstance(data, dict):
             return []
+        for key in ("data", "products", "suppliers", "items", "results"):
+            value = data.get(key)
+            if isinstance(value, list):
+                return value
+            if isinstance(value, dict):
+                nested = records_from(value)
+                if nested:
+                    return nested
+        return []
 
-        # 2) Create a product (since we need a known product and stock) - master should be allowed
-        try:
-            product_payload = {
-                "category_id": 1,
-                "name": created_product_name,
-                "purchase_price": 10.00,
-                "selling_price": 15.00
-            }
-            r = session.post(f"{BASE_URL}/api/products", headers=headers, json=product_payload, timeout=TIMEOUT)
-            assert r.status_code in (200, 201), f"Create product expected 200/201 but got {r.status_code} - {r.text}"
-            pj = r.json()
-            # find id in common places
-            product_id = pj.get("id") or (pj.get("data") or {}).get("id") if isinstance(pj, dict) else None
-            if not product_id:
-                # try to search products list by name
-                products = get_products()
-                found = _find_product_in_list(products, name=created_product_name)
-                assert found, "Created product not found in list and no id in response"
-                product_id = found.get("id")
-            assert product_id, "Failed to determine created product id"
-            passes += 1
-            print("PASS: Product created with id", product_id)
-        except Exception as e:
-            fails += 1
-            print("FAIL: Product creation -", e)
-            raise
+    def find_record(data, record_id):
+        for record in records_from(data):
+            if isinstance(record, dict) and str(record.get("id")) == str(record_id):
+                return record
+        return None
 
-        # 3) Ensure initial stock is zero or known. We'll get current stock value.
-        try:
-            products_before = get_products()
-            prod_before = _find_product_in_list(products_before, product_id=product_id, name=created_product_name)
-            initial_stock = _product_stock_value(prod_before) if prod_before else None
-            print("Initial stock value detected:", initial_stock)
-            passes += 1
-        except Exception as e:
-            fails += 1
-            initial_stock = None
-            print("WARN: Could not determine initial stock -", e)
+    def read_product(token, product_id):
+        response = api("GET", "/api/products", token=token)
+        assert response.status_code == 200, (
+            f"Could not read products: {response.status_code} {response.text}"
+        )
+        product = find_record(response_json(response), product_id)
+        assert product is not None, f"Product {product_id} not found in product listing"
+        assert isinstance(product.get("stock"), int), (
+            f"Product stock must be an integer: {product}"
+        )
+        return product
 
-        # 4) Post goods receipt to increase stock
-        try:
-            gr_payload = {
-                "reference_number": f"GR-{int(time.time())}",
-                "supplier_name": "Test Supplier",
-                # required by server validation
-                "payment_type": "cash",
-                "date": time.strftime("%Y-%m-%d"),
+    def entry_lines(entry):
+        for key in ("journal_lines", "lines"):
+            value = entry.get(key)
+            if isinstance(value, list):
+                return value
+        return []
+
+    def journal_entries(data):
+        if isinstance(data, list):
+            return [item for item in data if isinstance(item, dict)]
+        if not isinstance(data, dict):
+            return []
+        for key in ("data", "journals", "results"):
+            value = data.get(key)
+            if isinstance(value, list):
+                return [item for item in value if isinstance(item, dict)]
+            if isinstance(value, dict):
+                result = journal_entries(value)
+                if result:
+                    return result
+        return []
+
+    def assert_balanced_journal(entries, previous_ids):
+        new_entries = [
+            entry
+            for entry in entries
+            if str(entry.get("id")) not in previous_ids
+            and entry_lines(entry)
+        ]
+        assert new_entries, "No new journal entry with journal lines was posted"
+        entry = new_entries[0]
+        debit_total = 0.0
+        credit_total = 0.0
+        for line in entry_lines(entry):
+            debit = line.get("debit", line.get("debit_amount", 0))
+            credit = line.get("credit", line.get("credit_amount", 0))
+            debit_total += float(debit or 0)
+            credit_total += float(credit or 0)
+        assert round(debit_total, 2) == round(credit_total, 2), (
+            f"Journal is unbalanced: debit={debit_total}, credit={credit_total}"
+        )
+
+    warehouse_token = login("gudang@pakan.178")
+    cashier_token = login("kasir@pakan.mb")
+    master_token = login("master@majubersama.test")
+
+    product_id = bootstrap_pakan_sellable(BASE_URL, login)
+
+    stock_before_tests = read_product(warehouse_token, product_id)["stock"]
+    assert stock_before_tests >= 1, (
+        f"Expected positive stock after bootstrap checkout, got {stock_before_tests}"
+    )
+
+    journals_before_response = api("GET", "/api/journals", token=master_token)
+    assert journals_before_response.status_code == 200, (
+        f"Could not read journals: {journals_before_response.status_code} "
+        f"{journals_before_response.text}"
+    )
+    journals_before = journal_entries(response_json(journals_before_response))
+    journal_ids_before = {str(entry.get("id")) for entry in journals_before}
+
+    valid_checkout = api(
+        "POST",
+        "/api/checkout",
+        token=cashier_token,
+        json={
+            "items": [
+                {
+                    "product_id": product_id,
+                    "quantity": 1,
+                    "discount_amount": 0,
+                }
+            ]
+        },
+    )
+    assert valid_checkout.status_code == 201, (
+        f"Valid checkout should return 201: {valid_checkout.status_code} "
+        f"{valid_checkout.text}"
+    )
+    stock_after_valid_checkout = read_product(warehouse_token, product_id)["stock"]
+    assert stock_after_valid_checkout == stock_before_tests - 1, (
+        f"Valid checkout did not decrement stock by one: before={stock_before_tests}, "
+        f"after={stock_after_valid_checkout}"
+    )
+
+    journals_after_checkout_response = api(
+        "GET", "/api/journals", token=master_token
+    )
+    assert journals_after_checkout_response.status_code == 200, (
+        f"Could not read journals after checkout: "
+        f"{journals_after_checkout_response.status_code} "
+        f"{journals_after_checkout_response.text}"
+    )
+    journals_after_checkout = journal_entries(
+        response_json(journals_after_checkout_response)
+    )
+    assert_balanced_journal(journals_after_checkout, journal_ids_before)
+
+    overstock_response = api(
+        "POST",
+        "/api/checkout",
+        token=cashier_token,
+        json={
+            "items": [
+                {
+                    "product_id": product_id,
+                    "quantity": stock_after_valid_checkout + 100,
+                    "discount_amount": 0,
+                }
+            ]
+        },
+    )
+    assert overstock_response.status_code == 422, (
+        f"Over-stock checkout should return 422: {overstock_response.status_code} "
+        f"{overstock_response.text}"
+    )
+    stock_after_overstock_attempt = read_product(warehouse_token, product_id)["stock"]
+    assert stock_after_overstock_attempt == stock_after_valid_checkout, (
+        "Stock changed after over-stock checkout was rejected"
+    )
+
+    invalid_discount_response = api(
+        "POST",
+        "/api/checkout",
+        token=cashier_token,
+        json={
+            "items": [
+                {
+                    "product_id": product_id,
+                    "quantity": 1,
+                    "discount_amount": 999999999,
+                }
+            ]
+        },
+    )
+    assert invalid_discount_response.status_code == 422, (
+        f"Invalid discount should return 422: "
+        f"{invalid_discount_response.status_code} {invalid_discount_response.text}"
+    )
+    stock_after_discount_attempt = read_product(warehouse_token, product_id)["stock"]
+    assert stock_after_discount_attempt == stock_after_valid_checkout, (
+        "Stock changed after invalid-discount checkout was rejected"
+    )
+
+    suppliers_response = api("GET", "/api/suppliers", token=warehouse_token)
+    assert suppliers_response.status_code == 200, (
+        f"Could not list suppliers: {suppliers_response.status_code} "
+        f"{suppliers_response.text}"
+    )
+    suppliers = records_from(response_json(suppliers_response))
+    if not suppliers:
+        master_suppliers = api("GET", "/api/suppliers", token=master_token)
+        assert master_suppliers.status_code == 200, master_suppliers.text
+        suppliers = records_from(response_json(master_suppliers))
+
+    current_product = read_product(warehouse_token, product_id)
+    unit_cost = (
+        current_product.get("cost_price")
+        or current_product.get("purchase_price")
+        or current_product.get("price")
+        or 1
+    )
+
+    stock_after_purchase_order = stock_after_valid_checkout
+    if suppliers:
+        supplier_id = suppliers[0].get("id")
+        assert supplier_id is not None, f"Supplier has no ID: {suppliers[0]}"
+        purchase_order_response = api(
+            "POST",
+            "/api/purchase-orders",
+            token=warehouse_token,
+            json={
+                "supplier_id": supplier_id,
+                "order_date": date.today().isoformat(),
                 "items": [
                     {
                         "product_id": product_id,
-                        "quantity": 10,
-                        "purchase_price": 10.00,
-                        "unit_price": 10.00
-                    }
-                ]
-            }
-            r = session.post(f"{BASE_URL}/api/goods-receipts", headers=headers, json=gr_payload, timeout=TIMEOUT)
-            assert r.status_code in (200, 201), f"Goods receipt expected 201/200 but got {r.status_code} - {r.text}"
-            passes += 1
-            print("PASS: Goods receipt posted")
-        except Exception as e:
-            fails += 1
-            print("FAIL: Goods receipt posting -", e)
-            raise
-
-        # Wait briefly for asynchronous processing (if any)
-        time.sleep(0.5)
-
-        # 5) Verify stock increased by expected amount
-        try:
-            products_after_gr = get_products()
-            prod_after_gr = _find_product_in_list(products_after_gr, product_id=product_id, name=created_product_name)
-            stock_after_gr = _product_stock_value(prod_after_gr)
-            assert stock_after_gr is not None, "Could not read product stock after goods receipt"
-            if initial_stock is None:
-                # we expect at least the received quantity now
-                assert stock_after_gr >= 10 - 1e-6, f"Stock after GR expected >=10 but got {stock_after_gr}"
-            else:
-                assert abs(stock_after_gr - (initial_stock + 10)) < 0.001, f"Stock after GR expected {initial_stock + 10} but got {stock_after_gr}"
-            passes += 1
-            print("PASS: Stock increased after goods receipt (value:", stock_after_gr, ")")
-        except Exception as e:
-            fails += 1
-            print("FAIL: Stock did not increase after goods receipt -", e)
-            raise
-
-        # 6) Verify a balanced inventory journal was created (journals count increased and latest journal balances)
-        try:
-            journals_before = get_journals() or []
-            count_before = len(journals_before) if isinstance(journals_before, list) else (len(journals_before.get("data") or []) if isinstance(journals_before, dict) else 0)
-            # fetch again to get after (we already posted GR)
-            journals_after_raw = get_journals()
-            # normalize list extraction
-            if journals_after_raw is None:
-                raise AssertionError("Could not retrieve journals")
-            if isinstance(journals_after_raw, dict) and "data" in journals_after_raw and isinstance(journals_after_raw["data"], list):
-                journals_after = journals_after_raw["data"]
-            elif isinstance(journals_after_raw, list):
-                journals_after = journals_after_raw
-            else:
-                # attempt other structures
-                journals_after = []
-                for v in journals_after_raw.values():
-                    if isinstance(v, list):
-                        journals_after = v
-                        break
-            count_after = len(journals_after)
-            assert count_after >= count_before, "Journal count did not increase after goods receipt"
-            # attempt to take the latest journal (assuming it's first or last)
-            latest_journal = None
-            if count_after > 0:
-                latest_journal = journals_after[0] if isinstance(journals_after, list) else None
-                if latest_journal and latest_journal.get("id") is None and len(journals_after) > 1:
-                    latest_journal = journals_after[-1]
-            assert latest_journal is not None, "Could not determine latest journal entry"
-            # extract lines and check debit == credit
-            lines = latest_journal.get("lines") or latest_journal.get("journal_lines") or latest_journal.get("items") or []
-            if isinstance(lines, dict):
-                # sometimes wrapped
-                lines = list(lines.values())
-            total_debit = 0.0
-            total_credit = 0.0
-            for ln in lines:
-                total_debit += float(ln.get("debit") or 0)
-                total_credit += float(ln.get("credit") or 0)
-            assert abs(total_debit - total_credit) < 0.01, f"Inventory journal not balanced: debit={total_debit}, credit={total_credit}"
-            passes += 1
-            print("PASS: Goods receipt posted a balanced inventory journal (debit==credit==%.2f)" % total_debit)
-        except Exception as e:
-            fails += 1
-            print("FAIL: Goods receipt journal validation -", e)
-            # Do not raise further; continue to checkout tests
-
-        # 7) Perform a valid checkout with in-stock items and a valid discount
-        try:
-            # Use quantity 2, discount 5.0 (less than subtotal)
-            checkout_payload = {
-                "items": [
-                    {
-                        "product_id": product_id,
-                        "quantity": 2
+                        "quantity": 2,
+                        "unit_price": unit_cost,
                     }
                 ],
-                "payments": [
-                    {
-                        "method": "cash",
-                        "amount": 25.0  # expecting selling price 15 *2 = 30, after discount 5 => 25
-                    }
-                ],
-                "discount": 5.0,
-                "note": "Test checkout valid"
+            },
+        )
+        assert purchase_order_response.status_code in (200, 201), (
+            f"Purchase order creation failed: {purchase_order_response.status_code} "
+            f"{purchase_order_response.text}"
+        )
+        stock_after_purchase_order = read_product(warehouse_token, product_id)["stock"]
+        assert stock_after_purchase_order == stock_after_valid_checkout, (
+            "Creating a purchase order must not change product stock"
+        )
+
+    journals_before_receipt_response = api("GET", "/api/journals", token=master_token)
+    assert journals_before_receipt_response.status_code == 200, (
+        f"Could not read journals before goods receipt: "
+        f"{journals_before_receipt_response.status_code} "
+        f"{journals_before_receipt_response.text}"
+    )
+    journals_before_receipt = journal_entries(
+        response_json(journals_before_receipt_response)
+    )
+    journal_ids_before_receipt = {
+        str(entry.get("id")) for entry in journals_before_receipt
+    }
+
+    goods_receipt_payload = {
+        "payment_type": "cash",
+        "supplier_name": "TC006 Test Supplier",
+        "date": date.today().isoformat(),
+        "items": [
+            {
+                "product_id": product_id,
+                "quantity": 2,
+                "unit_price": unit_cost,
             }
-            r = session.post(f"{BASE_URL}/api/checkout", headers=headers, json=checkout_payload, timeout=TIMEOUT)
-            assert r.status_code == 201, f"Valid checkout expected 201 but got {r.status_code} - {r.text}"
-            passes += 1
-            print("PASS: Valid checkout returned 201")
-        except Exception as e:
-            fails += 1
-            print("FAIL: Valid checkout -", e)
-            raise
+        ],
+    }
+    goods_receipt_response = api(
+        "POST",
+        "/api/goods-receipts",
+        token=warehouse_token,
+        json=goods_receipt_payload,
+    )
+    assert goods_receipt_response.status_code in (200, 201), (
+        f"Goods receipt creation failed: {goods_receipt_response.status_code} "
+        f"{goods_receipt_response.text}"
+    )
 
-        # wait briefly
-        time.sleep(0.5)
+    stock_after_receipt = read_product(warehouse_token, product_id)["stock"]
+    assert stock_after_receipt == stock_after_purchase_order + 2, (
+        f"Goods receipt should increase stock by two: "
+        f"before={stock_after_purchase_order}, after={stock_after_receipt}"
+    )
 
-        # 8) Verify stock decreased by 2 and a balanced sales journal posted
-        try:
-            products_after_checkout = get_products()
-            prod_after_checkout = _find_product_in_list(products_after_checkout, product_id=product_id, name=created_product_name)
-            stock_after_checkout = _product_stock_value(prod_after_checkout)
-            assert stock_after_checkout is not None, "Could not read product stock after checkout"
-            expected_stock = stock_after_gr - 2
-            assert abs(stock_after_checkout - expected_stock) < 0.01, f"Stock after checkout expected {expected_stock} but got {stock_after_checkout}"
-            passes += 1
-            print("PASS: Stock decreased by checkout (now", stock_after_checkout, ")")
-        except Exception as e:
-            fails += 1
-            print("FAIL: Stock did not decrease after checkout -", e)
-            raise
-
-        # 9) Verify sales journal balanced (similar approach as goods receipt)
-        try:
-            journals_after_checkout_raw = get_journals()
-            if journals_after_checkout_raw is None:
-                raise AssertionError("Could not retrieve journals after checkout")
-            # normalize
-            if isinstance(journals_after_checkout_raw, dict) and "data" in journals_after_checkout_raw:
-                journals_after_checkout = journals_after_checkout_raw["data"]
-            elif isinstance(journals_after_checkout_raw, list):
-                journals_after_checkout = journals_after_checkout_raw
-            else:
-                journals_after_checkout = []
-                for v in journals_after_checkout_raw.values():
-                    if isinstance(v, list):
-                        journals_after_checkout = v
-                        break
-            # assume latest journal corresponds to checkout; take the latest entry
-            latest = journals_after_checkout[0] if journals_after_checkout else None
-            if latest is None:
-                raise AssertionError("No journals found after checkout")
-            lines = latest.get("lines") or latest.get("journal_lines") or latest.get("items") or []
-            total_debit = sum(float(ln.get("debit") or 0) for ln in lines)
-            total_credit = sum(float(ln.get("credit") or 0) for ln in lines)
-            assert abs(total_debit - total_credit) < 0.01, f"Sales journal not balanced: debit={total_debit}, credit={total_credit}"
-            passes += 1
-            print("PASS: Checkout posted a balanced sales journal (%.2f)" % total_debit)
-        except Exception as e:
-            fails += 1
-            print("FAIL: Checkout journal validation -", e)
-            # continue
-
-        # 10) Attempt over-stock checkout (quantity above available) -> expect 422 and no stock change
-        try:
-            # Choose quantity large: current stock + 1000
-            over_qty = int(stock_after_checkout + 1000 if stock_after_checkout is not None else 99999)
-            over_payload = {
-                "items": [
-                    {
-                        "product_id": product_id,
-                        "quantity": over_qty
-                    }
-                ],
-                "payments": [{"method": "cash", "amount": 1}],
-                "discount": 0.0
-            }
-            r = session.post(f"{BASE_URL}/api/checkout", headers=headers, json=over_payload, timeout=TIMEOUT)
-            assert r.status_code == 422, f"Over-stock checkout expected 422 but got {r.status_code} - {r.text}"
-            # verify stock unchanged
-            products_after_over = get_products()
-            prod_after_over = _find_product_in_list(products_after_over, product_id=product_id, name=created_product_name)
-            stock_after_over = _product_stock_value(prod_after_over)
-            assert abs(stock_after_over - stock_after_checkout) < 0.01, "Stock changed after failed over-stock checkout"
-            passes += 1
-            print("PASS: Over-stock checkout rejected with 422 and stock unchanged")
-        except AssertionError as e:
-            fails += 1
-            print("FAIL: Over-stock checkout -", e)
-        except Exception as e:
-            fails += 1
-            print("ERROR during over-stock checkout test -", e)
-
-        # 11) Attempt invalid discount (negative or greater than subtotal) -> expect 422 and no stock change
-        try:
-            # Apply an excessive discount (e.g., 10000) to exceed subtotal
-            invalid_discount_payload = {
-                "items": [
-                    {
-                        "product_id": product_id,
-                        "quantity": 1
-                    }
-                ],
-                "payments": [{"method": "cash", "amount": 0}],
-                "discount": 100000.0
-            }
-            r = session.post(f"{BASE_URL}/api/checkout", headers=headers, json=invalid_discount_payload, timeout=TIMEOUT)
-            assert r.status_code == 422, f"Invalid discount checkout expected 422 but got {r.status_code} - {r.text}"
-            # verify stock unchanged
-            products_after_invalid_disc = get_products()
-            prod_after_invalid_disc = _find_product_in_list(products_after_invalid_disc, product_id=product_id, name=created_product_name)
-            stock_after_invalid_disc = _product_stock_value(prod_after_invalid_disc)
-            assert abs(stock_after_invalid_disc - stock_after_checkout) < 0.01, "Stock changed after failed invalid-discount checkout"
-            passes += 1
-            print("PASS: Invalid discount checkout rejected with 422 and stock unchanged")
-        except AssertionError as e:
-            fails += 1
-            print("FAIL: Invalid discount checkout -", e)
-        except Exception as e:
-            fails += 1
-            print("ERROR during invalid-discount checkout test -", e)
-
-        # 12) Submit a purchase order alone and confirm it does not change stock
-        try:
-            po_payload = {
-                "reference_number": f"PO-{int(time.time())}",
-                "supplier_name": "Test Supplier",
-                "items": [
-                    {
-                        "product_id": product_id,
-                        "quantity": 5,
-                        "purchase_price": 10.0
-                    }
-                ]
-            }
-            # Common endpoint name attempt
-            r = session.post(f"{BASE_URL}/api/purchase-orders", headers=headers, json=po_payload, timeout=TIMEOUT)
-            # Accept 200 or 201 as "order created"
-            assert r.status_code in (200, 201), f"Purchase order expected 200/201 but got {r.status_code} - {r.text}"
-            # verify stock unchanged
-            products_after_po = get_products()
-            prod_after_po = _find_product_in_list(products_after_po, product_id=product_id, name=created_product_name)
-            stock_after_po = _product_stock_value(prod_after_po)
-            assert abs(stock_after_po - stock_after_checkout) < 0.01, "Stock changed after creating purchase order without goods receipt"
-            passes += 1
-            print("PASS: Purchase order created but stock unchanged")
-        except AssertionError as e:
-            fails += 1
-            print("FAIL: Purchase order stock-change assertion -", e)
-        except requests.HTTPError as e:
-            fails += 1
-            print("HTTP error creating purchase order -", e)
-        except Exception as e:
-            # If endpoint does not exist (404), count as a warning but do not fail the whole suite
-            if isinstance(e, requests.exceptions.HTTPError) and getattr(e.response, "status_code", None) == 404:
-                fails += 1
-                print("FAIL: Purchase order endpoint not found (404) -", e)
-            else:
-                # Some systems might not implement purchase-orders API; report as fail but continue
-                fails += 1
-                print("ERROR during purchase order test -", e)
-
-    finally:
-        # cleanup: attempt to delete created product if exists
-        if product_id:
-            try:
-                dr = session.delete(f"{BASE_URL}/api/products/{product_id}", headers=headers, timeout=TIMEOUT)
-                if dr.status_code in (200, 204):
-                    print("CLEANUP: Deleted created product", product_id)
-                else:
-                    print("CLEANUP: Could not delete product (status", dr.status_code, ")", dr.text[:200])
-            except Exception as e:
-                print("CLEANUP: Exception while deleting product -", e)
-
-    # Summary
-    total = passes + fails
-    print("TEST RESULT SUMMARY for TC006 - checkout_and_goods_receipt_stock_and_accounting_integration")
-    print(f"Total assertions attempted: {total}")
-    print(f"Passed: {passes}")
-    print(f"Failed: {fails}")
-
-    # Final assertion: consider test failed if any assertion failed
-    if fails > 0:
-        raise AssertionError(f"Test completed with {fails} failures and {passes} passes")
+    journals_after_receipt_response = api("GET", "/api/journals", token=master_token)
+    assert journals_after_receipt_response.status_code == 200, (
+        f"Could not read journals after goods receipt: "
+        f"{journals_after_receipt_response.status_code} "
+        f"{journals_after_receipt_response.text}"
+    )
+    journals_after_receipt = journal_entries(
+        response_json(journals_after_receipt_response)
+    )
+    assert_balanced_journal(journals_after_receipt, journal_ids_before_receipt)
 
 
 if __name__ == "__main__":
-    try:
-        test_checkout_and_goods_receipt_stock_and_accounting_integration()
-        print("All checks passed for TC006.")
-    except AssertionError as e:
-        print("TC006 finished with failures:", e)
-        sys.exit(1)
-    except Exception as e:
-        print("TC006 encountered an unexpected error:", e)
-        sys.exit(2)
+    test_checkout_and_goods_receipt_stock_and_accounting_integration()

@@ -1,300 +1,292 @@
+import uuid
+
 import requests
-import sys
-from requests.exceptions import RequestException
-
-BASE_URL = "http://127.0.0.1:8000"
-TIMEOUT = 30.0
-
-MASTER = {"email": "master@majubersama.test", "password": "password"}
-BRANCH_ADMIN = {"email": "asep@mb.pkn", "password": "password"}
-CASHIER = {"email": "kasir@pakan.mb", "password": "password"}
-
-
-def login(user):
-    url = f"{BASE_URL}/api/login"
-    try:
-        r = requests.post(url, json=user, timeout=TIMEOUT)
-    except RequestException as e:
-        raise SystemExit(f"Login request failed for {user['email']}: {e}")
-    if r.status_code != 200:
-        raise SystemExit(f"Login failed for {user['email']}: status {r.status_code}, body: {r.text}")
-    data = r.json()
-    token = data.get("token")
-    if not token:
-        raise SystemExit(f"No token returned for {user['email']}: {data}")
-    return token
-
-
-def auth_header(token):
-    return {"Authorization": f"Bearer {token}", "Accept": "application/json"}
-
-
-def safe_request(method, path, token=None, json=None):
-    url = f"{BASE_URL}{path}"
-    headers = {"Accept": "application/json"}
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    try:
-        r = requests.request(method, url, headers=headers, json=json, timeout=TIMEOUT)
-    except RequestException as e:
-        raise SystemExit(f"Request failed {method} {url}: {e}")
-    return r
 
 
 def test_master_data_access_control_for_branches_categories_and_products():
-    pass_count = 0
-    fail_count = 0
+    base_url = "http://localhost:8000"
+    timeout = 30
+    created_resources = []
 
-    # Login users
-    try:
-        master_token = login(MASTER)
-        branch_admin_token = login(BRANCH_ADMIN)
-        cashier_token = login(CASHIER)
-    except SystemExit as e:
-        print(str(e))
-        sys.exit(2)
+    def login(email):
+        response = requests.post(
+            f"{base_url}/api/login",
+            json={"email": email, "password": "password"},
+            headers={"Accept": "application/json"},
+            timeout=timeout,
+        )
+        assert response.status_code == 200, (
+            f"Login failed for {email}: {response.status_code} {response.text}"
+        )
+        data = response.json()
+        token = data.get("token") or data.get("access_token")
+        if not token and isinstance(data.get("data"), dict):
+            token = data["data"].get("token") or data["data"].get("access_token")
+        assert token, f"Login response for {email} did not contain a token"
+        return token
 
-    created_branch_id = None
-    created_category_id = None
-    created_product_ids = []
-
-    try:
-        # 1) Branches: GET as master (expect 200)
-        try:
-            r = safe_request("GET", "/api/branches", token=master_token)
-            assert r.status_code == 200, f"Master GET /api/branches expected 200, got {r.status_code}"
-            pass_count += 1
-        except AssertionError as e:
-            print("FAIL:", e)
-            fail_count += 1
-
-        # 2) Branches: GET as branch admin (expect 403)
-        try:
-            r = safe_request("GET", "/api/branches", token=branch_admin_token)
-            assert r.status_code == 403, f"Branch admin GET /api/branches expected 403, got {r.status_code}"
-            pass_count += 1
-        except AssertionError as e:
-            print("FAIL:", e)
-            fail_count += 1
-
-        # 3) Branches: GET as cashier (expect 403)
-        try:
-            r = safe_request("GET", "/api/branches", token=cashier_token)
-            assert r.status_code == 403, f"Cashier GET /api/branches expected 403, got {r.status_code}"
-            pass_count += 1
-        except AssertionError as e:
-            print("FAIL:", e)
-            fail_count += 1
-
-        # 4) Branches: POST create as master (expect 200 or 201)
-        branch_payload = {
-            "name": "TC004 Branch",
-            "code": "TC004-BR",
-            "address": "Test Address TC004",
-            "phone": "0000000000",
-            "email": "branch-tc004@example.test"
+    def headers(token):
+        return {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
         }
+
+    def response_data(response):
         try:
-            r = safe_request("POST", "/api/branches", token=master_token, json=branch_payload)
-            assert r.status_code in (200, 201), f"Master POST /api/branches expected 200/201, got {r.status_code}, body: {r.text}"
-            # attempt to extract id from response json
-            try:
-                created_branch_id = r.json().get("id") or r.json().get("data", {}).get("id")
-            except Exception:
-                created_branch_id = None
-            pass_count += 1
-        except AssertionError as e:
-            print("FAIL:", e)
-            fail_count += 1
+            data = response.json()
+        except ValueError:
+            return {}
+        return data.get("data", data) if isinstance(data, dict) else data
 
-        # 5) Branches: POST as branch admin (expect 403)
-        try:
-            r = safe_request("POST", "/api/branches", token=branch_admin_token, json=branch_payload)
-            assert r.status_code == 403, f"Branch admin POST /api/branches expected 403, got {r.status_code}, body: {r.text}"
-            pass_count += 1
-        except AssertionError as e:
-            print("FAIL:", e)
-            fail_count += 1
+    def resource_id(response):
+        data = response_data(response)
+        if isinstance(data, dict):
+            return data.get("id") or (
+                data.get("data", {}).get("id")
+                if isinstance(data.get("data"), dict)
+                else None
+            )
+        return None
 
-        # 6) Branches: POST as cashier (expect 403)
-        try:
-            r = safe_request("POST", "/api/branches", token=cashier_token, json=branch_payload)
-            assert r.status_code == 403, f"Cashier POST /api/branches expected 403, got {r.status_code}, body: {r.text}"
-            pass_count += 1
-        except AssertionError as e:
-            print("FAIL:", e)
-            fail_count += 1
+    master_token = login("master@majubersama.test")
+    branch_admin_token = login("asep@mb.pkn")
+    cashier_token = login("kasir@pakan.mb")
 
-        # 7) Categories: GET as master (expect 200)
-        try:
-            r = safe_request("GET", "/api/categories", token=master_token)
-            assert r.status_code == 200, f"Master GET /api/categories expected 200, got {r.status_code}"
-            # try to find an existing category id to use if creation fails
-            existing_categories = []
-            try:
-                existing_categories = r.json().get("data") or r.json()
-            except Exception:
-                existing_categories = []
-            if existing_categories and isinstance(existing_categories, list) and len(existing_categories) > 0:
-                maybe_cat = existing_categories[0]
-                if isinstance(maybe_cat, dict):
-                    existing_cat_id = maybe_cat.get("id")
-                else:
-                    existing_cat_id = None
-            else:
-                existing_cat_id = None
-            pass_count += 1
-        except AssertionError as e:
-            print("FAIL:", e)
-            fail_count += 1
-            existing_cat_id = None
+    master_headers = headers(master_token)
+    branch_admin_headers = headers(branch_admin_token)
+    cashier_headers = headers(cashier_token)
 
-        # 8) Categories: POST as master (expect 200 or 201)
-        category_payload = {"name": "TC004 Category"}
-        try:
-            r = safe_request("POST", "/api/categories", token=master_token, json=category_payload)
-            assert r.status_code in (200, 201), f"Master POST /api/categories expected 200/201, got {r.status_code}, body: {r.text}"
-            try:
-                created_category_id = r.json().get("id") or r.json().get("data", {}).get("id")
-            except Exception:
-                created_category_id = None
-            # If no id, but GET categories returned an id earlier, use that
-            if not created_category_id and existing_cat_id:
-                created_category_id = existing_cat_id
-            # If still not found, we will attempt to fetch categories and pick one
-            if not created_category_id:
-                r2 = safe_request("GET", "/api/categories", token=master_token)
-                if r2.status_code == 200:
-                    try:
-                        arr = r2.json().get("data") or r2.json()
-                        if isinstance(arr, list) and len(arr) > 0:
-                            created_category_id = arr[0].get("id")
-                    except Exception:
-                        created_category_id = None
-            assert created_category_id is not None, f"No category id available after POST, response: {r.text}"
-            pass_count += 1
-        except AssertionError as e:
-            print("FAIL:", e)
-            fail_count += 1
+    try:
+        master_branches = requests.get(
+            f"{base_url}/api/branches",
+            headers=master_headers,
+            timeout=timeout,
+        )
+        assert master_branches.status_code == 200, (
+            f"Master branch listing failed: {master_branches.status_code} "
+            f"{master_branches.text}"
+        )
 
-        # 9) Categories: POST as branch admin (expect 403)
-        try:
-            r = safe_request("POST", "/api/categories", token=branch_admin_token, json=category_payload)
-            assert r.status_code == 403, f"Branch admin POST /api/categories expected 403, got {r.status_code}, body: {r.text}"
-            pass_count += 1
-        except AssertionError as e:
-            print("FAIL:", e)
-            fail_count += 1
+        admin_branches = requests.get(
+            f"{base_url}/api/branches",
+            headers=branch_admin_headers,
+            timeout=timeout,
+        )
+        assert admin_branches.status_code == 403, (
+            f"Branch admin GET /api/branches should return 403, got "
+            f"{admin_branches.status_code}: {admin_branches.text}"
+        )
 
-        # 10) Categories: POST as cashier (expect 403)
-        try:
-            r = safe_request("POST", "/api/categories", token=cashier_token, json=category_payload)
-            assert r.status_code == 403, f"Cashier POST /api/categories expected 403, got {r.status_code}, body: {r.text}"
-            pass_count += 1
-        except AssertionError as e:
-            print("FAIL:", e)
-            fail_count += 1
+        cashier_branches = requests.get(
+            f"{base_url}/api/branches",
+            headers=cashier_headers,
+            timeout=timeout,
+        )
+        assert cashier_branches.status_code == 403, (
+            f"Cashier GET /api/branches should return 403, got "
+            f"{cashier_branches.status_code}: {cashier_branches.text}"
+        )
 
-        # Prepare product payload using category id
-        if not created_category_id:
-            # Attempt to fetch categories again
-            r = safe_request("GET", "/api/categories", token=master_token)
-            try:
-                arr = r.json().get("data") or r.json()
-                if isinstance(arr, list) and len(arr) > 0:
-                    created_category_id = arr[0].get("id")
-            except Exception:
-                created_category_id = None
+        branches_data = response_data(master_branches)
+        existing_branch = None
+        if isinstance(branches_data, list) and branches_data:
+            existing_branch = branches_data[0]
+        elif isinstance(branches_data, dict):
+            branch_items = branches_data.get("data")
+            if isinstance(branch_items, list) and branch_items:
+                existing_branch = branch_items[0]
 
-        if not created_category_id:
-            print("ERROR: No category available to create product; skipping product creation checks.")
-            # still count as failures for product creation expectations
-            fail_count += 1  # master product creation expected but skipped
-            fail_count += 1  # cashier product creation expected but skipped
-        else:
-            product_payload = {
-                "category_id": created_category_id,
-                "name": "TC004 Product",
-                "purchase_price": "10.00",
-                "selling_price": "15.00",
-                # include minimal SKU or code if required by API; try safe defaults
-                "sku": "TC004-PROD-001"
-            }
+        unique = uuid.uuid4().hex[:10]
+        branch_payload = {
+            "name": f"TC004 Test Branch {unique}",
+            "code": f"TC4-{unique}",
+            "address": "TC004 test address",
+        }
+        if isinstance(existing_branch, dict) and existing_branch.get("company_id"):
+            branch_payload["company_id"] = existing_branch["company_id"]
 
-            # 11) Products: POST as master (expect 201 or 200)
-            try:
-                r = safe_request("POST", "/api/products", token=master_token, json=product_payload)
-                assert r.status_code in (200, 201), f"Master POST /api/products expected 200/201, got {r.status_code}, body: {r.text}"
-                try:
-                    pid = r.json().get("id") or r.json().get("data", {}).get("id")
-                    if pid:
-                        created_product_ids.append(pid)
-                except Exception:
-                    pass
-                pass_count += 1
-            except AssertionError as e:
-                print("FAIL:", e)
-                fail_count += 1
+        master_create_branch = requests.post(
+            f"{base_url}/api/branches",
+            json=branch_payload,
+            headers=master_headers,
+            timeout=timeout,
+        )
+        assert master_create_branch.status_code in (200, 201), (
+            f"Master POST /api/branches failed: {master_create_branch.status_code} "
+            f"{master_create_branch.text}"
+        )
+        branch_id = resource_id(master_create_branch)
+        if branch_id:
+            created_resources.append(("branches", branch_id))
 
-            # 12) Products: POST as branch admin (may be allowed or forbidden by policy)
-            try:
-                r = safe_request("POST", "/api/products", token=branch_admin_token, json=product_payload)
-                # branch admin may be allowed or receive 403; accept both but record outcome
-                assert r.status_code in (200, 201, 403), f"Branch admin POST /api/products expected 200/201/403, got {r.status_code}, body: {r.text}"
-                if r.status_code in (200, 201):
-                    try:
-                        pid = r.json().get("id") or r.json().get("data", {}).get("id")
-                        if pid:
-                            created_product_ids.append(pid)
-                    except Exception:
-                        pass
-                pass_count += 1
-            except AssertionError as e:
-                print("FAIL:", e)
-                fail_count += 1
+        admin_create_branch = requests.post(
+            f"{base_url}/api/branches",
+            json={
+                "name": f"TC004 Unauthorized Branch {unique}",
+                "code": f"TC4-U-{unique}",
+                "address": "TC004 test address",
+            },
+            headers=branch_admin_headers,
+            timeout=timeout,
+        )
+        assert admin_create_branch.status_code == 403, (
+            f"Branch admin POST /api/branches should return 403, got "
+            f"{admin_create_branch.status_code}: {admin_create_branch.text}"
+        )
 
-            # 13) Products: POST as cashier (expect 403)
-            try:
-                r = safe_request("POST", "/api/products", token=cashier_token, json=product_payload)
-                assert r.status_code == 403, f"Cashier POST /api/products expected 403, got {r.status_code}, body: {r.text}"
-                pass_count += 1
-            except AssertionError as e:
-                print("FAIL:", e)
-                fail_count += 1
+        cashier_create_branch = requests.post(
+            f"{base_url}/api/branches",
+            json={
+                "name": f"TC004 Cashier Branch {unique}",
+                "code": f"TC4-C-{unique}",
+                "address": "TC004 test address",
+            },
+            headers=cashier_headers,
+            timeout=timeout,
+        )
+        assert cashier_create_branch.status_code == 403, (
+            f"Cashier POST /api/branches should return 403, got "
+            f"{cashier_create_branch.status_code}: {cashier_create_branch.text}"
+        )
 
+        category_payload = {
+            "name": f"TC004 Test Category {unique}",
+            "description": "Category created for access-control testing",
+        }
+        master_categories = requests.get(
+            f"{base_url}/api/categories",
+            headers=master_headers,
+            timeout=timeout,
+        )
+        assert master_categories.status_code == 200, (
+            f"Master GET /api/categories failed: {master_categories.status_code} "
+            f"{master_categories.text}"
+        )
+
+        master_create_category = requests.post(
+            f"{base_url}/api/categories",
+            json=category_payload,
+            headers=master_headers,
+            timeout=timeout,
+        )
+        assert master_create_category.status_code in (200, 201), (
+            f"Master POST /api/categories failed: "
+            f"{master_create_category.status_code} {master_create_category.text}"
+        )
+        category_id = resource_id(master_create_category)
+        if category_id:
+            created_resources.append(("categories", category_id))
+
+        for role, role_headers in (
+            ("branch admin", branch_admin_headers),
+            ("cashier", cashier_headers),
+        ):
+            category_response = requests.get(
+                f"{base_url}/api/categories",
+                headers=role_headers,
+                timeout=timeout,
+            )
+            assert category_response.status_code == 200, (
+                f"Authenticated {role} GET /api/categories should return 200, got "
+                f"{category_response.status_code}: {category_response.text}"
+            )
+
+            create_category_response = requests.post(
+                f"{base_url}/api/categories",
+                json={
+                    "name": f"TC004 Unauthorized Category {role} {unique}",
+                    "description": "Unauthorized access-control test",
+                },
+                headers=role_headers,
+                timeout=timeout,
+            )
+            assert create_category_response.status_code == 403, (
+                f"{role} POST /api/categories should return 403, got "
+                f"{create_category_response.status_code}: "
+                f"{create_category_response.text}"
+            )
+
+        for role, role_headers in (
+            ("master", master_headers),
+            ("branch admin", branch_admin_headers),
+            ("cashier", cashier_headers),
+        ):
+            products_response = requests.get(
+                f"{base_url}/api/products",
+                headers=role_headers,
+                timeout=timeout,
+            )
+            assert products_response.status_code == 200, (
+                f"Authenticated {role} GET /api/products failed: "
+                f"{products_response.status_code} {products_response.text}"
+            )
+
+        product_payload = {
+            "name": "TC004 Test Product",
+            "sku": f"TC4-{unique}",
+            "barcode": "TC004000001",
+            "category_id": category_id,
+            "price": 1000,
+            "cost_price": 500,
+            "stock": 0,
+        }
+
+        branch_admin_user = requests.get(
+            f"{base_url}/api/user",
+            headers=branch_admin_headers,
+            timeout=timeout,
+        )
+        if branch_admin_user.status_code == 200:
+            user_data = response_data(branch_admin_user)
+            if isinstance(user_data, dict) and user_data.get("branch_id"):
+                product_payload["branch_id"] = user_data["branch_id"]
+            elif isinstance(existing_branch, dict) and existing_branch.get("id"):
+                product_payload["branch_id"] = existing_branch["id"]
+        elif isinstance(existing_branch, dict) and existing_branch.get("id"):
+            product_payload["branch_id"] = existing_branch["id"]
+
+        admin_create_product = requests.post(
+            f"{base_url}/api/products",
+            json=product_payload,
+            headers=branch_admin_headers,
+            timeout=timeout,
+        )
+        assert admin_create_product.status_code in (200, 201, 403), (
+            f"Branch admin product creation should either be allowed or forbidden "
+            f"by policy, got {admin_create_product.status_code}: "
+            f"{admin_create_product.text}"
+        )
+        if admin_create_product.status_code in (200, 201):
+            product_id = resource_id(admin_create_product)
+            if product_id:
+                created_resources.append(("products", product_id))
+
+        cashier_create_product = requests.post(
+            f"{base_url}/api/products",
+            json={
+                **product_payload,
+                "name": "TC004 Cashier Unauthorized Product",
+                "sku": f"TC4-CASH-{unique}",
+                "barcode": "TC004000002",
+            },
+            headers=cashier_headers,
+            timeout=timeout,
+        )
+        assert cashier_create_product.status_code == 403, (
+            f"Cashier POST /api/products should return 403, got "
+            f"{cashier_create_product.status_code}: {cashier_create_product.text}"
+        )
     finally:
-        # Cleanup created products
-        if created_product_ids:
-            for pid in created_product_ids:
-                try:
-                    r = safe_request("DELETE", f"/api/products/{pid}", token=master_token)
-                    if r.status_code not in (200, 204):
-                        print(f"Warning: failed to delete product {pid}, status {r.status_code}, body: {r.text}")
-                except Exception as e:
-                    print(f"Warning: exception deleting product {pid}: {e}")
-
-        # Cleanup created category
-        if created_category_id:
+        for resource, identifier in reversed(created_resources):
             try:
-                r = safe_request("DELETE", f"/api/categories/{created_category_id}", token=master_token)
-                if r.status_code not in (200, 204):
-                    print(f"Warning: failed to delete category {created_category_id}, status {r.status_code}, body: {r.text}")
-            except Exception as e:
-                print(f"Warning: exception deleting category {created_category_id}: {e}")
-
-        # Cleanup created branch
-        if created_branch_id:
-            try:
-                r = safe_request("DELETE", f"/api/branches/{created_branch_id}", token=master_token)
-                if r.status_code not in (200, 204):
-                    print(f"Warning: failed to delete branch {created_branch_id}, status {r.status_code}, body: {r.text}")
-            except Exception as e:
-                print(f"Warning: exception deleting branch {created_branch_id}: {e}")
-
-    print(f"PASS: {pass_count}, FAIL: {fail_count}")
-    # exit with non-zero if any failures
-    if fail_count > 0:
-        sys.exit(1)
+                requests.delete(
+                    f"{base_url}/api/{resource}/{identifier}",
+                    headers=master_headers,
+                    timeout=timeout,
+                )
+            except requests.RequestException:
+                pass
 
 
 if __name__ == "__main__":

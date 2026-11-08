@@ -1,240 +1,327 @@
-import requests
+import json
 import uuid
-import sys
-import traceback
+from datetime import date
 
-BASE_URL = "http://127.0.0.1:8000"
-TIMEOUT = 30.0
+import requests
 
-def run_tc002_journals_rbac_access_control_and_validation():
-    passed = 0
-    failed = 0
 
-    session = requests.Session()
-    session.headers.update({"Accept": "application/json"})
+def _bootstrap_headers(token: str) -> dict:
+    return {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {token}",
+    }
 
-    def report(ok, name, err=None):
-        nonlocal passed, failed
-        if ok:
-            passed += 1
-            print(f"[PASS] {name}")
-        else:
-            failed += 1
-            print(f"[FAIL] {name}")
-            if err:
-                print(err)
 
-    def login(email, password="password"):
-        url = f"{BASE_URL}/api/login"
-        try:
-            r = session.post(url, json={"email": email, "password": password}, timeout=TIMEOUT)
-        except Exception as e:
-            raise RuntimeError(f"Login request failed for {email}: {e}")
-        if r.status_code != 200:
-            raise RuntimeError(f"Login failed for {email}: status={r.status_code} body={r.text}")
-        try:
-            data = r.json()
-        except Exception:
-            raise RuntimeError(f"Login response not JSON for {email}: {r.text}")
-        token = data.get("token") or (data.get("data") and data["data"].get("token"))
-        if not token:
-            # Some implementations return access_token or similar
-            token = data.get("access_token") or data.get("accessToken") or data.get("meta", {}).get("token")
-        if not token:
-            raise RuntimeError(f"No token found in login response for {email}: {data}")
-        return token
+def _first_product_id(products_body) -> int | None:
+    data = products_body.get("data", products_body)
+    if isinstance(data, list) and data:
+        return data[0].get("id")
+    return None
 
-    def try_extract_id(resp_json):
-        # Accept common shapes: { "id": 1 }, { "data": { "id": 1 } }, { "data": { "journal": { "id": 1 } } }
-        if not isinstance(resp_json, dict):
-            return None
-        if "id" in resp_json and isinstance(resp_json["id"], (int, str)):
-            return str(resp_json["id"])
-        data = resp_json.get("data")
-        if isinstance(data, dict):
-            if "id" in data:
-                return str(data["id"])
-            # nested
-            for v in data.values():
-                if isinstance(v, dict) and "id" in v:
-                    return str(v["id"])
+
+def _branch_id(branches_body, code: str) -> int | None:
+    data = branches_body.get("data", branches_body)
+    if not isinstance(data, list):
         return None
+    for branch in data:
+        if isinstance(branch, dict) and branch.get("code") == code:
+            return branch.get("id")
+    return None
 
-    # Prepare payloads
-    def balanced_journal_payload():
-        return {
-            "transaction_date": "2026-10-15",
-            "reference_number": f"TEST-{uuid.uuid4()}",
-            "description": "Automated balanced journal for TC002",
-            "lines": [
-                {"chart_of_account_id": 1110, "debit": "25.00", "credit": "0.00"},
-                {"chart_of_account_id": 4110, "debit": "0.00", "credit": "25.00"},
-            ]
-        }
 
-    def unbalanced_journal_payload():
-        return {
-            "transaction_date": "2026-10-15",
-            "reference_number": f"TEST-{uuid.uuid4()}",
-            "description": "Automated unbalanced journal for TC002",
-            "lines": [
-                {"chart_of_account_id": 1110, "debit": "30.00", "credit": "0.00"},
-                {"chart_of_account_id": 4110, "debit": "0.00", "credit": "25.00"},
-            ]
-        }
+def bootstrap_pakan_sellable(base_url: str, login, *, timeout: int = 30, min_stock: int = 5) -> int:
+    master_token = login("master@majubersama.test")
+    master_headers = _bootstrap_headers(master_token)
+    kasir_headers = _bootstrap_headers(login("kasir@pakan.mb"))
+    listed = requests.get(f"{base_url}/api/products", headers=kasir_headers, timeout=timeout)
+    assert listed.status_code == 200, listed.text
+    rows = listed.json().get("data", listed.json())
+    if isinstance(rows, list):
+        for row in rows:
+            stock = row.get("stock")
+            if row.get("id") and isinstance(stock, (int, float)) and stock >= 1:
+                return int(row["id"])
+    branches = requests.get(f"{base_url}/api/branches", headers=master_headers, timeout=timeout)
+    assert branches.status_code == 200, branches.text
+    pakan_id = _branch_id(branches.json(), "PAKAN")
+    pusat_id = _branch_id(branches.json(), "PUSAT")
+    if pusat_id is None:
+        data = branches.json().get("data", [])
+        pusat_id = data[0]["id"] if data else None
+    assert pakan_id and pusat_id, "PAKAN/PUSAT branch ids required"
+    master_products = requests.get(f"{base_url}/api/products", headers=master_headers, timeout=timeout)
+    assert master_products.status_code == 200, master_products.text
+    source_product_id = _first_product_id(master_products.json())
+    assert source_product_id is not None, "Master catalog has no products"
+    adjustment = requests.post(
+        f"{base_url}/api/stock-adjustments",
+        headers=master_headers,
+        json={"branch_id": pusat_id, "items": [{"product_id": source_product_id, "actual_qty": min_stock}]},
+        timeout=timeout,
+    )
+    assert adjustment.status_code == 201, adjustment.text
+    transfer = requests.post(
+        f"{base_url}/api/stock-transfers",
+        headers=master_headers,
+        json={
+            "source_branch_id": pusat_id,
+            "destination_branch_id": pakan_id,
+            "items": [{"product_id": source_product_id, "quantity": min_stock}],
+        },
+        timeout=timeout,
+    )
+    assert transfer.status_code == 201, transfer.text
+    listed = requests.get(f"{base_url}/api/products", headers=kasir_headers, timeout=timeout)
+    assert listed.status_code == 200, listed.text
+    rows = listed.json().get("data", listed.json())
+    assert isinstance(rows, list) and rows, json.dumps(listed.json())[:300]
+    destination = next(
+        (row for row in rows if isinstance(row.get("stock"), (int, float)) and row["stock"] >= 1),
+        rows[0],
+    )
+    product_id = destination.get("id")
+    assert product_id is not None
+    return int(product_id)
 
+
+def test_journals_rbac_access_control_and_validation():
+    base_url = "http://localhost:8000"
+    timeout = 30
     created_journal_id = None
-    master_token = None
+    master_headers = None
 
-    # Subtest 1: Unauthenticated POST /api/journals -> 401
-    try:
-        r = session.post(f"{BASE_URL}/api/journals", json=balanced_journal_payload(), timeout=TIMEOUT)
-        assert r.status_code == 401, f"Expected 401 for unauthenticated POST, got {r.status_code}, body={r.text}"
-        report(True, "Unauthenticated POST /api/journals returns 401")
-    except AssertionError as e:
-        report(False, "Unauthenticated POST /api/journals returns 401", str(e))
-    except Exception as e:
-        report(False, "Unauthenticated POST /api/journals returns 401", traceback.format_exc())
-
-    # Subtest 2: Unauthenticated GET /api/journals -> 401
-    try:
-        r = session.get(f"{BASE_URL}/api/journals", timeout=TIMEOUT)
-        assert r.status_code == 401, f"Expected 401 for unauthenticated GET, got {r.status_code}, body={r.text}"
-        report(True, "Unauthenticated GET /api/journals returns 401")
-    except AssertionError as e:
-        report(False, "Unauthenticated GET /api/journals returns 401", str(e))
-    except Exception as e:
-        report(False, "Unauthenticated GET /api/journals returns 401", traceback.format_exc())
-
-    # Subtest 3: Cashier role should receive 403 on POST and GET
-    cashier_email = "kasir@pakan.mb"
-    cashier_token = None
-    try:
-        cashier_token = login(cashier_email)
-    except Exception as e:
-        report(False, f"Login cashier {cashier_email}", traceback.format_exc())
-        cashier_token = None
-
-    if cashier_token:
-        headers = {"Authorization": f"Bearer {cashier_token}", "Accept": "application/json"}
+    def login(email):
+        response = requests.post(
+            f"{base_url}/api/login",
+            json={"email": email, "password": "password"},
+            headers={"Accept": "application/json", "Content-Type": "application/json"},
+            timeout=timeout,
+        )
+        assert response.status_code == 200, (
+            f"Login failed for {email}: {response.status_code} {response.text}"
+        )
         try:
-            r = session.post(f"{BASE_URL}/api/journals", json=balanced_journal_payload(), headers=headers, timeout=TIMEOUT)
-            assert r.status_code == 403, f"Expected 403 for cashier POST, got {r.status_code}, body={r.text}"
-            report(True, "Cashier POST /api/journals returns 403")
-        except AssertionError as e:
-            report(False, "Cashier POST /api/journals returns 403", str(e))
-        except Exception as e:
-            report(False, "Cashier POST /api/journals returns 403", traceback.format_exc())
+            payload = response.json()
+        except ValueError as exc:
+            raise AssertionError(f"Login for {email} did not return JSON") from exc
 
-        try:
-            r = session.get(f"{BASE_URL}/api/journals", headers=headers, timeout=TIMEOUT)
-            assert r.status_code == 403, f"Expected 403 for cashier GET, got {r.status_code}, body={r.text}"
-            report(True, "Cashier GET /api/journals returns 403")
-        except AssertionError as e:
-            report(False, "Cashier GET /api/journals returns 403", str(e))
-        except Exception as e:
-            report(False, "Cashier GET /api/journals returns 403", traceback.format_exc())
+        def find_token(value):
+            if isinstance(value, dict):
+                for key in ("token", "access_token", "plainTextToken"):
+                    if isinstance(value.get(key), str) and value[key]:
+                        return value[key]
+                for nested in value.values():
+                    token = find_token(nested)
+                    if token:
+                        return token
+            elif isinstance(value, list):
+                for nested in value:
+                    token = find_token(nested)
+                    if token:
+                        return token
+            return None
 
-    # Subtest 4: Branch admin should receive 403 on POST and GET
-    branch_admin_email = "asep@mb.pkn"
-    branch_admin_token = None
+        token = find_token(payload)
+        assert token, f"Login response for {email} did not contain a Sanctum token"
+        return {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+        }
+
+    def walk(value):
+        if isinstance(value, dict):
+            yield value
+            for nested in value.values():
+                yield from walk(nested)
+        elif isinstance(value, list):
+            for nested in value:
+                yield from walk(nested)
+
     try:
-        branch_admin_token = login(branch_admin_email)
-    except Exception as e:
-        report(False, f"Login branch admin {branch_admin_email}", traceback.format_exc())
-        branch_admin_token = None
+        master_headers = login("master@majubersama.test")
+        admin_headers = login("gudang@pakan.178")
+        cashier_headers = login("kasir@pakan.mb")
 
-    if branch_admin_token:
-        headers = {"Authorization": f"Bearer {branch_admin_token}", "Accept": "application/json"}
+        def token_from_headers(headers):
+            auth = headers.get("Authorization", "")
+            return auth.split(" ", 1)[1] if auth.lower().startswith("bearer ") else auth
+
+        product_id = bootstrap_pakan_sellable(
+            base_url,
+            lambda email: token_from_headers(login(email)),
+        )
+
+        checkout_response = requests.post(
+            f"{base_url}/api/checkout",
+            json={"items": [{"product_id": product_id, "quantity": 1}]},
+            headers=cashier_headers,
+            timeout=timeout,
+        )
+        assert checkout_response.status_code == 201, (
+            f"Checkout bootstrap expected 201, received "
+            f"{checkout_response.status_code}: {checkout_response.text}"
+        )
+
+        journals_response = requests.get(
+            f"{base_url}/api/journals",
+            headers=master_headers,
+            timeout=timeout,
+        )
+        assert journals_response.status_code == 200, (
+            f"Master could not read journals: {journals_response.status_code} "
+            f"{journals_response.text}"
+        )
+        journals_payload = journals_response.json()
+        account_ids = {}
+        for item in walk(journals_payload):
+            account = item.get("chart_of_account")
+            if isinstance(account, dict):
+                code = str(account.get("code", account.get("account_code", "")))
+                account_id = item.get("chart_of_account_id", account.get("id"))
+                if code in {"1110", "4110"} and account_id is not None:
+                    account_ids[code] = account_id
+
+        assert "1110" in account_ids and "4110" in account_ids, (
+            "Could not find chart of account IDs for codes 1110 and 4110 "
+            "in journal_lines.chart_of_account"
+        )
+
+        reference = f"TC002-{uuid.uuid4().hex[:12]}"
+        balanced_payload = {
+            "transaction_date": date.today().isoformat(),
+            "reference_number": reference,
+            "description": "TC002 balanced journal RBAC validation",
+            "lines": [
+                {
+                    "chart_of_account_id": account_ids["1110"],
+                    "debit": 1000,
+                    "credit": 0,
+                },
+                {
+                    "chart_of_account_id": account_ids["4110"],
+                    "debit": 0,
+                    "credit": 1000,
+                },
+            ],
+        }
+
+        unauthenticated_post = requests.post(
+            f"{base_url}/api/journals",
+            json=balanced_payload,
+            headers={"Accept": "application/json", "Content-Type": "application/json"},
+            timeout=timeout,
+        )
+        assert unauthenticated_post.status_code == 401, (
+            f"Unauthenticated journal POST expected 401, received "
+            f"{unauthenticated_post.status_code}: {unauthenticated_post.text}"
+        )
+
+        unauthenticated_get = requests.get(
+            f"{base_url}/api/journals",
+            headers={"Accept": "application/json"},
+            timeout=timeout,
+        )
+        assert unauthenticated_get.status_code == 401, (
+            f"Unauthenticated journal GET expected 401, received "
+            f"{unauthenticated_get.status_code}: {unauthenticated_get.text}"
+        )
+
+        for role, headers in (
+            ("cashier", cashier_headers),
+            ("branch admin", admin_headers),
+        ):
+            post_response = requests.post(
+                f"{base_url}/api/journals",
+                json=balanced_payload,
+                headers=headers,
+                timeout=timeout,
+            )
+            assert post_response.status_code == 403, (
+                f"{role} journal POST expected 403, received "
+                f"{post_response.status_code}: {post_response.text}"
+            )
+
+            get_response = requests.get(
+                f"{base_url}/api/journals",
+                headers=headers,
+                timeout=timeout,
+            )
+            assert get_response.status_code == 403, (
+                f"{role} journal GET expected 403, received "
+                f"{get_response.status_code}: {get_response.text}"
+            )
+
+        balanced_response = requests.post(
+            f"{base_url}/api/journals",
+            json=balanced_payload,
+            headers=master_headers,
+            timeout=timeout,
+        )
+        assert balanced_response.status_code == 201, (
+            f"Master balanced journal POST expected 201, received "
+            f"{balanced_response.status_code}: {balanced_response.text}"
+        )
+
         try:
-            r = session.post(f"{BASE_URL}/api/journals", json=balanced_journal_payload(), headers=headers, timeout=TIMEOUT)
-            assert r.status_code == 403, f"Expected 403 for branch admin POST, got {r.status_code}, body={r.text}"
-            report(True, "Branch admin POST /api/journals returns 403")
-        except AssertionError as e:
-            report(False, "Branch admin POST /api/journals returns 403", str(e))
-        except Exception as e:
-            report(False, "Branch admin POST /api/journals returns 403", traceback.format_exc())
+            balanced_result = balanced_response.json()
+        except ValueError:
+            balanced_result = {}
+        for item in walk(balanced_result):
+            if item.get("id") is not None and (
+                "transaction_date" in item
+                or "reference_number" in item
+                or "lines" in item
+                or "journal_lines" in item
+            ):
+                created_journal_id = item["id"]
+                break
+        if created_journal_id is None and isinstance(balanced_result, dict):
+            candidate = balanced_result.get("data")
+            if isinstance(candidate, dict):
+                created_journal_id = candidate.get("id")
+            elif balanced_result.get("id") is not None:
+                created_journal_id = balanced_result["id"]
 
-        try:
-            r = session.get(f"{BASE_URL}/api/journals", headers=headers, timeout=TIMEOUT)
-            assert r.status_code == 403, f"Expected 403 for branch admin GET, got {r.status_code}, body={r.text}"
-            report(True, "Branch admin GET /api/journals returns 403")
-        except AssertionError as e:
-            report(False, "Branch admin GET /api/journals returns 403", str(e))
-        except Exception as e:
-            report(False, "Branch admin GET /api/journals returns 403", traceback.format_exc())
-
-    # Subtest 5: Master - balanced POST -> 201, unbalanced POST -> 422, GET -> 200
-    master_email = "master@majubersama.test"
-    try:
-        master_token = login(master_email)
-    except Exception as e:
-        report(False, f"Login master {master_email}", traceback.format_exc())
-        master_token = None
-
-    if master_token:
-        headers = {"Authorization": f"Bearer {master_token}", "Accept": "application/json", "Content-Type": "application/json"}
-        # Balanced POST
-        try:
-            r = session.post(f"{BASE_URL}/api/journals", json=balanced_journal_payload(), headers=headers, timeout=TIMEOUT)
-            assert r.status_code == 201, f"Expected 201 for master balanced POST, got {r.status_code}, body={r.text}"
-            report(True, "Master balanced POST /api/journals returns 201")
-            # attempt to extract created id
+        unbalanced_payload = {
+            "transaction_date": date.today().isoformat(),
+            "reference_number": f"TC002-UNBAL-{uuid.uuid4().hex[:12]}",
+            "description": "TC002 unbalanced journal validation",
+            "lines": [
+                {
+                    "chart_of_account_id": account_ids["1110"],
+                    "debit": 1000,
+                    "credit": 0,
+                },
+                {
+                    "chart_of_account_id": account_ids["4110"],
+                    "debit": 0,
+                    "credit": 999,
+                },
+            ],
+        }
+        unbalanced_response = requests.post(
+            f"{base_url}/api/journals",
+            json=unbalanced_payload,
+            headers=master_headers,
+            timeout=timeout,
+        )
+        assert unbalanced_response.status_code == 422, (
+            f"Master unbalanced journal POST expected 422, received "
+            f"{unbalanced_response.status_code}: {unbalanced_response.text}"
+        )
+    finally:
+        if created_journal_id is not None and master_headers is not None:
             try:
-                resp_json = r.json()
-            except Exception:
-                resp_json = {}
-            created_journal_id = try_extract_id(resp_json)
-        except AssertionError as e:
-            report(False, "Master balanced POST /api/journals returns 201", str(e))
-        except Exception as e:
-            report(False, "Master balanced POST /api/journals returns 201", traceback.format_exc())
+                requests.delete(
+                    f"{base_url}/api/journals/{created_journal_id}",
+                    headers=master_headers,
+                    timeout=timeout,
+                )
+            except requests.RequestException:
+                pass
 
-        # Unbalanced POST
-        try:
-            r = session.post(f"{BASE_URL}/api/journals", json=unbalanced_journal_payload(), headers=headers, timeout=TIMEOUT)
-            assert r.status_code == 422, f"Expected 422 for master unbalanced POST, got {r.status_code}, body={r.text}"
-            report(True, "Master unbalanced POST /api/journals returns 422")
-        except AssertionError as e:
-            report(False, "Master unbalanced POST /api/journals returns 422", str(e))
-        except Exception as e:
-            report(False, "Master unbalanced POST /api/journals returns 422", traceback.format_exc())
-
-        # GET journals
-        try:
-            r = session.get(f"{BASE_URL}/api/journals", headers=headers, timeout=TIMEOUT)
-            assert r.status_code == 200, f"Expected 200 for master GET, got {r.status_code}, body={r.text}"
-            report(True, "Master GET /api/journals returns 200")
-        except AssertionError as e:
-            report(False, "Master GET /api/journals returns 200", str(e))
-        except Exception as e:
-            report(False, "Master GET /api/journals returns 200", traceback.format_exc())
-
-    # Cleanup: attempt to delete created journal if ID available
-    if master_token and created_journal_id:
-        headers = {"Authorization": f"Bearer {master_token}", "Accept": "application/json"}
-        try:
-            del_url = f"{BASE_URL}/api/journals/{created_journal_id}"
-            r = session.delete(del_url, headers=headers, timeout=TIMEOUT)
-            # Accept 200, 202, 204. If 404 or 405, that's acceptable but report.
-            if r.status_code in (200, 202, 204):
-                report(True, f"Cleanup DELETE /api/journals/{created_journal_id} returned {r.status_code}")
-            else:
-                # Not necessarily a failure per PRD (delete may not exist), but note it.
-                report(False, f"Cleanup DELETE /api/journals/{created_journal_id} unexpected status {r.status_code}", f"Body: {r.text}")
-        except Exception as e:
-            report(False, f"Cleanup DELETE /api/journals/{created_journal_id}", traceback.format_exc())
-
-    # Summary
-    print("TC002 Summary:")
-    print(f"Passed: {passed}")
-    print(f"Failed: {failed}")
-
-    # Exit non-zero if any failure (useful for CI)
-    if failed > 0:
-        sys.exit(1)
-    else:
-        sys.exit(0)
 
 if __name__ == "__main__":
-    run_tc002_journals_rbac_access_control_and_validation()
+    test_journals_rbac_access_control_and_validation()
