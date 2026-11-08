@@ -374,6 +374,13 @@ dari ledger.
   - `--hold-cases` mengarsipkan produk cabang yang tidak cocok dan mengisi `catalog_hold_reason`. Stok tidak diubah, dan daftarnya disimpan ke `storage/app/catalog-sync/`.
   - `php artisan catalog:held-products` menampilkan produk yang diarsipkan. `--purge` menghapus permanen produk yang tidak punya riwayat transaksi, stok opname, HPP, atau jurnal. Produk yang punya riwayat tetap diarsipkan.
 
+- **Cabang acuan (pembaruan 2026-11-08):** `MasterCatalogService::SOURCE_BRANCH_CODES` (saat ini `GUDANG-PUPUK`) menjadikan satu cabang sebagai sumber tunggal grupnya.
+  - Produk grup pupuk hanya bisa ditambahkan, diubah nama/SKU/harganya, dan dihapus dari Gudang Pupuk, oleh master atau admin Gudang Pupuk. Cabang pupuk lain mengikuti otomatis; master pun tidak bisa mengubah empat kolom itu dari baris cabang.
+  - Menghapus produk di Gudang Pupuk ikut menyembunyikan (soft delete) baris ber-SKU sama di semua cabang pupuk. Stok, inventori, dan harga bertingkat cabang tidak diubah.
+  - Produk baru dari Gudang Pupuk memulihkan baris cabang yang diarsipkan dengan SKU sama, termasuk stoknya.
+  - Cabang baru (atau cabang yang induknya dipindah) ke grup yang memiliki cabang acuan langsung menerima semua produk aktif cabang acuan beserta harga bertingkatnya, dengan stok 0, lewat `MasterCatalogService::seedBranchFromSource()`. Admin cabang itu bisa langsung memakai Input Stok Awal.
+  - Grup tanpa cabang acuan (pakan) tetap memakai aturan lama: hanya master, dari cabang mana pun dalam grup.
+
 **Konsekuensi:**
 - Kasir tetap tidak melihat harga modal.
 - Produk di cabang lain yang SKU-nya tidak ada di cabang acuan tidak disentuh; perintah sinkronisasi hanya melaporkannya.
@@ -404,7 +411,7 @@ dari ledger.
 | :--- | :---: | :---: | :---: |
 | **Kasir POS & Cetak Struk** | ✅ Akses Penuh | ✅ Akses Penuh | ✅ Akses Penuh |
 | **Katalog Stok Sendiri** | ❌ Terbatas | ✅ Akses Penuh | ✅ Lintas Cabang |
-| **Tambah Produk, Nama & Harga** | ❌ Ditolak | ❌ Ditolak | ✅ Berlaku ke Satu Grup Cabang |
+| **Tambah Produk, Nama & Harga** | ❌ Ditolak | ✅ Khusus Admin Gudang Pupuk | ✅ Berlaku ke Satu Grup Cabang (pupuk: dari Gudang Pupuk) |
 | **Kategori, Satuan & Status Pajak Produk** | ❌ Ditolak | ✅ Cabang Sendiri | ✅ Bebas Pilih Cabang |
 | **Kategori Produk** | ❌ Ditolak | ✅ Kelola (Read/Write) | ✅ Kelola (Read/Write) |
 | **Staf & Kasir Cabang** | ❌ Ditolak | ✅ Khusus Cabang Sendiri | ✅ Seluruh Cabang & Role |

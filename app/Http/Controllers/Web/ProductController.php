@@ -9,6 +9,7 @@ use App\Models\CustomerGroup;
 use App\Models\PriceLevel;
 use App\Models\Product;
 use App\Models\ProductPrice;
+use App\Models\User;
 use App\Services\MasterCatalogService;
 use App\Services\ProductService;
 use Illuminate\Http\JsonResponse;
@@ -80,6 +81,7 @@ class ProductController extends Controller
             'taxStatus' => $taxStatus,
             'canManageCatalog' => $canManageCatalog,
             'canManageMasterCatalog' => $user->can('manage-master-catalog'),
+            'followerBranchIds' => $this->masterCatalog->followerBranchIds(),
         ]);
     }
 
@@ -91,7 +93,9 @@ class ProductController extends Controller
         $user = $request->user()->load('branch');
         $isMaster = $user->isMaster();
 
-        $branches = $isMaster ? Branch::orderBy('name')->get() : collect([$user->branch]);
+        $branches = $isMaster
+            ? Branch::orderBy('name')->get()->reject(fn (Branch $branch) => $this->masterCatalog->followsSource((int) $branch->id))->values()
+            : collect([$user->branch]);
         $categories = $this->categoriesFor($isMaster ? null : $user->branch, ! $isMaster);
         $customerGroups = CustomerGroup::orderBy('id')->get();
         $priceLevels = PriceLevel::where('is_active', true)
@@ -171,6 +175,7 @@ class ProductController extends Controller
 
         $validated = $this->applyTaxFlag($request, $validated);
 
+        $this->ensureCanManageMasterFieldsIn($user, $targetBranchId);
         $this->ensureCategoryMatchesBranch((int) $validated['category_id'], $targetBranchId);
 
         $product = DB::transaction(function () use ($request, $validated, $targetBranchId): Product {
@@ -182,7 +187,7 @@ class ProductController extends Controller
             // Sync CustomerGroup tiered prices
             $this->syncCustomerGroupPrices($product, $request->input('customer_group_prices', $request->input('group_prices', [])));
 
-            $this->masterCatalog->syncToGroup($product);
+            $this->masterCatalog->syncToGroup($product, restoreArchived: true);
 
             return $product;
         });
@@ -217,6 +222,7 @@ class ProductController extends Controller
             ->orderByDesc('is_default')
             ->orderBy('id')
             ->get();
+        $sourceProduct = $this->masterCatalog->sourceProductFor($product);
 
         return view('backoffice.products.edit', [
             'currentUser' => $user,
@@ -227,7 +233,13 @@ class ProductController extends Controller
             'customerGroups' => $customerGroups,
             'priceLevels' => $priceLevels,
             'showTaxField' => true,
-            'canEditMasterFields' => $user->can('manage-master-catalog'),
+            'canEditMasterFields' => $this->masterCatalog->canManageMasterFieldsIn($user, (int) $product->branch_id),
+            'sourceBranch' => $this->masterCatalog->followsSource((int) $product->branch_id)
+                ? $this->masterCatalog->sourceBranch((int) $product->branch_id)
+                : null,
+            'canEditSourceProduct' => $sourceProduct !== null
+                && $this->masterCatalog->canManageMasterFieldsIn($user, (int) $sourceProduct->branch_id),
+            'sourceProduct' => $sourceProduct,
         ]);
     }
 
@@ -246,7 +258,7 @@ class ProductController extends Controller
             abort(403, 'Anda tidak memiliki otorisasi untuk mengubah produk cabang lain.');
         }
 
-        if (! $user->can('manage-master-catalog')) {
+        if (! $this->masterCatalog->canManageMasterFieldsIn($user, (int) $product->branch_id)) {
             return $this->updateBranchFields($request, $product);
         }
 
@@ -415,6 +427,12 @@ class ProductController extends Controller
                 abort(403, 'Anda tidak memiliki otorisasi untuk menghapus produk cabang lain.');
             }
 
+            if ($this->masterCatalog->followsSource((int) $product->branch_id)) {
+                return redirect()
+                    ->route('backoffice.products.index')
+                    ->with('error', $this->sourceOnlyMessage((int) $product->branch_id, 'dihapus'));
+            }
+
             if (! $isMaster && $product->hasTransactionHistory()) {
                 return redirect()
                     ->route('backoffice.products.index')
@@ -422,11 +440,19 @@ class ProductController extends Controller
             }
 
             $name = $product->name;
-            $this->productService->deleteProduct($product, $isMaster);
+            $hidden = DB::transaction(function () use ($product, $isMaster): int {
+                $this->productService->deleteProduct($product, $isMaster);
+
+                return $this->masterCatalog->isSourceBranch((int) $product->branch_id)
+                    ? $this->masterCatalog->hideInGroup($product)
+                    : 0;
+            });
 
             return redirect()
                 ->route('backoffice.products.index')
-                ->with('success', "Produk '{$name}' berhasil dihapus!");
+                ->with('success', $hidden > 0
+                    ? "Produk '{$name}' berhasil dihapus dan disembunyikan di {$hidden} cabang lain dalam grupnya!"
+                    : "Produk '{$name}' berhasil dihapus!");
         } catch (HttpException $e) {
             throw $e;
         } catch (\Throwable $e) {
@@ -486,6 +512,26 @@ class ProductController extends Controller
         }
 
         return $query->get();
+    }
+
+    private function ensureCanManageMasterFieldsIn(User $user, int $branchId): void
+    {
+        if ($this->masterCatalog->canManageMasterFieldsIn($user, $branchId)) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            'branch_id' => $this->masterCatalog->followsSource($branchId)
+                ? $this->sourceOnlyMessage($branchId, 'ditambahkan')
+                : 'Anda tidak dapat menambahkan produk di cabang ini.',
+        ]);
+    }
+
+    private function sourceOnlyMessage(int $branchId, string $action): string
+    {
+        $source = $this->masterCatalog->sourceBranch($branchId);
+
+        return "Produk di grup cabang ini hanya bisa {$action} dari cabang acuan {$source?->name} ({$source?->code}).";
     }
 
     private function ensureCategoryMatchesBranch(int $categoryId, int $branchId): void

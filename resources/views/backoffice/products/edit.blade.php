@@ -38,6 +38,17 @@
                 <div class="mb-6 rounded-xl border border-sky-200 bg-sky-50 p-4 text-xs text-sky-800">
                     Nama, SKU, harga beli, dan harga jual yang Anda simpan akan disamakan ke semua cabang dalam grup yang sama.
                 </div>
+            @elseif ($sourceBranch)
+                <div class="mb-6 flex flex-col gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800 sm:flex-row sm:items-center sm:justify-between">
+                    <span>
+                        Nama, SKU, harga beli, dan harga jual mengikuti cabang acuan {{ $sourceBranch->name }} ({{ $sourceBranch->code }}) secara otomatis. Di cabang ini Anda dapat mengubah kategori, satuan, dan status pajak.
+                    </span>
+                    @if ($canEditSourceProduct)
+                        <a href="{{ route('backoffice.products.edit', $sourceProduct->id) }}" class="shrink-0 rounded-lg bg-amber-600 px-3 py-1.5 font-bold text-white hover:bg-amber-700">
+                            Ubah di cabang acuan
+                        </a>
+                    @endif
+                </div>
             @else
                 <div class="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-800">
                     Nama, SKU, harga beli, dan harga jual diatur oleh akun master dan berlaku sama di semua cabang. Anda dapat mengubah kategori, satuan, dan status pajak.

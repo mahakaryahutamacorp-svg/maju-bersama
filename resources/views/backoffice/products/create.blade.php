@@ -164,10 +164,10 @@
                                     </option>
                                 @endforeach
                             </select>
-                            <p class="text-[11px] text-slate-400 mt-1">Produk otomatis didaftarkan ke semua cabang dalam grup yang sama. Stok awal hanya untuk cabang ini.</p>
+                            <p class="text-[11px] text-slate-400 mt-1">Produk otomatis didaftarkan ke semua cabang dalam grup yang sama. Stok awal hanya untuk cabang ini. Grup pupuk hanya menerima produk baru dari Gudang Pupuk.</p>
                         @else
                             <input type="text" disabled value="{{ $currentUser->branch?->name }} ({{ $currentUser->branch?->code }})" class="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm text-slate-600">
-                            <p class="text-[11px] text-slate-400 mt-1">Admin cabang otomatis terikat pada cabangnya sendiri.</p>
+                            <p class="text-[11px] text-slate-400 mt-1">Produk otomatis didaftarkan ke semua cabang dalam grup yang sama. Stok awal hanya untuk cabang ini.</p>
                         @endif
                     </div>
                 </div>

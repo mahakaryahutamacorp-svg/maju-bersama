@@ -4,8 +4,10 @@ namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
 use App\Models\Branch;
+use App\Services\MasterCatalogService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -69,7 +71,7 @@ class BranchController extends Controller
     /**
      * Store a newly created branch.
      */
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, MasterCatalogService $masterCatalog): RedirectResponse
     {
         $this->authorizeMaster($request);
 
@@ -90,11 +92,20 @@ class BranchController extends Controller
         $validated['timezone'] = $validated['timezone'] ?? 'Asia/Jakarta';
         $validated['is_active'] = true;
 
-        $branch = Branch::create($validated);
+        [$branch, $seeded] = DB::transaction(function () use ($validated, $masterCatalog): array {
+            $branch = Branch::create($validated);
+
+            return [$branch, $masterCatalog->seedBranchFromSource($branch)];
+        });
+
+        $message = "Cabang baru '{$branch->name}' ({$branch->code}) berhasil didaftarkan!";
+        if ($seeded > 0) {
+            $message .= " {$seeded} produk dari cabang acuan sudah terdaftar dengan stok 0, silakan lanjut ke Input Stok Awal.";
+        }
 
         return redirect()
             ->route('backoffice.branches.index')
-            ->with('success', "Cabang baru '{$branch->name}' ({$branch->code}) berhasil didaftarkan!");
+            ->with('success', $message);
     }
 
     /**
@@ -121,7 +132,7 @@ class BranchController extends Controller
     /**
      * Update the specified branch.
      */
-    public function update(Request $request, int $id): RedirectResponse
+    public function update(Request $request, int $id, MasterCatalogService $masterCatalog): RedirectResponse
     {
         $this->authorizeMaster($request);
 
@@ -144,11 +155,20 @@ class BranchController extends Controller
         $validated['code'] = strtoupper(trim($validated['code']));
         $validated['is_active'] = $request->has('is_active') ? (bool) $request->input('is_active') : $branch->is_active;
 
-        $branch->update($validated);
+        $seeded = DB::transaction(function () use ($branch, $validated, $masterCatalog): int {
+            $branch->update($validated);
+
+            return $branch->wasChanged('parent_id') ? $masterCatalog->seedBranchFromSource($branch) : 0;
+        });
+
+        $message = "Data cabang '{$branch->name}' berhasil diperbarui!";
+        if ($seeded > 0) {
+            $message .= " {$seeded} produk dari cabang acuan ditambahkan dengan stok 0.";
+        }
 
         return redirect()
             ->route('backoffice.branches.index')
-            ->with('success', "Data cabang '{$branch->name}' berhasil diperbarui!");
+            ->with('success', $message);
     }
 
     /**

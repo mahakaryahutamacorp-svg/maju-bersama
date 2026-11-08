@@ -12,6 +12,7 @@ use App\Services\ProductService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class ProductController extends Controller
 {
@@ -119,12 +120,16 @@ class ProductController extends Controller
      */
     public function store(StoreProductRequest $request): JsonResponse
     {
-        $product = DB::transaction(function () use ($request): Product {
-            $product = $this->productService->createProduct(
-                $request->validated(),
-                $request->user()->branch_id
-            );
-            $this->masterCatalog->syncToGroup($product);
+        $branchId = (int) $request->user()->branch_id;
+        if (! $this->masterCatalog->canManageMasterFieldsIn($request->user(), $branchId)) {
+            throw ValidationException::withMessages([
+                'branch_id' => 'Produk di grup cabang ini hanya bisa ditambahkan dari cabang acuan.',
+            ]);
+        }
+
+        $product = DB::transaction(function () use ($request, $branchId): Product {
+            $product = $this->productService->createProduct($request->validated(), $branchId);
+            $this->masterCatalog->syncToGroup($product, restoreArchived: true);
 
             return $product;
         });
@@ -247,7 +252,7 @@ class ProductController extends Controller
 
             $updatedProduct = $this->productService->updateProduct($product, $validated);
 
-            if ($request->user()->can('manage-master-catalog')) {
+            if ($this->masterCatalog->canManageMasterFieldsIn($request->user(), (int) $updatedProduct->branch_id)) {
                 $this->masterCatalog->syncToGroup($updatedProduct, $previousSku);
             }
 
@@ -266,7 +271,19 @@ class ProductController extends Controller
      */
     public function destroy(Product $product): JsonResponse
     {
-        $this->productService->deleteProduct($product, (bool) request()->user()?->isMaster());
+        if ($this->masterCatalog->followsSource((int) $product->branch_id)) {
+            throw ValidationException::withMessages([
+                'product' => 'Produk di grup cabang ini hanya bisa dihapus dari cabang acuan.',
+            ]);
+        }
+
+        DB::transaction(function () use ($product): void {
+            $this->productService->deleteProduct($product, (bool) request()->user()?->isMaster());
+
+            if ($this->masterCatalog->isSourceBranch((int) $product->branch_id)) {
+                $this->masterCatalog->hideInGroup($product);
+            }
+        });
 
         return response()->json([
             'message' => 'Product deleted successfully.',

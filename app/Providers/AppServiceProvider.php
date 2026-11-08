@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Services\MasterCatalogService;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
@@ -45,8 +46,10 @@ class AppServiceProvider extends ServiceProvider
         // Sebagian Master Data: Katalog Produk & Data Pelanggan.
         Gate::define('manage-catalog', fn (User $user) => $user->isMaster() || $user->isBranchAdmin());
 
-        // Nama, SKU, harga modal, dan harga jual berlaku untuk satu grup cabang, jadi hanya master yang menetapkannya.
-        Gate::define('manage-master-catalog', fn (User $user) => $user->isMaster());
+        // Nama, SKU, harga modal, dan harga jual berlaku untuk satu grup cabang, jadi hanya master
+        // dan admin cabang acuan (Gudang Pupuk) yang menetapkannya. Batas per cabang ada di MasterCatalogService.
+        Gate::define('manage-master-catalog', fn (User $user) => $user->isMaster()
+            || ($user->isBranchAdmin() && app(MasterCatalogService::class)->isSourceBranch($user->branch_id)));
 
         // Kasir boleh melihat katalog jual cabangnya, tanpa data pajak atau harga pokok.
         Gate::define('view-sellable-catalog', fn (User $user) => $user->isMaster() || $user->isBranchAdmin() || $user->isCashier());

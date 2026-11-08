@@ -194,7 +194,11 @@
                                         <a href="{{ route('backoffice.products.edit', $product->id) }}" class="rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100">
                                             Edit
                                         </a>
-                                        @if ($product->hasTransactionHistory() && ! $isMaster)
+                                        @if (in_array((int) $product->branch_id, $followerBranchIds, true))
+                                            <button type="button" disabled title="Produk mengikuti cabang acuan. Hapus dari Gudang Pupuk agar tersembunyi di semua cabang." class="cursor-not-allowed rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-400">
+                                                Hapus
+                                            </button>
+                                        @elseif ($product->hasTransactionHistory() && ! $isMaster)
                                             <button type="button" disabled title="Produk ini sudah memiliki riwayat transaksi sehingga tidak dapat dihapus." class="cursor-not-allowed rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-400">
                                                 Hapus
                                             </button>

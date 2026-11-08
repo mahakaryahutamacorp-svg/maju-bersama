@@ -15,7 +15,7 @@ class SyncMasterCatalog extends Command
     public const REASON_NOT_IN_SOURCE = 'Tidak ada di acuan';
 
     protected $signature = 'catalog:sync-master
-        {--source=* : Kode cabang acuan per grup, misalnya GUDANG-PUPUK atau PAKAN}
+        {--source=* : Kode cabang acuan per grup, misalnya GUDANG-PUPUK atau PAKAN. Bawaan: cabang acuan katalog}
         {--match-name : Produk cabang yang namanya sama persis dengan produk acuan tetapi SKU-nya beda diganti ke SKU acuan, sehingga stok dan riwayatnya tetap}
         {--hold-cases : Arsipkan produk cabang yang tidak bisa disamakan otomatis agar diinput ulang manual}
         {--apply : Tulis perubahan. Tanpa opsi ini hanya simulasi}';
@@ -36,7 +36,7 @@ class SyncMasterCatalog extends Command
     public function handle(MasterCatalogService $catalog): int
     {
         $this->catalog = $catalog;
-        $this->sourceCodes = array_map('strtoupper', (array) $this->option('source'));
+        $this->sourceCodes = array_map('strtoupper', (array) $this->option('source')) ?: MasterCatalogService::SOURCE_BRANCH_CODES;
         $this->branches = Branch::query()->get(['id', 'code', 'name', 'parent_id'])->keyBy('id');
         $apply = (bool) $this->option('apply');
 

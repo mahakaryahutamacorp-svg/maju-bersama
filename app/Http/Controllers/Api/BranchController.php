@@ -7,8 +7,10 @@ use App\Http\Requests\StoreBranchRequest;
 use App\Http\Requests\UpdateBranchRequest;
 use App\Http\Resources\BranchResource;
 use App\Models\Branch;
+use App\Services\MasterCatalogService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class BranchController extends Controller
 {
@@ -39,7 +41,7 @@ class BranchController extends Controller
      * Store a newly created branch.
      * Only superadmin can create branches.
      */
-    public function store(StoreBranchRequest $request): JsonResponse
+    public function store(StoreBranchRequest $request, MasterCatalogService $masterCatalog): JsonResponse
     {
         $validated = $request->validated();
 
@@ -48,7 +50,12 @@ class BranchController extends Controller
             $validated['is_active'] = true;
         }
 
-        $branch = Branch::create($validated);
+        $branch = DB::transaction(function () use ($validated, $masterCatalog): Branch {
+            $branch = Branch::create($validated);
+            $masterCatalog->seedBranchFromSource($branch);
+
+            return $branch;
+        });
 
         return response()->json([
             'message' => 'Branch created successfully.',
@@ -81,10 +88,16 @@ class BranchController extends Controller
      * Update the specified branch.
      * Only superadmin can update branches.
      */
-    public function update(UpdateBranchRequest $request, Branch $branch): JsonResponse
+    public function update(UpdateBranchRequest $request, Branch $branch, MasterCatalogService $masterCatalog): JsonResponse
     {
         $validated = $request->validated();
-        $branch->update($validated);
+        DB::transaction(function () use ($branch, $validated, $masterCatalog): void {
+            $branch->update($validated);
+
+            if ($branch->wasChanged('parent_id')) {
+                $masterCatalog->seedBranchFromSource($branch);
+            }
+        });
 
         return response()->json([
             'message' => 'Branch updated successfully.',

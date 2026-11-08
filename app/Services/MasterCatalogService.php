@@ -6,6 +6,7 @@ use App\Models\Branch;
 use App\Models\Inventory;
 use App\Models\Product;
 use App\Models\ProductPrice;
+use App\Models\User;
 use App\Models\Warehouse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -15,10 +16,15 @@ use Illuminate\Validation\ValidationException;
  * Nama, SKU, harga modal, harga jual, dan harga bertingkat berlaku sama untuk semua cabang
  * dalam satu grup: cabang induk teratas beserta seluruh turunannya. Baris produk tetap
  * disimpan per cabang dan saling terhubung lewat SKU.
+ *
+ * Grup yang memiliki cabang acuan hanya menerima data tersebut dari cabang acuan; cabang
+ * lain dalam grup itu mengikuti.
  */
 class MasterCatalogService
 {
     public const MASTER_FIELDS = ['name', 'sku', 'purchase_price', 'selling_price'];
+
+    public const SOURCE_BRANCH_CODES = ['GUDANG-PUPUK'];
 
     /** @var Collection<int, Branch>|null */
     private ?Collection $branches = null;
@@ -73,6 +79,139 @@ class MasterCatalogService
             ->get();
     }
 
+    public function sourceBranchId(int $branchId): ?int
+    {
+        foreach ($this->groupBranchIds($branchId) as $id) {
+            if ($this->isSourceBranch($id)) {
+                return $id;
+            }
+        }
+
+        return null;
+    }
+
+    public function sourceBranch(int $branchId): ?Branch
+    {
+        $sourceId = $this->sourceBranchId($branchId);
+
+        return $sourceId === null ? null : $this->branches()->get($sourceId);
+    }
+
+    public function isSourceBranch(?int $branchId): bool
+    {
+        $code = $branchId === null ? null : $this->branches()->get($branchId)?->code;
+
+        return $code !== null && in_array(strtoupper((string) $code), self::SOURCE_BRANCH_CODES, true);
+    }
+
+    /**
+     * True when the branch belongs to a group with a source branch and is not that source.
+     */
+    public function followsSource(int $branchId): bool
+    {
+        $sourceId = $this->sourceBranchId($branchId);
+
+        return $sourceId !== null && $sourceId !== $branchId;
+    }
+
+    /**
+     * @return list<int>
+     */
+    public function followerBranchIds(): array
+    {
+        return $this->branches()->keys()
+            ->filter(fn (int $id) => $this->followsSource($id))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Whether $user may create products in, or change the master fields of, $branchId.
+     */
+    public function canManageMasterFieldsIn(User $user, int $branchId): bool
+    {
+        if ($this->followsSource($branchId)) {
+            return false;
+        }
+
+        if ($user->isMaster()) {
+            return true;
+        }
+
+        return $user->isBranchAdmin() && (int) $user->branch_id === $branchId && $this->isSourceBranch($branchId);
+    }
+
+    /**
+     * The active row in the source branch that $product follows, if any.
+     */
+    public function sourceProductFor(Product $product): ?Product
+    {
+        $sourceId = $this->sourceBranchId((int) $product->branch_id);
+        if ($sourceId === null || $sourceId === (int) $product->branch_id) {
+            return null;
+        }
+
+        return Product::withoutGlobalScopes()
+            ->whereNull('deleted_at')
+            ->where('branch_id', $sourceId)
+            ->where('sku', $product->sku)
+            ->first();
+    }
+
+    /**
+     * Registers every active product of the group's source branch in $branch with stock 0,
+     * skipping SKUs the branch already has (archived rows included).
+     */
+    public function seedBranchFromSource(Branch $branch): int
+    {
+        $this->branches = null;
+        if (! $this->followsSource((int) $branch->id)) {
+            return 0;
+        }
+
+        return DB::transaction(function () use ($branch): int {
+            $existingSkus = Product::withoutGlobalScopes()
+                ->where('branch_id', $branch->id)
+                ->pluck('sku')
+                ->flip();
+
+            $created = 0;
+            Product::withoutGlobalScopes()
+                ->whereNull('deleted_at')
+                ->where('branch_id', $this->sourceBranchId((int) $branch->id))
+                ->with('productPrices')
+                ->orderBy('id')
+                ->get()
+                ->reject(fn (Product $source) => $existingSkus->has($source->sku))
+                ->each(function (Product $source) use ($branch, &$created): void {
+                    $this->copyPrices($source->productPrices, $this->createCopy($source, (int) $branch->id));
+                    $created++;
+                });
+
+            return $created;
+        });
+    }
+
+    /**
+     * Archives the active rows sharing the SKU in the other branches of the group. Stock and
+     * prices are kept so the rows can be restored with their quantities.
+     */
+    public function hideInGroup(Product $source): int
+    {
+        $ids = $this->siblingsOf($source)
+            ->whereNull('deleted_at')
+            ->pluck('id');
+
+        if ($ids->isEmpty()) {
+            return 0;
+        }
+
+        return Product::withoutGlobalScopes()->whereIn('id', $ids)->update([
+            'deleted_at' => now(),
+            'updated_at' => now(),
+        ]);
+    }
+
     public function assertSkuAvailable(Product $product, string $newSku): void
     {
         if ($newSku === (string) $product->sku) {
@@ -96,13 +235,14 @@ class MasterCatalogService
 
     /**
      * Copies the master values of $source to every branch in its group and creates the
-     * product in branches that do not have it yet. Archived rows are updated, not restored.
+     * product in branches that do not have it yet. Archived rows are updated, and restored
+     * only when $restoreArchived is set (a newly created source product).
      *
      * @return array{created: int, updated: int}
      */
-    public function syncToGroup(Product $source, ?string $previousSku = null): array
+    public function syncToGroup(Product $source, ?string $previousSku = null, bool $restoreArchived = false): array
     {
-        return DB::transaction(function () use ($source, $previousSku): array {
+        return DB::transaction(function () use ($source, $previousSku, $restoreArchived): array {
             $prices = $source->productPrices()->get();
             $siblings = $this->siblingsOf($source, $previousSku ?? $source->sku)->keyBy('branch_id');
             $created = 0;
@@ -116,6 +256,17 @@ class MasterCatalogService
                 if ($product === null) {
                     $product = $this->createCopy($source, $branchId);
                     $created++;
+                } elseif ($restoreArchived && $product->deleted_at !== null) {
+                    $product->forceFill([
+                        ...$source->only(self::MASTER_FIELDS),
+                        'deleted_at' => null,
+                        'catalog_hold_reason' => null,
+                    ])->save();
+
+                    Inventory::withoutGlobalScopes()->firstOrCreate(
+                        ['branch_id' => $branchId, 'product_id' => $product->id],
+                        ['quantity' => (int) $product->stock, 'warehouse_id' => $this->defaultWarehouseId($branchId)],
+                    );
                 } else {
                     $product->forceFill($source->only(self::MASTER_FIELDS))->save();
                 }
@@ -250,6 +401,6 @@ class MasterCatalogService
      */
     private function branches(): Collection
     {
-        return $this->branches ??= Branch::query()->get(['id', 'parent_id'])->keyBy('id');
+        return $this->branches ??= Branch::query()->get(['id', 'parent_id', 'code', 'name'])->keyBy('id');
     }
 }
