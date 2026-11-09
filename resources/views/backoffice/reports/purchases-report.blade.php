@@ -1,5 +1,5 @@
 <x-app-layout title="Laporan Pembelian & PO" :breadcrumbs="[
-    ['label' => 'Pusat Laporan', 'url' => route('reports.index')],
+    ['label' => 'Pusat Laporan', 'url' => route('reports.index', ['view' => 'modules'])],
     ['label' => 'Laporan Pembelian'],
 ]">
     <x-slot:head>
@@ -25,6 +25,8 @@
         $purchases = $report['purchases'] ?? collect([]);
         $totalPurchases = $report['total_purchases'] ?? 0;
         $totalOrders = $report['total_orders'] ?? 0;
+        $directReceipts = $report['direct_receipts'] ?? 0;
+        $totalDocuments = $report['total_documents'] ?? $totalOrders;
         $completedOrders = $report['completed_orders'] ?? 0;
         $pendingOrders = $report['pending_orders'] ?? 0;
         $totalItems = $report['total_items'] ?? 0;
@@ -127,9 +129,9 @@
             <!-- KPI Summary Cards -->
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
                 <div class="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5">
-                    <p class="text-[11px] font-semibold uppercase text-slate-500">Total Pesanan PO</p>
-                    <p class="text-xl font-extrabold text-slate-900 mt-1">{{ number_format($totalOrders, 0, ',', '.') }}</p>
-                    <p class="text-[10px] text-slate-400 mt-0.5">{{ number_format($totalItems, 0, ',', '.') }} unit barang</p>
+                    <p class="text-[11px] font-semibold uppercase text-slate-500">Dokumen Pembelian</p>
+                    <p class="text-xl font-extrabold text-slate-900 mt-1">{{ number_format($totalDocuments, 0, ',', '.') }}</p>
+                    <p class="text-[10px] text-slate-400 mt-0.5">{{ number_format($totalOrders, 0, ',', '.') }} PO &bull; {{ number_format($directReceipts, 0, ',', '.') }} terima langsung &bull; {{ number_format($totalItems, 0, ',', '.') }} unit</p>
                 </div>
 
                 <div class="rounded-xl border border-indigo-200 bg-indigo-50/50 p-3.5">
@@ -139,7 +141,7 @@
                 </div>
 
                 <div class="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3.5">
-                    <p class="text-[11px] font-semibold uppercase text-emerald-800">PO Selesai / Diterima</p>
+                    <p class="text-[11px] font-semibold uppercase text-emerald-800">Barang Sudah Diterima</p>
                     <p class="text-lg font-bold text-emerald-700 font-mono-num mt-1">{{ number_format($completedOrders, 0, ',', '.') }}</p>
                     <p class="text-[10px] text-emerald-600 mt-0.5">Sudah Diterima</p>
                 </div>
@@ -157,7 +159,7 @@
                     <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                         <tr class="text-white uppercase text-[10px] tracking-wider">
                             <th class="py-3 px-3">Tanggal</th>
-                            <th class="py-3 px-3">No. PO</th>
+                            <th class="py-3 px-3">No. Dokumen</th>
                             <th class="py-3 px-3">Supplier</th>
                             <th class="py-3 px-3 text-right">Total Beli</th>
                             <th class="py-3 px-3 text-center">Status Pembayaran</th>
@@ -167,37 +169,38 @@
                         @forelse ($purchases as $po)
                             <tr class="hover:bg-slate-50 transition-colors">
                                 <td class="py-2.5 px-3 font-mono-num text-slate-700 whitespace-nowrap">
-                                    {{ $po->order_date ? \Carbon\Carbon::parse($po->order_date)->isoFormat('DD/MM/YYYY') : \Carbon\Carbon::parse($po->created_at)->isoFormat('DD/MM/YYYY') }}
+                                    {{ $po->date ? \Carbon\Carbon::parse($po->date)->isoFormat('DD/MM/YYYY') : '-' }}
                                 </td>
-                                <td class="py-2.5 px-3 font-mono font-semibold text-slate-900 whitespace-nowrap">
-                                    {{ $po->reference_number }}
+                                <td class="py-2.5 px-3 whitespace-nowrap">
+                                    <div class="font-mono font-semibold text-slate-900">{{ $po->reference_number }}</div>
+                                    <div class="text-[10px] text-slate-400">{{ $po->source_label }}</div>
                                 </td>
                                 <td class="py-2.5 px-3 text-slate-800">
-                                    <div class="font-medium text-slate-900">{{ $po->supplier->name ?? 'Supplier Umum' }}</div>
-                                    <div class="text-[10px] text-slate-400">Cabang: {{ $po->branch->name ?? '-' }} &bull; {{ $po->items->count() }} variasi produk</div>
+                                    <div class="font-medium text-slate-900">{{ $po->supplier_name }}</div>
+                                    <div class="text-[10px] text-slate-400">Cabang: {{ $po->branch_name }} &bull; {{ $po->item_count }} variasi produk</div>
                                 </td>
                                 <td class="py-2.5 px-3 text-right font-mono-num font-bold text-slate-900 whitespace-nowrap">
                                     {{ $formatRupiah((float) $po->total_amount) }}
                                 </td>
                                 <td class="py-2.5 px-3 text-center whitespace-nowrap">
                                     @php
-                                        $st = strtolower($po->status ?? 'pending');
+                                        $st = $po->status;
                                     @endphp
                                     @if (in_array($st, ['completed', 'received', 'paid'], true))
                                         <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border border-emerald-200 bg-emerald-100 text-emerald-800">
-                                            {{ $po->status ?? 'pending' }}
+                                            {{ $po->status_label }}
                                         </span>
-                                    @elseif (in_array($st, ['ordered', 'approved'], true))
+                                    @elseif (in_array($st, ['ordered', 'approved', 'partial'], true))
                                         <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border border-sky-200 bg-sky-100 text-sky-800">
-                                            {{ $po->status ?? 'pending' }}
+                                            {{ $po->status_label }}
                                         </span>
                                     @elseif ($st === 'cancelled')
                                         <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border border-rose-200 bg-rose-100 text-rose-800">
-                                            {{ $po->status ?? 'pending' }}
+                                            {{ $po->status_label }}
                                         </span>
                                     @else
                                         <span class="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase border border-amber-200 bg-amber-100 text-amber-800">
-                                            {{ $po->status ?? 'pending' }}
+                                            {{ $po->status_label }}
                                         </span>
                                     @endif
                                 </td>
@@ -214,7 +217,7 @@
                         <tfoot>
                             <tr class="bg-slate-100 font-bold border-t-2 border-slate-900 text-slate-900">
                                 <td colspan="3" class="py-3 px-3 uppercase text-right tracking-wider">
-                                    Total Nilai Pengadaan ({{ number_format($totalOrders, 0, ',', '.') }} Dokumen PO)
+                                    Total Nilai Pengadaan ({{ number_format($totalDocuments, 0, ',', '.') }} Dokumen, tanpa yang dibatalkan)
                                 </td>
                                 <td class="py-3 px-3 text-right font-mono-num text-sm text-indigo-800">
                                     {{ $formatRupiah($totalPurchases) }}

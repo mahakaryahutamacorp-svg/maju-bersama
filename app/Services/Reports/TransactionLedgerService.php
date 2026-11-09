@@ -2,7 +2,6 @@
 
 namespace App\Services\Reports;
 
-use App\Enums\CashFlowTag;
 use App\Models\CashTransfer;
 use App\Models\ChartOfAccount;
 use App\Models\Expense;
@@ -295,22 +294,11 @@ class TransactionLedgerService
     }
 
     /**
-     * Kas (1110), Bank (1120), sub-akunnya, dan akun laci kasir yang bertanda kas.
-     *
      * @return array<int,int>
      */
     private function cashAccountIds(): array
     {
-        return ChartOfAccount::withTrashed()
-            ->where('type', 'asset')
-            ->where(fn ($query) => $query
-                ->whereIn('code', ChartOfAccount::CASH_BANK_CODES)
-                ->orWhere('code', 'like', '1110%')
-                ->orWhere('code', 'like', '1120%')
-                ->orWhere('cash_flow_tag', CashFlowTag::Cash->value))
-            ->pluck('id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
+        return ChartOfAccount::cashAccountIds();
     }
 
     public function describeSale(Sale $sale): string

@@ -1,5 +1,5 @@
 <x-app-layout title="Daftar Aktiva Tetap & Inventaris" :breadcrumbs="[
-    ['label' => 'Pusat Laporan', 'url' => route('reports.index')],
+    ['label' => 'Pusat Laporan', 'url' => route('reports.index', ['view' => 'modules'])],
     ['label' => 'Daftar Harta Tetap'],
 ]">
     <x-slot:head>

@@ -1,5 +1,5 @@
 <x-app-layout title="Laporan Arus Kas (Cash Flow)" :breadcrumbs="[
-    ['label' => 'Pusat Laporan', 'url' => route('reports.index')],
+    ['label' => 'Pusat Laporan', 'url' => route('reports.index', ['view' => 'modules'])],
     ['label' => 'Arus Kas'],
 ]">
     <x-slot:head>
@@ -164,6 +164,7 @@
                                     <td class="py-2 text-slate-800">
                                         {{ $item['description'] }}
                                         <span class="text-[10px] text-slate-400 ml-1">[{{ $item['account'] }}]</span>
+                                        <span class="ml-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">{{ $item['activity_label'] ?? '' }}</span>
                                     </td>
                                     <td class="py-2 pr-3 text-right font-mono-num font-semibold text-emerald-800">
                                         +{{ $formatRupiah($item['amount']) }}
@@ -210,6 +211,7 @@
                                     <td class="py-2 text-slate-800">
                                         {{ $item['description'] }}
                                         <span class="text-[10px] text-slate-400 ml-1">[{{ $item['account'] }}]</span>
+                                        <span class="ml-1 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">{{ $item['activity_label'] ?? '' }}</span>
                                     </td>
                                     <td class="py-2 pr-3 text-right font-mono-num font-semibold text-rose-800">
                                         -{{ $formatRupiah($item['amount']) }}
@@ -230,6 +232,33 @@
                             </tr>
                         </tfoot>
                     </table>
+                </section>
+
+                <section>
+                    <div class="bg-slate-100/90 px-3 py-1.5 rounded border-l-4 border-sky-600 mb-2">
+                        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-800">Ringkasan per Aktivitas</h3>
+                    </div>
+                    <table class="w-full text-xs">
+                        <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
+                            <tr class="text-left">
+                                <th class="py-1.5 font-medium pl-3">Aktivitas</th>
+                                <th class="py-1.5 font-medium text-right">Kas Masuk</th>
+                                <th class="py-1.5 font-medium text-right">Kas Keluar</th>
+                                <th class="py-1.5 font-medium text-right pr-3">Bersih</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100">
+                            @foreach ($report['activities'] ?? [] as $activity)
+                                <tr>
+                                    <td class="py-2 pl-3 font-semibold text-slate-800">{{ $activity['label'] }}</td>
+                                    <td class="py-2 text-right font-mono-num text-emerald-800">{{ $formatRupiah($activity['cash_in']) }}</td>
+                                    <td class="py-2 text-right font-mono-num text-rose-800">{{ $formatRupiah($activity['cash_out']) }}</td>
+                                    <td class="py-2 pr-3 text-right font-mono-num font-bold {{ $activity['net'] >= 0 ? 'text-slate-900' : 'text-rose-800' }}">{{ $formatRupiah($activity['net']) }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                    <p class="mt-1.5 text-[11px] text-slate-500">Pindah dana antar-akun kas &amp; bank tidak dihitung sebagai kas masuk maupun keluar.</p>
                 </section>
 
                 <!-- 3. KENAIKAN / PENURUNAN BERSIH KAS (NET CASH FLOW) -->

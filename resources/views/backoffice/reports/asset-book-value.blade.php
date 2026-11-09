@@ -1,5 +1,5 @@
 <x-app-layout title="Rekap Nilai Buku Aset" :breadcrumbs="[
-    ['label' => 'Pusat Laporan', 'url' => route('reports.index')],
+    ['label' => 'Pusat Laporan', 'url' => route('reports.index', ['view' => 'modules'])],
     ['label' => 'Nilai Buku Aset'],
 ]">
     @php

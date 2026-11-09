@@ -1,5 +1,5 @@
 <x-app-layout title="Kartu Stok & Mutasi Barang" :breadcrumbs="[
-    ['label' => 'Pusat Laporan', 'url' => route('reports.index')],
+    ['label' => 'Pusat Laporan', 'url' => route('reports.index', ['view' => 'modules'])],
     ['label' => 'Kartu Stok'],
 ]">
     <x-slot:head>
@@ -53,7 +53,7 @@
                         @else
                             @foreach ($products as $p)
                                 <option value="{{ $p->id }}" {{ (string)$selectedProductId === (string)$p->id ? 'selected' : '' }}>
-                                    {{ $p->sku ? '[' . $p->sku . '] ' : '' }}{{ $p->name }}
+                                    {{ $p->sku ? '[' . $p->sku . '] ' : '' }}{{ $p->name }}{{ $isMaster && $p->branch ? ' — ' . $p->branch->name : '' }}
                                 </option>
                             @endforeach
                         @endif

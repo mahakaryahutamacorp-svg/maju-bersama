@@ -68,18 +68,23 @@ class ReportCenterWebTest extends TestCase
         $response->assertSee('Pusat Laporan');
         $response->assertSee('Keterangan Transaksi');
         $response->assertSee('Uang Masuk');
-        $response->assertSee(route('reports.sales-returns'), false);
-        $response->assertSee(route('reports.supplier-payments'), false);
-        $response->assertSee(route('reports.warehouse-inventory'), false);
-        $response->assertSee(route('reports.depreciation'), false);
-        $response->assertSee(route('reports.asset-book-value'), false);
-        $response->assertDontSee('data-coming-soon', false);
         $response->assertDontSee('href="#"', false);
         $response->assertSee('name="start_date"', false);
         $response->assertSee('name="end_date"', false);
         $response->assertSee('name="type"', false);
         $response->assertSee('name="branch_id"', false);
-        $response->assertSee('x-data="{ activeTab: \'keuangan\'', false);
+
+        $modules = $this->actingAs($this->user)->get('/backoffice/reports?view=modules');
+
+        $modules->assertStatus(200);
+        $modules->assertSee(route('reports.sales-returns'), false);
+        $modules->assertSee(route('reports.supplier-payments'), false);
+        $modules->assertSee(route('reports.warehouse-inventory'), false);
+        $modules->assertSee(route('reports.depreciation'), false);
+        $modules->assertSee(route('reports.asset-book-value'), false);
+        $modules->assertDontSee('data-coming-soon', false);
+        $modules->assertDontSee('href="#"', false);
+        $modules->assertSee('x-data="{ activeTab: \'keuangan\'', false);
     }
 
     public function test_branch_admin_does_not_see_branch_filter_and_cannot_read_other_branch_sales(): void
@@ -433,9 +438,34 @@ class ReportCenterWebTest extends TestCase
         $response->assertSee('Pembayaran Piutang - Kelompok Tani Makmur');
     }
 
+    public function test_report_center_separates_module_catalog_from_activity_ledger(): void
+    {
+        $activity = $this->actingAs($this->user)->get(route('reports.index'));
+
+        $activity->assertStatus(200);
+        $activity->assertSee(route('reports.index', ['view' => 'modules']), false);
+        $activity->assertSee('Saldo Awal Kas &amp; Bank', false);
+        $activity->assertDontSee(route('reports.income-statement'), false);
+
+        $modules = $this->actingAs($this->user)->get(route('reports.index', ['view' => 'modules']));
+
+        $modules->assertStatus(200);
+        $modules->assertSee('Pilih grup akuntansi');
+        $modules->assertSee(route('reports.income-statement'), false);
+        $modules->assertDontSee('Saldo Awal Kas &amp; Bank', false);
+    }
+
+    public function test_report_pages_breadcrumb_returns_to_module_catalog(): void
+    {
+        $response = $this->actingAs($this->user)->get(route('reports.trial-balance'));
+
+        $response->assertStatus(200);
+        $response->assertSee(e(route('reports.index', ['view' => 'modules'])), false);
+    }
+
     public function test_report_center_has_all_five_categories(): void
     {
-        $response = $this->actingAs($this->user)->get(route('reports.index'));
+        $response = $this->actingAs($this->user)->get(route('reports.index', ['view' => 'modules']));
 
         $response->assertStatus(200);
         $response->assertSee('Laporan Keuangan');
@@ -447,7 +477,7 @@ class ReportCenterWebTest extends TestCase
 
     public function test_report_center_contains_required_financial_and_inventory_reports(): void
     {
-        $response = $this->actingAs($this->user)->get(route('reports.index'));
+        $response = $this->actingAs($this->user)->get(route('reports.index', ['view' => 'modules']));
 
         $response->assertStatus(200);
 
@@ -473,7 +503,7 @@ class ReportCenterWebTest extends TestCase
 
     public function test_report_center_links_to_income_statement(): void
     {
-        $response = $this->actingAs($this->user)->get(route('reports.index'));
+        $response = $this->actingAs($this->user)->get(route('reports.index', ['view' => 'modules']));
 
         $response->assertStatus(200);
         $response->assertSee(route('reports.income-statement'), false);
@@ -581,7 +611,7 @@ class ReportCenterWebTest extends TestCase
 
     public function test_report_center_links_to_all_financial_reports(): void
     {
-        $response = $this->actingAs($this->user)->get(route('reports.index'));
+        $response = $this->actingAs($this->user)->get(route('reports.index', ['view' => 'modules']));
 
         $response->assertStatus(200);
         $response->assertSee(route('reports.income-statement'), false);
@@ -697,7 +727,7 @@ class ReportCenterWebTest extends TestCase
 
     public function test_report_center_links_to_operational_reports(): void
     {
-        $response = $this->actingAs($this->user)->get(route('reports.index'));
+        $response = $this->actingAs($this->user)->get(route('reports.index', ['view' => 'modules']));
 
         $response->assertStatus(200);
         $response->assertSee(route('reports.sales'), false);
@@ -841,7 +871,7 @@ class ReportCenterWebTest extends TestCase
 
     public function test_report_center_links_to_ar_and_ap_aging(): void
     {
-        $response = $this->actingAs($this->user)->get(route('reports.index'));
+        $response = $this->actingAs($this->user)->get(route('reports.index', ['view' => 'modules']));
 
         $response->assertStatus(200);
         $response->assertSee(route('reports.ar-aging'), false);

@@ -2,8 +2,11 @@
 
 namespace App\Services\Reports;
 
+use App\Models\ChartOfAccount;
 use App\Models\Sale;
+use App\Models\SalesReturn;
 use App\Models\Supplier;
+use App\Services\JournalPostingService;
 use App\Services\SupplierLedgerService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
@@ -42,10 +45,16 @@ class AgingReportService
         }
 
         $sales = $query->get();
+        $receivableReturns = $this->receivableReturnsBySale($sales->pluck('id')->all());
         $grouped = [];
 
         foreach ($sales as $sale) {
-            $unpaid = (float) $sale->total_amount - (float) ($sale->paid_amount ?? 0);
+            $unpaid = round(
+                (float) $sale->total_amount
+                - (float) ($sale->paid_amount ?? 0)
+                - (float) ($receivableReturns[$sale->id] ?? 0),
+                2
+            );
             if ($unpaid <= 0) {
                 continue;
             }
@@ -118,6 +127,34 @@ class AgingReportService
             'items' => $rows,
             'totals' => $totals,
         ];
+    }
+
+    /**
+     * Retur atas nota tempo mengkredit Piutang Usaha tanpa mengubah paid_amount nota,
+     * jadi nilainya harus dipotong dari sisa tagihan agar sama dengan saldo akun 1130.
+     *
+     * @param  array<int,int>  $saleIds
+     * @return array<int,float>
+     */
+    private function receivableReturnsBySale(array $saleIds): array
+    {
+        if ($saleIds === []) {
+            return [];
+        }
+
+        $receivableAccountIds = ChartOfAccount::withTrashed()
+            ->where('code', JournalPostingService::ACCOUNT_AR)
+            ->pluck('id');
+
+        return SalesReturn::withoutGlobalScopes()
+            ->whereIn('sale_id', $saleIds)
+            ->whereIn('chart_of_account_id', $receivableAccountIds)
+            ->where('status', 'completed')
+            ->groupBy('sale_id')
+            ->selectRaw('sale_id, SUM(total_amount) as returned')
+            ->pluck('returned', 'sale_id')
+            ->map(fn ($amount) => (float) $amount)
+            ->all();
     }
 
     /**

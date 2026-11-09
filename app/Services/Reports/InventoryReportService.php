@@ -36,18 +36,22 @@ class InventoryReportService
         if ($branchId) {
             $productsQuery->where('branch_id', $branchId);
         }
-        $products = $productsQuery->orderBy('name')->get();
+        $products = $productsQuery->with('branch:id,name')->orderBy('name')->get();
 
-        $effectiveBranchId = $branchId;
-        if (! $effectiveBranchId) {
-            $effectiveBranchId = Branch::query()->value('id') ?? 1;
+        if ($productId && ! $products->contains('id', $productId)) {
+            $productId = null;
         }
-
-        $branch = Branch::query()->find($effectiveBranchId);
 
         if (! $productId && $products->isNotEmpty()) {
             $productId = $products->first()->id;
         }
+
+        // Produk milik satu cabang, jadi tanpa filter cabang kartu stok dihitung di cabang pemilik produk.
+        $effectiveBranchId = $branchId
+            ?: ($productId ? $products->firstWhere('id', $productId)?->branch_id : null)
+            ?: (Branch::query()->value('id') ?? 1);
+
+        $branch = Branch::query()->find($effectiveBranchId);
 
         if (! $productId || $products->isEmpty()) {
             return [

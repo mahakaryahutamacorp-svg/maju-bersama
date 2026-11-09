@@ -1,5 +1,5 @@
 <x-app-layout title="Laporan Umur Piutang (AR Aging)" :breadcrumbs="[
-    ['label' => 'Pusat Laporan', 'url' => route('reports.index')],
+    ['label' => 'Pusat Laporan', 'url' => route('reports.index', ['view' => 'modules'])],
     ['label' => 'Umur Piutang'],
 ]">
     <x-slot:head>

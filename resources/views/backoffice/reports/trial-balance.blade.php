@@ -1,5 +1,5 @@
 <x-app-layout title="Neraca Saldo (Trial Balance)" :breadcrumbs="[
-    ['label' => 'Pusat Laporan', 'url' => route('reports.index')],
+    ['label' => 'Pusat Laporan', 'url' => route('reports.index', ['view' => 'modules'])],
     ['label' => 'Neraca Saldo'],
 ]">
     <x-slot:head>

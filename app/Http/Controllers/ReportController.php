@@ -28,14 +28,17 @@ class ReportController extends Controller
     {
         $currentUser = $request->user()->load('branch');
         $isMaster = $currentUser->isMaster();
+        $activeView = $request->input('view') === 'modules' ? 'modules' : 'activity';
 
-        $ledger = $ledgerService->getLedger($currentUser, [
-            'start_date' => $request->input('start_date', now()->startOfMonth()->toDateString()),
-            'end_date' => $request->input('end_date', now()->toDateString()),
-            'type' => $request->input('type', 'all'),
-            'branch_id' => $isMaster ? $request->input('branch_id') : $currentUser->branch_id,
-            'search' => mb_substr((string) $request->input('search', ''), 0, 100),
-        ]);
+        $ledger = $activeView === 'activity'
+            ? $ledgerService->getLedger($currentUser, [
+                'start_date' => $request->input('start_date', now()->startOfMonth()->toDateString()),
+                'end_date' => $request->input('end_date', now()->toDateString()),
+                'type' => $request->input('type', 'all'),
+                'branch_id' => $isMaster ? $request->input('branch_id') : $currentUser->branch_id,
+                'search' => mb_substr((string) $request->input('search', ''), 0, 100),
+            ])
+            : [];
 
         $branches = $isMaster
             ? Branch::query()->orderBy('name')->get(['id', 'name', 'code'])
@@ -44,6 +47,7 @@ class ReportController extends Controller
         return view('backoffice.reports.index', [
             'currentUser' => $currentUser,
             'isMaster' => $isMaster,
+            'activeView' => $activeView,
             'ledger' => $ledger,
             'branches' => $branches,
             'transactionTypes' => TransactionLedgerService::TYPES,

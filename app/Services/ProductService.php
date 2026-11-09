@@ -10,6 +10,12 @@ use Illuminate\Validation\ValidationException;
 
 class ProductService
 {
+    public function __construct(
+        protected ?StockAdjustmentService $stockAdjustmentService = null
+    ) {
+        $this->stockAdjustmentService = $stockAdjustmentService ?? app(StockAdjustmentService::class);
+    }
+
     /**
      * Create a new product with auto-generated SKU if not provided.
      *
@@ -35,16 +41,22 @@ class ProductService
             $data['is_taxable'] = true;
         }
 
-        return DB::transaction(function () use ($data, $branchId): Product {
+        $openingQuantity = (int) $data['stock'];
+        $data['stock'] = 0;
+
+        return DB::transaction(function () use ($data, $branchId, $openingQuantity): Product {
             $product = Product::create($data);
 
-            // Keep the per-branch stock table in sync with the catalogue row.
             Inventory::withoutGlobalScopes()->firstOrCreate(
                 ['branch_id' => $branchId, 'product_id' => $product->id],
-                ['quantity' => (int) $product->stock],
+                ['quantity' => 0],
             );
 
-            return $product;
+            if ($openingQuantity > 0) {
+                $this->recordStockDocument($product, $openingQuantity, true);
+            }
+
+            return $product->fresh();
         });
     }
 
@@ -56,18 +68,35 @@ class ProductService
      */
     public function updateProduct(Product $product, array $data): Product
     {
-        return DB::transaction(function () use ($product, $data): Product {
+        $targetQuantity = array_key_exists('stock', $data) ? (int) $data['stock'] : null;
+        unset($data['stock']);
+
+        return DB::transaction(function () use ($product, $data, $targetQuantity): Product {
             $product->update($data);
 
-            if (array_key_exists('stock', $data)) {
-                Inventory::withoutGlobalScopes()->updateOrCreate(
-                    ['branch_id' => $product->branch_id, 'product_id' => $product->id],
-                    ['quantity' => (int) $data['stock']],
-                );
+            if ($targetQuantity !== null && $targetQuantity !== $product->availableQuantity()) {
+                $this->recordStockDocument($product, $targetQuantity, false);
             }
 
             return $product->fresh();
         });
+    }
+
+    /**
+     * Stok hanya berubah lewat dokumen penyesuaian, supaya kartu stok dan jurnal persediaan ikut tercatat.
+     * Stok awal dibukukan ke modal kecuali persediaan cabang sudah masuk saldo awal.
+     */
+    private function recordStockDocument(Product $product, int $actualQuantity, bool $isOpeningStock): void
+    {
+        $notes = $isOpeningStock ? StockAdjustmentService::OPENING_STOCK_NOTE : 'Koreksi stok dari data produk';
+
+        $this->stockAdjustmentService->processAdjustment([
+            'branch_id' => $product->branch_id,
+            'date' => now()->toDateString(),
+            'notes' => $notes,
+            'is_opening_stock' => $isOpeningStock,
+            'record_journal' => ! $isOpeningStock || ! OpeningBalanceService::hasInventoryInOpeningBalance((int) $product->branch_id),
+        ], [['product_id' => $product->id, 'actual_qty' => $actualQuantity, 'reason' => $notes]]);
     }
 
     /**

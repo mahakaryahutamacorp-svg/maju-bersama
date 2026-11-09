@@ -1,5 +1,5 @@
 <x-app-layout title="Laba Rugi Standar" :breadcrumbs="[
-    ['label' => 'Pusat Laporan', 'url' => route('reports.index')],
+    ['label' => 'Pusat Laporan', 'url' => route('reports.index', ['view' => 'modules'])],
     ['label' => 'Laba Rugi'],
 ]">
     <x-slot:head>

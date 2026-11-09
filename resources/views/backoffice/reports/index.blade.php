@@ -19,9 +19,26 @@
                 </span>
                 Katalog Laporan Terpadu
             </h2>
-            <p class="text-sm text-slate-500">Filter aktivitas operasional, baca keterangan transaksi secara manusiawi, lalu buka laporan formal dari katalog di bawah.</p>
+            <p class="text-sm text-slate-500">Pilih Modul Laporan untuk membuka laporan formal, atau Aktivitas Transaksi untuk membaca buku kas harian.</p>
         </div>
 
+        <nav class="mb-5 grid grid-cols-2 gap-2 sm:inline-grid sm:w-auto" aria-label="Pilih tampilan Pusat Laporan">
+            <a href="{{ route('reports.index', ['view' => 'modules']) }}"
+               @if ($activeView === 'modules') aria-current="page" @endif
+               class="flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold shadow-xs transition {{ $activeView === 'modules' ? 'border-amber-500 bg-amber-500 text-slate-950' : 'border-slate-300 bg-white text-slate-700 hover:border-amber-400 hover:bg-amber-50' }}">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                Modul Laporan
+                <span class="rounded px-1.5 py-0.5 text-[10px] font-semibold {{ $activeView === 'modules' ? 'bg-slate-950/15' : 'bg-slate-100 text-slate-500' }}">15</span>
+            </a>
+            <a href="{{ route('reports.index') }}"
+               @if ($activeView === 'activity') aria-current="page" @endif
+               class="flex items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold shadow-xs transition {{ $activeView === 'activity' ? 'border-sky-600 bg-sky-600 text-white' : 'border-slate-300 bg-white text-slate-700 hover:border-sky-400 hover:bg-sky-50' }}">
+                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" /></svg>
+                Aktivitas Transaksi
+            </a>
+        </nav>
+
+        @if ($activeView === 'activity')
         @php
             $ledgerRows = $ledger['rows'] ?? collect();
             $totalInflow = $ledger['total_inflow'] ?? 0;
@@ -255,6 +272,7 @@
                 </div>
             </div>
         </section>
+        @else
 
         <!-- Alpine.js Tab Controller Shell -->
         <div x-data="{ activeTab: 'keuangan', searchQuery: '' }" class="rounded-2xl border border-slate-300 bg-white shadow-md overflow-hidden flex flex-col md:flex-row flex-1 min-h-[580px]">
@@ -953,6 +971,7 @@
             </section>
 
         </div>
+        @endif
     </main>
 
     <x-slot:scripts>

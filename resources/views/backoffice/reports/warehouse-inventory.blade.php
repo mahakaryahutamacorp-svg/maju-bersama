@@ -1,5 +1,5 @@
 <x-app-layout title="Daftar Barang per Gudang" :breadcrumbs="[
-    ['label' => 'Pusat Laporan', 'url' => route('reports.index')],
+    ['label' => 'Pusat Laporan', 'url' => route('reports.index', ['view' => 'modules'])],
     ['label' => 'Barang per Gudang'],
 ]">
     @php

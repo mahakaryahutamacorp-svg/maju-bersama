@@ -220,13 +220,31 @@ class StockCardService
                 DB::raw('0 as qty_out'),
             ]);
 
+        $purchaseReturns = DB::table('purchase_returns')
+            ->join('purchase_return_items', 'purchase_returns.id', '=', 'purchase_return_items.purchase_return_id')
+            ->leftJoin('suppliers', 'purchase_returns.supplier_id', '=', 'suppliers.id')
+            ->where('purchase_returns.branch_id', $branchId)
+            ->where('purchase_return_items.product_id', $productId)
+            ->where('purchase_returns.status', '!=', 'cancelled')
+            ->select([
+                'purchase_returns.return_date as transaction_date',
+                'purchase_returns.created_at',
+                'purchase_returns.reference_number',
+                DB::raw("'purchase_return' as movement_code"),
+                DB::raw("'Retur Pembelian' as type"),
+                'suppliers.name as raw_note',
+                DB::raw('0 as qty_in'),
+                'purchase_return_items.quantity as qty_out',
+            ]);
+
         // Combine all using unionAll and order chronologically
         $query = $goodsReceipts
             ->unionAll($sales)
             ->unionAll($transfersOut)
             ->unionAll($transfersIn)
             ->unionAll($adjustments)
-            ->unionAll($salesReturns);
+            ->unionAll($salesReturns)
+            ->unionAll($purchaseReturns);
 
         return DB::query()->fromSub($query, 'movements')
             ->orderBy('transaction_date', 'asc')
@@ -246,6 +264,7 @@ class StockCardService
             'transfer_in' => "Terima transfer dari cabang {$mov->raw_note}",
             'adjustment' => $mov->raw_note ?: 'Rekonsiliasi Fisik Opname',
             'sales_return' => $mov->raw_note ? "Retur pelanggan: {$mov->raw_note}" : 'Retur penjualan ke gudang',
+            'purchase_return' => $mov->raw_note ? "Kembali ke supplier: {$mov->raw_note}" : 'Retur barang ke supplier',
             default => '-',
         };
     }

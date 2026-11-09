@@ -64,6 +64,26 @@ class ChartOfAccount extends Model
             ->whereIn('code', self::CASH_BANK_CODES);
     }
 
+    /**
+     * Kas (1110), Bank (1120), sub-akunnya, dan akun laci kasir bertanda kas, termasuk yang sudah dihapus
+     * supaya saldo historis tetap utuh. Dipakai semua laporan kas agar angkanya sama.
+     *
+     * @return array<int,int>
+     */
+    public static function cashAccountIds(): array
+    {
+        return self::withTrashed()
+            ->where('type', 'asset')
+            ->where(fn (Builder $query) => $query
+                ->whereIn('code', self::CASH_BANK_CODES)
+                ->orWhere('code', 'like', '1110%')
+                ->orWhere('code', 'like', '1120%')
+                ->orWhere('cash_flow_tag', CashFlowTag::Cash->value))
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+    }
+
     public function expenseCategories(): HasMany
     {
         return $this->hasMany(ExpenseCategory::class);
