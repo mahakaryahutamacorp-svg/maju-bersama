@@ -30,7 +30,7 @@ class StockAdjustmentController extends Controller
         $endDate = $request->input('end_date');
         $search = $request->input('search');
 
-        $query = StockAdjustment::with(['branch', 'items.product', 'journal'])
+        $filtered = StockAdjustment::query()
             ->when(! $isMaster, fn ($q) => $q->where('branch_id', $user->branch_id))
             ->when($isMaster && $branchId, fn ($q) => $q->where('branch_id', $branchId))
             ->when($startDate, fn ($q) => $q->where('date', '>=', $startDate))
@@ -40,17 +40,34 @@ class StockAdjustmentController extends Controller
                     $sub->where('reference_number', 'like', "%{$search}%")
                         ->orWhere('notes', 'like', "%{$search}%");
                 });
-            })
+            });
+
+        $openingNote = StockAdjustmentService::OPENING_STOCK_NOTE.'%';
+        $openingSummary = (clone $filtered)
+            ->where('notes', 'like', $openingNote)
+            ->selectRaw('COUNT(*) as documents, COALESCE(SUM(total_gain_value), 0) as gain, COALESCE(SUM(total_loss_value), 0) as loss')
+            ->first();
+
+        $opname = (clone $filtered)
+            ->where(function ($query) use ($openingNote) {
+                $query->whereNull('notes')
+                    ->orWhere('notes', 'not like', $openingNote);
+            });
+
+        $opnameSummary = (clone $opname)
+            ->selectRaw('COUNT(*) as documents, COALESCE(SUM(total_gain_value), 0) as gain, COALESCE(SUM(total_loss_value), 0) as loss')
+            ->first();
+
+        $adjustments = $opname
+            ->with(['branch', 'items.product', 'journal'])
             ->latest('date')
-            ->latest('id');
+            ->latest('id')
+            ->paginate(15)
+            ->withQueryString();
 
-        $adjustments = $query->paginate(15)->withQueryString();
-
-        // Metrics for summary cards
-        $allFiltered = (clone $query)->get();
-        $totalAdjustments = $allFiltered->count();
-        $totalLoss = (float) $allFiltered->sum('total_loss_value');
-        $totalGain = (float) $allFiltered->sum('total_gain_value');
+        $totalAdjustments = (int) $opnameSummary->documents;
+        $totalLoss = (float) $opnameSummary->loss;
+        $totalGain = (float) $opnameSummary->gain;
         $netImpact = $totalGain - $totalLoss;
 
         $branches = $isMaster ? Branch::orderBy('name')->get() : collect([$user->branch]);
@@ -65,6 +82,9 @@ class StockAdjustmentController extends Controller
             'totalLoss' => $totalLoss,
             'totalGain' => $totalGain,
             'netImpact' => $netImpact,
+            'openingStockDocuments' => (int) $openingSummary->documents,
+            'openingStockGain' => (float) $openingSummary->gain,
+            'openingStockLoss' => (float) $openingSummary->loss,
             'startDate' => $startDate,
             'endDate' => $endDate,
             'search' => $search,

@@ -69,7 +69,7 @@
                     <p class="text-2xl font-bold text-emerald-800">Rp {{ number_format($totalGain, 0, ',', '.') }}</p>
                     <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">Cr 4120</span>
                 </div>
-                <p class="mt-1 text-xs text-emerald-600">Stok ekstra / surplus fisik</p>
+                <p class="mt-1 text-xs text-emerald-600">Selisih hitung ulang, bukan input stok awal</p>
             </div>
 
             <!-- Dampak Bersih Nilai Stok -->
@@ -86,6 +86,25 @@
                 <p class="mt-1 text-xs text-slate-500">Perubahan bersih nilai aset 1210</p>
             </div>
         </div>
+
+        @if ($openingStockDocuments > 0)
+            <div class="mb-6 rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-950">
+                <p class="font-semibold">{{ number_format($openingStockDocuments) }} dokumen di periode ini adalah input stok awal, bukan selisih opname.</p>
+                <p class="mt-1 text-sky-900">
+                    Nilainya
+                    @if ($openingStockGain > 0)
+                        +Rp {{ number_format($openingStockGain, 0, ',', '.') }}
+                    @endif
+                    @if ($openingStockGain > 0 && $openingStockLoss > 0)
+                        dan
+                    @endif
+                    @if ($openingStockLoss > 0)
+                        -Rp {{ number_format($openingStockLoss, 0, ',', '.') }}
+                    @endif
+                    sudah dibukukan lewat jalur input stok (persediaan lawan modal awal). Angka itu tidak masuk kartu keuntungan atau kerugian di atas.
+                </p>
+            </div>
+        @endif
 
         <!-- Filter Bar -->
         <div class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm no-print">

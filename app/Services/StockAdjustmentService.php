@@ -22,7 +22,9 @@ use Illuminate\Validation\ValidationException;
  * 2. Updates stock in inventories table and products cached stock with lockForUpdate().
  * 3. Records double-entry balanced accounting journal via JournalEntryService:
  *    - Loss (difference < 0): Dr 5120 Beban Selisih Persediaan, Cr 1210 Persediaan.
+ *      Input stok awal memakai Dr 3110 Modal Awal, bukan beban.
  *    - Gain (difference > 0): Dr 1210 Persediaan, Cr 4120 Pendapatan Lain-lain.
+ *      Input stok awal mengkredit 3110 Modal Awal.
  */
 class StockAdjustmentService
 {
@@ -285,7 +287,7 @@ class StockAdjustmentService
      * Create double-entry journal for stock adjustment via JournalEntryService.
      *
      * If Loss > 0 (Defisit):
-     *   Dr. 5120 Beban Penyesuaian Persediaan
+     *   Dr. 5120 Beban Penyesuaian Persediaan (opname) / 3110 Modal Awal (input stok awal)
      *     Cr. 1210 Persediaan
      *
      * If Gain > 0 (Surplus):
@@ -309,19 +311,23 @@ class StockAdjustmentService
 
         $inventoryAccount = $this->resolveAccount(self::ACCOUNT_INVENTORY, 'Persediaan', 'asset');
         $expenseAccount = $this->resolveAccount(self::ACCOUNT_EXPENSE_ADJUSTMENT, 'Beban Selisih Persediaan', 'expense');
+        $openingEquity = $this->resolveAccount(self::ACCOUNT_OPENING_EQUITY, 'Modal Awal', 'equity');
         $revenueAccount = $isOpeningStock
-            ? $this->resolveAccount(self::ACCOUNT_OPENING_EQUITY, 'Modal Awal', 'equity')
+            ? $openingEquity
             : $this->resolveAccount(self::ACCOUNT_REVENUE_ADJUSTMENT, 'Pendapatan Lain-lain', 'revenue');
+        $lossAccount = $isOpeningStock ? $openingEquity : $expenseAccount;
 
         $journalLines = [];
 
-        // Loss journal entries: Dr Expense, Cr Inventory
+        // Loss journal entries: Dr Expense or opening equity, Cr Inventory
         if ($hasLoss) {
             $journalLines[] = [
-                'chart_of_account_id' => $expenseAccount->id,
+                'chart_of_account_id' => $lossAccount->id,
                 'debit' => (float) $totalLossValue,
                 'credit' => 0,
-                'memo' => 'Beban selisih rugi opname persediaan',
+                'memo' => $isOpeningStock
+                    ? 'Pengurangan modal awal sesuai stok fisik'
+                    : 'Beban selisih rugi opname persediaan',
             ];
 
             $journalLines[] = [

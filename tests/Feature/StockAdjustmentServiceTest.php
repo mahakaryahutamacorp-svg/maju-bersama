@@ -321,4 +321,44 @@ class StockAdjustmentServiceTest extends TestCase
         $this->assertEquals(4, $product->fresh()->stock);
         $this->assertEquals('32000.00', $adjustment->total_gain_value);
     }
+
+    public function test_opening_stock_shortage_reduces_opening_equity_not_profit_and_loss(): void
+    {
+        $product = Product::create([
+            'branch_id' => $this->branch->id,
+            'category_id' => $this->category->id,
+            'sku' => 'PRD-OPEN-LOSS',
+            'name' => 'Prima Best 1L',
+            'selling_price' => 50000,
+            'purchase_price' => 44000,
+            'stock' => 10,
+        ]);
+        Inventory::create([
+            'branch_id' => $this->branch->id,
+            'product_id' => $product->id,
+            'quantity' => 10,
+        ]);
+
+        $adjustment = $this->service->processAdjustment([
+            'branch_id' => $this->branch->id,
+            'reference_number' => 'ADJ-OPEN-LOSS',
+            'date' => '2026-11-08',
+            'notes' => 'Input Stok Awal',
+            'is_opening_stock' => true,
+            'items' => [
+                ['product_id' => $product->id, 'actual_qty' => 4, 'unit_cost' => 44000],
+            ],
+        ], $this->actor);
+
+        $this->assertEquals('264000.00', $adjustment->total_loss_value);
+        $this->assertSame(4, $product->fresh()->stock);
+
+        $journal = JournalHeader::where('reference_number', 'ADJ-OPEN-LOSS')->first();
+        $debit = $journal->lines->first(fn ($line) => (float) $line->debit > 0);
+        $credit = $journal->lines->first(fn ($line) => (float) $line->credit > 0);
+
+        $this->assertSame('3110', $debit->account->code);
+        $this->assertSame('1210', $credit->account->code);
+        $this->assertFalse($journal->lines->contains(fn ($line) => $line->account->code === '5120'));
+    }
 }

@@ -56,7 +56,14 @@
                     <p class="mt-1 text-xl font-bold text-rose-800">
                         -Rp {{ number_format($adjustment->total_loss_value, 0, ',', '.') }}
                     </p>
-                    <p class="text-[11px] text-rose-600">Dicatat ke Beban Selisih (5120)</p>
+                    @php
+                        $lossDebit = $adjustment->journal?->journalLines
+                            ->first(fn ($line) => (float) $line->debit > 0 && $line->chartOfAccount?->code !== '1210');
+                        $lossAccountLabel = $lossDebit
+                            ? $lossDebit->chartOfAccount->code.' '.$lossDebit->chartOfAccount->name
+                            : '5120 Beban Selisih Persediaan';
+                    @endphp
+                    <p class="text-[11px] text-rose-600">Dicatat ke {{ $lossAccountLabel }}</p>
                 </div>
 
                 <div class="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
@@ -64,7 +71,14 @@
                     <p class="mt-1 text-xl font-bold text-emerald-800">
                         +Rp {{ number_format($adjustment->total_gain_value, 0, ',', '.') }}
                     </p>
-                    <p class="text-[11px] text-emerald-600">Dicatat ke Pendapatan Lain (4120)</p>
+                    @php
+                        $gainCredit = $adjustment->journal?->journalLines
+                            ->first(fn ($line) => (float) $line->credit > 0 && $line->chartOfAccount?->code !== '1210');
+                        $gainAccountLabel = $gainCredit
+                            ? $gainCredit->chartOfAccount->code.' '.$gainCredit->chartOfAccount->name
+                            : '4120 Pendapatan Lain-lain';
+                    @endphp
+                    <p class="text-[11px] text-emerald-600">Dicatat ke {{ $gainAccountLabel }}</p>
                 </div>
 
                 @php

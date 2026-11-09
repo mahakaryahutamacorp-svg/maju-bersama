@@ -93,6 +93,36 @@ class StockAdjustmentWebTest extends TestCase
         $createResponse->assertSee('Kopi Robusta 250g');
     }
 
+    public function test_opening_stock_documents_are_not_counted_as_opname_surplus(): void
+    {
+        StockAdjustment::create([
+            'branch_id' => $this->branch->id,
+            'reference_number' => 'SA-OPEN-1',
+            'date' => '2026-11-08',
+            'notes' => 'Input Stok Awal gudang',
+            'total_gain_value' => 1500000,
+            'total_loss_value' => 0,
+        ]);
+
+        StockAdjustment::create([
+            'branch_id' => $this->branch->id,
+            'reference_number' => 'SA-OPNAME-1',
+            'date' => '2026-11-08',
+            'notes' => 'Hitung ulang rak depan',
+            'total_gain_value' => 25000,
+            'total_loss_value' => 0,
+        ]);
+
+        $response = $this->actingAs($this->user)->get('/inventory/adjustments?start_date=2026-11-01&end_date=2026-11-09');
+
+        $response->assertOk();
+        $response->assertSee('SA-OPNAME-1');
+        $response->assertDontSee('SA-OPEN-1');
+        $response->assertSee('Rp 25.000');
+        $response->assertSee('1 dokumen di periode ini adalah input stok awal');
+        $response->assertDontSee('Rp 1.525.000');
+    }
+
     public function test_user_can_submit_opname_and_view_slip_with_journal(): void
     {
         $product = Product::create([
