@@ -16,7 +16,9 @@ use App\Models\Inventory;
 use App\Models\JournalHeader;
 use App\Models\Payment;
 use App\Models\Product;
+use App\Models\Purchase;
 use App\Models\PurchaseOrder;
+use App\Models\PurchasePayment;
 use App\Models\Sale;
 use App\Models\SalesReturn;
 use App\Models\StockAdjustment;
@@ -257,6 +259,112 @@ class ReportCenterWebTest extends TestCase
             ->assertOk()
             ->assertViewHas('ledger', fn (array $ledger) => $ledger['count'] === 1
                 && $ledger['rows']->first()['reference'] === 'GR-CREDIT-1');
+    }
+
+    public function test_activity_runs_chronologically_with_journal_cash_and_running_balance(): void
+    {
+        $cash = ChartOfAccount::create(['code' => '1110', 'name' => 'Kas', 'type' => 'asset', 'is_active' => true]);
+        $receivable = ChartOfAccount::create(['code' => '1130', 'name' => 'Piutang Usaha', 'type' => 'asset', 'is_active' => true]);
+        $revenue = ChartOfAccount::create(['code' => '4110', 'name' => 'Pendapatan', 'type' => 'revenue', 'is_active' => true]);
+        $expenseAccount = ChartOfAccount::create(['code' => '6100', 'name' => 'Beban Listrik', 'type' => 'expense', 'is_active' => true]);
+        $payable = ChartOfAccount::create(['code' => '2110', 'name' => 'Hutang Dagang', 'type' => 'liability', 'is_active' => true]);
+        $category = ExpenseCategory::create([
+            'branch_id' => $this->branch->id,
+            'name' => 'Listrik',
+            'chart_of_account_id' => $expenseAccount->id,
+            'is_active' => true,
+        ]);
+        $supplier = Supplier::create(['branch_id' => $this->branch->id, 'name' => 'CV Distributor Tani', 'is_active' => true]);
+
+        $journal = function (string $reference, string $date, array $lines, string $description = 'Jurnal') {
+            JournalHeader::create([
+                'branch_id' => $this->branch->id,
+                'user_id' => $this->user->id,
+                'transaction_date' => $date,
+                'reference_number' => $reference,
+                'description' => $description,
+            ])->journalLines()->createMany($lines);
+        };
+        $today = now()->toDateString();
+
+        $journal('OB-1', now()->startOfMonth()->subDay()->toDateString(), [
+            ['chart_of_account_id' => $cash->id, 'debit' => 1000000, 'credit' => 0],
+            ['chart_of_account_id' => $revenue->id, 'debit' => 0, 'credit' => 1000000],
+        ]);
+
+        $this->travelTo(now()->setTime(8, 0));
+        Sale::create(['branch_id' => $this->branch->id, 'receipt_number' => 'INV-A', 'total_amount' => 150000, 'payment_method' => 'cash', 'status' => 'completed', 'created_by' => $this->user->id]);
+        $journal('INV-A', $today, [
+            ['chart_of_account_id' => $cash->id, 'debit' => 150000, 'credit' => 0],
+            ['chart_of_account_id' => $revenue->id, 'debit' => 0, 'credit' => 150000],
+        ]);
+
+        $this->travelTo(now()->setTime(9, 0));
+        Sale::create(['branch_id' => $this->branch->id, 'receipt_number' => 'INV-B', 'total_amount' => 200000, 'payment_method' => 'tempo', 'status' => 'completed', 'created_by' => $this->user->id]);
+        $journal('INV-B', $today, [
+            ['chart_of_account_id' => $receivable->id, 'debit' => 200000, 'credit' => 0],
+            ['chart_of_account_id' => $revenue->id, 'debit' => 0, 'credit' => 200000],
+        ]);
+
+        $this->travelTo(now()->setTime(10, 0));
+        Expense::create(['branch_id' => $this->branch->id, 'expense_category_id' => $category->id, 'account_id' => $cash->id, 'amount' => 75000, 'expense_date' => $today, 'reference_number' => 'EXP-1']);
+        $journal('EXP-1', $today, [
+            ['chart_of_account_id' => $expenseAccount->id, 'debit' => 75000, 'credit' => 0],
+            ['chart_of_account_id' => $cash->id, 'debit' => 0, 'credit' => 75000],
+        ]);
+
+        $this->travelTo(now()->setTime(11, 0));
+        $journal('KM-1', $today, [
+            ['chart_of_account_id' => $cash->id, 'debit' => 50000, 'credit' => 0],
+            ['chart_of_account_id' => $revenue->id, 'debit' => 0, 'credit' => 50000],
+        ], 'Kas masuk dari setoran pemilik');
+
+        $this->travelTo(now()->setTime(12, 0));
+        Expense::create(['branch_id' => $this->branch->id, 'expense_category_id' => $category->id, 'account_id' => $cash->id, 'amount' => 25000, 'expense_date' => $today, 'reference_number' => 'EXP-2']);
+
+        $this->travelTo(now()->setTime(13, 0));
+        $purchase = Purchase::create(['branch_id' => $this->branch->id, 'distributor_id' => $supplier->id, 'invoice_number' => 'FKT-9', 'total_amount' => 30000, 'paid_amount' => 30000, 'status' => 'paid']);
+        PurchasePayment::create(['purchase_id' => $purchase->id, 'branch_id' => $this->branch->id, 'amount' => 30000, 'payment_date' => $today, 'payment_method' => 'cash', 'reference_number' => 'PAY-9', 'created_by' => $this->user->id]);
+        $journal('PAY-9', $today, [
+            ['chart_of_account_id' => $payable->id, 'debit' => 30000, 'credit' => 0],
+            ['chart_of_account_id' => $cash->id, 'debit' => 0, 'credit' => 30000],
+        ]);
+
+        $this->actingAs($this->user)
+            ->get(route('reports.index'))
+            ->assertOk()
+            ->assertSee('Saldo Awal Kas &amp; Bank', false)
+            ->assertSee('Kas masuk dari setoran pemilik')
+            ->assertSee('Pembayaran Hutang - CV Distributor Tani (Faktur FKT-9)')
+            ->assertSee('Belum dijurnal')
+            ->assertViewHas('ledger', function (array $ledger) {
+                $this->assertSame(['INV-A', 'INV-B', 'EXP-1', 'KM-1', 'EXP-2', 'PAY-9'], $ledger['rows']->pluck('reference')->all());
+                $this->assertSame([1, 2, 3, 4, 5, 6], $ledger['rows']->pluck('sequence')->all());
+                $this->assertEquals([1150000, 1150000, 1075000, 1125000, 1100000, 1070000], $ledger['rows']->pluck('balance')->all());
+                $this->assertFalse($ledger['rows']->firstWhere('reference', 'INV-B')['is_cash']);
+                $this->assertFalse($ledger['rows']->firstWhere('reference', 'EXP-2')['is_journaled']);
+                $this->assertSame('cash_journal', $ledger['rows']->firstWhere('reference', 'KM-1')['type']);
+                $this->assertEquals(1000000.0, $ledger['opening_balance']);
+                $this->assertEquals(200000.0, $ledger['total_inflow']);
+                $this->assertEquals(130000.0, $ledger['total_outflow']);
+                $this->assertEquals(1070000.0, $ledger['closing_balance']);
+                $this->assertSame(1, $ledger['unjournaled_count']);
+
+                return true;
+            });
+
+        $this->actingAs($this->user)
+            ->get(route('reports.index', ['type' => 'expense']))
+            ->assertOk()
+            ->assertViewHas('ledger', function (array $ledger) {
+                $this->assertSame(['EXP-1', 'EXP-2'], $ledger['rows']->pluck('reference')->all());
+                $this->assertEquals([1075000, 1100000], $ledger['rows']->pluck('balance')->all());
+                $this->assertEquals(100000.0, $ledger['total_outflow']);
+                $this->assertEquals(1070000.0, $ledger['closing_balance']);
+                $this->assertTrue($ledger['is_filtered']);
+
+                return true;
+            });
     }
 
     public function test_report_center_renders_human_readable_transaction_descriptions(): void

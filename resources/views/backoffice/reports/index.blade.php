@@ -27,6 +27,10 @@
             $totalInflow = $ledger['total_inflow'] ?? 0;
             $totalOutflow = $ledger['total_outflow'] ?? 0;
             $netAmount = $ledger['net'] ?? 0;
+            $openingBalance = $ledger['opening_balance'] ?? 0;
+            $closingBalance = $ledger['closing_balance'] ?? 0;
+            $isFiltered = $ledger['is_filtered'] ?? false;
+            $unjournaledCount = $ledger['unjournaled_count'] ?? 0;
             $selectedType = $ledger['type'] ?? 'all';
             $startDate = $ledger['start_date'] ?? now()->startOfMonth()->toDateString();
             $endDate = $ledger['end_date'] ?? now()->toDateString();
@@ -48,7 +52,7 @@
                 <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
                     <div>
                         <h3 class="text-base font-bold text-slate-900">Aktivitas Transaksi</h3>
-                        <p class="text-xs text-slate-500">Semua transaksi sesuai filter. Klik nomor referensi untuk melihat rinciannya.</p>
+                        <p class="text-xs text-slate-500">Diurutkan sesuai urutan kejadian, dari saldo awal sampai saldo akhir kas &amp; bank. Klik nomor referensi untuk melihat rinciannya.</p>
                     </div>
                     <div class="flex flex-wrap items-center gap-2 text-[11px]">
                         <span class="rounded-full border border-slate-200 bg-white px-2.5 py-1 font-medium text-slate-600">{{ \Carbon\Carbon::parse($startDate)->isoFormat('D MMM Y') }} – {{ \Carbon\Carbon::parse($endDate)->isoFormat('D MMM Y') }}</span>
@@ -112,7 +116,11 @@
                 </div>
             </form>
 
-            <div class="grid grid-cols-2 gap-3 px-5 py-4 lg:grid-cols-4 sm:px-6">
+            <div class="grid grid-cols-2 gap-3 px-5 py-4 lg:grid-cols-5 sm:px-6">
+                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Saldo Awal Kas &amp; Bank</p>
+                    <p class="mt-1 text-lg font-extrabold {{ $openingBalance >= 0 ? 'text-slate-900' : 'text-rose-700' }}">{{ $formatLedgerRupiah($openingBalance) }}</p>
+                </div>
                 <div class="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3.5">
                     <p class="text-[11px] font-semibold uppercase tracking-wide text-emerald-800">Uang Masuk</p>
                     <p class="mt-1 text-lg font-extrabold text-emerald-800">{{ $formatLedgerRupiah($totalInflow) }}</p>
@@ -121,34 +129,56 @@
                     <p class="text-[11px] font-semibold uppercase tracking-wide text-rose-800">Uang Keluar</p>
                     <p class="mt-1 text-lg font-extrabold text-rose-800">{{ $formatLedgerRupiah($totalOutflow) }}</p>
                 </div>
-                <div class="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
-                    <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Selisih Uang</p>
-                    <p class="mt-1 text-lg font-extrabold {{ $netAmount >= 0 ? 'text-slate-900' : 'text-rose-700' }}">{{ $formatLedgerRupiah($netAmount) }}</p>
-                </div>
                 <div class="rounded-xl border border-sky-200 bg-sky-50/70 p-3.5">
-                    <p class="text-[11px] font-semibold uppercase tracking-wide text-sky-800">Jumlah Transaksi</p>
-                    <p class="mt-1 text-lg font-extrabold text-sky-900">{{ number_format($ledger['count'] ?? 0, 0, ',', '.') }}</p>
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-sky-800">{{ $isFiltered ? 'Selisih (Sesuai Filter)' : 'Selisih Uang' }}</p>
+                    <p class="mt-1 text-lg font-extrabold {{ $netAmount >= 0 ? 'text-sky-900' : 'text-rose-700' }}">{{ $formatLedgerRupiah($netAmount) }}</p>
+                    <p class="text-[11px] text-sky-800/80">{{ number_format($ledger['count'] ?? 0, 0, ',', '.') }} transaksi</p>
                 </div>
-                <p class="col-span-2 text-[11px] text-slate-500 lg:col-span-4">
-                    Uang Masuk dan Uang Keluar hanya menghitung uang yang benar-benar berpindah (tunai, transfer, QRIS, pelunasan).
-                    Penjualan/pembelian kredit, retur yang hanya memotong hutang/piutang, pindah kas/bank, dan stok opname tetap tampil di daftar dengan tanda abu-abu, tapi tidak ikut dijumlahkan.
-                </p>
+                <div class="col-span-2 rounded-xl border border-amber-300 bg-amber-50 p-3.5 lg:col-span-1">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-amber-800">Saldo Akhir Kas &amp; Bank</p>
+                    <p class="mt-1 text-lg font-extrabold {{ $closingBalance >= 0 ? 'text-amber-900' : 'text-rose-700' }}">{{ $formatLedgerRupiah($closingBalance) }}</p>
+                </div>
+                <div class="col-span-2 space-y-1 text-[11px] text-slate-500 lg:col-span-5">
+                    <p>
+                        Hitungan: Saldo Awal + Uang Masuk − Uang Keluar = Saldo Akhir. Nominal uang diambil dari jurnal akun Kas (1110) dan Bank (1120) tiap transaksi, jadi sama dengan buku besar kas &amp; bank.
+                        Penjualan/pembelian kredit, retur yang hanya memotong hutang/piutang, pindah kas/bank, dan stok opname tetap tampil dengan tanda abu-abu dan tidak mengubah saldo.
+                    </p>
+                    @if ($isFiltered)
+                        <p class="font-semibold text-slate-600">Filter aktif: kolom Saldo tetap menunjukkan saldo kas &amp; bank sebenarnya setelah transaksi itu terjadi, termasuk transaksi yang tersembunyi oleh filter.</p>
+                    @endif
+                    @if ($unjournaledCount > 0)
+                        <p class="font-semibold text-amber-700">{{ number_format($unjournaledCount, 0, ',', '.') }} transaksi belum punya jurnal, nominal uangnya diperkirakan dari dokumen. Periksa baris bertanda "Belum dijurnal".</p>
+                    @endif
+                </div>
             </div>
 
             <div class="overflow-x-auto">
                 <table class="min-w-full text-left text-sm">
                     <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                         <tr>
+                            <th class="px-4 py-3 font-semibold text-right">No</th>
                             <th class="px-4 py-3 font-semibold">Tanggal</th>
                             <th class="px-4 py-3 font-semibold">Referensi</th>
                             <th class="px-4 py-3 font-semibold">Keterangan Transaksi</th>
                             <th class="px-4 py-3 font-semibold">Cabang</th>
-                            <th class="px-4 py-3 font-semibold text-right">Nominal</th>
+                            <th class="px-4 py-3 font-semibold text-right">Uang Masuk</th>
+                            <th class="px-4 py-3 font-semibold text-right">Uang Keluar</th>
+                            <th class="px-4 py-3 font-semibold text-right">Saldo</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 bg-white [&>tr:nth-child(even)]:bg-slate-50/60">
+                        @if ($ledgerRows->isNotEmpty())
+                            <tr class="bg-slate-100/80">
+                                <td class="px-4 py-2.5"></td>
+                                <td class="whitespace-nowrap px-4 py-2.5 text-xs text-slate-600">{{ \Carbon\Carbon::parse($startDate)->isoFormat('D MMM Y') }}</td>
+                                <td class="px-4 py-2.5"></td>
+                                <td class="px-4 py-2.5 font-semibold text-slate-700" colspan="4">Saldo awal kas &amp; bank</td>
+                                <td class="whitespace-nowrap px-4 py-2.5 text-right font-bold {{ $openingBalance >= 0 ? 'text-slate-900' : 'text-rose-700' }}">{{ $formatLedgerRupiah($openingBalance) }}</td>
+                            </tr>
+                        @endif
                         @forelse ($ledgerRows as $row)
                             <tr class="hover:bg-slate-50">
+                                <td class="whitespace-nowrap px-4 py-2.5 text-right font-mono text-xs text-slate-400">{{ $row['sequence'] }}</td>
                                 <td class="whitespace-nowrap px-4 py-2.5 text-xs text-slate-600">
                                     {{ $row['date'] ? \Carbon\Carbon::parse($row['date'])->isoFormat('D MMM Y') : '-' }}
                                 </td>
@@ -161,27 +191,44 @@
                                     <p class="font-medium text-slate-900">{{ $row['description'] }}</p>
                                     <p class="text-[11px] text-slate-500">
                                         {{ $row['type_label'] }}
-                                        @if (! ($row['is_cash'] ?? true))
+                                        @if (! $row['is_cash'])
                                             <span class="ml-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600">{{ $row['non_cash_note'] }}</span>
+                                            @if ($row['amount'] > 0)
+                                                <span class="ml-1 text-[10px] text-slate-400">Nilai {{ $formatLedgerRupiah($row['amount']) }}</span>
+                                            @endif
+                                        @endif
+                                        @if (! $row['is_journaled'])
+                                            <span class="ml-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800">Belum dijurnal</span>
                                         @endif
                                     </p>
                                 </td>
                                 <td class="whitespace-nowrap px-4 py-2.5 text-xs text-slate-600">{{ $row['branch_name'] }}</td>
-                                @php
-                                    $amountClass = ! ($row['is_cash'] ?? true)
-                                        ? 'text-slate-400'
-                                        : ($row['direction'] === 'in' ? 'text-emerald-700' : 'text-rose-700');
-                                @endphp
-                                <td class="whitespace-nowrap px-4 py-2.5 text-right font-semibold {{ $amountClass }}">
-                                    {{ $row['direction'] === 'out' ? '-' : '' }}{{ $formatLedgerRupiah($row['amount']) }}
+                                <td class="whitespace-nowrap px-4 py-2.5 text-right font-semibold text-emerald-700">
+                                    {{ $row['cash_in'] > 0 ? $formatLedgerRupiah($row['cash_in']) : '-' }}
+                                </td>
+                                <td class="whitespace-nowrap px-4 py-2.5 text-right font-semibold text-rose-700">
+                                    {{ $row['cash_out'] > 0 ? $formatLedgerRupiah($row['cash_out']) : '-' }}
+                                </td>
+                                <td class="whitespace-nowrap px-4 py-2.5 text-right font-bold {{ $row['balance'] >= 0 ? 'text-slate-900' : 'text-rose-700' }}">
+                                    {{ $formatLedgerRupiah($row['balance']) }}
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="px-4 py-10 text-center text-sm text-slate-400">Tidak ada transaksi pada filter yang dipilih.</td>
+                                <td colspan="8" class="px-4 py-10 text-center text-sm text-slate-400">Tidak ada transaksi pada filter yang dipilih.</td>
                             </tr>
                         @endforelse
                     </tbody>
+                    @if ($ledgerRows->isNotEmpty())
+                        <tfoot class="border-t-2 border-slate-300 bg-slate-50 text-sm">
+                            <tr>
+                                <td class="px-4 py-3 font-bold text-slate-900" colspan="5">{{ $isFiltered ? 'Total sesuai filter' : 'Total periode & saldo akhir' }}</td>
+                                <td class="whitespace-nowrap px-4 py-3 text-right font-extrabold text-emerald-700">{{ $formatLedgerRupiah($totalInflow) }}</td>
+                                <td class="whitespace-nowrap px-4 py-3 text-right font-extrabold text-rose-700">{{ $formatLedgerRupiah($totalOutflow) }}</td>
+                                <td class="whitespace-nowrap px-4 py-3 text-right font-extrabold {{ $closingBalance >= 0 ? 'text-slate-900' : 'text-rose-700' }}">{{ $isFiltered ? '-' : $formatLedgerRupiah($closingBalance) }}</td>
+                            </tr>
+                        </tfoot>
+                    @endif
                 </table>
             </div>
 
