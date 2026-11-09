@@ -220,19 +220,7 @@
 
                                         <!-- Dropdown Produk -->
                                         <td class="px-4 py-3.5">
-                                            <select
-                                                :name="'items[' + index + '][product_id]'"
-                                                x-model="item.product_id"
-                                                @change="onProductSelect(index)"
-                                                required
-                                                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-900 shadow-2xs focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
-                                            >
-                                                <option value="">-- Pilih Produk --</option>
-                                                <template x-for="prod in products" :key="prod.id">
-                                                    <option :value="prod.id" x-text="prod.name + (prod.sku ? ' [' + prod.sku + ']' : '')"></option>
-                                                </template>
-                                            </select>
-                                            <!-- Hidden Cost Input for COGS calc -->
+                                            @include('inventory.partials.product-smart-picker')
                                             <input type="hidden" :name="'items[' + index + '][unit_cost]'" :value="item.unit_cost">
                                         </td>
 
@@ -378,9 +366,10 @@
     </main>
 
     <x-slot:scripts>
+    @include('inventory.partials.smart-search-script')
     <script>
         function salesReturnForm(productsList, accountsList) {
-            return {
+            return withProductPicker({
                 products: productsList || [],
                 accounts: accountsList || [],
                 refundMethod: 'cash',
@@ -393,14 +382,13 @@
                     this.recalculateAll();
                 },
                 addItem() {
-                    this.items.push({
-                        product_id: '',
+                    this.items.push(this.blankProductLine({
                         quantity: 1,
                         unit_price: 0,
                         unit_cost: 0,
                         subtotal: 0,
                         subtotal_cost: 0
-                    });
+                    }));
                 },
                 removeItem(index) {
                     if (this.items.length > 1) {
@@ -462,7 +450,7 @@
                     const product = this.products.find(p => p.id == productId);
                     return product ? (product.stock ?? 0) : '-';
                 }
-            };
+            });
         }
     </script>
     </x-slot:scripts>

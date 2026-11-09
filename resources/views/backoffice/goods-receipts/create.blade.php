@@ -243,23 +243,7 @@
 
                                         <!-- Pilihan Produk Dropdown / Info -->
                                         <td class="py-3 px-3">
-                                            <select
-                                                :name="'items[' + index + '][product_id]'"
-                                                x-model="item.product_id"
-                                                @change="onProductSelect(index)"
-                                                required
-                                                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                                            >
-                                                <option value="">-- Pilih Produk Dari Katalog --</option>
-                                                <template x-for="p in products" :key="p.id">
-                                                    <option :value="p.id" :selected="p.id == item.product_id" x-text="p.sku + ' - ' + p.name + ' (Stok: ' + p.stock + ')'"></option>
-                                                </template>
-                                                @foreach ($products as $p)
-                                                    <option value="{{ $p['id'] }}" class="hidden">
-                                                        {{ $p['sku'] }} - {{ $p['name'] }}
-                                                    </option>
-                                                @endforeach
-                                            </select>
+                                            @include('inventory.partials.product-smart-picker', ['placeholder' => 'Ketik nama, SKU, atau kategori barang diterima...'])
 
                                             <!-- Sisa PO Info Badge & Stok Saat Ini -->
                                             <div class="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
@@ -393,6 +377,7 @@
     </main>
 
     <x-slot:scripts>
+    @include('inventory.partials.smart-search-script')
     <script>
         function goodsReceiptForm(activePOsList = [], productsList = []) {
             let activePOs = activePOsList || [];
@@ -405,7 +390,7 @@
                 products = temp;
             }
 
-            return {
+            return withProductPicker({
                 products: products,
                 activePOs: activePOs,
                 selectedPoId: '',
@@ -473,10 +458,10 @@
                     }
 
                     if (validItems.length > 0) {
-                        this.items = validItems;
+                        this.items = validItems.map((item) => this.stockLine(item));
                     } else {
                         alert('Semua item pada Purchase Order ini telah diterima penuh.');
-                        this.items = [{ product_id: '', product_name: '', sku: '', quantity: 1, unit_price: 0, subtotal: 0 }];
+                        this.items = [this.stockLine({ product_name: '', sku: '', quantity: 1, unit_price: 0, subtotal: 0 })];
                     }
 
                     this.recalculateAll();
@@ -487,18 +472,27 @@
                     this.supplierId = '';
                     this.supplierName = '';
                     this.paymentType = 'cash';
-                    this.items = [{ product_id: '', product_name: '', sku: '', quantity: 1, unit_price: 0, subtotal: 0 }];
+                    this.items = [this.stockLine({ product_name: '', sku: '', quantity: 1, unit_price: 0, subtotal: 0 })];
                     this.recalculateAll();
                 },
+                stockLine(extra) {
+                    const line = this.blankProductLine(extra || {});
+                    if (!line.query && line.product_id) {
+                        const product = this.products.find((row) => row.id == line.product_id);
+                        line.query = product
+                            ? ProductSmartSearch.label(product)
+                            : ProductSmartSearch.label({ sku: line.sku, name: line.product_name });
+                    }
+                    return line;
+                },
                 addItem() {
-                    this.items.push({
-                        product_id: '',
+                    this.items.push(this.stockLine({
                         product_name: '',
                         sku: '',
                         quantity: 1,
                         unit_price: 0,
                         subtotal: 0
-                    });
+                    }));
                 },
                 removeItem(index) {
                     if (this.items.length > 1) {
@@ -534,7 +528,7 @@
                     const product = this.products.find(p => p.id == productId);
                     return product ? (product.stock ?? 0) : 0;
                 }
-            };
+            });
         }
     </script>
     </x-slot:scripts>

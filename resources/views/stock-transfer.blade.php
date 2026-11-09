@@ -87,7 +87,7 @@
                             @keydown.arrow-up.prevent="moveHighlight(-1)"
                             @keydown.enter.prevent="chooseHighlighted()"
                             @keydown.escape="picker.open = false"
-                            placeholder="Ketik nama atau SKU barang..."
+                            placeholder="Ketik nama, SKU, atau kategori..."
                             autocomplete="off"
                             role="combobox"
                             aria-autocomplete="list"
@@ -112,8 +112,8 @@
                                     :class="index === picker.highlight ? 'bg-amber-50' : ''"
                                 >
                                     <span class="min-w-0">
-                                        <span class="block truncate font-semibold text-slate-900" x-text="option.name"></span>
-                                        <span class="block font-mono text-xs text-slate-500" x-text="option.sku"></span>
+                                        <span class="block truncate font-semibold text-slate-900" x-html="highlight(option.name)"></span>
+                                        <span class="block font-mono text-xs text-slate-500" x-html="highlight(option.sku)"></span>
                                     </span>
                                     <span class="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700" x-text="`Stok ${option.quantity}`"></span>
                                 </button>
@@ -195,6 +195,7 @@
     </div>
 
     <x-slot:scripts>
+    @include('inventory.partials.smart-search-script')
     <script>
         function stockTransfer({ token, stock, defaultSource, defaultDestination }) {
             return {
@@ -214,15 +215,17 @@
                 },
 
                 get filteredStock() {
-                    const query = (this.picker.query || '').trim().toLowerCase();
+                    const query = (this.picker.query || '').trim();
 
                     if (!query || this.picker.productId) {
                         return this.availableStock;
                     }
 
-                    return this.availableStock.filter((row) =>
-                        row.name.toLowerCase().includes(query) || row.sku.toLowerCase().includes(query)
-                    );
+                    return ProductSmartSearch.search(this.availableStock, query, 30);
+                },
+
+                highlight(text) {
+                    return ProductSmartSearch.highlight(text, this.picker.query);
                 },
 
                 onSearchInput() {

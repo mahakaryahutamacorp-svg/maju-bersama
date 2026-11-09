@@ -129,7 +129,7 @@
                             x-ref="barcodeInput"
                             x-model="searchQuery" 
                             @keydown.enter.prevent="handleScanOrSearch()"
-                            placeholder="Cari nama produk atau Scan Barcode... (Tekan Enter)" 
+                            placeholder="Cari nama, SKU, atau kategori — atau scan barcode (Enter)" 
                             class="block w-full rounded-xl border border-slate-300 bg-slate-50/50 py-3 pl-11 pr-24 text-sm font-medium shadow-inner focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                             autofocus
                         >
@@ -184,10 +184,10 @@
                         >
                             <div>
                                 <div class="flex items-start justify-between gap-2">
-                                    <span class="font-mono text-[11px] font-semibold text-indigo-700" x-text="product.sku"></span>
+                                    <span class="font-mono text-[11px] font-semibold text-indigo-700" x-html="highlight(product.sku)"></span>
                                     <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600" x-text="product.category?.name || 'Umum'"></span>
                                 </div>
-                                <h3 class="mt-2 font-bold leading-5 text-slate-900 line-clamp-2" x-text="product.name"></h3>
+                                <h3 class="mt-2 font-bold leading-5 text-slate-900 line-clamp-2" x-html="highlight(product.name)"></h3>
                             </div>
 
                             <div class="mt-3 flex items-end justify-between gap-2 border-t border-slate-100 pt-2.5">
@@ -1187,6 +1187,7 @@
         @endif
     </div>
 
+    @include('inventory.partials.smart-search-script')
     <!-- Script Alpine.js Penjualan Kasir -->
     <script>
         function posApp(initialProducts, initialCategories, shiftConfig = {}, initialCustomers = [], initialCustomerGroups = []) {
@@ -1316,14 +1317,14 @@
                     }
 
                     if (this.searchQuery.trim()) {
-                        const q = this.searchQuery.toLowerCase();
-                        list = list.filter(p => 
-                            p.name.toLowerCase().includes(q) || 
-                            p.sku.toLowerCase().includes(q)
-                        );
+                        list = ProductSmartSearch.search(list, this.searchQuery, list.length);
                     }
 
                     return list;
+                },
+
+                highlight(text) {
+                    return ProductSmartSearch.highlight(text, this.searchQuery);
                 },
 
                 get totalItems() {
@@ -1622,7 +1623,7 @@
                     }
 
                     // Cek exact match SKU di list produk lokal
-                    const exactSku = this.products.find(p => p.sku.toLowerCase() === q.toLowerCase());
+                    const exactSku = ProductSmartSearch.exactSku(this.products, q);
                     if (exactSku) {
                         this.addToCart(exactSku);
                         this.notifyScan('✓ ' + exactSku.name + ' ditambahkan ke transaksi');

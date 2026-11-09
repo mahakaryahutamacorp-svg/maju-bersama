@@ -2,6 +2,14 @@
 <script>
     window.ProductSmartSearch = (() => {
         const indexCache = new WeakMap();
+        const anchors = new WeakMap();
+
+        const textOf = (value) => {
+            if (value && typeof value === 'object') {
+                return value.name ?? value.label ?? '';
+            }
+            return value ?? '';
+        };
 
         const normalize = (value) => String(value ?? '')
             .toLowerCase()
@@ -22,10 +30,10 @@
         const indexOf = (product) => {
             let index = indexCache.get(product);
             if (!index) {
-                const name = normalize(product.name);
-                const sku = normalize(product.sku);
-                const category = normalize(product.category);
-                const all = [name, sku, category, normalize(product.unit)].join(' ');
+                const name = normalize(textOf(product.name));
+                const sku = normalize(textOf(product.sku));
+                const category = normalize(textOf(product.category));
+                const all = [name, sku, category, normalize(textOf(product.unit))].join(' ');
                 index = {
                     name,
                     skuCompact: sku.replace(/ /g, ''),
@@ -117,6 +125,64 @@
                 return products.find((product) => indexOf(product).skuCompact === compactQuery) ?? null;
             },
 
+            textOf,
+
+            results(products, query, limit = 12) {
+                return this.search(products || [], query || '', limit);
+            },
+
+            label(product) {
+                const sku = String(textOf(product?.sku)).trim();
+                const name = String(textOf(product?.name)).trim();
+                if (sku && name) return sku + ' — ' + name;
+                return name || sku;
+            },
+
+            ensureLine(item) {
+                return Object.assign({
+                    product_id: '',
+                    query: '',
+                    open: false,
+                    active: 0,
+                    menuTop: 0,
+                    menuLeft: 0,
+                    menuWidth: 280,
+                }, item || {});
+            },
+
+            apply(item, product) {
+                item.product_id = product.id ?? product.product_id ?? '';
+                item.query = this.label(product);
+                item.open = false;
+                item.active = 0;
+            },
+
+            anchor(item, element) {
+                if (!element) return;
+                anchors.set(item, element);
+                const rect = element.getBoundingClientRect();
+                const menuHeight = 240;
+                const spaceBelow = window.innerHeight - rect.bottom;
+                const openUp = spaceBelow < menuHeight && rect.top > spaceBelow;
+                item.menuTop = openUp ? Math.max(8, rect.top - menuHeight - 4) : rect.bottom + 4;
+                item.menuLeft = Math.max(8, rect.left);
+                item.menuWidth = Math.max(rect.width, 260);
+            },
+
+            reposition(item) {
+                const element = anchors.get(item);
+                if (element) this.anchor(item, element);
+            },
+
+            menuStyle(item) {
+                return 'top:' + (item.menuTop || 0) + 'px;left:' + (item.menuLeft || 0) + 'px;width:' + (item.menuWidth || 280) + 'px';
+            },
+
+            move(active, total, step) {
+                if (!total) return 0;
+                return (Number(active || 0) + step + total) % total;
+            },
+
             highlight(text, query) {
                 const raw = String(text ?? '');
                 const tokens = normalize(query).split(' ').filter((token) => token.length > 0);
@@ -152,5 +218,71 @@
             },
         };
     })();
+
+    window.withProductPicker = function (form) {
+        const baseInit = form.init;
+
+        form.init = function () {
+            this.items = (this.items || []).map((item) => ProductSmartSearch.ensureLine(item));
+            this.hydrateProductQueries();
+            if (typeof baseInit === 'function') {
+                return baseInit.call(this);
+            }
+        };
+
+        form.hydrateProductQueries = function () {
+            this.items.forEach((item) => {
+                if (item.query || !item.product_id) return;
+                const product = (this.products || []).find((row) => row.id == item.product_id);
+                item.query = product
+                    ? ProductSmartSearch.label(product)
+                    : ProductSmartSearch.label({ sku: item.sku, name: item.product_name });
+            });
+        };
+
+        form.blankProductLine = function (extra) {
+            return ProductSmartSearch.ensureLine(extra || {});
+        };
+
+        form.productResults = function (item) {
+            return ProductSmartSearch.results(this.products, item.query, 12);
+        };
+
+        form.onProductQuery = function (item) {
+            item.product_id = '';
+            item.open = true;
+            item.active = 0;
+            ProductSmartSearch.reposition(item);
+        };
+
+        form.onProductFocus = function (item, event) {
+            item.open = true;
+            ProductSmartSearch.anchor(item, event.target);
+        };
+
+        form.moveProduct = function (item, step) {
+            const total = this.productResults(item).length;
+            item.open = true;
+            item.active = ProductSmartSearch.move(item.active || 0, total, step);
+            ProductSmartSearch.reposition(item);
+        };
+
+        form.chooseProduct = function (index, product) {
+            ProductSmartSearch.apply(this.items[index], product);
+            if (typeof this.onProductSelect === 'function') {
+                this.onProductSelect(index);
+            }
+        };
+
+        form.confirmProduct = function (index) {
+            const item = this.items[index];
+            const chosen = ProductSmartSearch.exactSku(this.products, item.query)
+                || this.productResults(item)[item.active || 0]
+                || null;
+            if (chosen) this.chooseProduct(index, chosen);
+        };
+
+        return form;
+    };
 </script>
 @endonce

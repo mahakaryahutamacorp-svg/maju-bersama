@@ -64,7 +64,7 @@
                                 type="text" 
                                 x-model="searchQuery" 
                                 @focus="showDropdown = true"
-                                placeholder="Ketik nama atau SKU..."
+                                placeholder="Ketik nama, SKU, atau kategori..."
                                 class="block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 pr-8 text-sm shadow-sm focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
                             >
                             <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
@@ -87,8 +87,8 @@
                                     class="flex w-full items-center justify-between px-3 py-2 text-left text-xs transition hover:bg-indigo-50"
                                 >
                                     <div>
-                                        <p class="font-bold text-slate-900" x-text="p.name"></p>
-                                        <p class="font-mono text-slate-500" x-text="'SKU: ' + p.sku"></p>
+                                        <p class="font-bold text-slate-900" x-html="highlight(p.name)"></p>
+                                        <p class="font-mono text-slate-500">SKU: <span x-html="highlight(p.sku)"></span></p>
                                     </div>
                                     <span class="rounded bg-slate-100 px-2 py-0.5 font-semibold text-slate-700" x-text="'Stok: ' + p.stock"></span>
                                 </button>
@@ -341,6 +341,7 @@
     </main>
 
     <x-slot:scripts>
+    @include('inventory.partials.smart-search-script')
     <script>
         function stockCardFilter(productsList, initialSelectedId) {
             const initialProduct = (productsList || []).find(p => p.id == initialSelectedId);
@@ -351,14 +352,12 @@
                 showDropdown: false,
 
                 get filteredProducts() {
-                    if (!this.searchQuery.trim()) {
-                        return this.products.slice(0, 15);
-                    }
-                    const q = this.searchQuery.toLowerCase();
-                    return this.products.filter(p => 
-                        p.name.toLowerCase().includes(q) || 
-                        p.sku.toLowerCase().includes(q)
-                    ).slice(0, 20);
+                    const limit = this.searchQuery.trim() ? 20 : 15;
+                    return ProductSmartSearch.search(this.products, this.searchQuery, limit);
+                },
+
+                highlight(text) {
+                    return ProductSmartSearch.highlight(text, this.searchQuery);
                 },
 
                 selectProduct(p) {

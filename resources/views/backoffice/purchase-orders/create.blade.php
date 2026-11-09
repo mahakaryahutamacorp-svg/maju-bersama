@@ -146,18 +146,7 @@
                                         <td class="px-4 py-3.5 text-center text-xs font-bold text-slate-400" x-text="index + 1"></td>
 
                                         <td class="px-4 py-3.5">
-                                            <select
-                                                :name="'items[' + index + '][product_id]'"
-                                                x-model="item.product_id"
-                                                @change="onProductSelect(index)"
-                                                required
-                                                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
-                                            >
-                                                <option value="">-- Pilih Produk --</option>
-                                                <template x-for="prod in products" :key="prod.id">
-                                                    <option :value="prod.id" x-text="prod.name + ' (' + prod.sku + ')'"></option>
-                                                </template>
-                                            </select>
+                                            @include('inventory.partials.product-smart-picker')
                                         </td>
 
                                         <td class="px-4 py-3.5 text-right font-mono text-xs text-slate-500">
@@ -254,9 +243,10 @@
     </main>
 
     <x-slot:scripts>
+    @include('inventory.partials.smart-search-script')
     <script>
         function poForm(productsList) {
-            return {
+            return withProductPicker({
                 products: productsList || [],
                 items: [
                     { product_id: '', quantity: 1, unit_price: 0, subtotal: 0 }
@@ -265,12 +255,11 @@
                     this.recalculateAll();
                 },
                 addItem() {
-                    this.items.push({
-                        product_id: '',
+                    this.items.push(this.blankProductLine({
                         quantity: 1,
                         unit_price: 0,
                         subtotal: 0
-                    });
+                    }));
                 },
                 removeItem(index) {
                     if (this.items.length > 1) {
@@ -305,7 +294,7 @@
                     const product = this.products.find(p => p.id == productId);
                     return product ? (product.stock ?? 0) : '-';
                 }
-            };
+            });
         }
     </script>
     </x-slot:scripts>

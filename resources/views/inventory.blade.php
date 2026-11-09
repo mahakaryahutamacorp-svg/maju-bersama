@@ -13,7 +13,7 @@
             <div class="flex flex-col gap-3 sm:items-end">
                 <div class="text-sm text-slate-500">Diperbarui {{ now()->translatedFormat('d M Y, H:i') }}</div>
                 <div class="flex flex-col gap-2 sm:flex-row">
-                    <input x-model="query" type="search" placeholder="Cari SKU atau nama produk..." class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none ring-sky-500 placeholder:text-slate-400 focus:ring-2">
+                    <input x-model="query" type="search" placeholder="Cari nama, SKU, atau kategori..." class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none ring-sky-500 placeholder:text-slate-400 focus:ring-2">
                     <select x-model="category" class="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm outline-none ring-sky-500 focus:ring-2">
                         <option value="all">Semua Kategori</option>
                         <template x-for="name in categories" :key="name"><option :value="name" x-text="name"></option></template>
@@ -37,13 +37,13 @@
                     <tbody class="divide-y divide-slate-100 bg-white [&>tr:nth-child(even)]:bg-slate-50/60">
                         @foreach ($products as $product)
                             <tr x-show="matches({{ $product->toJson() }})" class="transition-colors hover:bg-slate-50">
-                                <td class="whitespace-nowrap px-6 py-5 font-mono text-sm font-semibold text-sky-700">{{ $product->sku }}</td>
+                                <td class="whitespace-nowrap px-6 py-5 font-mono text-sm font-semibold text-sky-700" x-html="highlight({{ Js::from($product->sku) }})"></td>
                                 <td class="px-6 py-5">
-                                    <div class="font-semibold text-slate-900">{{ $product->name }}</div>
+                                    <div class="font-semibold text-slate-900" x-html="highlight({{ Js::from($product->name) }})"></div>
                                     <div class="mt-1 text-xs text-slate-500">{{ $product->branch->name ?? 'Cabang tidak aktif' }}</div>
                                 </td>
                                 <td class="whitespace-nowrap px-6 py-5">
-                                    <span class="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">{{ $product->category->name }}</span>
+                                    <span class="rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700" x-html="highlight({{ Js::from($product->category->name) }})"></span>
                                 </td>
                                 <td class="whitespace-nowrap px-6 py-5 text-right font-medium text-slate-900">Rp {{ number_format((float) $product->selling_price, 0, ',', '.') }}</td>
                                 <td class="whitespace-nowrap px-6 py-5 text-right">
@@ -63,6 +63,7 @@
     </div>
 
     <x-slot:scripts>
+    @include('inventory.partials.smart-search-script')
     <script>
         function inventoryTable(products) {
             return {
@@ -76,10 +77,12 @@
                     return this.products.filter((product) => this.matches(product));
                 },
                 matches(product) {
-                    const query = this.query.toLowerCase().trim();
-                    const matchesQuery = !query || product.name.toLowerCase().includes(query) || product.sku.toLowerCase().includes(query);
+                    const matchesQuery = ProductSmartSearch.matches(product, this.query);
                     const matchesCategory = this.category === 'all' || product.category?.name === this.category;
                     return matchesQuery && matchesCategory;
+                },
+                highlight(text) {
+                    return ProductSmartSearch.highlight(text, this.query);
                 },
             };
         }
