@@ -10,6 +10,17 @@
 
     <main class="mx-auto w-full max-w-7xl space-y-6 px-6 py-6 lg:px-10">
         <!-- Flash Message -->
+        @if ($errors->any())
+            <div class="rounded-2xl border border-rose-300 bg-rose-50 p-4 text-rose-900 shadow-sm">
+                <p class="text-sm font-bold">Perubahan tidak disimpan</p>
+                <ul class="mt-1 list-inside list-disc text-xs">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         @if (session('success'))
             <div x-data="{ show: true }" x-show="show" class="flex items-center justify-between rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-emerald-900 shadow-sm transition">
                 <div class="flex items-center gap-3">
@@ -174,10 +185,24 @@
 
                                 <!-- Tombol Aksi -->
                                 <td class="whitespace-nowrap px-5 py-4 text-center">
-                                    <a href="/purchases/goods-receipts/{{ $receipt->id }}" class="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 hover:text-sky-600">
-                                        <svg class="h-3.5 w-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                                        Detail Slip
-                                    </a>
+                                    <div class="inline-flex items-center justify-center gap-1.5">
+                                        <a href="/purchases/goods-receipts/{{ $receipt->id }}" class="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 hover:text-sky-600">
+                                            <svg class="h-3.5 w-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                            Detail Slip
+                                        </a>
+                                        @if ($currentUser->isMaster())
+                                            <a href="{{ route('purchases.goods-receipts.edit', $receipt->id) }}" class="inline-flex items-center rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-800 hover:bg-sky-100">
+                                                Ubah Nota
+                                            </a>
+                                            <form method="POST" action="{{ route('purchases.goods-receipts.destroy', $receipt->id) }}" onsubmit="return confirm('Hapus penerimaan {{ $receipt->reference_number }}? Stok yang masuk akan dikurangi dan jurnalnya dibatalkan.');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="inline-flex items-center rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-800 hover:bg-rose-100">
+                                                    Hapus Nota
+                                                </button>
+                                            </form>
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @empty

@@ -462,4 +462,104 @@ class GoodsReceiptServiceTest extends TestCase
             ],
         ], $this->master);
     }
+
+    public function test_master_can_reclassify_cash_receipt_as_supplier_credit_without_changing_stock(): void
+    {
+        $supplier = Supplier::withoutGlobalScopes()->create([
+            'branch_id' => $this->central->id,
+            'name' => 'PT LOKAMITRA',
+            'is_active' => true,
+        ]);
+
+        $receipt = $this->service->processReceipt([
+            'supplier_name' => 'PT LOKAMITRA',
+            'date' => '2026-11-09',
+            'payment_type' => 'cash',
+            'items' => [
+                ['product_id' => $this->productA->id, 'quantity' => 20, 'unit_price' => 14000],
+            ],
+        ], $this->master);
+
+        $updated = $this->service->updateReceipt($receipt, [
+            'supplier_id' => $supplier->id,
+            'supplier_name' => 'PT LOKAMITRA',
+            'date' => '2026-11-09',
+            'payment_type' => 'credit',
+            'notes' => 'Koreksi: seharusnya hutang',
+            'items' => [
+                ['product_id' => $this->productA->id, 'quantity' => 20, 'unit_price' => 14000],
+            ],
+        ], $this->master);
+
+        $this->assertSame('credit', $updated->payment_type);
+        $this->assertSame($supplier->id, $updated->supplier_id);
+        $this->assertEquals(280000.00, (float) $updated->total_amount);
+
+        $this->productA->refresh();
+        $this->assertEquals(30, $this->productA->stock);
+
+        $journal = JournalHeader::where('reference_number', $updated->reference_number)->firstOrFail();
+        $this->assertSame(1, $journal->journalLines()->where('chart_of_account_id', $this->accountPayable->id)->count());
+        $this->assertSame(0, $journal->journalLines()->where('chart_of_account_id', $this->accountCash->id)->count());
+        $this->assertStringContainsString('Hutang', $journal->description);
+    }
+
+    public function test_master_delete_reverses_stock_and_removes_journal(): void
+    {
+        $receipt = $this->service->processReceipt([
+            'supplier_name' => 'PT Hapus',
+            'date' => '2026-11-09',
+            'payment_type' => 'cash',
+            'items' => [
+                ['product_id' => $this->productA->id, 'quantity' => 4, 'unit_price' => 14000],
+            ],
+        ], $this->master);
+
+        $reference = $receipt->reference_number;
+        $this->service->deleteReceipt($receipt, $this->master);
+
+        $this->assertNull(GoodsReceipt::query()->find($receipt->id));
+        $this->productA->refresh();
+        $this->assertEquals(10, $this->productA->stock);
+        $inventory = Inventory::where('branch_id', $this->central->id)->where('product_id', $this->productA->id)->first();
+        $this->assertEquals(10, $inventory->quantity);
+        $this->assertNull(JournalHeader::where('reference_number', $reference)->first());
+    }
+
+    public function test_paid_goods_receipt_cannot_be_deleted_or_reclassified(): void
+    {
+        $supplier = Supplier::withoutGlobalScopes()->create([
+            'branch_id' => $this->central->id,
+            'name' => 'PT Lunas',
+            'is_active' => true,
+        ]);
+
+        $receipt = $this->service->processReceipt([
+            'supplier_id' => $supplier->id,
+            'date' => '2026-11-09',
+            'payment_type' => 'credit',
+            'items' => [
+                ['product_id' => $this->productA->id, 'quantity' => 2, 'unit_price' => 14000],
+            ],
+        ], $this->master);
+
+        $receipt->update(['paid_amount' => 1000]);
+
+        try {
+            $this->service->deleteReceipt($receipt->fresh(), $this->master);
+            $this->fail('Nota yang sudah dilunasi harus ditolak.');
+        } catch (ValidationException $exception) {
+            $this->assertNotEmpty($exception->errors());
+        }
+
+        $this->expectException(ValidationException::class);
+        $this->service->updateReceipt($receipt->fresh(), [
+            'supplier_id' => $supplier->id,
+            'date' => '2026-11-09',
+            'payment_type' => 'cash',
+            'items' => [
+                ['product_id' => $this->productA->id, 'quantity' => 2, 'unit_price' => 14000],
+            ],
+        ], $this->master);
+    }
 }

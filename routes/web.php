@@ -84,6 +84,9 @@ Route::middleware('auth')->group(function () {
             Route::get('/', [GoodsReceiptController::class, 'index'])->name('index');
             Route::get('/create', [GoodsReceiptController::class, 'create'])->name('create');
             Route::post('/', [GoodsReceiptController::class, 'store'])->name('store');
+            Route::get('/{id}/edit', [GoodsReceiptController::class, 'edit'])->name('edit');
+            Route::put('/{id}', [GoodsReceiptController::class, 'update'])->name('update');
+            Route::delete('/{id}', [GoodsReceiptController::class, 'destroy'])->name('destroy');
             Route::get('/{id}', [GoodsReceiptController::class, 'show'])->name('show');
         });
     });

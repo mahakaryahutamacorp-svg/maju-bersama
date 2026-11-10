@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreGoodsReceiptRequest;
+use App\Http\Requests\UpdateGoodsReceiptRequest;
 use App\Models\Branch;
 use App\Models\GoodsReceipt;
 use App\Models\Product;
@@ -243,5 +244,87 @@ class GoodsReceiptController extends Controller
             'currentUser' => $user,
             'receipt' => $receipt,
         ]);
+    }
+
+    /**
+     * Formulir koreksi penerimaan. Hanya akun master.
+     */
+    public function edit(int $id, Request $request): View
+    {
+        $this->ensureMaster($request);
+
+        $user = $request->user()->load('branch');
+        $receipt = GoodsReceipt::with([
+            'branch',
+            'items.product',
+            'purchaseOrder.supplier',
+            'supplier',
+        ])->findOrFail($id);
+
+        $productIds = $receipt->items->pluck('product_id');
+        $products = Product::withoutGlobalScopes()
+            ->whereNull('deleted_at')
+            ->where(function ($query) use ($receipt, $productIds) {
+                $query->where('branch_id', $receipt->branch_id)
+                    ->orWhereIn('id', $productIds);
+            })
+            ->orderBy('name')
+            ->get();
+
+        $initialItems = old('items', $receipt->items->map(fn ($item) => [
+            'product_id' => $item->product_id,
+            'quantity' => DecimalQuantity::present($item->quantity),
+            'unit_price' => (float) $item->unit_price,
+        ])->all());
+
+        return view('purchases.goods-receipts.edit', [
+            'currentUser' => $user,
+            'receipt' => $receipt,
+            'products' => $products->map(fn (Product $product) => [
+                'id' => $product->id,
+                'sku' => $product->sku,
+                'name' => $product->name,
+                'purchase_price' => (float) $product->purchase_price,
+            ])->values(),
+            'suppliers' => Supplier::query()->where('is_active', true)->orderBy('name')->get(['id', 'name']),
+            'initialItems' => collect($initialItems)->values(),
+            'lockReason' => $this->goodsReceiptService->structureLockReason($receipt),
+        ]);
+    }
+
+    /**
+     * Simpan koreksi penerimaan. Jurnal kas/hutang dan stok ikut disesuaikan.
+     */
+    public function update(UpdateGoodsReceiptRequest $request, int $id): RedirectResponse
+    {
+        $receipt = GoodsReceipt::query()->findOrFail($id);
+        $updated = $this->goodsReceiptService->updateReceipt($receipt, $request->validated(), $request->user());
+
+        return redirect()
+            ->route('purchases.goods-receipts.show', $updated->id)
+            ->with('success', "Penerimaan {$updated->reference_number} diperbarui. Jurnal dan stok sudah disesuaikan.");
+    }
+
+    /**
+     * Hapus penerimaan dan kembalikan stok serta jurnal. Hanya akun master.
+     */
+    public function destroy(Request $request, int $id): RedirectResponse
+    {
+        $this->ensureMaster($request);
+
+        $receipt = GoodsReceipt::query()->findOrFail($id);
+        $reference = $receipt->reference_number;
+        $this->goodsReceiptService->deleteReceipt($receipt, $request->user());
+
+        return redirect()
+            ->route('purchases.goods-receipts.index')
+            ->with('success', "Penerimaan {$reference} dihapus. Stok dikurangi kembali dan jurnalnya dibatalkan.");
+    }
+
+    private function ensureMaster(Request $request): void
+    {
+        if (! $request->user()?->isMaster()) {
+            abort(403, 'Hanya akun master yang dapat mengubah atau menghapus penerimaan barang.');
+        }
     }
 }

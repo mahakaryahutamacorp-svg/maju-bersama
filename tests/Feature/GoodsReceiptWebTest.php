@@ -215,6 +215,71 @@ class GoodsReceiptWebTest extends TestCase
         $showResponse = $this->actingAs($branchAdmin)->get(route('purchases.goods-receipts.show', $receipt->id));
         $showResponse->assertStatus(200);
         $showResponse->assertSee('GR-BR1-001');
+        $showResponse->assertDontSee('Ubah Nota');
+        $showResponse->assertDontSee('Hapus Nota');
+    }
+
+    public function test_only_master_can_correct_payment_type_and_delete_goods_receipt(): void
+    {
+        $branchAdmin = User::factory()->create([
+            'branch_id' => $this->central->id,
+            'role' => 'branch_admin',
+        ]);
+        $supplier = Supplier::withoutGlobalScopes()->create([
+            'branch_id' => $this->central->id,
+            'name' => 'PT LOKAMITRA',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($this->master)->post('/purchases/goods-receipts', [
+            'supplier_name' => 'PT LOKAMITRA',
+            'date' => now()->toDateString(),
+            'payment_type' => 'cash',
+            'reference_number' => 'GR-LOKAMITRA-001',
+            'items' => [
+                ['product_id' => $this->product->id, 'quantity' => 2, 'unit_price' => 50000],
+            ],
+        ])->assertSessionHasNoErrors();
+
+        $receipt = GoodsReceipt::where('reference_number', 'GR-LOKAMITRA-001')->firstOrFail();
+
+        $this->actingAs($this->master)->get('/purchases/goods-receipts')
+            ->assertOk()
+            ->assertSee('Ubah Nota')
+            ->assertSee('Hapus Nota');
+
+        $this->actingAs($branchAdmin)->get('/purchases/goods-receipts')
+            ->assertOk()
+            ->assertDontSee('Ubah Nota');
+
+        $this->actingAs($branchAdmin)->get(route('purchases.goods-receipts.edit', $receipt->id))->assertForbidden();
+        $this->actingAs($branchAdmin)->put(route('purchases.goods-receipts.update', $receipt->id), [])->assertForbidden();
+        $this->actingAs($branchAdmin)->delete(route('purchases.goods-receipts.destroy', $receipt->id))->assertForbidden();
+
+        $this->actingAs($this->master)
+            ->put(route('purchases.goods-receipts.update', $receipt->id), [
+                'payment_type' => 'credit',
+                'supplier_id' => $supplier->id,
+                'date' => now()->toDateString(),
+                'notes' => 'Seharusnya hutang',
+                'items' => [
+                    ['product_id' => $this->product->id, 'quantity' => 2, 'unit_price' => 50000],
+                ],
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('purchases.goods-receipts.show', $receipt->id));
+
+        $receipt->refresh();
+        $this->assertSame('credit', $receipt->payment_type);
+        $this->assertSame($supplier->id, (int) $receipt->supplier_id);
+
+        $this->actingAs($this->master)
+            ->delete(route('purchases.goods-receipts.destroy', $receipt->id))
+            ->assertRedirect(route('purchases.goods-receipts.index'));
+
+        $this->assertNull(GoodsReceipt::query()->find($receipt->id));
+        $this->product->refresh();
+        $this->assertEquals(10, $this->product->stock);
     }
 
     private function directPayload(array $overrides = []): array

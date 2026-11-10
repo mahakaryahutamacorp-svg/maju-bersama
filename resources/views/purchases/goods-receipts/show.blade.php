@@ -19,6 +19,18 @@
                 + Catat Barang Datang Lagi
             </a>
             <div class="flex items-center gap-2">
+                @if ($currentUser->isMaster())
+                    <a href="{{ route('purchases.goods-receipts.edit', $receipt->id) }}" class="inline-flex items-center rounded-lg border border-sky-200 bg-sky-50 px-3.5 py-1.5 text-xs font-bold text-sky-800 hover:bg-sky-100">
+                        Ubah Nota
+                    </a>
+                    <form method="POST" action="{{ route('purchases.goods-receipts.destroy', $receipt->id) }}" onsubmit="return confirm('Hapus penerimaan {{ $receipt->reference_number }}? Stok yang masuk akan dikurangi dan jurnalnya dibatalkan.');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="inline-flex items-center rounded-lg border border-rose-200 bg-rose-50 px-3.5 py-1.5 text-xs font-bold text-rose-800 hover:bg-rose-100">
+                            Hapus Nota
+                        </button>
+                    </form>
+                @endif
                 <button type="button" onclick="window.print()" class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-700 shadow-xs hover:bg-slate-50">
                     <svg class="h-4 w-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                     Cetak Slip Bukti
@@ -29,6 +41,17 @@
 
     <main class="mx-auto w-full max-w-5xl space-y-6 px-6 py-6 lg:px-8">
         <!-- Flash Alert -->
+        @if ($errors->any())
+            <div class="rounded-2xl border border-rose-300 bg-rose-50 p-4 text-rose-900 shadow-sm no-print">
+                <p class="text-sm font-bold">Perubahan tidak disimpan</p>
+                <ul class="mt-1 list-inside list-disc text-xs">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
         @if (session('success'))
             <div class="rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-emerald-900 shadow-sm no-print">
                 <div class="flex items-center gap-3">
