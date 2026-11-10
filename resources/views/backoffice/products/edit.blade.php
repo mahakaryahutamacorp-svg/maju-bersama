@@ -273,7 +273,7 @@
                         <div class="grid gap-4 sm:grid-cols-3">
                             <div>
                                 <label for="stock_actual" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Stok Fisik</label>
-                                <input type="number" min="0" step="1" id="stock_actual" name="stock_actual" value="{{ old('stock_actual') }}" placeholder="{{ $currentStock }}" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500">
+                                <input type="number" min="0" step="0.001" id="stock_actual" name="stock_actual" value="{{ old('stock_actual') }}" placeholder="{{ $currentStock }}" class="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500">
                             </div>
                             <div>
                                 <label for="stock_reason" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">Jenis Koreksi</label>

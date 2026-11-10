@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use App\Support\DecimalQuantity;
+
 /**
  * Splits a tax-inclusive shelf price into DPP and PPN.
  * PPN is the remainder after rounding DPP, so the two always add back to the amount paid.
@@ -98,19 +100,22 @@ class InclusiveTaxCalculator
     /**
      * Proportional slice of a stored amount. The caller caps this against the remainder.
      */
-    public function share(string $amount, int $quantity, int $soldQuantity): string
+    public function share(string $amount, int|float|string $quantity, int|float|string $soldQuantity): string
     {
-        if ($quantity <= 0 || $soldQuantity <= 0) {
+        $qty = DecimalQuantity::normalize($quantity);
+        $sold = DecimalQuantity::normalize($soldQuantity);
+
+        if (DecimalQuantity::compare($qty, '0') <= 0 || DecimalQuantity::compare($sold, '0') <= 0) {
             return '0.00';
         }
 
         $amount = $this->money($amount);
 
-        if ($quantity >= $soldQuantity) {
+        if (DecimalQuantity::compare($qty, $sold) >= 0) {
             return $amount;
         }
 
-        return $this->money(bcdiv(bcmul($amount, (string) $quantity, 2), (string) $soldQuantity, 6));
+        return $this->money(bcdiv(bcmul($amount, $qty, 6), $sold, 6));
     }
 
     public function money(string|int|float|null $amount): string

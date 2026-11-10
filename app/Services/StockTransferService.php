@@ -10,6 +10,8 @@ use App\Models\Product;
 use App\Models\StockTransfer;
 use App\Models\User;
 use App\Models\Warehouse;
+use App\Support\DecimalQuantity;
+use App\Support\Money;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -103,7 +105,7 @@ class StockTransferService
         $sourceProduct = $this->lockProduct($item['product_id'], $sourceBranch->id);
         $sourceInventory = $this->lockInventory($sourceBranch->id, $sourceProduct->id);
 
-        if ($sourceInventory->quantity < $item['quantity']) {
+        if (DecimalQuantity::compare($sourceInventory->quantity, $item['quantity']) < 0) {
             throw ValidationException::withMessages([
                 'items' => ["Insufficient stock at source branch for {$sourceProduct->name}."],
             ]);
@@ -129,14 +131,14 @@ class StockTransferService
             'unit_cost' => $unitCost,
         ]);
 
-        return bcmul($unitCost, (string) $item['quantity'], 2);
+        return Money::mul($unitCost, $item['quantity']);
     }
 
     /**
      * Merge duplicate product lines so a product is only locked once per transfer.
      *
      * @param  array<int,array{product_id:int|string,quantity:int|string}>  $items
-     * @return Collection<int,array{product_id:int,quantity:int}>
+     * @return Collection<int,array{product_id:int,quantity:string}>
      */
     private function normaliseItems(array $items): Collection
     {
@@ -144,7 +146,7 @@ class StockTransferService
             ->groupBy('product_id')
             ->map(fn (Collection $lines) => [
                 'product_id' => (int) $lines->first()['product_id'],
-                'quantity' => (int) $lines->sum(fn (array $line) => (int) $line['quantity']),
+                'quantity' => DecimalQuantity::sum($lines->pluck('quantity')),
             ])
             ->values();
     }

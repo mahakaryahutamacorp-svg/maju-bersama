@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\QuantityCast;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -19,9 +20,9 @@ class StockAdjustmentLine extends Model
     ];
 
     protected $casts = [
-        'system_qty' => 'integer',
-        'actual_qty' => 'integer',
-        'difference_qty' => 'integer',
+        'system_qty' => QuantityCast::class,
+        'actual_qty' => QuantityCast::class,
+        'difference_qty' => QuantityCast::class,
         'unit_cost' => 'decimal:4',
         'subtotal_cost' => 'decimal:4',
     ];

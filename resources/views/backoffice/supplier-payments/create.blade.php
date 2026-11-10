@@ -154,7 +154,7 @@
                             <input type="hidden" name="amount" :value="rawAmount">
 
                             <div class="mt-1.5 flex items-center justify-between text-xs text-slate-500">
-                                <span>Ketik angka tanpa titik atau koma, sistem otomatis memformat.</span>
+                                <span>Koma untuk sen, titik untuk ribuan. Contoh: 12.500,75</span>
                                 <span x-show="rawAmount > 0" class="font-medium text-amber-800">
                                     Nominal terinput: <strong class="font-mono text-slate-900" x-text="formatRupiah(rawAmount)"></strong>
                                 </span>
@@ -242,6 +242,7 @@
     </main>
 
     <x-slot:scripts>
+    @include('partials.decimal-math')
     <script>
         function paymentForm(initialAmount = 0) {
             return {
@@ -251,15 +252,13 @@
                 selectedAccountId: '{{ old("chart_of_account_id", "") }}',
                 paymentMethod: '{{ old("payment_method", "Transfer") }}',
 
-                formatInput(event) {
-                    // Hanya izinkan angka
-                    let value = event.target.value.replace(/[^\d]/g, '');
-                    this.rawAmount = value ? parseInt(value, 10) : 0;
-                    this.formattedAmount = value ? new Intl.NumberFormat('id-ID').format(this.rawAmount) : '';
+                formatInput() {
+                    this.formattedAmount = DecimalMath.formatIdTyping(this.formattedAmount);
+                    this.rawAmount = DecimalMath.idMoney(this.formattedAmount);
                 },
 
                 formatRupiah(val) {
-                    return 'Rp ' + new Intl.NumberFormat('id-ID').format(val || 0);
+                    return DecimalMath.rupiah(val);
                 },
 
                 onSupplierChange(event) {

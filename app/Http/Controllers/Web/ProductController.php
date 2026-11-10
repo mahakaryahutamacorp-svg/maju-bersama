@@ -15,6 +15,7 @@ use App\Services\MasterCatalogService;
 use App\Services\OpeningBalanceService;
 use App\Services\ProductService;
 use App\Services\StockAdjustmentService;
+use App\Support\DecimalQuantity;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -158,7 +159,7 @@ class ProductController extends Controller
             'unit' => ['nullable', 'string', 'max:50'],
             'purchase_price' => ['required', 'numeric', 'min:0'],
             'selling_price' => ['required', 'numeric', 'min:0'],
-            'stock' => ['nullable', 'integer', 'min:0'],
+            'stock' => DecimalQuantity::rules(required: false, allowZero: true),
             'prices' => ['nullable', 'array'],
             'prices.*' => ['nullable', 'numeric', 'min:0'],
             'customer_group_prices' => ['nullable', 'array'],
@@ -358,7 +359,7 @@ class ProductController extends Controller
         }
 
         return [
-            'stock_actual' => ['nullable', 'integer', 'min:0'],
+            'stock_actual' => DecimalQuantity::rules(required: false, allowZero: true),
             'stock_reason' => ['nullable', 'in:correction,opening'],
             'stock_note' => ['nullable', 'string', 'max:255'],
         ];
@@ -376,8 +377,8 @@ class ProductController extends Controller
             return null;
         }
 
-        $actualQuantity = (int) $validated['stock_actual'];
-        if ($actualQuantity === $product->availableQuantity()) {
+        $actualQuantity = DecimalQuantity::normalize($validated['stock_actual']);
+        if (DecimalQuantity::compare($actualQuantity, $product->availableQuantity()) === 0) {
             return null;
         }
 

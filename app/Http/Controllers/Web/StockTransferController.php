@@ -7,6 +7,7 @@ use App\Models\Branch;
 use App\Models\Inventory;
 use App\Models\Product;
 use App\Models\StockTransfer;
+use App\Support\DecimalQuantity;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -40,7 +41,7 @@ class StockTransferController extends Controller
                 'product_id' => (int) $inventory->product_id,
                 'sku' => $inventory->product->sku,
                 'name' => $inventory->product->name,
-                'quantity' => (int) $inventory->quantity,
+                'quantity' => DecimalQuantity::present($inventory->quantity),
             ])
             ->values();
 

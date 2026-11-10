@@ -12,6 +12,7 @@ use App\Models\Product;
 use App\Models\Sale;
 use App\Models\User;
 use App\Models\Warehouse;
+use App\Support\DecimalQuantity;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -53,8 +54,9 @@ class SalePostingService
 
         return DB::transaction(function () use ($items, $actor, $receiptNumber, $paymentMethod, $data): Sale {
             $accounts = $this->resolveAccounts();
+            $operatingBranchId = $this->operatingBranchId($actor, $data);
             $tax = new InclusiveTaxCalculator;
-            $branch = Branch::query()->find($actor->branch_id);
+            $branch = Branch::query()->find($operatingBranchId);
             $taxEnabled = (bool) ($branch?->tax_enabled);
             $taxRate = $tax->money($branch?->tax_rate ?? '11.00');
             if (bccomp($taxRate, '0.00', 2) !== 1) {
@@ -87,28 +89,34 @@ class SalePostingService
 
             foreach ($items as $item) {
                 $product = $products->get($item['product_id']);
-                $branchId = (int) ($actor->branch_id ?: $product->branch_id);
-                $initialQty = ((int) $product->branch_id === $branchId) ? (int) $product->stock : 0;
+                $branchId = $operatingBranchId;
+                $initialQty = ((int) $product->branch_id === $branchId) ? $product->stock : 0;
                 $inventory = $this->lockInventory($branchId, (int) $product->id, $initialQty);
+                $quantity = DecimalQuantity::normalize($item['quantity']);
+                $available = DecimalQuantity::normalize($inventory->quantity);
+                $cachedStock = ((int) $product->branch_id === $branchId)
+                    ? DecimalQuantity::normalize($product->stock)
+                    : $available;
 
-                if ($inventory->quantity < $item['quantity'] || (int) $inventory->quantity <= 0 || (int) $product->stock < $item['quantity']) {
+                if (DecimalQuantity::compare($available, $quantity) < 0
+                    || DecimalQuantity::compare($available, '0') <= 0
+                    || DecimalQuantity::compare($cachedStock, $quantity) < 0) {
                     throw ValidationException::withMessages([
                         'items' => ["Stok tidak mencukupi untuk {$product->name}. Stok tersedia: {$inventory->quantity}."],
                     ]);
                 }
 
-                $inventory->decrement('quantity', $item['quantity']);
-                $product->decrement('stock', $item['quantity']);
+                $inventory->decrement('quantity', $quantity);
+                $product->decrement('stock', $quantity);
 
                 $unitPrice = $this->money($customerGroupId !== null
                     ? $product->getPriceForGroup($customerGroupId)
                     : $product->selling_price);
 
                 $unitCost = $this->money($product->purchase_price);
-                $quantity = (string) (int) $item['quantity'];
 
-                $grossLine = bcmul($unitPrice, $quantity, 2);
-                $cost = bcmul($unitCost, $quantity, 2);
+                $grossLine = $this->money(bcmul($unitPrice, $quantity, 6));
+                $cost = $this->money(bcmul($unitCost, $quantity, 6));
                 $lineDiscount = $this->money($item['discount_amount']);
 
                 if (bccomp($lineDiscount, '0.00', 2) < 0) {
@@ -129,7 +137,7 @@ class SalePostingService
 
                 $preparedLines[] = [
                     'product_id' => $product->id,
-                    'quantity' => (int) $item['quantity'],
+                    'quantity' => $quantity,
                     'price' => $unitPrice,
                     'discount_amount' => $lineDiscount,
                     'gross_line' => $grossLine,
@@ -234,7 +242,7 @@ class SalePostingService
             $paidAmount = $paymentStatus === 'PAID' ? $grandTotal : $this->money($data['paid_amount'] ?? 0);
 
             $sale = Sale::create([
-                'branch_id' => $actor->branch_id,
+                'branch_id' => $operatingBranchId,
                 'customer_id' => $customerId,
                 'cash_register_shift_id' => $activeShift?->id ?? ($data['cash_register_shift_id'] ?? null),
                 'created_by' => $actor->id,
@@ -417,7 +425,7 @@ class SalePostingService
      * the first time a product is sold after the inventory table was introduced.
      * Also ensures warehouse_id is populated for new rows (Phase-2 forward compat).
      */
-    private function lockInventory(int $branchId, int $productId, int $fallbackQuantity): Inventory
+    private function lockInventory(int $branchId, int $productId, int|string|float $fallbackQuantity): Inventory
     {
         $warehouse = $this->resolveWarehouseForBranch($branchId);
 
@@ -452,7 +460,7 @@ class SalePostingService
 
     /**
      * @param  array<int,array{product_id:int|string,quantity:int|string,discount_amount?:float|int|string|null}>  $items
-     * @return Collection<int,array{product_id:int,quantity:int,discount_amount:string}>
+     * @return Collection<int,array{product_id:int,quantity:string,discount_amount:string}>
      */
     private function normaliseItems(array $items): Collection
     {
@@ -460,13 +468,35 @@ class SalePostingService
             ->groupBy('product_id')
             ->map(fn (Collection $lines) => [
                 'product_id' => (int) $lines->first()['product_id'],
-                'quantity' => (int) $lines->sum(fn (array $line) => (int) $line['quantity']),
+                'quantity' => DecimalQuantity::sum($lines->pluck('quantity')),
                 'discount_amount' => $lines->reduce(
                     fn (string $carry, array $line) => bcadd($carry, $this->money($line['discount_amount'] ?? 0), 2),
                     '0.00',
                 ),
             ])
             ->values();
+    }
+
+    /**
+     * Kasir memakai cabang sendiri. Master boleh menunjuk cabang kasir yang sedang dioperasikan.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    private function operatingBranchId(User $actor, array $data): int
+    {
+        $branchId = (int) $actor->branch_id;
+
+        if ($actor->isMaster() && ! empty($data['branch_id'])) {
+            $branchId = (int) $data['branch_id'];
+        }
+
+        if ($branchId <= 0 || ! Branch::query()->whereKey($branchId)->exists()) {
+            throw ValidationException::withMessages([
+                'branch_id' => ['Pilih cabang sebelum mencatat penjualan.'],
+            ]);
+        }
+
+        return $branchId;
     }
 
     public function generateReceiptNumber(): string

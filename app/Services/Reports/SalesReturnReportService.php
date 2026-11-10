@@ -3,6 +3,7 @@
 namespace App\Services\Reports;
 
 use App\Models\SalesReturn;
+use App\Support\DecimalQuantity;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -35,7 +36,7 @@ class SalesReturnReportService
             'total_amount' => round((float) $returns->sum('total_amount'), 2),
             'total_cost' => round((float) $returns->sum('total_cost'), 2),
             'total_documents' => $returns->count(),
-            'total_quantity' => (int) $returns->sum(fn (SalesReturn $row) => $row->items->sum('quantity')),
+            'total_quantity' => DecimalQuantity::present(DecimalQuantity::sum($returns->flatMap(fn (SalesReturn $row) => $row->items->pluck('quantity')))),
         ];
     }
 }

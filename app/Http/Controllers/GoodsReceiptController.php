@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\Supplier;
 use App\Services\GoodsReceiptService;
+use App\Support\DecimalQuantity;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -115,7 +116,7 @@ class GoodsReceiptController extends Controller
             'sku' => $p->sku,
             'name' => $p->name,
             'purchase_price' => (float) $p->purchase_price,
-            'stock' => (int) $p->availableQuantity(),
+            'stock' => $p->availableQuantity(),
         ])->values();
 
         // Fetch active POs (pending or partial) with items and supplier
@@ -145,19 +146,19 @@ class GoodsReceiptController extends Controller
                 'order_date' => $po->order_date ? $po->order_date->format('d/m/Y') : '',
                 'status' => $po->status,
                 'items' => $po->items->map(function ($item) {
-                    $remaining = max(0, (int) $item->quantity - (int) $item->received_quantity);
+                    $remaining = DecimalQuantity::sub($item->quantity, $item->received_quantity);
 
                     return [
                         'id' => $item->id,
                         'product_id' => $item->product_id,
                         'product_name' => $item->product?->name ?? 'Produk #'.$item->product_id,
                         'sku' => $item->product?->sku ?? '',
-                        'quantity' => (int) $item->quantity,
-                        'received_quantity' => (int) $item->received_quantity,
-                        'remaining_quantity' => $remaining,
+                        'quantity' => DecimalQuantity::present($item->quantity),
+                        'received_quantity' => DecimalQuantity::present($item->received_quantity),
+                        'remaining_quantity' => DecimalQuantity::present($remaining),
                         'unit_price' => (float) $item->unit_price,
                     ];
-                })->filter(fn ($item) => $item['remaining_quantity'] > 0)->values(),
+                })->filter(fn ($item) => DecimalQuantity::compare($item['remaining_quantity'], '0') > 0)->values(),
             ];
         })->values();
 

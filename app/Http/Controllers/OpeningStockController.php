@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\BranchStockCatalog;
 use App\Services\OpeningBalanceService;
 use App\Services\StockAdjustmentService;
+use App\Support\DecimalQuantity;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -46,7 +47,7 @@ class OpeningStockController extends Controller
             'record_journal' => ['required', 'boolean'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer', 'distinct', 'exists:products,id'],
-            'items.*.quantity' => ['required', 'integer', 'min:0'],
+            'items.*.quantity' => DecimalQuantity::rules(allowZero: true),
         ], [
             'items.required' => 'Isi stok minimal satu produk sebelum menyimpan.',
             'items.min' => 'Isi stok minimal satu produk sebelum menyimpan.',
@@ -59,7 +60,7 @@ class OpeningStockController extends Controller
 
         $lines = array_map(fn (array $item) => [
             'product_id' => (int) $item['product_id'],
-            'actual_qty' => (int) $item['quantity'],
+            'actual_qty' => DecimalQuantity::normalize($item['quantity']),
             'reason' => StockAdjustmentService::OPENING_STOCK_NOTE,
         ], $validated['items']);
 

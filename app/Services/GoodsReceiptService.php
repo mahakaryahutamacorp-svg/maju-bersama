@@ -12,6 +12,8 @@ use App\Models\PurchaseOrder;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Models\Warehouse;
+use App\Support\DecimalQuantity;
+use App\Support\Money;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -115,9 +117,9 @@ class GoodsReceiptService
 
             foreach ($data['items'] as $index => $itemData) {
                 $productId = (int) ($itemData['product_id'] ?? 0);
-                $quantity = (int) ($itemData['quantity'] ?? 0);
+                $quantity = DecimalQuantity::normalize($itemData['quantity'] ?? 0);
 
-                if ($quantity <= 0) {
+                if (DecimalQuantity::compare($quantity, '0') <= 0) {
                     throw ValidationException::withMessages([
                         "items.{$index}.quantity" => ['Quantity must be greater than zero.'],
                     ]);
@@ -130,12 +132,10 @@ class GoodsReceiptService
                 }
 
                 $unitPrice = $poItem
-                    ? (string) $poItem->unit_price
-                    : (string) ($itemData['unit_price'] ?? '0.00');
+                    ? Money::of($poItem->unit_price)
+                    : Money::of($itemData['unit_price'] ?? '0.00');
 
-                $subtotal = isset($itemData['subtotal']) && ! $poItem
-                    ? (string) $itemData['subtotal']
-                    : bcmul($unitPrice, (string) $quantity, 2);
+                $subtotal = Money::mul($unitPrice, $quantity);
 
                 $totalAmount = bcadd($totalAmount, $subtotal, 2);
 
@@ -198,12 +198,12 @@ class GoodsReceiptService
             // Langkah C: Pembaruan Status PO
             if ($purchaseOrder) {
                 $purchaseOrder->refresh();
-                $totalOrdered = (int) $purchaseOrder->items->sum('quantity');
-                $totalReceived = (int) $purchaseOrder->items->sum('received_quantity');
+                $totalOrdered = DecimalQuantity::sum($purchaseOrder->items->pluck('quantity'));
+                $totalReceived = DecimalQuantity::sum($purchaseOrder->items->pluck('received_quantity'));
 
-                if ($totalReceived >= $totalOrdered) {
+                if (DecimalQuantity::compare($totalReceived, $totalOrdered) >= 0) {
                     $purchaseOrder->update(['status' => 'completed']);
-                } elseif ($totalReceived > 0) {
+                } elseif (DecimalQuantity::compare($totalReceived, '0') > 0) {
                     $purchaseOrder->update(['status' => 'partial']);
                 }
             }

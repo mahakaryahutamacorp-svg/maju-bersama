@@ -4,6 +4,7 @@ namespace App\Services\Reports;
 
 use App\Models\Sale;
 use App\Models\SaleItem;
+use App\Support\DecimalQuantity;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -52,18 +53,18 @@ class SalesReportService
 
         $totalSales = (float) $amounts->sum();
         $totalTransactions = $sales->count();
-        $totalItemsSold = (int) $sales->sum(function (Sale $sale) use ($taxScope) {
-            return $sale->items->sum(function ($item) use ($taxScope) {
+        $totalItemsSold = DecimalQuantity::present(DecimalQuantity::sum($sales->flatMap(function (Sale $sale) use ($taxScope) {
+            return $sale->items->map(function ($item) use ($taxScope) {
                 if ($taxScope === 'taxable') {
-                    return $item->is_taxable ? (int) $item->quantity : 0;
+                    return $item->is_taxable ? $item->quantity : 0;
                 }
                 if ($taxScope === 'exempt') {
-                    return $item->is_taxable ? 0 : (int) $item->quantity;
+                    return $item->is_taxable ? 0 : $item->quantity;
                 }
 
-                return (int) $item->quantity;
+                return $item->quantity;
             });
-        });
+        })));
 
         $averagePerTransaction = $totalTransactions > 0 ? $totalSales / $totalTransactions : 0.0;
 

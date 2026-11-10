@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\QuantityCast;
 use App\Traits\HasBranchScope;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -49,7 +50,7 @@ class Product extends Model
             'purchase_price' => 'decimal:2',
             'selling_price' => 'decimal:2',
             'is_taxable' => 'boolean',
-            'stock' => 'integer',
+            'stock' => QuantityCast::class,
         ];
     }
 
@@ -151,14 +152,14 @@ class Product extends Model
      * Current on-hand quantity taken from the inventories table, falling back to the
      * legacy products.stock column when no inventory row exists yet.
      */
-    public function availableQuantity(): int
+    public function availableQuantity(): int|string
     {
         $inventory = Inventory::withoutGlobalScopes()
             ->where('branch_id', $this->branch_id)
             ->where('product_id', $this->id)
             ->first();
 
-        return $inventory?->quantity ?? (int) $this->stock;
+        return $inventory?->quantity ?? $this->stock;
     }
 
     /**

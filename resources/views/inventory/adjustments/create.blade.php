@@ -255,7 +255,8 @@
                                             <td class="px-4 py-3 text-center">
                                                 <input 
                                                     type="number" 
-                                                    min="0" 
+                                                    min="0"
+                                                    step="0.001" 
                                                     :id="'actual-qty-' + item.product_id"
                                                     :name="'items[' + index + '][actual_qty]'" 
                                                     x-model.number="item.actual_qty" 
@@ -504,6 +505,7 @@
 
     <x-slot:scripts>
     @include('inventory.partials.smart-search-script')
+    @include('partials.decimal-math')
     <script>
         function stockAdjustmentForm(initialProducts, initialBranchId) {
             return {
@@ -578,8 +580,8 @@
                             sku: product.sku,
                             category: product.category,
                             unit: product.unit,
-                            expected_qty: parseInt(product.stock) || 0,
-                            actual_qty: parseInt(product.stock) || 0, // default ke expected
+                            expected_qty: DecimalMath.qty(product.stock),
+                            actual_qty: DecimalMath.qty(product.stock), // default ke expected
                             unit_cost: parseFloat(product.purchase_price) || 0,
                         });
                     }
@@ -605,8 +607,8 @@
                                 sku: p.sku,
                                 category: p.category,
                                 unit: p.unit,
-                                expected_qty: parseInt(p.stock) || 0,
-                                actual_qty: parseInt(p.stock) || 0,
+                                expected_qty: DecimalMath.qty(p.stock),
+                                actual_qty: DecimalMath.qty(p.stock),
                                 unit_cost: parseFloat(p.purchase_price) || 0,
                             });
                             addedCount++;

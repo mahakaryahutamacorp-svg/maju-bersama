@@ -8,6 +8,7 @@ use App\Models\JournalHeader;
 use App\Models\Supplier;
 use App\Models\SupplierPayment;
 use App\Models\User;
+use App\Support\Money;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -52,7 +53,7 @@ class SupplierPaymentService
                 ?? $supplier->branch_id
                 ?? Branch::first()?->id;
 
-            $amount = (string) $data['amount'];
+            $amount = Money::parse($data['amount']) ?? Money::of($data['amount']);
 
             if (bccomp($amount, '0.00', 2) <= 0) {
                 throw ValidationException::withMessages([

@@ -6,6 +6,7 @@ use App\Models\Branch;
 use App\Models\Inventory;
 use App\Models\Product;
 use App\Models\User;
+use App\Support\DecimalQuantity;
 use Illuminate\Support\Collection;
 
 /**
@@ -70,7 +71,7 @@ class BranchStockCatalog
             'unit' => (string) ($product->unit ?? ''),
             'purchase_price' => (float) $product->purchase_price,
             'selling_price' => (float) $product->selling_price,
-            'stock' => (int) ($quantities[$product->id] ?? $product->stock),
+            'stock' => DecimalQuantity::present($quantities[$product->id] ?? $product->stock),
         ])->values();
     }
 }

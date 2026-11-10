@@ -34,7 +34,7 @@
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
                 <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Pembayaran</p>
-                <p class="mt-2 text-2xl font-extrabold text-slate-950 font-mono">Rp {{ number_format($totalPayments, 0, ',', '.') }}</p>
+                <p class="mt-2 text-2xl font-extrabold text-slate-950 font-mono">Rp {{ number_format((float) $totalPayments, 2, ',', '.') }}</p>
                 <p class="mt-1 text-xs text-slate-400">Akumulasi sesuai filter aktif</p>
             </div>
             <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
@@ -44,12 +44,12 @@
             </div>
             <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
                 <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Via Transfer Bank</p>
-                <p class="mt-2 text-2xl font-extrabold text-sky-600 font-mono">Rp {{ number_format($totalTransfer, 0, ',', '.') }}</p>
+                <p class="mt-2 text-2xl font-extrabold text-sky-600 font-mono">Rp {{ number_format((float) $totalTransfer, 2, ',', '.') }}</p>
                 <p class="mt-1 text-xs text-slate-400">Metode transfer rekening</p>
             </div>
             <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-xs">
                 <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Via Kas Tunai</p>
-                <p class="mt-2 text-2xl font-extrabold text-emerald-600 font-mono">Rp {{ number_format($totalCash, 0, ',', '.') }}</p>
+                <p class="mt-2 text-2xl font-extrabold text-emerald-600 font-mono">Rp {{ number_format((float) $totalCash, 2, ',', '.') }}</p>
                 <p class="mt-1 text-xs text-slate-400">Metode tunai / kas operasional</p>
             </div>
         </div>
@@ -159,7 +159,7 @@
                                     <span class="block text-[10px] text-slate-400 font-mono">{{ $payment->chartOfAccount?->code }}</span>
                                 </td>
                                 <td class="py-3.5 px-4 text-right tabular-nums whitespace-nowrap font-mono font-extrabold text-slate-950">
-                                    Rp {{ number_format((float) $payment->amount, 0, ',', '.') }}
+                                    Rp {{ number_format((float) $payment->amount, 2, ',', '.') }}
                                 </td>
                                 <td class="py-3.5 px-4 text-xs text-slate-500">
                                     <div>{{ $payment->notes ?: '-' }}</div>

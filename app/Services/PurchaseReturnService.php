@@ -11,6 +11,8 @@ use App\Models\PurchaseReturn;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Models\Warehouse;
+use App\Support\DecimalQuantity;
+use App\Support\Money;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -96,9 +98,9 @@ class PurchaseReturnService
 
             foreach ($returnItems as $index => $itemData) {
                 $productId = (int) ($itemData['product_id'] ?? 0);
-                $quantity = (int) ($itemData['quantity'] ?? 0);
+                $quantity = DecimalQuantity::normalize($itemData['quantity'] ?? 0);
 
-                if ($quantity <= 0) {
+                if (DecimalQuantity::compare($quantity, '0') <= 0) {
                     throw ValidationException::withMessages([
                         "items.{$index}.quantity" => ['Jumlah retur harus lebih besar dari 0.'],
                     ]);
@@ -116,12 +118,12 @@ class PurchaseReturnService
                 }
 
                 $unitPrice = isset($itemData['unit_price'])
-                    ? (string) $itemData['unit_price']
-                    : (string) ($product->purchase_price ?? '0.00');
+                    ? Money::of($itemData['unit_price'])
+                    : Money::of($product->purchase_price ?? '0.00');
 
                 $subtotal = isset($itemData['subtotal'])
-                    ? (string) $itemData['subtotal']
-                    : bcmul($unitPrice, (string) $quantity, 2);
+                    ? Money::of($itemData['subtotal'])
+                    : Money::mul($unitPrice, $quantity);
 
                 $totalAmount = bcadd($totalAmount, $subtotal, 2);
 

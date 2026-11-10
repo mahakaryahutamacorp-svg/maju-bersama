@@ -6,6 +6,7 @@ use App\Models\Branch;
 use App\Models\StockAdjustment;
 use App\Services\BranchStockCatalog;
 use App\Services\StockAdjustmentService;
+use App\Support\DecimalQuantity;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -133,9 +134,9 @@ class StockAdjustmentController extends Controller
             'notes' => ['nullable', 'string', 'max:1000'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
-            'items.*.actual_qty' => ['required', 'integer', 'min:0'],
-            'items.*.expected_qty' => ['nullable', 'integer'],
-            'items.*.system_qty' => ['nullable', 'integer'],
+            'items.*.actual_qty' => DecimalQuantity::rules(allowZero: true),
+            'items.*.expected_qty' => DecimalQuantity::rules(required: false, allowZero: true),
+            'items.*.system_qty' => DecimalQuantity::rules(required: false, allowZero: true),
             'items.*.unit_cost' => ['nullable', 'numeric', 'min:0'],
             'items.*.reason' => ['nullable', 'string', 'max:255'],
         ], [

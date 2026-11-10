@@ -13,6 +13,8 @@ use App\Models\SalesReturn;
 use App\Models\SalesReturnItem;
 use App\Models\User;
 use App\Models\Warehouse;
+use App\Support\DecimalQuantity;
+use App\Support\Money;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -252,9 +254,9 @@ class SalesReturnService
 
         foreach ($returnItems as $index => $itemData) {
             $productId = (int) ($itemData['product_id'] ?? 0);
-            $quantity = (int) ($itemData['quantity'] ?? 0);
+            $quantity = DecimalQuantity::normalize($itemData['quantity'] ?? 0);
 
-            if ($quantity <= 0) {
+            if (DecimalQuantity::compare($quantity, '0') <= 0) {
                 throw ValidationException::withMessages([
                     "items.{$index}.quantity" => ['Jumlah retur harus lebih besar dari 0.'],
                 ]);
@@ -290,14 +292,14 @@ class SalesReturnService
                 $unitPrice = (string) ($saleItem->price ?? '0.00');
             } else {
                 $unitPrice = isset($itemData['unit_price'])
-                    ? (string) $itemData['unit_price']
-                    : (string) ($saleItem?->price ?? $product->selling_price ?? '0.00');
+                    ? Money::of($itemData['unit_price'])
+                    : Money::of($saleItem?->price ?? $product->selling_price ?? '0.00');
                 $subtotal = isset($itemData['subtotal'])
-                    ? (string) $itemData['subtotal']
-                    : bcmul($unitPrice, (string) $quantity, 2);
+                    ? Money::of($itemData['subtotal'])
+                    : Money::mul($unitPrice, $quantity);
             }
 
-            $subtotalCost = bcmul($unitCost, (string) $quantity, 2);
+            $subtotalCost = Money::mul($unitCost, $quantity);
 
             $totalAmount = bcadd($totalAmount, $subtotal, 2);
             $totalCost = bcadd($totalCost, $subtotalCost, 2);
@@ -325,9 +327,9 @@ class SalesReturnService
     /**
      * @return array{0: string, 1: string}
      */
-    protected function taxShareForReturn(Sale $sale, SaleItem $saleItem, int $quantity): array
+    protected function taxShareForReturn(Sale $sale, SaleItem $saleItem, string $quantity): array
     {
-        $soldQty = (int) $saleItem->quantity;
+        $soldQty = DecimalQuantity::normalize($saleItem->quantity);
         $prior = SalesReturnItem::query()
             ->where('product_id', $saleItem->product_id)
             ->whereIn(
@@ -336,7 +338,7 @@ class SalesReturnService
             )
             ->get(['quantity', 'dpp_amount', 'tax_amount']);
 
-        $alreadyQty = (int) $prior->sum('quantity');
+        $alreadyQty = DecimalQuantity::sum($prior->pluck('quantity'));
         $alreadyDpp = $prior->reduce(
             fn (string $carry, SalesReturnItem $item) => bcadd($carry, (string) $item->dpp_amount, 2),
             '0.00',
@@ -355,8 +357,8 @@ class SalesReturnService
             $remainingTax = '0.00';
         }
 
-        $remainingQty = $soldQty - $alreadyQty;
-        if ($remainingQty <= 0 || $quantity >= $remainingQty) {
+        $remainingQty = DecimalQuantity::sub($soldQty, $alreadyQty);
+        if (DecimalQuantity::compare($remainingQty, '0') <= 0 || DecimalQuantity::compare($quantity, $remainingQty) >= 0) {
             return [$remainingDpp, $remainingTax];
         }
 
@@ -373,27 +375,27 @@ class SalesReturnService
         return [$dpp, $tax];
     }
 
-    protected function assertReturnableQuantity(Sale $sale, int $productId, int $quantity, int $index): void
+    protected function assertReturnableQuantity(Sale $sale, int $productId, string $quantity, int $index): void
     {
-        $soldQty = (int) $sale->items->where('product_id', $productId)->sum('quantity');
+        $soldQty = DecimalQuantity::sum($sale->items->where('product_id', $productId)->pluck('quantity'));
 
-        if ($soldQty <= 0) {
+        if (DecimalQuantity::compare($soldQty, '0') <= 0) {
             throw ValidationException::withMessages([
                 "items.{$index}.product_id" => ['Produk ini tidak ada pada nota penjualan yang dipilih.'],
             ]);
         }
 
-        $alreadyReturned = (int) SalesReturnItem::query()
+        $alreadyReturned = DecimalQuantity::normalize(SalesReturnItem::query()
             ->where('product_id', $productId)
             ->whereIn(
                 'sales_return_id',
                 SalesReturn::withoutGlobalScopes()->where('sale_id', $sale->id)->select('id')
             )
-            ->sum('quantity');
+            ->sum('quantity'));
 
-        $remaining = $soldQty - $alreadyReturned;
+        $remaining = DecimalQuantity::sub($soldQty, $alreadyReturned);
 
-        if ($quantity > $remaining) {
+        if (DecimalQuantity::compare($quantity, $remaining) > 0) {
             throw ValidationException::withMessages([
                 "items.{$index}.quantity" => ["Jumlah retur melebihi sisa kuantitas nota ({$remaining})."],
             ]);
