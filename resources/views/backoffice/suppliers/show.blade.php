@@ -4,7 +4,7 @@
     ['label' => $supplier->name],
 ]">
 @php
-    $formatRp = fn ($v) => 'Rp '.number_format((float) $v, 0, ',', '.');
+    $formatRp = fn ($v) => \App\Support\Money::rupiah($v);
     $statusStyles = [
         'Lunas' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
         'Dicicil' => 'bg-amber-50 text-amber-700 border-amber-200',
@@ -25,7 +25,7 @@
             'label' => $row['description'].' ('.($row['date']?->isoFormat('D MMM Y') ?? '-').')',
             'outstanding' => (float) $row['outstanding'],
         ])->values(),
-        'amountText' => old('amount') ? number_format((float) old('amount'), 0, ',', '.') : '',
+        'amountText' => old('amount') ? number_format((float) old('amount'), 2, ',', '.') : '',
         'accountId' => (string) old('account_id', $defaultAccountId),
         'paymentDate' => old('payment_date', $todayDate),
         'notes' => old('notes', ''),
@@ -327,6 +327,7 @@
     </main>
 
 <x-slot:scripts>
+@include('partials.decimal-math')
 <script>
     function supplierHub(config) {
         return {
@@ -336,7 +337,7 @@
             submitting: false,
             toast: '',
             get amountValue() {
-                return parseInt(String(this.amountText).replace(/[^\d]/g, ''), 10) || 0;
+                return DecimalMath.idMoney(this.amountText);
             },
             get allocationPreview() {
                 let remaining = Math.min(this.amountValue, this.totalDebt);
@@ -351,7 +352,7 @@
                 return rows;
             },
             rupiah(value) {
-                return 'Rp ' + new Intl.NumberFormat('id-ID', { maximumFractionDigits: 0 }).format(Math.round(value || 0));
+                return DecimalMath.rupiah(value);
             },
             statusClass(status) {
                 return {
@@ -362,11 +363,11 @@
                 }[status] || '';
             },
             formatAmount() {
-                const digits = String(this.amountText).replace(/[^\d]/g, '');
-                this.amountText = digits ? new Intl.NumberFormat('id-ID').format(parseInt(digits, 10)) : '';
+                this.amountText = DecimalMath.formatIdTyping(this.amountText);
             },
             setAmount(value) {
-                this.amountText = new Intl.NumberFormat('id-ID').format(Math.round(value || 0));
+                const amount = DecimalMath.money(value);
+                this.amountText = amount.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             },
             openDrawer() {
                 this.errorMessages = [];

@@ -17,7 +17,7 @@
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
     <div 
-        x-data="posApp({{ Js::from($products) }}, {{ Js::from($categories) }}, { hasActiveShift: {{ $hasActiveShift ? 'true' : 'false' }}, expectedBalance: {{ (float) $expectedBalance }} }, {{ Js::from($customers ?? []) }}, {{ Js::from($customerGroups ?? []) }})" 
+        x-data="posApp({{ Js::from($products) }}, {{ Js::from($categories) }}, { hasActiveShift: {{ $hasActiveShift ? 'true' : 'false' }}, expectedBalance: {{ (float) $expectedBalance }}, branchId: {{ (int) $operatingBranch->id }} }, {{ Js::from($customers ?? []) }}, {{ Js::from($customerGroups ?? []) }})" 
         class="min-h-screen flex flex-col"
         @keydown.window.escape="handleEscapeKey()"
     >
@@ -29,7 +29,10 @@
                         <p class="text-[10px] font-semibold uppercase tracking-[0.24em] text-amber-400">Maju Bersama ERP</p>
                         <h1 class="text-lg font-bold tracking-tight flex items-center gap-2">
                             <span>Kasir POS Multi-Store</span>
-                            <span class="rounded bg-sky-500/20 px-2 py-0.5 text-xs text-sky-300 font-mono">{{ $currentUser->branch?->name ?? 'Cabang Pusat' }}</span>
+                            <span class="rounded bg-sky-500/20 px-2 py-0.5 text-xs text-sky-300 font-mono">{{ $operatingBranch->name ?? $currentUser->branch?->name ?? 'Cabang Pusat' }}</span>
+                            @if ($currentUser->isMaster())
+                                <a href="{{ route('pos') }}" class="text-[11px] font-semibold text-amber-300 hover:text-amber-200">Ganti cabang</a>
+                            @endif
                         </h1>
                     </a>
                     <!-- Indikator Offline Mode -->
@@ -305,17 +308,55 @@
                             + Pelanggan Baru
                         </button>
                     </div>
-                    <select 
-                        id="pos-customer-select"
-                        x-model="customerId" 
-                        @change="onCustomerChange()"
-                        class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                    >
-                        <option value="">-- Pelanggan Umum (Tanpa Akun) --</option>
-                        <template x-for="c in customers" :key="c.id">
-                            <option :value="c.id" x-text="c.name + (c.customer_group ? ' [' + c.customer_group.name + ']' : '')"></option>
-                        </template>
-                    </select>
+                    <div class="relative" @click.away="customerOpen = false">
+                        <input
+                            id="pos-customer-select"
+                            type="text"
+                            x-model="customerQuery"
+                            @input="onCustomerQuery()"
+                            @focus="customerOpen = true"
+                            @keydown.arrow-down.prevent="moveCustomer(1)"
+                            @keydown.arrow-up.prevent="moveCustomer(-1)"
+                            @keydown.enter.prevent="confirmCustomer()"
+                            @keydown.escape="customerOpen = false"
+                            autocomplete="off"
+                            placeholder="Ketik nama atau telepon pelanggan"
+                            class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 shadow-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                        >
+                        <button
+                            type="button"
+                            x-show="customerId"
+                            @click="clearCustomer()"
+                            class="absolute inset-y-0 right-2 text-[10px] font-bold text-slate-400 hover:text-rose-600"
+                        >hapus</button>
+                        <div
+                            x-show="customerOpen && customerQuery.trim() !== ''"
+                            x-cloak
+                            class="absolute z-30 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
+                        >
+                            <template x-for="(customer, resultIndex) in customerResults()" :key="customer.id">
+                                <button
+                                    type="button"
+                                    data-customer-option
+                                    @mouseenter="customerActive = resultIndex"
+                                    @click="chooseCustomer(customer)"
+                                    :class="resultIndex === customerActive ? 'bg-indigo-50' : ''"
+                                    class="block w-full px-3 py-2 text-left hover:bg-indigo-50"
+                                >
+                                    <span class="block text-xs font-bold text-slate-900" x-text="customer.name"></span>
+                                    <span class="block text-[10px] text-slate-500">
+                                        <span x-text="customer.phone || 'tanpa telepon'"></span>
+                                        <span> · </span>
+                                        <span x-text="customer.branch?.name || 'tanpa cabang'"></span>
+                                        <template x-if="customer.customer_group?.name">
+                                            <span x-text="' · ' + customer.customer_group.name"></span>
+                                        </template>
+                                    </span>
+                                </button>
+                            </template>
+                            <p x-show="customerResults().length === 0" class="px-3 py-2 text-xs text-slate-500">Pelanggan tidak ditemukan. Gunakan + Pelanggan Baru.</p>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Status Overlay / Alert saat Rekalkulasi Harga Keranjang -->
@@ -373,7 +414,16 @@
                                         @click="changeQuantity(item.product.id, -1)" 
                                         class="h-6 w-6 rounded-md border border-slate-300 bg-slate-50 text-slate-700 hover:bg-slate-200 font-bold text-xs"
                                     >-</button>
-                                    <span class="w-7 text-center text-xs font-bold font-mono" x-text="item.quantity"></span>
+                                    <input
+                                        type="number"
+                                        min="0.001"
+                                        step="0.001"
+                                        inputmode="decimal"
+                                        :value="item.quantity"
+                                        @change="setQuantity(item.product.id, $event.target.value)"
+                                        class="w-14 rounded-md border border-slate-300 bg-white text-center text-xs font-bold font-mono"
+                                        :aria-label="'Jumlah ' + item.product.name"
+                                    >
                                     <button 
                                         type="button" 
                                         @click="changeQuantity(item.product.id, 1)" 
@@ -844,7 +894,7 @@
                             class="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
                         >
                             @foreach ($registers as $register)
-                                <option value="{{ $register->id }}">{{ $register->name }} (Cabang: {{ $currentUser->branch?->name ?? 'Pusat' }})</option>
+                                <option value="{{ $register->id }}">{{ $register->name }} (Cabang: {{ $operatingBranch->name ?? 'Pusat' }})</option>
                             @endforeach
                         </select>
                     </div>
@@ -1188,6 +1238,7 @@
     </div>
 
     @include('inventory.partials.smart-search-script')
+    @include('partials.decimal-math')
     <!-- Script Alpine.js Penjualan Kasir -->
     <script>
         function posApp(initialProducts, initialCategories, shiftConfig = {}, initialCustomers = [], initialCustomerGroups = []) {
@@ -1201,7 +1252,11 @@
                 categories: initialCategories || [],
                 customers: initialCustomers || [],
                 customerGroups: initialCustomerGroups || [],
+                branchId: shiftConfig.branchId || null,
                 customerId: '',
+                customerQuery: '',
+                customerOpen: false,
+                customerActive: 0,
                 customerGroupId: '',
                 customerName: '',
                 customerGroupName: '',
@@ -1486,7 +1541,7 @@
                                 'X-CSRF-TOKEN': csrfToken,
                                 'Authorization': 'Bearer ' + this.getApiToken(),
                             },
-                            body: JSON.stringify(this.newCustomer),
+                            body: JSON.stringify({ ...this.newCustomer, branch_id: this.branchId }),
                         });
 
                         const data = await res.json();
@@ -1498,8 +1553,7 @@
 
                         const created = data.customer;
                         this.customers.push(created);
-                        this.customerId = String(created.id);
-                        await this.onCustomerChange();
+                        this.chooseCustomer(created);
 
                         this.customerModalOpen = false;
                         const groupName = created.customer_group?.name || 'Umum';
@@ -1530,7 +1584,49 @@
                     }
                 },
 
-                // Event ketika dropdown pelanggan berubah
+                customerResults() {
+                    const query = (this.customerQuery || '').trim();
+                    if (!query) return [];
+                    const indexed = (this.customers || []).map(customer => ({
+                        ...customer,
+                        sku: customer.phone || '',
+                        category: [customer.branch?.name, customer.customer_group?.name].filter(Boolean).join(' '),
+                    }));
+                    return ProductSmartSearch.search(indexed, query, 12);
+                },
+                onCustomerQuery() {
+                    this.customerOpen = true;
+                    this.customerActive = 0;
+                    if ((this.customerQuery || '').trim() === '') {
+                        this.customerId = '';
+                        this.onCustomerChange();
+                    }
+                },
+                moveCustomer(step) {
+                    const total = this.customerResults().length;
+                    if (!total) return;
+                    this.customerActive = (this.customerActive + step + total) % total;
+                },
+                confirmCustomer() {
+                    const match = this.customerResults()[this.customerActive];
+                    if (match) this.chooseCustomer(match);
+                },
+                chooseCustomer(customer) {
+                    this.customerId = String(customer.id);
+                    this.customerQuery = this.customerLabel(customer);
+                    this.customerOpen = false;
+                    this.onCustomerChange();
+                },
+                clearCustomer() {
+                    this.customerId = '';
+                    this.customerQuery = '';
+                    this.customerOpen = false;
+                    this.onCustomerChange();
+                },
+                customerLabel(customer) {
+                    return [customer?.name, customer?.phone, customer?.branch?.name].filter(Boolean).join(' · ');
+                },
+                // Event ketika pelanggan atau kelompok harga berubah
                 async onCustomerChange() {
                     // Update label pelanggan & tier kelompok
                     if (this.customerId) {
@@ -1654,7 +1750,7 @@
                         return;
                     }
 
-                    if (product.stock < 1) return;
+                    if (Number(product.stock) < 0.001) return;
 
                     const existing = this.cart.find(item => (item.id || item.product.id) === product.id);
                     if (existing) {
@@ -1681,6 +1777,24 @@
                         discountMode: 'rp',
                         discountValue: 0,
                     });
+                },
+
+                setQuantity(productId, raw) {
+                    const item = this.cart.find(i => (i.id || i.product.id) === productId);
+                    if (!item) return;
+                    const product = this.products.find(p => p.id === productId) || item.product;
+                    const newQty = DecimalMath.qty(raw);
+                    if (newQty <= 0) {
+                        this.removeFromCart(productId);
+                        return;
+                    }
+                    if (product && newQty > Number(product.stock)) {
+                        alert('Jumlah melebihi stok yang tersedia (' + product.stock + ').');
+                        return;
+                    }
+                    item.quantity = newQty;
+                    item.subtotal = DecimalMath.mul(newQty, item.price);
+                    this.clampItemDiscount(item);
                 },
 
                 changeQuantity(productId, amount) {
@@ -1787,6 +1901,7 @@
                     if (!navigator.onLine) {
                         const payload = {
                             customer_id: this.customerId ? Number(this.customerId) : null,
+                            branch_id: this.branchId,
                             payment_method: this.paymentMethod,
                             due_date: this.dueDate || null,
                             discount_amount: Number(this.discountAmount || 0),
@@ -1849,6 +1964,7 @@
                             },
                             body: JSON.stringify({
                                 customer_id: this.customerId ? Number(this.customerId) : null,
+                                branch_id: this.branchId,
                                 payment_method: this.paymentMethod,
                                 due_date: this.dueDate || null,
                                 discount_amount: Number(this.discountAmount || 0),
@@ -1986,9 +2102,7 @@
                 },
 
                 formatRupiah(num) {
-                    const value = Math.round(Number(num || 0) * 100) / 100;
-                    const digits = Number.isInteger(value) ? 0 : 2;
-                    return 'Rp ' + value.toLocaleString('id-ID', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+                    return DecimalMath.rupiah(num);
                 }
             };
         }

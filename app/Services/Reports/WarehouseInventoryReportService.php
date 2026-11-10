@@ -3,6 +3,7 @@
 namespace App\Services\Reports;
 
 use App\Models\Inventory;
+use App\Support\DecimalQuantity;
 use Illuminate\Support\Collection;
 
 class WarehouseInventoryReportService
@@ -21,7 +22,7 @@ class WarehouseInventoryReportService
             ->when($branchId, fn ($query) => $query->where('branch_id', $branchId))
             ->get()
             ->map(function (Inventory $row) {
-                $quantity = (int) $row->quantity;
+                $quantity = DecimalQuantity::present($row->quantity);
                 $unitCost = (float) ($row->product?->purchase_price ?? 0);
 
                 return [
@@ -47,7 +48,7 @@ class WarehouseInventoryReportService
 
         return [
             'rows' => $visible,
-            'total_quantity' => (int) $visible->sum('quantity'),
+            'total_quantity' => DecimalQuantity::present(DecimalQuantity::sum($visible->pluck('quantity'))),
             'total_value' => round((float) $visible->sum('value'), 2),
             'warehouse_count' => $visible->pluck('warehouse_name')->unique()->count(),
             'hidden_zero_rows' => $rows->count() - $visible->count(),

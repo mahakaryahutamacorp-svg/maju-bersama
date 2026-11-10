@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Inventory;
 use App\Models\Product;
+use App\Support\DecimalQuantity;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -41,7 +42,7 @@ class ProductService
             $data['is_taxable'] = true;
         }
 
-        $openingQuantity = (int) $data['stock'];
+        $openingQuantity = DecimalQuantity::normalize($data['stock'] ?? 0);
         $data['stock'] = 0;
 
         return DB::transaction(function () use ($data, $branchId, $openingQuantity): Product {
@@ -52,7 +53,7 @@ class ProductService
                 ['quantity' => 0],
             );
 
-            if ($openingQuantity > 0) {
+            if (DecimalQuantity::compare($openingQuantity, '0') > 0) {
                 $this->recordStockDocument($product, $openingQuantity, true);
             }
 
@@ -68,13 +69,13 @@ class ProductService
      */
     public function updateProduct(Product $product, array $data): Product
     {
-        $targetQuantity = array_key_exists('stock', $data) ? (int) $data['stock'] : null;
+        $targetQuantity = array_key_exists('stock', $data) ? DecimalQuantity::normalize($data['stock'] ?? 0) : null;
         unset($data['stock']);
 
         return DB::transaction(function () use ($product, $data, $targetQuantity): Product {
             $product->update($data);
 
-            if ($targetQuantity !== null && $targetQuantity !== $product->availableQuantity()) {
+            if ($targetQuantity !== null && DecimalQuantity::compare($targetQuantity, $product->availableQuantity()) !== 0) {
                 $this->recordStockDocument($product, $targetQuantity, false);
             }
 
@@ -86,7 +87,7 @@ class ProductService
      * Stok hanya berubah lewat dokumen penyesuaian, supaya kartu stok dan jurnal persediaan ikut tercatat.
      * Stok awal dibukukan ke modal kecuali persediaan cabang sudah masuk saldo awal.
      */
-    private function recordStockDocument(Product $product, int $actualQuantity, bool $isOpeningStock): void
+    private function recordStockDocument(Product $product, string $actualQuantity, bool $isOpeningStock): void
     {
         $notes = $isOpeningStock ? StockAdjustmentService::OPENING_STOCK_NOTE : 'Koreksi stok dari data produk';
 

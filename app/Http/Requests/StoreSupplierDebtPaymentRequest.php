@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\Money;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -20,11 +21,9 @@ class StoreSupplierDebtPaymentRequest extends FormRequest
      */
     protected function prepareForValidation(): void
     {
-        $raw = (string) $this->input('amount', '');
-        $clean = preg_replace('/[^\d,]/', '', $raw) ?? '';
-        $clean = str_replace(',', '.', $clean);
-
-        $this->merge(['amount' => $clean === '' ? null : $clean]);
+        $this->merge([
+            'amount' => Money::parse($this->input('amount')),
+        ]);
     }
 
     /**
@@ -33,7 +32,7 @@ class StoreSupplierDebtPaymentRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'amount' => ['required', 'numeric', 'min:1'],
+            'amount' => ['required', 'numeric', 'min:0.01'],
             'account_id' => [
                 'required',
                 'integer',
@@ -53,7 +52,7 @@ class StoreSupplierDebtPaymentRequest extends FormRequest
         return [
             'amount.required' => 'Nominal dibayar wajib diisi.',
             'amount.numeric' => 'Nominal dibayar harus berupa angka.',
-            'amount.min' => 'Nominal dibayar minimal Rp 1.',
+            'amount.min' => 'Nominal dibayar minimal Rp 0,01.',
             'account_id.required' => 'Pilih sumber uang (kas atau bank).',
             'account_id.exists' => 'Sumber uang tidak valid.',
             'payment_date.before_or_equal' => 'Tanggal bayar tidak boleh di masa depan.',

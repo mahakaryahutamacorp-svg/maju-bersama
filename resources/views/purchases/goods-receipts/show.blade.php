@@ -140,13 +140,13 @@
                                             {{ $item->product->name ?? '-' }}
                                         </td>
                                         <td class="py-3.5 px-4 text-center font-mono text-xs font-bold text-slate-950">
-                                            {{ number_format($item->quantity, 0, ',', '.') }} unit
+                                            {{ number_format((float) $item->quantity, 3, ',', '.') }} unit
                                         </td>
                                         <td class="py-3.5 px-4 text-right font-mono text-xs text-slate-700">
-                                            Rp {{ number_format($item->unit_price, 0, ',', '.') }}
+                                            Rp {{ number_format((float) $item->unit_price, 2, ',', '.') }}
                                         </td>
                                         <td class="py-3.5 px-4 text-right font-mono text-sm font-bold text-slate-950">
-                                            Rp {{ number_format($item->subtotal, 0, ',', '.') }}
+                                            Rp {{ number_format((float) $item->subtotal, 2, ',', '.') }}
                                         </td>
                                     </tr>
                                 @endforeach
@@ -155,11 +155,11 @@
                                 <tr>
                                     <td colspan="3" class="py-3.5 px-4 text-right uppercase text-slate-600">Total Kuantitas Masuk:</td>
                                     <td class="py-3.5 px-4 text-center font-mono text-slate-950">
-                                        {{ number_format($receipt->items->sum('quantity'), 0, ',', '.') }} unit
+                                        {{ number_format((float) $receipt->items->sum('quantity'), 3, ',', '.') }} unit
                                     </td>
                                     <td class="py-3.5 px-4 text-right uppercase text-slate-900">GRAND TOTAL:</td>
                                     <td class="py-3.5 px-4 text-right font-mono text-base font-extrabold text-sky-950 bg-slate-100">
-                                        Rp {{ number_format($receipt->total_amount, 0, ',', '.') }}
+                                        Rp {{ number_format((float) $receipt->total_amount, 2, ',', '.') }}
                                     </td>
                                 </tr>
                             </tfoot>
@@ -203,10 +203,10 @@
                                                 {{ $line->memo ?: $receipt->journalHeader->description }}
                                             </td>
                                             <td class="py-2 px-3 text-right {{ $line->debit > 0 ? 'font-bold text-emerald-800' : 'text-slate-300' }}">
-                                                {{ $line->debit > 0 ? 'Rp ' . number_format($line->debit, 0, ',', '.') : '—' }}
+                                                {{ $line->debit > 0 ? 'Rp ' . number_format((float) $line->debit, 2, ',', '.') : '—' }}
                                             </td>
                                             <td class="py-2 px-3 text-right {{ $line->credit > 0 ? 'font-bold text-sky-800' : 'text-slate-300' }}">
-                                                {{ $line->credit > 0 ? 'Rp ' . number_format($line->credit, 0, ',', '.') : '—' }}
+                                                {{ $line->credit > 0 ? 'Rp ' . number_format((float) $line->credit, 2, ',', '.') : '—' }}
                                             </td>
                                         </tr>
                                     @endforeach
@@ -215,10 +215,10 @@
                                     <tr>
                                         <td colspan="2" class="py-2 px-3 text-right font-sans uppercase text-slate-600 text-[11px]">Total Keseimbangan Jurnal:</td>
                                         <td class="py-2 px-3 text-right text-emerald-950 font-bold">
-                                            Rp {{ number_format($receipt->journalHeader->journalLines->sum('debit'), 0, ',', '.') }}
+                                            Rp {{ number_format((float) $receipt->journalHeader->journalLines->sum('debit'), 2, ',', '.') }}
                                         </td>
                                         <td class="py-2 px-3 text-right text-sky-950 font-bold">
-                                            Rp {{ number_format($receipt->journalHeader->journalLines->sum('credit'), 0, ',', '.') }}
+                                            Rp {{ number_format((float) $receipt->journalHeader->journalLines->sum('credit'), 2, ',', '.') }}
                                         </td>
                                     </tr>
                                 </tfoot>

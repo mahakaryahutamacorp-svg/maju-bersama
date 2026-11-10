@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Branch;
 use App\Models\Inventory;
 use App\Models\Product;
+use App\Support\DecimalQuantity;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -45,9 +46,9 @@ class StockCardService
                 return Carbon::parse($item->transaction_date)->lt($start);
             });
 
-            $priorIn = (int) $priorMovements->sum('qty_in');
-            $priorOut = (int) $priorMovements->sum('qty_out');
-            $beginningBalance = $priorIn - $priorOut;
+            $priorIn = DecimalQuantity::sum($priorMovements->pluck('qty_in'));
+            $priorOut = DecimalQuantity::sum($priorMovements->pluck('qty_out'));
+            $beginningBalance = DecimalQuantity::present(DecimalQuantity::sub($priorIn, $priorOut));
         }
 
         // 3. Filter movements within the requested date range
@@ -64,17 +65,17 @@ class StockCardService
         })->values();
 
         // 4. Calculate chronological running balance row by row
-        $runningBalance = $beginningBalance;
-        $totalIn = 0;
-        $totalOut = 0;
+        $runningBalance = DecimalQuantity::normalize($beginningBalance);
+        $totalIn = '0.000';
+        $totalOut = '0.000';
 
         $movementsWithBalance = $periodMovements->map(function ($mov) use (&$runningBalance, &$totalIn, &$totalOut) {
-            $qtyIn = (int) $mov->qty_in;
-            $qtyOut = (int) $mov->qty_out;
+            $qtyIn = DecimalQuantity::normalize($mov->qty_in);
+            $qtyOut = DecimalQuantity::normalize($mov->qty_out);
 
-            $totalIn += $qtyIn;
-            $totalOut += $qtyOut;
-            $runningBalance += ($qtyIn - $qtyOut);
+            $totalIn = DecimalQuantity::add($totalIn, $qtyIn);
+            $totalOut = DecimalQuantity::add($totalOut, $qtyOut);
+            $runningBalance = DecimalQuantity::add($runningBalance, DecimalQuantity::sub($qtyIn, $qtyOut));
 
             // Generate clean description in PHP layer
             $notes = $this->formatNotes($mov);
@@ -85,20 +86,22 @@ class StockCardService
                 'reference_number' => $mov->reference_number,
                 'type' => $mov->type,
                 'notes' => $notes,
-                'qty_in' => $qtyIn,
-                'qty_out' => $qtyOut,
-                'running_balance' => $runningBalance,
+                'qty_in' => DecimalQuantity::present($qtyIn),
+                'qty_out' => DecimalQuantity::present($qtyOut),
+                'running_balance' => DecimalQuantity::present($runningBalance),
             ];
         });
 
-        $endingBalance = $runningBalance;
+        $endingBalance = DecimalQuantity::present($runningBalance);
+        $totalIn = DecimalQuantity::present($totalIn);
+        $totalOut = DecimalQuantity::present($totalOut);
 
         // Fetch current on-hand stock from inventory table
         $inventory = Inventory::withoutGlobalScopes()
             ->where('branch_id', $branchId)
             ->where('product_id', $productId)
             ->first();
-        $currentStock = $inventory?->quantity ?? (int) $product->stock;
+        $currentStock = $inventory?->quantity ?? $product->stock;
 
         return [
             'branch' => $branch,

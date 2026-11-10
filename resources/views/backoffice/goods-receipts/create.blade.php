@@ -265,7 +265,9 @@
                                                 :name="'items[' + index + '][quantity]'"
                                                 x-model.number="item.quantity"
                                                 @input="calculateSubtotal(index)"
-                                                min="1"
+                                                min="0.001"
+                                                step="0.001"
+                                                inputmode="decimal"
                                                 required
                                                 class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-center text-sm font-bold font-mono text-slate-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                                             >
@@ -286,7 +288,7 @@
                                                     x-model.number="item.unit_price"
                                                     @input="calculateSubtotal(index)"
                                                     min="0"
-                                                    step="100"
+                                                    step="0.01"
                                                     required
                                                     class="w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 py-2 text-right text-sm font-mono font-semibold text-slate-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
                                                 >
@@ -378,6 +380,7 @@
 
     <x-slot:scripts>
     @include('inventory.partials.smart-search-script')
+    @include('partials.decimal-math')
     <script>
         function goodsReceiptForm(activePOsList = [], productsList = []) {
             let activePOs = activePOsList || [];
@@ -434,11 +437,11 @@
                         po.items.forEach(poItem => {
                             // Logika Kuantitas: sisa barang yang belum diterima (quantity - received_quantity)
                             // Jika sisanya 0, jangan tampilkan baris tersebut
-                            const totalQty = parseInt(poItem.quantity) || 0;
-                            const receivedQty = parseInt(poItem.received_quantity) || 0;
+                            const totalQty = DecimalMath.qty(poItem.quantity);
+                            const receivedQty = DecimalMath.qty(poItem.received_quantity);
                             const remaining = poItem.remaining_quantity !== undefined 
-                                ? parseInt(poItem.remaining_quantity) 
-                                : Math.max(0, totalQty - receivedQty);
+                                ? DecimalMath.qty(poItem.remaining_quantity) 
+                                : Math.max(0, DecimalMath.qty(totalQty - receivedQty));
 
                             if (remaining > 0) {
                                 const price = parseFloat(poItem.unit_price) || 0;
@@ -448,7 +451,7 @@
                                     sku: poItem.sku || '',
                                     quantity: remaining, // default ke sisa barang belum diterima
                                     unit_price: price,
-                                    subtotal: remaining * price,
+                                    subtotal: DecimalMath.mul(remaining, price),
                                     remaining_quantity: remaining,
                                     total_ordered: totalQty,
                                     already_received: receivedQty,
@@ -511,9 +514,9 @@
                 },
                 calculateSubtotal(index) {
                     const item = this.items[index];
-                    const qty = Math.max(0, parseInt(item.quantity) || 0);
-                    const price = Math.max(0, parseFloat(item.unit_price) || 0);
-                    item.subtotal = qty * price;
+                    const qty = Math.max(0, DecimalMath.qty(item.quantity));
+                    const price = Math.max(0, DecimalMath.money(item.unit_price));
+                    item.subtotal = DecimalMath.mul(qty, price);
                 },
                 recalculateAll() {
                     this.items.forEach((_, i) => this.calculateSubtotal(i));
@@ -522,7 +525,7 @@
                     return this.items.reduce((sum, item) => sum + (parseFloat(item.subtotal) || 0), 0);
                 },
                 formatRupiah(amount) {
-                    return 'Rp ' + new Intl.NumberFormat('id-ID').format(amount || 0);
+                    return DecimalMath.rupiah(amount);
                 },
                 getSelectedProductStock(productId) {
                     const product = this.products.find(p => p.id == productId);

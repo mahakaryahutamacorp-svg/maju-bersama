@@ -129,7 +129,7 @@
                                             <input
                                                 type="number"
                                                 min="0"
-                                                step="1"
+                                                step="0.001"
                                                 inputmode="numeric"
                                                 :id="'opening-qty-' + product.id"
                                                 x-model="quantities[product.id]"

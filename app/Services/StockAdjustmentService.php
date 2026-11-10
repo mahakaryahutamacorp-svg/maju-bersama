@@ -11,6 +11,8 @@ use App\Models\StockAdjustmentItem;
 use App\Models\StockAdjustmentLine;
 use App\Models\User;
 use App\Models\Warehouse;
+use App\Support\DecimalQuantity;
+use App\Support\Money;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -88,9 +90,9 @@ class StockAdjustmentService
             // Lock and calculate lines
             foreach ($rawLines as $index => $itemData) {
                 $productId = (int) ($itemData['product_id'] ?? 0);
-                $actualQty = (int) ($itemData['actual_qty'] ?? 0);
+                $actualQty = DecimalQuantity::normalize($itemData['actual_qty'] ?? 0);
 
-                if ($actualQty < 0) {
+                if (DecimalQuantity::compare($actualQty, '0') < 0) {
                     throw ValidationException::withMessages([
                         "items.{$index}.actual_qty" => ['Actual quantity cannot be negative.'],
                         "lines.{$index}.actual_qty" => ['Stok fisik tidak boleh kurang dari 0.'],
@@ -113,13 +115,15 @@ class StockAdjustmentService
                 $inventory = $this->lockInventory($branch->id, $product->id);
 
                 $systemQty = isset($itemData['system_qty'])
-                    ? (int) $itemData['system_qty']
-                    : (isset($itemData['expected_qty']) ? (int) $itemData['expected_qty'] : (int) $inventory->quantity);
+                    ? DecimalQuantity::normalize($itemData['system_qty'])
+                    : (isset($itemData['expected_qty'])
+                        ? DecimalQuantity::normalize($itemData['expected_qty'])
+                        : DecimalQuantity::normalize($inventory->quantity));
 
-                $differenceQty = $actualQty - $systemQty;
+                $differenceQty = DecimalQuantity::sub($actualQty, $systemQty);
 
                 // Abaikan baris jika selisihnya 0 (kecuali jika hanya ada 1 baris yang dikirim dan nilainya 0)
-                if ($differenceQty === 0 && count($rawLines) > 1) {
+                if (DecimalQuantity::compare($differenceQty, '0') === 0 && count($rawLines) > 1) {
                     continue;
                 }
 
@@ -133,13 +137,14 @@ class StockAdjustmentService
                     $unitCost = number_format((float) $product->selling_price, 4, '.', '');
                 }
 
-                $subtotalCost = bcmul($unitCost, (string) $differenceQty, 4);
+                $subtotalCost = bcmul($unitCost, $differenceQty, 4);
+                $absoluteDifference = ltrim($differenceQty, '-');
 
-                if ($differenceQty < 0) {
-                    $loss = bcmul($unitCost, (string) abs($differenceQty), 2);
+                if (DecimalQuantity::compare($differenceQty, '0') < 0) {
+                    $loss = Money::of(bcmul($unitCost, $absoluteDifference, 6));
                     $totalLossValue = bcadd($totalLossValue, $loss, 2);
-                } elseif ($differenceQty > 0) {
-                    $gain = bcmul($unitCost, (string) $differenceQty, 2);
+                } elseif (DecimalQuantity::compare($differenceQty, '0') > 0) {
+                    $gain = Money::of(bcmul($unitCost, $absoluteDifference, 6));
                     $totalGainValue = bcadd($totalGainValue, $gain, 2);
                 }
 

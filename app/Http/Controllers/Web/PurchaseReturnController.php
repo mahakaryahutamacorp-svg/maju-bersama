@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\PurchaseReturn;
 use App\Models\Supplier;
 use App\Services\PurchaseReturnService;
+use App\Support\DecimalQuantity;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -108,7 +109,7 @@ class PurchaseReturnController extends Controller
             'notes' => ['nullable', 'string', 'max:1000'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.quantity' => DecimalQuantity::rules(),
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],
         ]);
 

@@ -7,6 +7,7 @@ use App\Models\ChartOfAccount;
 use App\Models\Supplier;
 use App\Models\SupplierPayment;
 use App\Services\SupplierPaymentService;
+use App\Support\Money;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -103,6 +104,10 @@ class SupplierPaymentController extends Controller
      */
     public function store(Request $request): RedirectResponse
     {
+        $request->merge([
+            'amount' => Money::parse($request->input('amount')),
+        ]);
+
         $validated = $request->validate([
             'supplier_id' => ['required', 'integer', 'exists:suppliers,id'],
             'chart_of_account_id' => ['required', 'integer', 'exists:chart_of_accounts,id'],
@@ -115,7 +120,7 @@ class SupplierPaymentController extends Controller
 
         $payment = $this->paymentService->processPayment($validated, $request->user());
 
-        $formattedAmount = 'Rp '.number_format((float) $payment->amount, 0, ',', '.');
+        $formattedAmount = Money::rupiah($payment->amount);
         $supplierName = $payment->supplier?->name ?? 'Supplier';
 
         return redirect()

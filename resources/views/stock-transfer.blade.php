@@ -121,7 +121,7 @@
                             <p x-show="filteredStock.length === 0" class="px-3 py-3 text-sm text-slate-500">Tidak ada barang yang cocok.</p>
                         </div>
                     </div>
-                    <input x-model.number="picker.quantity" type="number" min="1" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-sky-500 focus:ring-2 sm:w-28" placeholder="Jumlah">
+                    <input x-model.number="picker.quantity" type="number" min="0.001" step="0.001" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none ring-sky-500 focus:ring-2 sm:w-28" placeholder="Jumlah">
                     <button type="button" @click="addLine()" class="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-amber-600">Tambah</button>
                 </div>
 

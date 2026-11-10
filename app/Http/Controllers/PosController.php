@@ -10,8 +10,10 @@ use App\Models\Customer;
 use App\Models\CustomerGroup;
 use App\Models\Product;
 use App\Models\Sale;
+use App\Models\User;
 use App\Services\CashRegisterShiftService;
 use App\Services\SalePostingService;
+use App\Support\DecimalQuantity;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,7 +33,8 @@ class PosController extends Controller
         $validated = $request->validate([
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.quantity' => DecimalQuantity::rules(),
+            'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
             'items.*.discount_amount' => ['nullable', 'numeric', 'min:0'],
             'customer_id' => ['nullable', 'integer'],
             'payment_method' => ['nullable', 'string', 'max:255'],
@@ -62,6 +65,20 @@ class PosController extends Controller
     public function index(Request $request): View
     {
         $user = $request->user()->load('branch');
+        $branchId = $this->operatingBranchId($request, $user);
+
+        if ($branchId === null) {
+            return view('pos.select-branch', [
+                'currentUser' => $user,
+                'branches' => $user->isMaster()
+                    ? Branch::query()->orderBy('name')->get()
+                    : collect(),
+                'needsBranchAssignment' => ! $user->isMaster(),
+                'invalidBranch' => $request->filled('branch_id'),
+            ]);
+        }
+
+        $operatingBranch = Branch::query()->findOrFail($branchId);
 
         // Periksa apakah kasir memiliki shift yang sedang aktif
         $activeShift = CashRegisterShift::where('user_id', $user->id)
@@ -71,7 +88,7 @@ class PosController extends Controller
             ->first();
 
         // Ambil daftar register aktif untuk cabang kasir
-        $registers = CashRegister::where('branch_id', $user->branch_id)
+        $registers = CashRegister::where('branch_id', $branchId)
             ->where('is_active', true)
             ->orderBy('name')
             ->get();
@@ -79,7 +96,7 @@ class PosController extends Controller
         // Fallback jika belum ada register di cabang kasir
         if ($registers->isEmpty()) {
             $defaultRegister = CashRegister::create([
-                'branch_id' => $user->branch_id,
+                'branch_id' => $branchId,
                 'name' => 'Kasir Utama',
                 'is_active' => true,
             ]);
@@ -90,8 +107,6 @@ class PosController extends Controller
         $expectedBalance = $activeShift
             ? $this->shiftService->calculateExpectedBalance($activeShift)
             : 0;
-
-        $branchId = $user->branch_id;
 
         $productsQuery = Product::withoutGlobalScopes()
             ->whereNull('deleted_at');
@@ -124,7 +139,7 @@ class PosController extends Controller
                 $branchName = $op->branch?->name ?? 'Cabang #'.$op->branch_id;
                 $otherStockMap[$op->sku][] = [
                     'branch_name' => $branchName,
-                    'stock' => (int) $op->stock,
+                    'stock' => DecimalQuantity::present($op->stock),
                 ];
             }
         }
@@ -140,7 +155,7 @@ class PosController extends Controller
             return $product;
         });
 
-        $catalog = $user->branch?->productCatalog() ?? Category::CATALOG_PUPUK;
+        $catalog = $operatingBranch->productCatalog();
 
         $categories = Category::withCount(['products' => function ($query) use ($branchId) {
             $query->withoutGlobalScopes()
@@ -153,10 +168,14 @@ class PosController extends Controller
             ->orderBy('name')
             ->get();
 
-        $customers = Customer::withoutGlobalScopes()
-            ->with(['customerGroup', 'branch'])
-            ->orderBy('name')
-            ->get();
+        $customersQuery = Customer::withoutGlobalScopes()
+            ->with(['customerGroup:id,name', 'branch:id,name']);
+
+        if (! $user->isMaster()) {
+            $customersQuery->where('branch_id', $branchId);
+        }
+
+        $customers = $customersQuery->orderBy('name')->get();
 
         $token = $user->createToken('pos_preview')->plainTextToken;
 
@@ -169,6 +188,7 @@ class PosController extends Controller
             'customerGroups' => CustomerGroup::orderBy('id')->get(),
             'previewToken' => $token,
             'currentUser' => $user,
+            'operatingBranch' => $operatingBranch,
             'activeShift' => $activeShift,
             'hasActiveShift' => $activeShift !== null,
             'registers' => $registers,
@@ -268,7 +288,14 @@ class PosController extends Controller
         ]);
 
         $user = $request->user();
-        $branchId = $user->branch_id ?: Branch::whereNull('parent_id')->value('id') ?: Branch::value('id');
+        $requestedBranchId = (int) $request->input('branch_id');
+        $branchId = $user->branch_id;
+
+        if ($user->isMaster() && $requestedBranchId > 0 && Branch::query()->whereKey($requestedBranchId)->exists()) {
+            $branchId = $requestedBranchId;
+        }
+
+        $branchId = $branchId ?: Branch::whereNull('parent_id')->value('id') ?: Branch::value('id');
 
         $customer = Customer::create([
             'branch_id' => $branchId,
@@ -285,5 +312,19 @@ class PosController extends Controller
             'message' => "Pelanggan '{$customer->name}' berhasil didaftarkan.",
             'customer' => $customer,
         ], 201);
+    }
+
+    /**
+     * Kasir selalu di cabangnya. Master tanpa cabang harus memilih cabang kasir.
+     */
+    private function operatingBranchId(Request $request, User $user): ?int
+    {
+        if ($user->isMaster() && $request->filled('branch_id')) {
+            $branchId = (int) $request->query('branch_id');
+
+            return Branch::query()->whereKey($branchId)->exists() ? $branchId : null;
+        }
+
+        return $user->branch_id ? (int) $user->branch_id : null;
     }
 }

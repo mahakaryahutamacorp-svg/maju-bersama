@@ -53,17 +53,17 @@
             </div>
             <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Nilai Pembelian</p>
-                <p class="mt-2 text-2xl font-bold font-mono text-sky-900">Rp {{ number_format($totalAmount, 0, ',', '.') }}</p>
+                <p class="mt-2 text-2xl font-bold font-mono text-sky-900">Rp {{ number_format((float) $totalAmount, 2, ',', '.') }}</p>
                 <p class="mt-1 text-xs text-slate-500">Akumulasi nilai persediaan masuk</p>
             </div>
             <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Pembayaran Tunai (Kas)</p>
-                <p class="mt-2 text-2xl font-bold font-mono text-emerald-800">Rp {{ number_format($totalCash, 0, ',', '.') }}</p>
+                <p class="mt-2 text-2xl font-bold font-mono text-emerald-800">Rp {{ number_format((float) $totalCash, 2, ',', '.') }}</p>
                 <p class="mt-1 text-xs text-slate-500">Pengeluaran kas tunai langsung</p>
             </div>
             <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Pembayaran Tempo (Hutang)</p>
-                <p class="mt-2 text-2xl font-bold font-mono text-amber-800">Rp {{ number_format($totalCredit, 0, ',', '.') }}</p>
+                <p class="mt-2 text-2xl font-bold font-mono text-amber-800">Rp {{ number_format((float) $totalCredit, 2, ',', '.') }}</p>
                 <p class="mt-1 text-xs text-slate-500">Kewajiban hutang dagang supplier</p>
             </div>
         </section>
@@ -142,7 +142,7 @@
 
                                 <!-- Total Nominal -->
                                 <td class="whitespace-nowrap px-5 py-4 text-right font-mono text-sm font-bold text-slate-950">
-                                    Rp {{ number_format($receipt->total_amount, 0, ',', '.') }}
+                                    Rp {{ number_format((float) $receipt->total_amount, 2, ',', '.') }}
                                 </td>
 
                                 <!-- Metode Pembayaran -->

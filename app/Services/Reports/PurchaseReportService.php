@@ -4,6 +4,7 @@ namespace App\Services\Reports;
 
 use App\Models\GoodsReceipt;
 use App\Models\PurchaseOrder;
+use App\Support\DecimalQuantity;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -67,7 +68,7 @@ class PurchaseReportService
             'total_documents' => $active->count(),
             'completed_orders' => $completed,
             'pending_orders' => $active->count() - $completed,
-            'total_items' => (int) $active->sum('quantity'),
+            'total_items' => DecimalQuantity::present(DecimalQuantity::sum($active->pluck('quantity'))),
         ];
     }
 
@@ -84,7 +85,7 @@ class PurchaseReportService
             'supplier_name' => $order->supplier?->name ?? 'Supplier Umum',
             'branch_name' => $order->branch?->name ?? '-',
             'item_count' => $order->items->count(),
-            'quantity' => (int) $order->items->sum('quantity'),
+            'quantity' => DecimalQuantity::present(DecimalQuantity::sum($order->items->pluck('quantity'))),
             'total_amount' => (float) $order->total_amount,
             'status' => $status,
             'status_label' => $order->status ?? 'pending',
@@ -112,7 +113,7 @@ class PurchaseReportService
             'supplier_name' => $receipt->supplier?->name ?? ($receipt->supplier_name ?: 'Supplier Umum'),
             'branch_name' => $receipt->branch?->name ?? '-',
             'item_count' => $receipt->items->count(),
-            'quantity' => (int) $receipt->items->sum('quantity'),
+            'quantity' => DecimalQuantity::present(DecimalQuantity::sum($receipt->items->pluck('quantity'))),
             'total_amount' => $total,
             'status' => $status,
             'status_label' => ['paid' => 'Lunas', 'partial' => 'Dibayar sebagian', 'unpaid' => 'Belum dibayar'][$status],

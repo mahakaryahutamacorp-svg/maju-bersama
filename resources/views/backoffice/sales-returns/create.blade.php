@@ -236,7 +236,8 @@
                                                 :name="'items[' + index + '][quantity]'"
                                                 x-model.number="item.quantity"
                                                 @input="calculateSubtotal(index)"
-                                                min="1"
+                                                min="0.001"
+                                                step="0.001"
                                                 required
                                                 class="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-right text-sm font-mono text-slate-900 shadow-2xs focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
                                             >
@@ -367,6 +368,7 @@
 
     <x-slot:scripts>
     @include('inventory.partials.smart-search-script')
+    @include('partials.decimal-math')
     <script>
         function salesReturnForm(productsList, accountsList) {
             return withProductPicker({
@@ -423,11 +425,11 @@
                 },
                 calculateSubtotal(index) {
                     const item = this.items[index];
-                    const qty = Math.max(0, parseInt(item.quantity) || 0);
+                    const qty = Math.max(0, DecimalMath.qty(item.quantity));
                     const price = Math.max(0, parseFloat(item.unit_price) || 0);
                     const cost = Math.max(0, parseFloat(item.unit_cost) || 0);
-                    item.subtotal = qty * price;
-                    item.subtotal_cost = qty * cost;
+                    item.subtotal = DecimalMath.mul(qty, price);
+                    item.subtotal_cost = DecimalMath.mul(qty, cost);
                 },
                 recalculateAll() {
                     this.items.forEach((_, i) => this.calculateSubtotal(i));

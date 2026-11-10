@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Payment;
 use App\Models\Supplier;
 use App\Models\User;
+use App\Support\Money;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -40,7 +41,7 @@ class SupplierDebtPaymentService
                 ->filter(fn (array $row) => bccomp($row['outstanding'], '0.00', 2) > 0)
                 ->values();
 
-            $amount = number_format((float) $data['amount'], 2, '.', '');
+            $amount = Money::of($data['amount']);
             $totalDebt = $openInvoices->reduce(fn (string $carry, array $row) => bcadd($carry, $row['outstanding'], 2), '0.00');
 
             if (bccomp($totalDebt, '0.00', 2) <= 0) {
@@ -50,7 +51,7 @@ class SupplierDebtPaymentService
             }
 
             if (bccomp($amount, $totalDebt, 2) > 0) {
-                $formatted = 'Rp '.number_format((float) $totalDebt, 0, ',', '.');
+                $formatted = Money::rupiah($totalDebt);
                 throw ValidationException::withMessages([
                     'amount' => ["Nominal melebihi sisa hutang. Maksimal yang bisa dibayar: {$formatted}."],
                 ]);

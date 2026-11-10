@@ -7,6 +7,8 @@ use App\Models\Branch;
 use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\Supplier;
+use App\Support\DecimalQuantity;
+use App\Support\Money;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -133,13 +135,13 @@ class PurchaseOrderController extends Controller
             'branch_id' => ['nullable', 'exists:branches,id'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'exists:products,id'],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.quantity' => DecimalQuantity::rules(),
             'items.*.unit_price' => ['required', 'numeric', 'min:0'],
         ], [
             'items.required' => 'Minimal harus memasukkan satu item produk dalam Purchase Order.',
             'items.min' => 'Minimal harus memasukkan satu item produk dalam Purchase Order.',
             'items.*.product_id.required' => 'Pilih produk untuk setiap baris pemesanan.',
-            'items.*.quantity.min' => 'Kuantitas minimal adalah 1.',
+            'items.*.quantity.gt' => 'Kuantitas harus lebih besar dari 0.',
         ]);
 
         $po = DB::transaction(function () use ($user, $validated) {
@@ -168,13 +170,13 @@ class PurchaseOrderController extends Controller
             }
 
             // Calculate total amount from items
-            $totalAmount = 0;
+            $totalAmount = '0.00';
             $itemsData = [];
             foreach ($validated['items'] as $item) {
-                $qty = (int) $item['quantity'];
-                $unitPrice = (float) $item['unit_price'];
-                $subtotal = round($qty * $unitPrice, 2);
-                $totalAmount += $subtotal;
+                $qty = DecimalQuantity::normalize($item['quantity']);
+                $unitPrice = Money::of($item['unit_price']);
+                $subtotal = Money::mul($unitPrice, $qty);
+                $totalAmount = Money::add($totalAmount, $subtotal);
 
                 $itemsData[] = [
                     'product_id' => $item['product_id'],

@@ -96,7 +96,7 @@ class PosCheckoutTest extends DuskTestCase
         ]);
 
         // 6. Jalankan Skenario Browser E2E
-        $this->browse(function (Browser $browser) use ($cashier, $customer, $product) {
+        $this->browse(function (Browser $browser) use ($cashier, $product) {
             // A. Login Kasir
             $browser->visit('/login')
                 ->type('email', $cashier->email)
@@ -120,7 +120,9 @@ class PosCheckoutTest extends DuskTestCase
                 ->assertSeeIn('aside', $product->name);
 
             // D. Simulasikan pemilihan pelanggan dari dropdown pelanggan
-            $browser->select('#pos-customer-select', (string) $customer->id)
+            $browser->type('#pos-customer-select', 'Budi')
+                ->waitFor('[data-customer-option]')
+                ->click('[data-customer-option]')
                 ->pause(800);
 
             // E. Klik tombol "Bayar" (Pembayaran F9) untuk memunculkan modal pembayaran

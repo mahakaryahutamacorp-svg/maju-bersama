@@ -265,7 +265,7 @@ class MasterCatalogService
 
                     Inventory::withoutGlobalScopes()->firstOrCreate(
                         ['branch_id' => $branchId, 'product_id' => $product->id],
-                        ['quantity' => (int) $product->stock, 'warehouse_id' => $this->defaultWarehouseId($branchId)],
+                        ['quantity' => $product->stock, 'warehouse_id' => $this->defaultWarehouseId($branchId)],
                     );
                 } else {
                     $product->forceFill($source->only(self::MASTER_FIELDS))->save();

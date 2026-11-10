@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Support\DecimalQuantity;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
@@ -24,7 +25,7 @@ class StoreStockTransferRequest extends FormRequest
             'notes' => ['sometimes', 'nullable', 'string', 'max:1000'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', 'integer', 'exists:products,id'],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.quantity' => DecimalQuantity::rules(),
         ];
     }
 
@@ -40,7 +41,7 @@ class StoreStockTransferRequest extends FormRequest
             'items.required' => 'At least one item is required.',
             'items.min' => 'At least one item is required.',
             'items.*.product_id.exists' => 'One or more products do not exist.',
-            'items.*.quantity.min' => 'Quantity must be at least 1.',
+            'items.*.quantity.gt' => 'Quantity must be greater than zero.',
         ];
     }
 }

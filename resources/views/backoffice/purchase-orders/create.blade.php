@@ -159,7 +159,8 @@
                                                 :name="'items[' + index + '][quantity]'"
                                                 x-model.number="item.quantity"
                                                 @input="calculateSubtotal(index)"
-                                                min="1"
+                                                min="0.001"
+                                                step="0.001"
                                                 required
                                                 placeholder="1"
                                                 class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-right font-mono text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
@@ -244,6 +245,7 @@
 
     <x-slot:scripts>
     @include('inventory.partials.smart-search-script')
+    @include('partials.decimal-math')
     <script>
         function poForm(productsList) {
             return withProductPicker({
@@ -276,9 +278,9 @@
                 },
                 calculateSubtotal(index) {
                     const item = this.items[index];
-                    const qty = Math.max(0, parseInt(item.quantity) || 0);
+                    const qty = Math.max(0, DecimalMath.qty(item.quantity));
                     const price = Math.max(0, parseFloat(item.unit_price) || 0);
-                    item.subtotal = qty * price;
+                    item.subtotal = DecimalMath.mul(qty, price);
                 },
                 recalculateAll() {
                     this.items.forEach((_, i) => this.calculateSubtotal(i));
@@ -287,7 +289,7 @@
                     return this.items.reduce((sum, item) => sum + (parseFloat(item.subtotal) || 0), 0);
                 },
                 formatRupiah(amount) {
-                    return 'Rp ' + new Intl.NumberFormat('id-ID').format(amount || 0);
+                    return DecimalMath.rupiah(amount);
                 },
                 getSelectedProductStock(productId) {
                     if (!productId) return '-';
