@@ -58,6 +58,12 @@
             margin-bottom: 2px;
             font-size: 11px;
         }
+        .customer-block {
+            margin-top: 4px;
+            font-size: 11px;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
         .item-row {
             margin-bottom: 6px;
         }
@@ -157,6 +163,21 @@
         <div class="info-row">
             <span>Kasir: {{ $sale->creator?->name ?? 'Kasir' }}</span>
             <span class="uppercase">Bayar: {{ $sale->payment_method ?? 'TUNAI' }}</span>
+        </div>
+
+        @php
+            $receiptCustomer = $sale->customer;
+            $customerTypeName = $sale->customerGroup?->name ?? 'Umum';
+        @endphp
+        <div class="customer-block">
+            @if ($receiptCustomer)
+                <p>Pelanggan: <span class="font-bold">{{ $receiptCustomer->name }}</span></p>
+                @if ($receiptCustomer->phone)
+                    <p>Telp: {{ $receiptCustomer->phone }}</p>
+                @endif
+            @else
+                <p>Pelanggan: <span class="font-bold">{{ $customerTypeName }}</span></p>
+            @endif
         </div>
 
         <div class="divider"></div>

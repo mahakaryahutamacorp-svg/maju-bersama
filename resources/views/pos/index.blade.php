@@ -17,7 +17,7 @@
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
     <div 
-        x-data="posApp({{ Js::from($products) }}, {{ Js::from($categories) }}, { hasActiveShift: {{ $hasActiveShift ? 'true' : 'false' }}, expectedBalance: {{ (float) $expectedBalance }}, branchId: {{ (int) $operatingBranch->id }} }, {{ Js::from($customers ?? []) }}, {{ Js::from($customerGroups ?? []) }})" 
+        x-data="posApp({{ Js::from($products) }}, {{ Js::from($categories) }}, { hasActiveShift: {{ $hasActiveShift ? 'true' : 'false' }}, expectedBalance: {{ (float) $expectedBalance }}, branchId: {{ (int) $operatingBranch->id }}, cashierName: {{ Js::from($currentUser->name) }} }, {{ Js::from($customers ?? []) }}, {{ Js::from($customerGroups ?? []) }})" 
         class="min-h-screen flex flex-col"
         @keydown.window.escape="handleEscapeKey()"
     >
@@ -251,14 +251,37 @@
                         <h2 class="text-base font-bold text-slate-900">Rincian Transaksi</h2>
                         <p class="text-xs text-slate-500" x-text="totalItems + ' item barang'"></p>
                     </div>
-                    <button 
-                        type="button" 
-                        x-show="cart.length > 0" 
-                        @click="clearCart()" 
-                        class="text-xs font-semibold text-rose-600 hover:underline"
-                    >
-                        Kosongkan
-                    </button>
+                    <div class="flex flex-wrap items-center justify-end gap-2">
+                        <button
+                            type="button"
+                            x-show="heldSales.length > 0"
+                            x-cloak
+                            @click="heldListOpen = true"
+                            class="relative inline-flex items-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800 hover:bg-amber-100"
+                            title="Lihat transaksi yang ditunda"
+                        >
+                            Tertunda
+                            <span class="rounded-full bg-amber-500 px-1.5 text-[10px] text-white" x-text="heldSales.length"></span>
+                        </button>
+                        <button
+                            type="button"
+                            x-show="cart.length > 0"
+                            x-cloak
+                            @click="holdCurrentSale()"
+                            class="rounded-lg border border-sky-300 bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-800 hover:bg-sky-100"
+                            title="Simpan transaksi ini sementara untuk melayani pembeli lain"
+                        >
+                            Tunda
+                        </button>
+                        <button 
+                            type="button" 
+                            x-show="cart.length > 0" 
+                            @click="clearCart()" 
+                            class="text-xs font-semibold text-rose-600 hover:underline"
+                        >
+                            Kosongkan
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Dropdown Tipe Pelanggan (Customer Groups: Umum, Petani, Retailer) -->
@@ -1236,6 +1259,70 @@
             </div>
         </div>
         @endif
+
+        <!-- ======================================================== -->
+        <!-- MODAL: DAFTAR TRANSAKSI TERTUNDA                          -->
+        <!-- ======================================================== -->
+        <div
+            x-show="heldListOpen"
+            x-cloak
+            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm"
+        >
+            <div
+                class="relative w-full max-w-lg overflow-hidden rounded-2xl bg-white shadow-2xl"
+                @click.away="heldListOpen = false"
+            >
+                <div class="bg-amber-500 px-6 py-4 text-white flex items-center justify-between">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-wider text-amber-100">Kasir</p>
+                        <h2 class="text-lg font-bold">Transaksi Tertunda</h2>
+                    </div>
+                    <button
+                        type="button"
+                        @click="heldListOpen = false"
+                        class="text-white hover:text-amber-100 text-xl font-bold"
+                    >&times;</button>
+                </div>
+
+                <div class="max-h-[60vh] overflow-y-auto divide-y divide-slate-100">
+                    <template x-for="held in heldSales" :key="held.id">
+                        <div class="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div class="min-w-0">
+                                <p class="truncate text-sm font-bold text-slate-900" x-text="held.label || heldCustomerLabel(held)"></p>
+                                <p class="text-xs text-slate-500">
+                                    <span x-text="heldCustomerLabel(held)"></span>
+                                    · <span x-text="heldItemCount(held) + ' item'"></span>
+                                    · <span class="font-semibold text-slate-700" x-text="formatRupiah(held.total)"></span>
+                                </p>
+                                <p class="text-[11px] text-slate-400">
+                                    <span x-text="formatHeldTime(held.held_at)"></span>
+                                    <span x-show="held.held_by" x-text="'· ' + held.held_by"></span>
+                                </p>
+                            </div>
+                            <div class="flex shrink-0 items-center gap-2">
+                                <button
+                                    type="button"
+                                    @click="deleteHeldSale(held.id)"
+                                    class="rounded-xl border border-rose-200 bg-white px-3 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50"
+                                >
+                                    Hapus
+                                </button>
+                                <button
+                                    type="button"
+                                    @click="resumeHeldSale(held.id)"
+                                    class="rounded-xl bg-indigo-600 px-4 py-1.5 text-xs font-bold text-white shadow-md hover:bg-indigo-700"
+                                >
+                                    Lanjutkan
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                    <p x-show="heldSales.length === 0" class="px-6 py-8 text-center text-sm text-slate-500">
+                        Tidak ada transaksi tertunda.
+                    </p>
+                </div>
+            </div>
+        </div>
     </div>
 
     @include('inventory.partials.smart-search-script')
@@ -1280,9 +1367,19 @@
                 loading: false,
                 isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
                 showReceiptModal: false,
+                cashierName: shiftConfig.cashierName || '',
+                heldSales: [],
+                heldListOpen: false,
 
                 // Inisialisasi awal Alpine.js
                 init() {
+                    this.heldSales = this.loadHeldSales();
+                    window.addEventListener('storage', (event) => {
+                        if (event.key === this.heldSalesStorageKey()) {
+                            this.heldSales = this.loadHeldSales();
+                        }
+                    });
+
                     // 1. Jalankan sinkronisasi awal jika online saat aplikasi dimuat
                     if (navigator.onLine) {
                         this.syncOfflineSales();
@@ -1867,6 +1964,138 @@
                     }
                 },
 
+                // Transaksi tertunda disimpan per cabang di browser ini, bisa dilanjutkan kasir mana pun
+                heldSalesStorageKey() {
+                    return 'pos_held_sales_branch_' + (this.branchId || 'default');
+                },
+
+                loadHeldSales() {
+                    try {
+                        const parsed = JSON.parse(localStorage.getItem(this.heldSalesStorageKey()) || '[]');
+                        return Array.isArray(parsed)
+                            ? parsed.filter(held => held && Array.isArray(held.cart) && held.cart.length > 0)
+                            : [];
+                    } catch (err) {
+                        console.warn('[POS] Data transaksi tertunda tidak terbaca, diabaikan:', err);
+                        return [];
+                    }
+                },
+
+                persistHeldSales() {
+                    try {
+                        localStorage.setItem(this.heldSalesStorageKey(), JSON.stringify(this.heldSales));
+                        return true;
+                    } catch (err) {
+                        console.error('[POS] Gagal menyimpan transaksi tertunda:', err);
+                        alert('Gagal menyimpan transaksi tertunda di perangkat ini.');
+                        return false;
+                    }
+                },
+
+                holdCurrentSale() {
+                    if (this.cart.length === 0) return false;
+
+                    const labelInput = prompt('Catatan transaksi tertunda (opsional), mis. nama pembeli:', this.customerName || '');
+                    if (labelInput === null) return false;
+
+                    const snapshot = {
+                        id: Date.now() + Math.floor(Math.random() * 1000),
+                        label: labelInput.trim(),
+                        held_at: new Date().toISOString(),
+                        held_by: this.cashierName,
+                        cart: JSON.parse(JSON.stringify(this.cart)),
+                        discountAmount: Number(this.discountAmount || 0),
+                        customerId: this.customerId,
+                        customerQuery: this.customerQuery,
+                        customerName: this.customerName,
+                        customerGroupId: this.customerGroupId,
+                        customerGroupName: this.customerGroupName,
+                        total: this.grandTotal,
+                    };
+
+                    this.heldSales = [snapshot, ...this.heldSales];
+                    if (!this.persistHeldSales()) {
+                        this.heldSales = this.heldSales.filter(held => held.id !== snapshot.id);
+                        return false;
+                    }
+
+                    this.resetActiveSale();
+                    this.notifyScan('✓ Transaksi ditunda' + (snapshot.label ? ': ' + snapshot.label : ''));
+                    return true;
+                },
+
+                resetActiveSale() {
+                    const hadPriceTier = Boolean(this.customerId || this.customerGroupId);
+
+                    this.cart = [];
+                    this.discountAmount = 0;
+                    this.dueDate = '';
+                    this.customerId = '';
+                    this.customerQuery = '';
+                    this.customerName = '';
+                    this.customerGroupId = '';
+                    this.customerGroupName = '';
+                    this.customerOpen = false;
+                    this.customerShowAll = false;
+
+                    if (hadPriceTier) {
+                        this.fetchProducts();
+                    }
+                },
+
+                async resumeHeldSale(heldId) {
+                    const held = this.heldSales.find(item => item.id === heldId);
+                    if (!held) return;
+
+                    if (this.cart.length > 0) {
+                        if (!confirm('Transaksi yang sedang berjalan akan ditunda terlebih dahulu. Lanjutkan?')) return;
+                        if (!this.holdCurrentSale()) return;
+                    }
+
+                    this.heldSales = this.heldSales.filter(item => item.id !== heldId);
+                    this.persistHeldSales();
+
+                    const customerStillExists = held.customerId
+                        && (this.customers || []).some(c => String(c.id) === String(held.customerId));
+
+                    this.cart = held.cart;
+                    this.discountAmount = Number(held.discountAmount || 0);
+                    this.customerId = customerStillExists ? String(held.customerId) : '';
+                    this.customerQuery = customerStillExists ? (held.customerQuery || '') : '';
+                    this.customerName = customerStillExists ? (held.customerName || '') : '';
+                    this.customerGroupId = held.customerGroupId ? String(held.customerGroupId) : '';
+                    this.customerGroupName = held.customerGroupName || '';
+                    this.heldListOpen = false;
+
+                    await this.fetchProducts();
+                    await this.recalculateCartPrices();
+                    this.validateDiscount();
+                    this.notifyScan('✓ Transaksi tertunda dilanjutkan' + (held.label ? ': ' + held.label : ''));
+                },
+
+                deleteHeldSale(heldId) {
+                    if (!confirm('Hapus transaksi tertunda ini? Data tidak dapat dikembalikan.')) return;
+                    this.heldSales = this.heldSales.filter(item => item.id !== heldId);
+                    this.persistHeldSales();
+                    if (this.heldSales.length === 0) {
+                        this.heldListOpen = false;
+                    }
+                },
+
+                heldItemCount(held) {
+                    return DecimalMath.qty((held.cart || []).reduce((sum, item) => sum + Number(item.quantity || 0), 0));
+                },
+
+                heldCustomerLabel(held) {
+                    return held.customerName || held.customerGroupName || 'Umum';
+                },
+
+                formatHeldTime(iso) {
+                    const date = new Date(iso);
+                    if (Number.isNaN(date.getTime())) return '-';
+                    return date.toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+                },
+
                 // Buka Modal Pembayaran
                 openPaymentModal() {
                     if (!this.hasActiveShift) {
@@ -2128,6 +2357,8 @@
                         this.paymentModalOpen = false;
                     } else if (this.closeShiftModalOpen) {
                         this.closeShiftModalOpen = false;
+                    } else if (this.heldListOpen) {
+                        this.heldListOpen = false;
                     }
                 },
 

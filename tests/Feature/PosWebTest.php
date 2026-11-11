@@ -248,6 +248,105 @@ class PosWebTest extends TestCase
         $response->assertSee('25.000');
     }
 
+    public function test_thermal_receipt_shows_registered_customer_details(): void
+    {
+        $groupGrosir = CustomerGroup::firstOrCreate(['name' => 'Grosir']);
+        $customer = Customer::create([
+            'branch_id' => $this->branch->id,
+            'name' => 'Toko Tani Barokah',
+            'phone' => '08123456789',
+            'address' => 'Desa Makmur RT 02',
+            'customer_group_id' => $groupGrosir->id,
+        ]);
+
+        $sale = Sale::create([
+            'branch_id' => $this->branch->id,
+            'customer_id' => $customer->id,
+            'customer_group_id' => $groupGrosir->id,
+            'receipt_number' => 'INV-20261112-0001',
+            'total_amount' => 15000,
+            'payment_method' => 'cash',
+            'status' => 'completed',
+            'created_by' => $this->cashier->id,
+        ]);
+
+        $response = $this->actingAs($this->cashier)->get("/pos/receipt/{$sale->receipt_number}");
+
+        $response->assertOk();
+        $response->assertSee('Pelanggan:');
+        $response->assertSee('Toko Tani Barokah');
+        $response->assertSee('Telp: 08123456789');
+        $response->assertDontSee('Desa Makmur RT 02');
+        $response->assertDontSee('Tipe:');
+    }
+
+    public function test_thermal_receipt_shows_customer_type_for_walk_in_sale(): void
+    {
+        $groupPetani = CustomerGroup::firstOrCreate(['name' => 'Petani']);
+
+        $sale = Sale::create([
+            'branch_id' => $this->branch->id,
+            'customer_group_id' => $groupPetani->id,
+            'receipt_number' => 'INV-20261112-0002',
+            'total_amount' => 15000,
+            'payment_method' => 'cash',
+            'status' => 'completed',
+            'created_by' => $this->cashier->id,
+        ]);
+
+        $response = $this->actingAs($this->cashier)->get("/pos/receipt/{$sale->receipt_number}");
+
+        $response->assertOk();
+        $response->assertSeeInOrder(['Pelanggan:', 'Petani']);
+        $response->assertDontSee('Alamat:');
+    }
+
+    public function test_thermal_receipt_falls_back_to_umum_without_customer_or_type(): void
+    {
+        $sale = Sale::create([
+            'branch_id' => $this->branch->id,
+            'receipt_number' => 'INV-20261112-0003',
+            'total_amount' => 15000,
+            'payment_method' => 'cash',
+            'status' => 'completed',
+            'created_by' => $this->cashier->id,
+        ]);
+
+        $response = $this->actingAs($this->cashier)->get("/pos/receipt/{$sale->receipt_number}");
+
+        $response->assertOk();
+        $response->assertSeeInOrder(['Pelanggan:', 'Umum']);
+    }
+
+    public function test_checkout_stores_selected_customer_group_on_sale(): void
+    {
+        $groupGrosir = CustomerGroup::firstOrCreate(['name' => 'Grosir']);
+
+        $response = $this->actingAs($this->cashier)->postJson('/pos', [
+            'payment_method' => 'cash',
+            'customer_group_id' => $groupGrosir->id,
+            'items' => [
+                ['product_id' => $this->product->id, 'quantity' => 1],
+            ],
+        ]);
+
+        $response->assertCreated();
+
+        $sale = Sale::where('receipt_number', $response->json('receipt_number'))->firstOrFail();
+        $this->assertNull($sale->customer_id);
+        $this->assertEquals($groupGrosir->id, $sale->customer_group_id);
+    }
+
+    public function test_pos_screen_renders_hold_transaction_controls(): void
+    {
+        $response = $this->actingAs($this->cashier)->get('/pos');
+
+        $response->assertOk();
+        $response->assertSee('holdCurrentSale()', false);
+        $response->assertSee('Transaksi Tertunda');
+        $response->assertSee('pos_held_sales_branch_', false);
+    }
+
     public function test_cashier_can_create_customer_with_category_and_sync_to_pos(): void
     {
         $groupGrosir = CustomerGroup::firstOrCreate(

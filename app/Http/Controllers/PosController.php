@@ -262,7 +262,14 @@ class PosController extends Controller
      */
     public function receipt(Request $request, string $receiptNumber): View
     {
-        $sale = Sale::with(['branch', 'creator', 'items.product'])
+        $sale = Sale::with([
+            'branch',
+            'creator',
+            'items.product',
+            'customerGroup',
+            // Master bisa menjual ke pelanggan cabang lain, jadi scope cabang dilewati.
+            'customer' => fn ($query) => $query->withoutGlobalScopes(),
+        ])
             ->where('receipt_number', $receiptNumber)
             ->firstOrFail();
 
