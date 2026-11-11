@@ -159,6 +159,116 @@
                         </div>
                     </div>
 
+                    <!-- Cari Nama Debitur (filter faktur) -->
+                    <div>
+                        <label for="customer_search" class="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-slate-600">
+                            Cari Nama Debitur <span class="text-slate-400 font-normal lowercase">(opsional, untuk menyaring faktur)</span>
+                        </label>
+                        <div class="relative" @click.away="closeCustomerMenu()">
+                            <div class="relative">
+                                <svg class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z"/></svg>
+                                <input
+                                    type="text"
+                                    id="customer_search"
+                                    x-ref="customerSearch"
+                                    x-model="customerQuery"
+                                    @input="customerOpen = true; customerActive = 0"
+                                    @focus="openCustomerMenu($event)"
+                                    @click="customerOpen = true"
+                                    @keydown.arrow-down.prevent="moveCustomer(1)"
+                                    @keydown.arrow-up.prevent="moveCustomer(-1)"
+                                    @keydown.enter.prevent="confirmCustomer()"
+                                    @keydown.escape="closeCustomerMenu()"
+                                    @keydown.tab="closeCustomerMenu()"
+                                    autocomplete="off"
+                                    role="combobox"
+                                    aria-autocomplete="list"
+                                    aria-controls="customer_options"
+                                    :aria-expanded="customerOpen"
+                                    placeholder="Semua Debitur — ketik nama debitur, no. HP, atau no. faktur..."
+                                    class="w-full rounded-xl border border-slate-300 bg-white py-2.5 pl-10 pr-20 text-sm font-semibold text-slate-900 shadow-2xs outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+                                >
+                                <div class="absolute inset-y-0 right-0 flex items-center gap-1 pr-2">
+                                    <button
+                                        type="button"
+                                        x-show="customerKey || customerQuery"
+                                        x-cloak
+                                        @click="selectCustomer(null)"
+                                        class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                                        aria-label="Hapus pilihan debitur"
+                                    >
+                                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        @click="customerOpen ? closeCustomerMenu() : (customerOpen = true, $refs.customerSearch?.focus())"
+                                        class="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                                        aria-label="Tampilkan daftar debitur"
+                                    >
+                                        <svg class="h-4 w-4 transition-transform" :class="customerOpen ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <ul
+                                id="customer_options"
+                                x-show="customerOpen"
+                                x-cloak
+                                x-ref="customerList"
+                                role="listbox"
+                                class="absolute z-30 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
+                            >
+                                <template x-if="!customerQuery.trim() || customerQuery === selectedCustomerName()">
+                                    <li>
+                                        <button
+                                            type="button"
+                                            @click="selectCustomer(null)"
+                                            class="flex w-full items-center justify-between gap-3 px-4 py-2 text-left text-sm hover:bg-sky-50"
+                                            :class="!customerKey ? 'font-bold text-sky-700' : 'text-slate-700'"
+                                        >
+                                            <span>Semua Debitur</span>
+                                            <span class="shrink-0 text-xs text-slate-500" x-text="salesList.length + ' faktur'"></span>
+                                        </button>
+                                    </li>
+                                </template>
+                                <template x-for="(customer, resultIndex) in customerResults()" :key="customer.key">
+                                    <li>
+                                        <button
+                                            type="button"
+                                            role="option"
+                                            :data-customer-index="resultIndex"
+                                            :aria-selected="customer.key === customerKey"
+                                            @mouseenter="customerActive = resultIndex"
+                                            @click="selectCustomer(customer)"
+                                            :class="resultIndex === customerActive ? 'bg-sky-50' : ''"
+                                            class="flex w-full items-center justify-between gap-3 px-4 py-2 text-left text-sm hover:bg-sky-50"
+                                        >
+                                            <span class="min-w-0">
+                                                <span class="block truncate font-semibold text-slate-900" :class="customer.key === customerKey ? 'text-sky-700' : ''" x-html="highlightMatch(customer.name)"></span>
+                                                <span class="block truncate text-xs text-slate-500">
+                                                    <span x-show="customer.phone" x-html="highlightMatch(customer.phone || '')"></span>
+                                                    <span x-show="customer.phone && matchedReceipt(customer)"> · </span>
+                                                    <span x-show="matchedReceipt(customer)" class="font-mono" x-html="highlightMatch(matchedReceipt(customer) || '')"></span>
+                                                </span>
+                                            </span>
+                                            <span class="shrink-0 text-right">
+                                                <span class="block text-xs font-bold text-amber-600" x-text="formatRupiah(customer.remaining)"></span>
+                                                <span class="block text-[11px] text-slate-500" x-text="customer.invoice_count + ' faktur'"></span>
+                                            </span>
+                                        </button>
+                                    </li>
+                                </template>
+                                <li x-show="customerResults().length === 0" class="px-4 py-3 text-sm text-slate-500">
+                                    Debitur tidak ditemukan. Coba nama, no. HP, atau no. faktur.
+                                </li>
+                            </ul>
+                        </div>
+                        <p class="mt-1 text-xs text-slate-500" x-show="customerKey" x-cloak>
+                            Menampilkan <span class="font-semibold text-slate-700" x-text="visibleSales().length"></span> faktur milik debitur ini · sisa piutang
+                            <span class="font-semibold text-amber-600" x-text="formatRupiah(visibleSales().reduce((sum, s) => sum + s.remaining, 0))"></span>
+                        </p>
+                    </div>
+
                     <div class="overflow-x-auto rounded-xl border border-slate-200">
                         <table class="min-w-full divide-y divide-slate-200 text-left text-xs">
                             <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
@@ -175,7 +285,7 @@
                             </thead>
                             <tbody class="divide-y divide-slate-100 bg-white [&>tr:nth-child(even)]:bg-slate-50/60">
                                 <template x-for="(sale, index) in salesList" :key="sale.id">
-                                    <tr :class="sale.selected ? 'bg-emerald-50/40' : ''">
+                                    <tr x-show="isSaleVisible(sale)" :class="sale.selected ? 'bg-emerald-50/40' : ''">
                                         <td class="px-4 py-3 text-center">
                                             <input 
                                                 type="checkbox" 
@@ -219,6 +329,13 @@
                                     <tr>
                                         <td colspan="8" class="px-4 py-8 text-center text-slate-400 italic">
                                             Tidak ada faktur penjualan yang memiliki piutang (semua lunas).
+                                        </td>
+                                    </tr>
+                                </template>
+                                <template x-if="salesList.length > 0 && visibleSales().length === 0">
+                                    <tr>
+                                        <td colspan="8" class="px-4 py-8 text-center text-slate-400 italic">
+                                            Tidak ada faktur piutang untuk debitur yang dipilih.
                                         </td>
                                     </tr>
                                 </template>
@@ -304,20 +421,74 @@
     <x-slot:scripts>
     <script>
         function arPaymentForm(cashBankAccounts, unpaidSales) {
+            const normalizeSearch = (value) => String(value ?? '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .trim();
+
+            const escapeHtml = (value) => String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+
+            const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+            const salesList = (unpaidSales || []).map(s => ({
+                id: s.id,
+                receipt_number: s.receipt_number,
+                customer_key: s.customer_id ? 'customer-' + s.customer_id : 'walk-in',
+                customer_phone: s.customer_phone || '',
+                customer_name: s.customer_name || 'Pelanggan Umum',
+                sale_date: s.sale_date || '-',
+                description: s.description || 'Piutang penjualan',
+                total_amount: parseFloat(s.total_amount) || 0,
+                paid_amount: parseFloat(s.paid_amount) || 0,
+                remaining: Math.max(0, (parseFloat(s.total_amount) || 0) - (parseFloat(s.paid_amount) || 0)),
+                selected: false,
+                allocated_amount: 0,
+            }));
+
+            const customerMap = new Map();
+            for (const sale of salesList) {
+                if (!customerMap.has(sale.customer_key)) {
+                    customerMap.set(sale.customer_key, {
+                        key: sale.customer_key,
+                        name: sale.customer_name,
+                        phone: sale.customer_phone,
+                        receipts: [],
+                        invoice_count: 0,
+                        remaining: 0,
+                    });
+                }
+                const customer = customerMap.get(sale.customer_key);
+                customer.receipts.push(sale.receipt_number || '');
+                customer.invoice_count += 1;
+                customer.remaining += sale.remaining;
+            }
+            const customers = [...customerMap.values()]
+                .map(customer => ({
+                    ...customer,
+                    searchName: normalizeSearch(customer.name),
+                    searchText: normalizeSearch([
+                        customer.name,
+                        customer.phone,
+                        String(customer.phone || '').replace(/\D/g, ''),
+                        ...customer.receipts,
+                    ].join(' ')),
+                }))
+                .sort((a, b) => a.name.localeCompare(b.name, 'id', { sensitivity: 'base' }));
+
             return {
                 cashBankAccounts: cashBankAccounts || [],
-                salesList: (unpaidSales || []).map(s => ({
-                    id: s.id,
-                    receipt_number: s.receipt_number,
-                    customer_name: s.customer_name || 'Pelanggan Umum',
-                    sale_date: s.sale_date || '-',
-                    description: s.description || 'Piutang penjualan',
-                    total_amount: parseFloat(s.total_amount) || 0,
-                    paid_amount: parseFloat(s.paid_amount) || 0,
-                    remaining: Math.max(0, (parseFloat(s.total_amount) || 0) - (parseFloat(s.paid_amount) || 0)),
-                    selected: false,
-                    allocated_amount: 0,
-                })),
+                salesList,
+                customers,
+                customerKey: '',
+                customerQuery: '',
+                customerOpen: false,
+                customerActive: 0,
                 accountId: '',
                 paymentDate: '{{ $todayDate ?? now()->toDateString() }}',
                 referenceNumber: '',
@@ -332,10 +503,122 @@
                     }
                 },
 
+                selectedCustomerName() {
+                    const customer = this.customers.find(c => c.key === this.customerKey);
+                    return customer ? customer.name : '';
+                },
+
+                searchTokens() {
+                    const query = this.customerQuery === this.selectedCustomerName() ? '' : this.customerQuery;
+                    return normalizeSearch(query).split(/\s+/).filter(Boolean);
+                },
+
+                customerResults() {
+                    const tokens = this.searchTokens();
+                    if (tokens.length === 0) {
+                        return this.customers;
+                    }
+
+                    return this.customers
+                        .filter(customer => tokens.every(token => customer.searchText.includes(token)))
+                        .map(customer => {
+                            const fullQuery = tokens.join(' ');
+                            let rank = 3;
+                            if (customer.searchName.startsWith(fullQuery)) rank = 0;
+                            else if (customer.searchName.split(/\s+/).some(word => word.startsWith(tokens[0]))) rank = 1;
+                            else if (tokens.every(token => customer.searchName.includes(token))) rank = 2;
+                            return { customer, rank };
+                        })
+                        .sort((a, b) => a.rank - b.rank || a.customer.name.localeCompare(b.customer.name, 'id', { sensitivity: 'base' }))
+                        .map(result => result.customer);
+                },
+
+                matchedReceipt(customer) {
+                    const tokens = this.searchTokens();
+                    if (tokens.length === 0) return '';
+                    return customer.receipts.find(receipt => tokens.some(token => normalizeSearch(receipt).includes(token))) || '';
+                },
+
+                highlightMatch(text) {
+                    const tokens = this.searchTokens();
+                    const safeText = escapeHtml(text);
+                    if (tokens.length === 0) return safeText;
+
+                    const pattern = new RegExp('(' + tokens.map(token => escapeRegExp(escapeHtml(token))).join('|') + ')', 'gi');
+                    return safeText.replace(pattern, '<mark class="rounded bg-amber-100 px-0.5 text-slate-900">$1</mark>');
+                },
+
+                openCustomerMenu(event) {
+                    this.customerOpen = true;
+                    this.customerActive = Math.max(0, this.customerResults().findIndex(c => c.key === this.customerKey));
+                    event?.target?.select?.();
+                },
+
+                closeCustomerMenu() {
+                    this.customerOpen = false;
+                    this.customerQuery = this.selectedCustomerName();
+                },
+
+                moveCustomer(step) {
+                    const total = this.customerResults().length;
+                    if (!this.customerOpen) {
+                        this.customerOpen = true;
+                        return;
+                    }
+                    if (total === 0) return;
+                    this.customerActive = (this.customerActive + step + total) % total;
+                    this.$nextTick(() => {
+                        this.$refs.customerList
+                            ?.querySelector(`[data-customer-index="${this.customerActive}"]`)
+                            ?.scrollIntoView({ block: 'nearest' });
+                    });
+                },
+
+                confirmCustomer() {
+                    if (!this.customerOpen) {
+                        this.customerOpen = true;
+                        return;
+                    }
+                    if (this.customerQuery.trim() === '') {
+                        this.selectCustomer(null);
+                        return;
+                    }
+                    const customer = this.customerResults()[this.customerActive];
+                    if (customer) this.selectCustomer(customer);
+                },
+
+                selectCustomer(customer) {
+                    this.customerKey = customer ? customer.key : '';
+                    this.customerQuery = customer ? customer.name : '';
+                    this.customerOpen = false;
+                    this.customerActive = 0;
+
+                    for (const sale of this.salesList) {
+                        if (!this.isSaleVisible(sale)) {
+                            sale.selected = false;
+                            sale.allocated_amount = 0;
+                        }
+                    }
+                    if (this.amount > 0) {
+                        this.autoDistributeAllocations();
+                    }
+                },
+
+                isSaleVisible(sale) {
+                    return !this.customerKey || sale.customer_key === this.customerKey;
+                },
+
+                visibleSales() {
+                    return this.salesList.filter(sale => this.isSaleVisible(sale));
+                },
+
                 autoDistributeAllocations() {
                     let unallocated = this.amount;
                     for (let s of this.salesList) {
-                        if (unallocated > 0) {
+                        if (!this.isSaleVisible(s)) {
+                            s.selected = false;
+                            s.allocated_amount = 0;
+                        } else if (unallocated > 0) {
                             s.selected = true;
                             let alloc = Math.min(unallocated, s.remaining);
                             s.allocated_amount = alloc;

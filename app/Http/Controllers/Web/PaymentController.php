@@ -85,7 +85,9 @@ class PaymentController extends Controller
             ->map(fn (Sale $sale) => [
                 'id' => $sale->id,
                 'receipt_number' => $sale->receipt_number,
+                'customer_id' => $sale->customer_id,
                 'customer_name' => $sale->customer?->name ?: 'Pelanggan Umum',
+                'customer_phone' => $sale->customer?->phone,
                 'sale_date' => $sale->created_at?->timezone(config('app.timezone'))->format('d/m/Y') ?? '-',
                 'description' => $this->receivableDescription($sale),
                 'total_amount' => $sale->total_amount,

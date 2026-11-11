@@ -157,6 +157,38 @@ class PaymentWebTest extends TestCase
         $this->assertStringContainsString($saleDate, str_replace('\\', '', $response->getContent()));
     }
 
+    public function test_receivable_payment_form_provides_customer_smart_search_data(): void
+    {
+        $this->actingAs($this->user);
+
+        $customer = Customer::create([
+            'branch_id' => $this->branch->id,
+            'name' => 'Pak Joko Pelanggan',
+            'phone' => '0813555777',
+        ]);
+
+        Sale::create([
+            'branch_id' => $this->branch->id,
+            'customer_id' => $customer->id,
+            'receipt_number' => 'INV-JOKO-01',
+            'total_amount' => 150000,
+            'paid_amount' => 0,
+            'payment_status' => 'UNPAID',
+            'payment_method' => 'tempo',
+            'status' => 'completed',
+            'created_by' => $this->user->id,
+        ]);
+
+        $content = str_replace('\\', '', $this->get(route('backoffice.payments.receivables.create'))
+            ->assertOk()
+            ->assertSee('Cari Nama Debitur', false)
+            ->assertSee('id="customer_search"', false)
+            ->getContent());
+
+        $this->assertStringContainsString('u0022customer_idu0022:'.$customer->id, $content);
+        $this->assertStringContainsString('u0022customer_phoneu0022:u00220813555777u0022', $content);
+    }
+
     /**
      * Skenario 1: Bayar cicilan Piutang (AR).
      * Pastikan status sales berubah menjadi 'PARTIAL' dan jurnal terbuat seimbang.
