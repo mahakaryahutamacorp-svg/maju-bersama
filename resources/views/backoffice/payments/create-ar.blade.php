@@ -172,7 +172,7 @@
                                     id="customer_search"
                                     x-ref="customerSearch"
                                     x-model="customerQuery"
-                                    @input="customerOpen = true; customerActive = 0"
+                                    @input="onCustomerInput()"
                                     @focus="openCustomerMenu($event)"
                                     @click="customerOpen = true"
                                     @keydown.arrow-down.prevent="moveCustomer(1)"
@@ -258,12 +258,19 @@
                                         </button>
                                     </li>
                                 </template>
-                                <li x-show="customerResults().length === 0" class="px-4 py-3 text-sm text-slate-500">
+                                <li x-show="remoteLoading" class="px-4 py-2 text-xs italic text-slate-400">
+                                    Mencari di seluruh data piutang...
+                                </li>
+                                <li x-show="!remoteLoading && customerResults().length === 0" class="px-4 py-3 text-sm text-slate-500">
                                     Debitur tidak ditemukan. Coba nama, no. HP, atau no. faktur.
                                 </li>
                             </ul>
                         </div>
-                        <p class="mt-1 text-xs text-slate-500" x-show="customerKey" x-cloak>
+                        <p class="mt-1 text-xs italic text-slate-400" x-show="customerKey && debtorSalesLoading" x-cloak>
+                            Memuat seluruh faktur belum lunas debitur ini...
+                        </p>
+                        <p class="mt-1 text-xs font-semibold text-rose-600" x-show="customerKey && debtorSalesError" x-cloak x-text="debtorSalesError"></p>
+                        <p class="mt-1 text-xs text-slate-500" x-show="customerKey && !debtorSalesLoading" x-cloak>
                             Menampilkan <span class="font-semibold text-slate-700" x-text="visibleSales().length"></span> faktur milik debitur ini · sisa piutang
                             <span class="font-semibold text-amber-600" x-text="formatRupiah(visibleSales().reduce((sum, s) => sum + s.remaining, 0))"></span>
                         </p>
@@ -332,7 +339,7 @@
                                         </td>
                                     </tr>
                                 </template>
-                                <template x-if="salesList.length > 0 && visibleSales().length === 0">
+                                <template x-if="salesList.length > 0 && visibleSales().length === 0 && !debtorSalesLoading">
                                     <tr>
                                         <td colspan="8" class="px-4 py-8 text-center text-slate-400 italic">
                                             Tidak ada faktur piutang untuk debitur yang dipilih.
@@ -436,10 +443,41 @@
 
             const escapeRegExp = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
-            const salesList = (unpaidSales || []).map(s => ({
+            const debtorSearchUrl = @js(route('backoffice.payments.receivables.debtors'));
+            const debtorSalesUrl = @js(route('backoffice.payments.receivables.debtor-sales'));
+
+            const customerKeyOf = (customerId) => customerId ? 'customer-' + customerId : 'walk-in';
+
+            const prepareCustomer = (customer) => ({
+                ...customer,
+                receipts: customer.receipts || [],
+                searchName: normalizeSearch(customer.name),
+                searchText: normalizeSearch([
+                    customer.name,
+                    customer.phone,
+                    String(customer.phone || '').replace(/\D/g, ''),
+                    ...(customer.receipts || []),
+                ].join(' ')),
+            });
+
+            const rankCustomers = (list, tokens) => {
+                const fullQuery = tokens.join(' ');
+                return list
+                    .map(customer => {
+                        let rank = 3;
+                        if (customer.searchName.startsWith(fullQuery)) rank = 0;
+                        else if (customer.searchName.split(/\s+/).some(word => word.startsWith(tokens[0]))) rank = 1;
+                        else if (tokens.every(token => customer.searchName.includes(token))) rank = 2;
+                        return { customer, rank };
+                    })
+                    .sort((a, b) => a.rank - b.rank || a.customer.name.localeCompare(b.customer.name, 'id', { sensitivity: 'base' }))
+                    .map(result => result.customer);
+            };
+
+            const mapSale = (s) => ({
                 id: s.id,
                 receipt_number: s.receipt_number,
-                customer_key: s.customer_id ? 'customer-' + s.customer_id : 'walk-in',
+                customer_key: customerKeyOf(s.customer_id),
                 customer_phone: s.customer_phone || '',
                 customer_name: s.customer_name || 'Pelanggan Umum',
                 sale_date: s.sale_date || '-',
@@ -449,7 +487,9 @@
                 remaining: Math.max(0, (parseFloat(s.total_amount) || 0) - (parseFloat(s.paid_amount) || 0)),
                 selected: false,
                 allocated_amount: 0,
-            }));
+            });
+
+            const salesList = (unpaidSales || []).map(mapSale);
 
             const customerMap = new Map();
             for (const sale of salesList) {
@@ -469,16 +509,7 @@
                 customer.remaining += sale.remaining;
             }
             const customers = [...customerMap.values()]
-                .map(customer => ({
-                    ...customer,
-                    searchName: normalizeSearch(customer.name),
-                    searchText: normalizeSearch([
-                        customer.name,
-                        customer.phone,
-                        String(customer.phone || '').replace(/\D/g, ''),
-                        ...customer.receipts,
-                    ].join(' ')),
-                }))
+                .map(prepareCustomer)
                 .sort((a, b) => a.name.localeCompare(b.name, 'id', { sensitivity: 'base' }));
 
             return {
@@ -489,6 +520,12 @@
                 customerQuery: '',
                 customerOpen: false,
                 customerActive: 0,
+                remoteDebtors: [],
+                remoteQueryKey: '',
+                remoteLoading: false,
+                remoteSearchTimer: null,
+                debtorSalesLoading: false,
+                debtorSalesError: '',
                 accountId: '',
                 paymentDate: '{{ $todayDate ?? now()->toDateString() }}',
                 referenceNumber: '',
@@ -519,18 +556,106 @@
                         return this.customers;
                     }
 
-                    return this.customers
-                        .filter(customer => tokens.every(token => customer.searchText.includes(token)))
-                        .map(customer => {
-                            const fullQuery = tokens.join(' ');
-                            let rank = 3;
-                            if (customer.searchName.startsWith(fullQuery)) rank = 0;
-                            else if (customer.searchName.split(/\s+/).some(word => word.startsWith(tokens[0]))) rank = 1;
-                            else if (tokens.every(token => customer.searchName.includes(token))) rank = 2;
-                            return { customer, rank };
-                        })
-                        .sort((a, b) => a.rank - b.rank || a.customer.name.localeCompare(b.customer.name, 'id', { sensitivity: 'base' }))
-                        .map(result => result.customer);
+                    const merged = new Map();
+                    for (const customer of this.customers) {
+                        if (tokens.every(token => customer.searchText.includes(token))) {
+                            merged.set(customer.key, customer);
+                        }
+                    }
+                    if (this.remoteQueryKey === tokens.join(' ')) {
+                        for (const debtor of this.remoteDebtors) {
+                            const local = merged.get(debtor.key);
+                            merged.set(debtor.key, local ? { ...debtor, receipts: local.receipts } : debtor);
+                        }
+                    }
+
+                    return rankCustomers([...merged.values()], tokens);
+                },
+
+                onCustomerInput() {
+                    this.customerOpen = true;
+                    this.customerActive = 0;
+
+                    clearTimeout(this.remoteSearchTimer);
+                    const queryKey = this.searchTokens().join(' ');
+                    if (queryKey === '') {
+                        this.remoteLoading = false;
+                        return;
+                    }
+                    this.remoteLoading = true;
+                    this.remoteSearchTimer = setTimeout(() => this.fetchRemoteDebtors(queryKey), 250);
+                },
+
+                async fetchRemoteDebtors(queryKey) {
+                    try {
+                        const url = new URL(debtorSearchUrl, window.location.origin);
+                        url.searchParams.set('q', queryKey);
+                        const response = await fetch(url, {
+                            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        });
+                        if (!response.ok) throw new Error('HTTP ' + response.status);
+                        const data = await response.json();
+
+                        if (queryKey !== this.searchTokens().join(' ')) return;
+
+                        this.remoteDebtors = (data.debtors || []).map(debtor => prepareCustomer({
+                            key: customerKeyOf(debtor.customer_id),
+                            name: debtor.name || 'Pelanggan Umum',
+                            phone: debtor.phone || '',
+                            invoice_count: Number(debtor.invoice_count) || 0,
+                            remaining: parseFloat(debtor.remaining) || 0,
+                        }));
+                        this.remoteQueryKey = queryKey;
+                    } catch (error) {
+                        console.error('Pencarian debitur gagal:', error);
+                    } finally {
+                        if (queryKey === this.searchTokens().join(' ')) {
+                            this.remoteLoading = false;
+                        }
+                    }
+                },
+
+                async loadDebtorSales(customer) {
+                    const requestedKey = customer.key;
+                    this.debtorSalesLoading = true;
+                    this.debtorSalesError = '';
+
+                    try {
+                        const url = new URL(debtorSalesUrl, window.location.origin);
+                        url.searchParams.set('customer', requestedKey === 'walk-in' ? 'walk-in' : requestedKey.replace('customer-', ''));
+                        const response = await fetch(url, {
+                            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        });
+                        if (!response.ok) throw new Error('HTTP ' + response.status);
+                        const data = await response.json();
+
+                        const loadedIds = new Set(this.salesList.map(sale => sale.id));
+                        for (const sale of data.sales || []) {
+                            if (!loadedIds.has(sale.id)) {
+                                this.salesList.push(mapSale(sale));
+                            }
+                        }
+
+                        const index = this.customers.findIndex(c => c.key === requestedKey);
+                        if (index !== -1) {
+                            const ownedSales = this.salesList.filter(sale => sale.customer_key === requestedKey);
+                            this.customers.splice(index, 1, prepareCustomer({
+                                ...this.customers[index],
+                                receipts: ownedSales.map(sale => sale.receipt_number || ''),
+                                invoice_count: ownedSales.length,
+                                remaining: ownedSales.reduce((sum, sale) => sum + sale.remaining, 0),
+                            }));
+                        }
+                    } catch (error) {
+                        console.error('Gagal memuat faktur debitur:', error);
+                        if (this.customerKey === requestedKey) {
+                            this.debtorSalesError = 'Sebagian faktur lama debitur ini gagal dimuat. Muat ulang halaman bila faktur yang dicari tidak tampil.';
+                        }
+                    } finally {
+                        if (this.customerKey === requestedKey) {
+                            this.debtorSalesLoading = false;
+                        }
+                    }
                 },
 
                 matchedReceipt(customer) {
@@ -587,7 +712,19 @@
                     if (customer) this.selectCustomer(customer);
                 },
 
-                selectCustomer(customer) {
+                async selectCustomer(customer) {
+                    if (customer) {
+                        const index = this.customers.findIndex(c => c.key === customer.key);
+                        if (index === -1) {
+                            this.customers.push(customer);
+                            this.customers.sort((a, b) => a.name.localeCompare(b.name, 'id', { sensitivity: 'base' }));
+                        }
+                    }
+
+                    clearTimeout(this.remoteSearchTimer);
+                    this.remoteLoading = false;
+                    this.debtorSalesLoading = false;
+                    this.debtorSalesError = '';
                     this.customerKey = customer ? customer.key : '';
                     this.customerQuery = customer ? customer.name : '';
                     this.customerOpen = false;
@@ -599,6 +736,12 @@
                             sale.allocated_amount = 0;
                         }
                     }
+
+                    if (customer) {
+                        await this.loadDebtorSales(customer);
+                        if (this.customerKey !== customer.key) return;
+                    }
+
                     if (this.amount > 0) {
                         this.autoDistributeAllocations();
                     }

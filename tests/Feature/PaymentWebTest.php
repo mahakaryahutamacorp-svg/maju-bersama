@@ -189,6 +189,136 @@ class PaymentWebTest extends TestCase
         $this->assertStringContainsString('u0022customer_phoneu0022:u00220813555777u0022', $content);
     }
 
+    public function test_debtor_search_reaches_debtors_outside_latest_fifty_invoices(): void
+    {
+        $this->actingAs($this->user);
+
+        $oldDebtor = Customer::create([
+            'branch_id' => $this->branch->id,
+            'name' => 'Bu Sri Lama',
+            'phone' => '0815999000',
+        ]);
+        $this->createReceivable('INV-SRI-OLD-01', 300000, 100000, 'PARTIAL', $oldDebtor->id);
+        $this->createReceivable('INV-SRI-OLD-02', 200000, 0, 'UNPAID', $oldDebtor->id);
+        $this->createReceivable('INV-SRI-LUNAS', 500000, 500000, 'PAID', $oldDebtor->id);
+
+        $busyDebtor = Customer::create([
+            'branch_id' => $this->branch->id,
+            'name' => 'Toko Ramai',
+        ]);
+        for ($i = 1; $i <= 55; $i++) {
+            $this->createReceivable(sprintf('INV-RAMAI-%03d', $i), 10000, 0, 'UNPAID', $busyDebtor->id);
+        }
+
+        $this->get(route('backoffice.payments.receivables.create'))
+            ->assertOk()
+            ->assertDontSee('INV-SRI-OLD-01', false);
+
+        $this->getJson(route('backoffice.payments.receivables.debtors', ['q' => 'sri']))
+            ->assertOk()
+            ->assertJsonCount(1, 'debtors')
+            ->assertJsonPath('debtors.0.customer_id', $oldDebtor->id)
+            ->assertJsonPath('debtors.0.name', 'Bu Sri Lama')
+            ->assertJsonPath('debtors.0.invoice_count', 2)
+            ->assertJsonPath('debtors.0.remaining', 400000);
+
+        $this->getJson(route('backoffice.payments.receivables.debtors', ['q' => 'INV-SRI-OLD-02']))
+            ->assertOk()
+            ->assertJsonPath('debtors.0.customer_id', $oldDebtor->id)
+            ->assertJsonPath('debtors.0.invoice_count', 2);
+
+        $sales = $this->getJson(route('backoffice.payments.receivables.debtor-sales', ['customer' => $oldDebtor->id]))
+            ->assertOk()
+            ->assertJsonCount(2, 'sales')
+            ->json('sales');
+
+        $this->assertEqualsCanonicalizing(
+            ['INV-SRI-OLD-01', 'INV-SRI-OLD-02'],
+            array_column($sales, 'receipt_number')
+        );
+
+        $this->assertDatabaseCount('payments', 0);
+        $this->assertDatabaseHas('sales', [
+            'receipt_number' => 'INV-SRI-OLD-01',
+            'paid_amount' => 100000,
+            'payment_status' => 'PARTIAL',
+        ]);
+    }
+
+    public function test_debtor_search_includes_walk_in_receivables(): void
+    {
+        $this->actingAs($this->user);
+
+        $this->createReceivable('INV-UMUM-01', 75000, 0, 'UNPAID');
+
+        $this->getJson(route('backoffice.payments.receivables.debtors', ['q' => 'INV-UMUM']))
+            ->assertOk()
+            ->assertJsonPath('debtors.0.customer_id', null)
+            ->assertJsonPath('debtors.0.name', 'Pelanggan Umum');
+
+        $this->getJson(route('backoffice.payments.receivables.debtor-sales', ['customer' => 'walk-in']))
+            ->assertOk()
+            ->assertJsonPath('sales.0.receipt_number', 'INV-UMUM-01');
+
+        $this->getJson(route('backoffice.payments.receivables.debtor-sales', ['customer' => 'abc']))
+            ->assertStatus(422);
+    }
+
+    public function test_debtor_search_respects_branch_scope(): void
+    {
+        $otherBranch = Branch::create([
+            'name' => 'Cabang Lain',
+            'code' => 'LAIN-01',
+            'address' => 'Jl. Lain',
+            'phone' => '0800',
+        ]);
+        $otherCustomer = Customer::create([
+            'branch_id' => $otherBranch->id,
+            'name' => 'Debitur Cabang Lain',
+        ]);
+        Sale::create([
+            'branch_id' => $otherBranch->id,
+            'customer_id' => $otherCustomer->id,
+            'receipt_number' => 'INV-LAIN-01',
+            'total_amount' => 90000,
+            'paid_amount' => 0,
+            'payment_status' => 'UNPAID',
+            'payment_method' => 'tempo',
+            'status' => 'completed',
+        ]);
+
+        $this->actingAs($this->user);
+
+        $this->getJson(route('backoffice.payments.receivables.debtors', ['q' => 'cabang lain']))
+            ->assertOk()
+            ->assertJsonCount(0, 'debtors');
+
+        $this->getJson(route('backoffice.payments.receivables.debtor-sales', ['customer' => $otherCustomer->id]))
+            ->assertOk()
+            ->assertJsonCount(0, 'sales');
+    }
+
+    public function test_guest_cannot_access_debtor_search_endpoints(): void
+    {
+        $this->get(route('backoffice.payments.receivables.debtors', ['q' => 'a']))->assertRedirect(route('login'));
+        $this->get(route('backoffice.payments.receivables.debtor-sales', ['customer' => 1]))->assertRedirect(route('login'));
+    }
+
+    private function createReceivable(string $receiptNumber, float $total, float $paid, string $status, ?int $customerId = null): Sale
+    {
+        return Sale::create([
+            'branch_id' => $this->branch->id,
+            'customer_id' => $customerId,
+            'receipt_number' => $receiptNumber,
+            'total_amount' => $total,
+            'paid_amount' => $paid,
+            'payment_status' => $status,
+            'payment_method' => 'tempo',
+            'status' => 'completed',
+            'created_by' => $this->user->id,
+        ]);
+    }
+
     /**
      * Skenario 1: Bayar cicilan Piutang (AR).
      * Pastikan status sales berubah menjadi 'PARTIAL' dan jurnal terbuat seimbang.

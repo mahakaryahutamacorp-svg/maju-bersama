@@ -82,17 +82,7 @@ class PaymentController extends Controller
             ->latest('id')
             ->limit(50)
             ->get()
-            ->map(fn (Sale $sale) => [
-                'id' => $sale->id,
-                'receipt_number' => $sale->receipt_number,
-                'customer_id' => $sale->customer_id,
-                'customer_name' => $sale->customer?->name ?: 'Pelanggan Umum',
-                'customer_phone' => $sale->customer?->phone,
-                'sale_date' => $sale->created_at?->timezone(config('app.timezone'))->format('d/m/Y') ?? '-',
-                'description' => $this->receivableDescription($sale),
-                'total_amount' => $sale->total_amount,
-                'paid_amount' => $sale->paid_amount,
-            ]);
+            ->map(fn (Sale $sale) => $this->receivableSalePayload($sale));
 
         return view('backoffice.payments.create-ar', [
             'currentUser' => $user,
@@ -136,6 +126,128 @@ class PaymentController extends Controller
         return redirect()
             ->route('backoffice.payments.index')
             ->with('success', "Penerimaan pembayaran piutang senilai {$formattedAmount} berhasil dibukukan dengan ref: {$payment->reference_number}.");
+    }
+
+    /**
+     * Cari debitur yang masih punya piutang (seluruh faktur, bukan hanya 50 terbaru).
+     */
+    public function searchReceivableDebtors(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+        ]);
+
+        $query = trim((string) ($validated['q'] ?? ''));
+        $tokens = collect(preg_split('/\s+/', mb_strtolower($query)))->filter()->take(5)->values();
+
+        $matchingCustomerIds = Sale::query()
+            ->leftJoin('customers', 'customers.id', '=', 'sales.customer_id')
+            ->where('sales.payment_status', '!=', 'PAID')
+            ->when($tokens->isNotEmpty(), function ($builder) use ($tokens) {
+                foreach ($tokens as $token) {
+                    $builder->where(function ($sub) use ($token) {
+                        $sub->where('customers.name', 'like', "%{$token}%")
+                            ->orWhere('customers.phone', 'like', "%{$token}%")
+                            ->orWhere('sales.receipt_number', 'like', "%{$token}%");
+                    });
+                }
+            })
+            ->distinct()
+            ->limit(30)
+            ->pluck('sales.customer_id');
+
+        if ($matchingCustomerIds->isEmpty()) {
+            return response()->json(['debtors' => []]);
+        }
+
+        $knownCustomerIds = $matchingCustomerIds->filter()->values();
+        $includesWalkIn = $matchingCustomerIds->contains(null);
+
+        $fullQuery = $tokens->implode(' ');
+        $firstToken = (string) $tokens->first();
+
+        $debtors = Sale::query()
+            ->leftJoin('customers', 'customers.id', '=', 'sales.customer_id')
+            ->where('sales.payment_status', '!=', 'PAID')
+            ->where(function ($builder) use ($knownCustomerIds, $includesWalkIn) {
+                $builder->whereIn('sales.customer_id', $knownCustomerIds->all());
+                if ($includesWalkIn) {
+                    $builder->orWhereNull('sales.customer_id');
+                }
+            })
+            ->groupBy('sales.customer_id', 'customers.name', 'customers.phone')
+            ->selectRaw('sales.customer_id, customers.name as customer_name, customers.phone as customer_phone, COUNT(*) as invoice_count, SUM(sales.total_amount - sales.paid_amount) as remaining_amount')
+            ->get()
+            ->map(function ($row) use ($fullQuery, $firstToken) {
+                $name = $row->customer_name ?: 'Pelanggan Umum';
+                $lowerName = mb_strtolower($name);
+
+                $rank = 3;
+                if ($fullQuery !== '' && str_starts_with($lowerName, $fullQuery)) {
+                    $rank = 0;
+                } elseif ($firstToken !== '' && collect(preg_split('/\s+/', $lowerName))->contains(fn ($word) => str_starts_with($word, $firstToken))) {
+                    $rank = 1;
+                } elseif ($firstToken !== '' && str_contains($lowerName, $firstToken)) {
+                    $rank = 2;
+                }
+
+                return [
+                    'customer_id' => $row->customer_id,
+                    'name' => $name,
+                    'phone' => $row->customer_phone,
+                    'invoice_count' => (int) $row->invoice_count,
+                    'remaining' => max(0, (float) $row->remaining_amount),
+                    'rank' => $rank,
+                ];
+            })
+            ->sortBy([['rank', 'asc'], ['name', 'asc']])
+            ->take(20)
+            ->map(fn (array $debtor) => collect($debtor)->except('rank')->all())
+            ->values();
+
+        return response()->json(['debtors' => $debtors]);
+    }
+
+    /**
+     * Semua faktur belum lunas milik satu debitur, untuk dimuat ke tabel alokasi.
+     */
+    public function receivableDebtorSales(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'customer' => ['required', 'string', 'regex:/^(walk-in|\d+)$/'],
+        ]);
+
+        $customer = $validated['customer'];
+
+        $sales = Sale::with(['customer', 'items.product'])
+            ->where('payment_status', '!=', 'PAID')
+            ->when(
+                $customer === 'walk-in',
+                fn ($builder) => $builder->whereNull('customer_id'),
+                fn ($builder) => $builder->where('customer_id', (int) $customer)
+            )
+            ->latest('id')
+            ->limit(500)
+            ->get()
+            ->map(fn (Sale $sale) => $this->receivableSalePayload($sale))
+            ->values();
+
+        return response()->json(['sales' => $sales]);
+    }
+
+    private function receivableSalePayload(Sale $sale): array
+    {
+        return [
+            'id' => $sale->id,
+            'receipt_number' => $sale->receipt_number,
+            'customer_id' => $sale->customer_id,
+            'customer_name' => $sale->customer?->name ?: 'Pelanggan Umum',
+            'customer_phone' => $sale->customer?->phone,
+            'sale_date' => $sale->created_at?->timezone(config('app.timezone'))->format('d/m/Y') ?? '-',
+            'description' => $this->receivableDescription($sale),
+            'total_amount' => $sale->total_amount,
+            'paid_amount' => $sale->paid_amount,
+        ];
     }
 
     private function receivableDescription(Sale $sale): string

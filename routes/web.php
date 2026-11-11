@@ -186,6 +186,12 @@ Route::middleware('auth')->group(function () {
             // Payments (Pembayaran Piutang & Hutang Operasional)
             Route::get('payments', [PaymentController::class, 'index'])->name('payments.index');
             Route::get('payments/receivables/create', [PaymentController::class, 'createAR'])->name('payments.receivables.create');
+            Route::get('payments/receivables/debtors', [PaymentController::class, 'searchReceivableDebtors'])
+                ->middleware('throttle:120,1')
+                ->name('payments.receivables.debtors');
+            Route::get('payments/receivables/debtor-sales', [PaymentController::class, 'receivableDebtorSales'])
+                ->middleware('throttle:120,1')
+                ->name('payments.receivables.debtor-sales');
             Route::post('payments/receivables', [PaymentController::class, 'storeAR'])->name('payments.receivables.store');
             Route::get('payments/payables/create', [PaymentController::class, 'createAP'])->name('payments.payables.create');
             Route::post('payments/payables', [PaymentController::class, 'storeAP'])->name('payments.payables.store');
