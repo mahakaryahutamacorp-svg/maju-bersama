@@ -29,6 +29,7 @@ class StoreCheckoutRequest extends FormRequest
             'items.*.quantity' => DecimalQuantity::rules(),
             'items.*.discount_amount' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'customer_id' => ['sometimes', 'nullable', 'integer'],
+            'customer_group_id' => ['sometimes', 'nullable', 'integer', 'exists:customer_groups,id'],
             'discount_amount' => ['sometimes', 'nullable', 'numeric', 'min:0'],
             'payment_method' => ['sometimes', 'nullable', 'string', 'max:255'],
         ];

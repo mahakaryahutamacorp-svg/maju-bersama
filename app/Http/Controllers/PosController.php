@@ -37,6 +37,7 @@ class PosController extends Controller
             'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
             'items.*.discount_amount' => ['nullable', 'numeric', 'min:0'],
             'customer_id' => ['nullable', 'integer'],
+            'customer_group_id' => ['nullable', 'integer', 'exists:customer_groups,id'],
             'payment_method' => ['nullable', 'string', 'max:255'],
             'discount_amount' => ['nullable', 'numeric', 'min:0'],
             'due_date' => ['nullable', 'date'],

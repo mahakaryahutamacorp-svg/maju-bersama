@@ -191,24 +191,31 @@ class Product extends Model
 
     /**
      * Helper untuk mengambil harga khusus sesuai grup pelanggan (Pricing Tier).
-     * Jika $groupId ada dan memiliki record di product_prices, kembalikan harga khusus tersebut.
-     * Jika tidak, kembalikan $this->price (Harga Dasar/Umum).
+     * Urutan: harga khusus grup, lalu tingkat harga yang sepadan dengan grup
+     * (grup "Grosir" memakai "Harga Grosir"), lalu $this->price (Harga Dasar/Umum).
      */
     public function getPriceForGroup(?int $groupId = null)
     {
-        if ($groupId !== null) {
-            $productPrice = null;
+        if ($groupId === null) {
+            return $this->price;
+        }
 
-            if ($this->relationLoaded('prices')) {
-                $productPrice = $this->prices->firstWhere('customer_group_id', $groupId);
-            } elseif ($this->relationLoaded('productPrices')) {
-                $productPrice = $this->productPrices->firstWhere('customer_group_id', $groupId);
-            } else {
-                $productPrice = $this->prices()->where('customer_group_id', $groupId)->first();
-            }
+        $prices = match (true) {
+            $this->relationLoaded('prices') => $this->prices,
+            $this->relationLoaded('productPrices') => $this->productPrices,
+            default => $this->prices()->get(),
+        };
 
-            if ($productPrice !== null && $productPrice->price !== null) {
-                return $productPrice->price;
+        $groupPrice = $prices->firstWhere('customer_group_id', $groupId);
+        if ($groupPrice !== null && $groupPrice->price !== null) {
+            return $groupPrice->price;
+        }
+
+        $priceLevelId = CustomerGroup::matchingPriceLevelId($groupId);
+        if ($priceLevelId !== null) {
+            $levelPrice = $prices->firstWhere('price_level_id', $priceLevelId);
+            if ($levelPrice !== null && $levelPrice->price !== null) {
+                return $levelPrice->price;
             }
         }
 

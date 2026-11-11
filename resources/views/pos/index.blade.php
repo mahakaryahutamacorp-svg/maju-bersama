@@ -314,7 +314,8 @@
                             type="text"
                             x-model="customerQuery"
                             @input="onCustomerQuery()"
-                            @focus="customerOpen = true"
+                            @focus="openCustomerList(); $event.target.select()"
+                            @click="openCustomerList()"
                             @keydown.arrow-down.prevent="moveCustomer(1)"
                             @keydown.arrow-up.prevent="moveCustomer(-1)"
                             @keydown.enter.prevent="confirmCustomer()"
@@ -330,7 +331,7 @@
                             class="absolute inset-y-0 right-2 text-[10px] font-bold text-slate-400 hover:text-rose-600"
                         >hapus</button>
                         <div
-                            x-show="customerOpen && customerQuery.trim() !== ''"
+                            x-show="customerOpen"
                             x-cloak
                             class="absolute z-30 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
                         >
@@ -354,7 +355,7 @@
                                     </span>
                                 </button>
                             </template>
-                            <p x-show="customerResults().length === 0" class="px-3 py-2 text-xs text-slate-500">Pelanggan tidak ditemukan. Gunakan + Pelanggan Baru.</p>
+                            <p x-show="customerResults().length === 0" class="px-3 py-2 text-xs text-slate-500" x-text="(customers || []).length === 0 ? 'Belum ada pelanggan terdaftar. Gunakan + Pelanggan Baru.' : 'Pelanggan tidak ditemukan. Gunakan + Pelanggan Baru.'"></p>
                         </div>
                     </div>
                 </div>
@@ -1256,6 +1257,7 @@
                 customerId: '',
                 customerQuery: '',
                 customerOpen: false,
+                customerShowAll: false,
                 customerActive: 0,
                 customerGroupId: '',
                 customerName: '',
@@ -1586,7 +1588,9 @@
 
                 customerResults() {
                     const query = (this.customerQuery || '').trim();
-                    if (!query) return [];
+                    if (!query || this.customerShowAll) {
+                        return [...(this.customers || [])].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'id'));
+                    }
                     const indexed = (this.customers || []).map(customer => ({
                         ...customer,
                         sku: customer.phone || '',
@@ -1594,18 +1598,37 @@
                     }));
                     return ProductSmartSearch.search(indexed, query, 12);
                 },
+                openCustomerList() {
+                    if (this.customerOpen) return;
+                    this.customerOpen = true;
+                    this.customerShowAll = true;
+                    const selectedIndex = this.customerResults().findIndex(c => String(c.id) === String(this.customerId));
+                    this.customerActive = Math.max(0, selectedIndex);
+                    this.scrollActiveCustomerIntoView();
+                },
                 onCustomerQuery() {
                     this.customerOpen = true;
+                    this.customerShowAll = false;
                     this.customerActive = 0;
-                    if ((this.customerQuery || '').trim() === '') {
+                    if ((this.customerQuery || '').trim() === '' && this.customerId) {
                         this.customerId = '';
                         this.onCustomerChange();
                     }
                 },
                 moveCustomer(step) {
+                    if (!this.customerOpen) {
+                        this.openCustomerList();
+                        return;
+                    }
                     const total = this.customerResults().length;
                     if (!total) return;
                     this.customerActive = (this.customerActive + step + total) % total;
+                    this.scrollActiveCustomerIntoView();
+                },
+                scrollActiveCustomerIntoView() {
+                    this.$nextTick(() => {
+                        this.$root.querySelectorAll('[data-customer-option]')[this.customerActive]?.scrollIntoView({ block: 'nearest' });
+                    });
                 },
                 confirmCustomer() {
                     const match = this.customerResults()[this.customerActive];
@@ -1615,12 +1638,14 @@
                     this.customerId = String(customer.id);
                     this.customerQuery = this.customerLabel(customer);
                     this.customerOpen = false;
+                    this.customerShowAll = false;
                     this.onCustomerChange();
                 },
                 clearCustomer() {
                     this.customerId = '';
                     this.customerQuery = '';
                     this.customerOpen = false;
+                    this.customerShowAll = false;
                     this.onCustomerChange();
                 },
                 customerLabel(customer) {
@@ -1637,7 +1662,10 @@
                             this.customerGroupName = selected?.customer_group?.name || '';
                         }
                     } else {
+                        // Tipe harga ikut dilepas agar pembeli berikutnya tidak mewarisi harga grosir
                         this.customerName = '';
+                        this.customerGroupId = '';
+                        this.customerGroupName = '';
                     }
 
                     await this.fetchProducts();
@@ -1901,6 +1929,7 @@
                     if (!navigator.onLine) {
                         const payload = {
                             customer_id: this.customerId ? Number(this.customerId) : null,
+                            customer_group_id: this.customerGroupId ? Number(this.customerGroupId) : null,
                             branch_id: this.branchId,
                             payment_method: this.paymentMethod,
                             due_date: this.dueDate || null,
@@ -1964,6 +1993,7 @@
                             },
                             body: JSON.stringify({
                                 customer_id: this.customerId ? Number(this.customerId) : null,
+                                customer_group_id: this.customerGroupId ? Number(this.customerGroupId) : null,
                                 branch_id: this.branchId,
                                 payment_method: this.paymentMethod,
                                 due_date: this.dueDate || null,

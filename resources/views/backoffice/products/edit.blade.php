@@ -217,7 +217,7 @@
                                     <span class="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-600 text-white text-[10px] font-bold">Rp</span>
                                     Harga Khusus Grup Pelanggan (Pricing Tiers)
                                 </h3>
-                                <p class="text-xs text-slate-500 mt-0.5">Atur harga berbeda untuk Retail, Petani, dan Grosir. Jika dikosongkan, sistem otomatis memakai Harga Dasar.</p>
+                                <p class="text-xs text-slate-500 mt-0.5">Isi hanya bila grup butuh harga di luar tingkat harga di atas. Jika dikosongkan, grup Grosir memakai Harga Grosir dan grup lain memakai Harga Eceran.</p>
                             </div>
                             <span class="inline-flex self-start sm:self-auto items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800">
                                 Pricing Tiers
@@ -229,6 +229,8 @@
                                 @php
                                     $savedGroupPrice = $product->productPrices->firstWhere('customer_group_id', $cg->id)?->price;
                                     $cgVal = old("customer_group_prices.{$cg->id}", $savedGroupPrice);
+                                    $fallbackLevel = $priceLevels->firstWhere('id', \App\Models\CustomerGroup::matchingPriceLevelId($cg->id))
+                                        ?? $priceLevels->firstWhere('is_default', true);
                                 @endphp
                                 <div class="rounded-xl border border-emerald-200 bg-white p-3.5 shadow-xs">
                                     <div class="flex items-center justify-between mb-1.5">
@@ -249,7 +251,7 @@
                                             name="customer_group_prices[{{ $cg->id }}]"
                                             value="{{ $cgVal }}"
                                             @disabled(! $canEditMasterFields)
-                                            placeholder="Sama dgn harga dasar"
+                                            placeholder="{{ $fallbackLevel ? 'Ikut '.$fallbackLevel->name : 'Sama dgn harga dasar' }}"
                                             class="w-full rounded-lg border border-slate-300 pl-9 pr-3 py-2 text-sm font-semibold text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500 disabled:bg-slate-100 disabled:text-slate-500"
                                         >
                                     </div>

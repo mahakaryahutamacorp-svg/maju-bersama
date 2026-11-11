@@ -81,8 +81,8 @@ class SalePostingService
             $preparedLines = [];
 
             $customerId = $data['customer_id'] ?? null;
-            $customerGroupId = null;
-            if ($customerId) {
+            $customerGroupId = ! empty($data['customer_group_id']) ? (int) $data['customer_group_id'] : null;
+            if ($customerGroupId === null && $customerId) {
                 $customer = Customer::find($customerId);
                 $customerGroupId = $customer?->customer_group_id;
             }

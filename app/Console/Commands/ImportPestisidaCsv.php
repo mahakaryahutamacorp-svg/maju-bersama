@@ -45,11 +45,11 @@ class ImportPestisidaCsv extends Command
         );
 
         // Pastikan Customer Group Umum dan Grosir tersedia
-        $groupRetail = CustomerGroup::firstOrCreate(
+        CustomerGroup::firstOrCreate(
             ['name' => 'Umum/Retail'],
             ['notes' => 'Pelanggan retail umum dengan harga standar.']
         );
-        $groupGrosir = CustomerGroup::firstOrCreate(
+        CustomerGroup::firstOrCreate(
             ['name' => 'Grosir'],
             ['notes' => 'Pelanggan partai besar / toko mitra dengan harga grosir.']
         );
@@ -149,15 +149,15 @@ class ImportPestisidaCsv extends Command
                         ]);
                     }
 
-                    // 1. Sync Price Levels (Eceran & Grosir)
+                    // 1. Sync Price Levels (Eceran & Grosir); grup Grosir otomatis memakai Harga Grosir
                     DB::table('product_prices')->updateOrInsert(
                         ['product_id' => $product->id, 'price_level_id' => $levelEceran->id],
-                        ['price' => $hargaEcer, 'customer_group_id' => $groupRetail->id, 'updated_at' => now()]
+                        ['price' => $hargaEcer, 'updated_at' => now()]
                     );
 
                     DB::table('product_prices')->updateOrInsert(
                         ['product_id' => $product->id, 'price_level_id' => $levelGrosir->id],
-                        ['price' => $hargaGrosir, 'customer_group_id' => $groupGrosir->id, 'updated_at' => now()]
+                        ['price' => $hargaGrosir, 'updated_at' => now()]
                     );
 
                     // 2. Ensure inventory rows exist with quantity = 0
