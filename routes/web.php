@@ -31,6 +31,7 @@ use App\Http\Controllers\Web\ProductController;
 use App\Http\Controllers\Web\PurchaseOrderController;
 use App\Http\Controllers\Web\PurchasePayableController;
 use App\Http\Controllers\Web\PurchaseReturnController;
+use App\Http\Controllers\Web\SaleCorrectionController;
 use App\Http\Controllers\Web\SalesReturnController;
 use App\Http\Controllers\Web\StockTransferController;
 use App\Http\Controllers\Web\SupplierController;
@@ -229,6 +230,18 @@ Route::middleware('auth')->group(function () {
         Route::get('/backoffice/reports/sales', [ReportController::class, 'sales'])->name('reports.sales');
         Route::get('/backoffice/reports/sales/print', [ReportController::class, 'salesPrint'])->name('reports.sales.print');
         Route::get('/backoffice/reports/sales/tax-export', [ReportController::class, 'salesTaxExport'])->name('reports.sales.tax-export');
+        Route::get('/backoffice/reports/sales/{sale}/edit', [SaleCorrectionController::class, 'edit'])
+            ->whereNumber('sale')
+            ->name('reports.sales.edit');
+        Route::put('/backoffice/reports/sales/{sale}', [SaleCorrectionController::class, 'update'])
+            ->whereNumber('sale')
+            ->name('reports.sales.update');
+        Route::delete('/backoffice/reports/sales/{sale}', [SaleCorrectionController::class, 'destroy'])
+            ->whereNumber('sale')
+            ->name('reports.sales.destroy');
+        Route::get('/backoffice/reports/sales/{sale}', [SaleCorrectionController::class, 'show'])
+            ->whereNumber('sale')
+            ->name('reports.sales.show');
         Route::get('/reports/sales', [ReportController::class, 'sales']);
         Route::get('/backoffice/reports/ar-aging', [ReportController::class, 'arAging'])->name('reports.ar-aging');
         Route::get('/reports/ar-aging', [ReportController::class, 'arAging']);

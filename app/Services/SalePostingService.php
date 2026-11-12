@@ -15,6 +15,7 @@ use App\Models\Warehouse;
 use App\Support\DecimalQuantity;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -44,15 +45,84 @@ class SalePostingService
      * sale_items.subtotal is net of the line discount; sales.discount_amount holds only the
      * transaction-level discount. Revenue is credited gross and every discount is debited to 4130.
      *
-     * @param  array{items:array<int,array{product_id:int,quantity:int,discount_amount?:float|int|numeric|null}>,payment_method?:string|null,receipt_number?:string|null,discount_amount?:float|int|numeric|null}  $data
+     * @param  array{items:array<int,array{product_id:int,quantity:int,discount_amount?:float|int|numeric|null,price?:float|int|numeric|null}>,payment_method?:string|null,receipt_number?:string|null,discount_amount?:float|int|numeric|null}  $data
      */
     public function post(array $data, User $actor): Sale
+    {
+        return $this->persist($data, $actor, null);
+    }
+
+    /**
+     * Koreksi nota yang salah. Stok barang lama dikembalikan ke gudang cabang asal,
+     * lalu nota dan jurnal dihitung ulang dari isinya yang baru.
+     *
+     * @param  array<string, mixed>  $data
+     */
+    public function reviseSale(Sale $sale, array $data, User $actor): Sale
+    {
+        $this->ensureMaster($actor);
+
+        return DB::transaction(function () use ($sale, $data, $actor): Sale {
+            $locked = Sale::withoutGlobalScopes()->lockForUpdate()->findOrFail($sale->id);
+            $locked->load('items');
+            $this->assertCorrectable($locked);
+
+            $data['receipt_number'] = $locked->receipt_number;
+            $data['branch_id'] = $locked->branch_id;
+
+            if (empty($data['customer_id'])) {
+                $data['customer_group_id'] = $locked->customer_group_id;
+            }
+
+            $this->restorePostedStock($locked);
+            $this->removePosJournal($locked);
+            $locked->items()->delete();
+            $locked->unsetRelation('items');
+
+            return $this->persist($data, $actor, $locked);
+        });
+    }
+
+    /**
+     * Batalkan nota yang salah. Seluruh kuantitas kembali ke stok cabang yang menjualnya,
+     * dan jurnal penjualan ditarik dari buku.
+     */
+    public function voidSale(Sale $sale, User $actor): void
+    {
+        $this->ensureMaster($actor);
+
+        DB::transaction(function () use ($sale): void {
+            $locked = Sale::withoutGlobalScopes()->lockForUpdate()->findOrFail($sale->id);
+            $locked->load('items');
+            $this->assertCorrectable($locked);
+            $this->restorePostedStock($locked);
+            $this->removePosJournal($locked);
+            $locked->items()->delete();
+            $locked->delete();
+        });
+    }
+
+    /**
+     * Gudang dan cabang tempat stok penjualan ini dipotong, sekaligus tempat stok dikembalikan.
+     */
+    public function stockOrigin(Sale $sale): string
+    {
+        $sale->loadMissing('branch');
+        $warehouse = $this->resolveWarehouseForBranch((int) $sale->branch_id);
+
+        return ($warehouse?->name ?? 'Gudang cabang').' — '.($sale->branch?->name ?? 'cabang transaksi');
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function persist(array $data, User $actor, ?Sale $existing): Sale
     {
         $items = $this->normaliseItems($data['items']);
         $paymentMethod = $data['payment_method'] ?? 'cash';
         $receiptNumber = $data['receipt_number'] ?? $this->generateReceiptNumber();
 
-        return DB::transaction(function () use ($items, $actor, $receiptNumber, $paymentMethod, $data): Sale {
+        return DB::transaction(function () use ($items, $actor, $receiptNumber, $paymentMethod, $data, $existing): Sale {
             $accounts = $this->resolveAccounts();
             $operatingBranchId = $this->operatingBranchId($actor, $data);
             $tax = new InclusiveTaxCalculator;
@@ -63,7 +133,11 @@ class SalePostingService
                 $taxRate = '11.00';
             }
 
-            $products = Product::query()
+            $productQuery = $existing
+                ? Product::withoutGlobalScopes()->withTrashed()
+                : Product::query();
+
+            $products = $productQuery
                 ->whereIn('id', $items->pluck('product_id'))
                 ->lockForUpdate()
                 ->get()
@@ -80,7 +154,7 @@ class SalePostingService
             $totalCost = '0.00';
             $preparedLines = [];
 
-            $customerId = $data['customer_id'] ?? null;
+            $customerId = ! empty($data['customer_id']) ? (int) $data['customer_id'] : null;
             $customerGroupId = ! empty($data['customer_group_id']) ? (int) $data['customer_group_id'] : null;
             if ($customerGroupId === null && $customerId) {
                 $customer = Customer::find($customerId);
@@ -109,9 +183,11 @@ class SalePostingService
                 $inventory->decrement('quantity', $quantity);
                 $product->decrement('stock', $quantity);
 
-                $unitPrice = $this->money($customerGroupId !== null
-                    ? $product->getPriceForGroup($customerGroupId)
-                    : $product->selling_price);
+                $unitPrice = $item['price'] !== null
+                    ? $item['price']
+                    : $this->money($customerGroupId !== null
+                        ? $product->getPriceForGroup($customerGroupId)
+                        : $product->selling_price);
 
                 $unitCost = $this->money($product->purchase_price);
 
@@ -232,21 +308,26 @@ class SalePostingService
             $revenueCredit = bcadd($nonTaxGross, $taxableDppGross, 2);
             $discountCredit = bcadd($nonTaxDiscount, $taxableDppDiscount, 2);
 
-            // Tautkan secara otomatis ke sesi shift kasir yang sedang aktif
-            $activeShift = CashRegisterShift::where('user_id', $actor->id)
-                ->where('status', 'open')
-                ->latest('opened_at')
-                ->first();
+            // Nota baru mengikuti shift kasir yang sedang buka. Koreksi mempertahankan shift semula.
+            $activeShift = null;
+            if ($existing === null) {
+                $activeShift = CashRegisterShift::where('user_id', $actor->id)
+                    ->where('status', 'open')
+                    ->latest('opened_at')
+                    ->first();
+            }
 
             $paymentStatus = in_array(strtolower($paymentMethod), ['tempo', 'piutang', 'kredit']) ? 'UNPAID' : 'PAID';
             $paidAmount = $paymentStatus === 'PAID' ? $grandTotal : $this->money($data['paid_amount'] ?? 0);
 
-            $sale = Sale::create([
+            $attributes = [
                 'branch_id' => $operatingBranchId,
                 'customer_id' => $customerId,
                 'customer_group_id' => $customerGroupId,
-                'cash_register_shift_id' => $activeShift?->id ?? ($data['cash_register_shift_id'] ?? null),
-                'created_by' => $actor->id,
+                'cash_register_shift_id' => $existing
+                    ? $existing->cash_register_shift_id
+                    : ($activeShift?->id ?? ($data['cash_register_shift_id'] ?? null)),
+                'created_by' => $existing ? $existing->created_by : $actor->id,
                 'receipt_number' => $receiptNumber,
                 'total_amount' => $grandTotal,
                 'subtotal_non_tax' => $subtotalNonTax,
@@ -258,7 +339,14 @@ class SalePostingService
                 'payment_method' => $paymentMethod,
                 'due_date' => $data['due_date'] ?? null,
                 'status' => 'completed',
-            ]);
+            ];
+
+            if ($existing) {
+                $existing->update($attributes);
+                $sale = $existing->fresh() ?? $existing;
+            } else {
+                $sale = Sale::create($attributes);
+            }
 
             $sale->items()->createMany($saleItems);
 
@@ -299,7 +387,7 @@ class SalePostingService
         $journal = JournalHeader::create([
             'branch_id' => $sale->branch_id,
             'user_id' => $actor->id,
-            'transaction_date' => now()->toDateString(),
+            'transaction_date' => ($sale->created_at ?? now())->toDateString(),
             'reference_number' => $sale->receipt_number,
             'description' => 'POS Sale',
         ]);
@@ -460,8 +548,8 @@ class SalePostingService
     }
 
     /**
-     * @param  array<int,array{product_id:int|string,quantity:int|string,discount_amount?:float|int|string|null}>  $items
-     * @return Collection<int,array{product_id:int,quantity:string,discount_amount:string}>
+     * @param  array<int,array{product_id:int|string,quantity:int|string,discount_amount?:float|int|string|null,price?:float|int|string|null}>  $items
+     * @return Collection<int,array{product_id:int,quantity:string,discount_amount:string,price:?string}>
      */
     private function normaliseItems(array $items): Collection
     {
@@ -474,8 +562,125 @@ class SalePostingService
                     fn (string $carry, array $line) => bcadd($carry, $this->money($line['discount_amount'] ?? 0), 2),
                     '0.00',
                 ),
+                'price' => $this->sharedLinePrice($lines),
             ])
             ->values();
+    }
+
+    /**
+     * Harga eksplisit dipakai saat koreksi nota, supaya perubahan katalog tidak mengubah harga historis.
+     * Checkout kasir tidak mengirim harga, jadi nilainya tetap diambil dari katalog.
+     *
+     * @param  Collection<int, array<string, mixed>>  $lines
+     */
+    private function sharedLinePrice(Collection $lines): ?string
+    {
+        $specified = $lines->filter(function (array $line): bool {
+            return array_key_exists('price', $line) && $line['price'] !== null && $line['price'] !== '';
+        });
+
+        if ($specified->isEmpty()) {
+            return null;
+        }
+
+        if ($specified->count() !== $lines->count()) {
+            throw ValidationException::withMessages([
+                'items' => ['Harga jual harus diisi di setiap baris produk yang sama.'],
+            ]);
+        }
+
+        $prices = $specified
+            ->map(fn (array $line) => $this->money($line['price']))
+            ->unique()
+            ->values();
+
+        if ($prices->count() !== 1) {
+            throw ValidationException::withMessages([
+                'items' => ['Satu produk tidak boleh punya dua harga berbeda dalam nota yang sama.'],
+            ]);
+        }
+
+        return $prices->first();
+    }
+
+    private function ensureMaster(User $actor): void
+    {
+        if (! $actor->isMaster()) {
+            throw ValidationException::withMessages([
+                'sale' => ['Hanya akun master yang dapat memperbaiki transaksi penjualan.'],
+            ]);
+        }
+    }
+
+    private function assertCorrectable(Sale $sale): void
+    {
+        $reason = $sale->correctionLockReason();
+
+        if ($reason !== null) {
+            throw ValidationException::withMessages([
+                'sale' => [$reason],
+            ]);
+        }
+    }
+
+    /**
+     * Kembalikan kuantitas nota ke baris stok cabang yang sama dengan saat barang keluar.
+     */
+    private function restorePostedStock(Sale $sale): void
+    {
+        foreach ($sale->items as $item) {
+            $quantity = DecimalQuantity::normalize($item->quantity);
+
+            if (DecimalQuantity::compare($quantity, '0') <= 0) {
+                continue;
+            }
+
+            $product = Product::withoutGlobalScopes()
+                ->withTrashed()
+                ->whereKey($item->product_id)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $product) {
+                throw ValidationException::withMessages([
+                    'items' => ['Produk pada nota ini sudah tidak ada, sehingga stok tidak bisa dikembalikan.'],
+                ]);
+            }
+
+            $inventory = $this->lockInventory((int) $sale->branch_id, (int) $product->id, 0);
+            $inventory->increment('quantity', $quantity);
+            $product->increment('stock', $quantity);
+        }
+    }
+
+    private function removePosJournal(Sale $sale): void
+    {
+        $headers = JournalHeader::query()
+            ->where('branch_id', $sale->branch_id)
+            ->where('reference_number', $sale->receipt_number)
+            ->where('description', 'POS Sale')
+            ->get();
+
+        if ($headers->isEmpty()) {
+            return;
+        }
+
+        if (Schema::hasTable('journal_entries') && Schema::hasColumn('journal_entries', 'legacy_journal_header_id')) {
+            $linked = DB::table('journal_entries')
+                ->whereIn('legacy_journal_header_id', $headers->pluck('id'))
+                ->exists();
+
+            if ($linked) {
+                throw ValidationException::withMessages([
+                    'sale' => ['Jurnal penjualan ini sudah masuk buku besar tetap, sehingga nota tidak bisa diubah atau dihapus dari riwayat.'],
+                ]);
+            }
+        }
+
+        foreach ($headers as $header) {
+            $header->journalLines()->delete();
+            $header->delete();
+        }
     }
 
     /**

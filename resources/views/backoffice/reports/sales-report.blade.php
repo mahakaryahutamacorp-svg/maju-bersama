@@ -40,6 +40,23 @@
     @endphp
 
     <main class="mx-auto w-full px-6 py-6 lg:px-10 max-w-6xl flex flex-col justify-start">
+        @if ($errors->any())
+            <div class="mb-4 rounded-2xl border border-rose-300 bg-rose-50 p-4 text-rose-900 shadow-sm no-print">
+                <p class="text-sm font-bold">Perubahan tidak disimpan</p>
+                <ul class="mt-1 list-inside list-disc text-xs">
+                    @foreach ($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
+
+        @if (session('success'))
+            <div class="mb-4 rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-sm font-semibold text-emerald-900 no-print">
+                {{ session('success') }}
+            </div>
+        @endif
+
         <div class="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm no-print print:hidden">
         <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
@@ -52,6 +69,9 @@
                     <h2 class="text-lg font-bold text-slate-900">Laporan Penjualan Operasional</h2>
                 </div>
                 <p class="text-xs text-slate-500 mt-0.5">Daftar transaksi kasir POS, faktur penjualan, metode bayar, dan total penjualan bersih</p>
+                @if ($isMaster)
+                    <p class="mt-1 text-[11px] text-amber-800">Akun master dapat melihat, mengubah, atau menghapus nota yang salah. Stok barang kembali ke gudang cabang tempat transaksi itu terjadi.</p>
+                @endif
             </div>
 
             <!-- Form Filter Rentang Tanggal & Cabang -->
@@ -192,7 +212,7 @@
                             <th class="py-3 px-3">Metode</th>
                             <th class="py-3 px-3 text-right">Total Jual</th>
                             <th class="py-3 px-3 text-center">Status Pembayaran</th>
-                            <th class="py-3 px-3 text-center no-print">Struk</th>
+                            <th class="py-3 px-3 text-center no-print">{{ $isMaster ? 'Aksi' : 'Struk' }}</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-200 [&>tr:nth-child(even)]:bg-slate-50/60">
@@ -230,13 +250,39 @@
                                         {{ $sale->status ?? 'completed' }}
                                     </span>
                                 </td>
-                                <td class="py-2.5 px-3 text-center whitespace-nowrap no-print">
-                                    <a href="{{ url('/pos/receipt/'.$sale->receipt_number) }}"
-                                       target="_blank"
-                                       rel="noopener"
-                                       class="inline-flex items-center rounded-md border border-slate-300 bg-white px-2 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-100">
-                                        Cetak Struk
-                                    </a>
+                                <td class="py-2.5 px-3 text-center no-print">
+                                    @php $lockReason = $isMaster ? $sale->correctionLockReason() : null; @endphp
+                                    <div class="inline-flex flex-wrap items-center justify-center gap-1">
+                                        <a href="{{ url('/pos/receipt/'.$sale->receipt_number) }}"
+                                           target="_blank"
+                                           rel="noopener"
+                                           class="inline-flex items-center rounded-md border border-slate-300 bg-white px-2 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-100">
+                                            Struk
+                                        </a>
+                                        @if ($isMaster)
+                                            <a href="{{ route('reports.sales.show', $sale) }}"
+                                               class="inline-flex items-center rounded-md border border-slate-300 bg-white px-2 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-100">
+                                                Lihat
+                                            </a>
+                                            @if ($lockReason)
+                                                <span title="{{ $lockReason }}" class="inline-flex cursor-not-allowed items-center rounded-md border border-slate-200 bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-400">
+                                                    Terkunci
+                                                </span>
+                                            @else
+                                                <a href="{{ route('reports.sales.edit', $sale) }}"
+                                                   class="inline-flex items-center rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-[10px] font-bold text-sky-800 hover:bg-sky-100">
+                                                    Ubah
+                                                </a>
+                                                <form method="POST" action="{{ route('reports.sales.destroy', $sale) }}" onsubmit="return confirm('Hapus nota {{ $sale->receipt_number }}? Stok akan dikembalikan ke gudang cabang {{ $sale->branch->name ?? 'asal' }} dan jurnal penjualan dibatalkan.');">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="inline-flex items-center rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-bold text-rose-800 hover:bg-rose-100">
+                                                        Hapus
+                                                    </button>
+                                                </form>
+                                            @endif
+                                        @endif
+                                    </div>
                                 </td>
                             </tr>
                         @empty

@@ -34,6 +34,7 @@ class SalesReportService
 
         $query = Sale::query()
             ->with(['branch', 'user', 'customer', 'items.product'])
+            ->withCount(['salesReturns', 'paymentAllocations'])
             ->whereBetween('created_at', [$start, $end])
             ->latest('created_at');
 

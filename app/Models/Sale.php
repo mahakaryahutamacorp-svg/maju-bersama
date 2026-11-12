@@ -87,4 +87,41 @@ class Sale extends Model
     {
         return $this->hasMany(PaymentAllocation::class);
     }
+
+    /**
+     * Alasan nota tidak boleh diubah atau dihapus. Null berarti master masih boleh mengoreksinya.
+     */
+    public function correctionLockReason(): ?string
+    {
+        $returnCount = array_key_exists('sales_returns_count', $this->attributes)
+            ? (int) $this->sales_returns_count
+            : $this->salesReturns()->count();
+
+        if ($returnCount > 0) {
+            return 'Nota ini sudah punya retur penjualan. Hapus retur dulu sebelum mengubah atau membatalkan nota.';
+        }
+
+        $paymentCount = array_key_exists('payment_allocations_count', $this->attributes)
+            ? (int) $this->payment_allocations_count
+            : $this->paymentAllocations()->count();
+
+        if ($paymentCount > 0) {
+            return 'Nota ini sudah ada pelunasan. Batalkan pembayaran dulu sebelum mengubah atau membatalkan nota.';
+        }
+
+        if (in_array(strtolower((string) $this->payment_method), ['tempo', 'piutang', 'kredit'], true)
+            && bccomp((string) ($this->paid_amount ?? '0'), '0.00', 2) === 1) {
+            return 'Piutang nota ini sudah ada pembayaran. Batalkan pembayaran dulu sebelum mengubah atau membatalkan nota.';
+        }
+
+        $itemCount = $this->relationLoaded('items')
+            ? $this->items->count()
+            : $this->items()->count();
+
+        if ($itemCount === 0) {
+            return 'Nota ini tidak berisi barang, jadi stok tidak bisa dikembalikan dari sini.';
+        }
+
+        return null;
+    }
 }
