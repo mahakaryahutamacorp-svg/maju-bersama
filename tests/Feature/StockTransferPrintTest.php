@@ -150,6 +150,58 @@ class StockTransferPrintTest extends TestCase
         $response->assertSee('target="_blank"', false);
     }
 
+    public function test_cashier_cannot_print_delivery_note(): void
+    {
+        $cashier = User::create([
+            'name' => 'Kasir Bandung',
+            'email' => 'kasir@example.com',
+            'password' => bcrypt('password'),
+            'role' => 'cashier',
+            'branch_id' => $this->destinationBranch->id,
+        ]);
+
+        $this->actingAs($cashier)
+            ->get(route('stock-transfers.print', $this->transfer->reference_number))
+            ->assertForbidden();
+
+        $this->actingAs($cashier)
+            ->get(route('transactions.details', $this->transfer->reference_number))
+            ->assertOk()
+            ->assertDontSee('Cetak Surat Jalan');
+    }
+
+    public function test_admin_of_uninvolved_branch_gets_not_found(): void
+    {
+        $otherBranch = Branch::create(['name' => 'Cabang Palembang', 'code' => 'PLG-01']);
+        $otherAdmin = User::create([
+            'name' => 'Admin Palembang',
+            'email' => 'admin.plg@example.com',
+            'password' => bcrypt('password'),
+            'role' => 'branch_admin',
+            'branch_id' => $otherBranch->id,
+        ]);
+
+        $this->actingAs($otherAdmin)
+            ->get(route('stock-transfers.print', $this->transfer->reference_number))
+            ->assertNotFound();
+    }
+
+    public function test_admin_of_destination_branch_can_print(): void
+    {
+        $destinationAdmin = User::create([
+            'name' => 'Admin Bandung',
+            'email' => 'admin.bdg@example.com',
+            'password' => bcrypt('password'),
+            'role' => 'branch_admin',
+            'branch_id' => $this->destinationBranch->id,
+        ]);
+
+        $this->actingAs($destinationAdmin)
+            ->get(route('stock-transfers.print', $this->transfer->reference_number))
+            ->assertOk()
+            ->assertSee('TRF-202609-001');
+    }
+
     public function test_print_returns_404_for_unknown_reference(): void
     {
         $response = $this->actingAs($this->user)

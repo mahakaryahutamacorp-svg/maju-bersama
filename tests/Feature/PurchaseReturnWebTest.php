@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Branch;
 use App\Models\Category;
+use App\Models\GoodsReceipt;
 use App\Models\Inventory;
 use App\Models\Product;
 use App\Models\PurchaseReturn;
@@ -111,6 +112,36 @@ class PurchaseReturnWebTest extends TestCase
         $response->assertSee('Gula Pasir 1kg');
         $response->assertSee('Live Journal Preview');
         $response->assertSee('purchaseReturnForm');
+    }
+
+    public function test_create_screen_exposes_remaining_returnable_quantity_per_receipt(): void
+    {
+        $receipt = GoodsReceipt::create([
+            'branch_id' => $this->branch->id,
+            'supplier_id' => $this->supplier->id,
+            'reference_number' => 'GR-20260921-LIMIT',
+            'supplier_name' => $this->supplier->name,
+            'date' => '2026-09-20',
+            'total_amount' => 75000,
+            'payment_type' => 'credit',
+        ]);
+        $receipt->items()->create([
+            'product_id' => $this->product->id,
+            'quantity' => 5,
+            'unit_price' => 15000,
+            'subtotal' => 75000,
+        ]);
+
+        app(PurchaseReturnService::class)->processReturn([
+            'branch_id' => $this->branch->id,
+            'supplier_id' => $this->supplier->id,
+            'goods_receipt_id' => $receipt->id,
+            'return_date' => '2026-09-21',
+        ], [['product_id' => $this->product->id, 'quantity' => 2, 'unit_price' => 15000]], $this->user);
+
+        $this->actingAs($this->user)->get(route('backoffice.purchase-returns.create'))
+            ->assertOk()
+            ->assertViewHas('receiptLimits', fn ($limits) => (float) $limits[$receipt->id][$this->product->id] === 3.0);
     }
 
     public function test_user_can_store_purchase_return(): void

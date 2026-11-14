@@ -174,8 +174,21 @@
                 if (element) this.anchor(item, element);
             },
 
+            // Harus objek: :style berupa string menimpa seluruh atribut style, termasuk display:none dari x-show.
             menuStyle(item) {
-                return 'top:' + (item.menuTop || 0) + 'px;left:' + (item.menuLeft || 0) + 'px;width:' + (item.menuWidth || 280) + 'px';
+                return {
+                    top: (item.menuTop || 0) + 'px',
+                    left: (item.menuLeft || 0) + 'px',
+                    width: (item.menuWidth || 280) + 'px',
+                };
+            },
+
+            // Enter di kolom isian dokumen tidak boleh mengirim form setengah jadi.
+            blockImplicitSubmit(event) {
+                const target = event.target;
+                if (!(target instanceof HTMLInputElement)) return;
+                if (['submit', 'button', 'image', 'reset'].includes(target.type)) return;
+                event.preventDefault();
             },
 
             move(active, total, step) {

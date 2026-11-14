@@ -9,7 +9,9 @@ use App\Models\ChartOfAccount;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\SalesReturn;
+use App\Models\SalesReturnItem;
 use App\Services\SalesReturnService;
+use App\Support\DecimalQuantity;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -111,6 +113,26 @@ class SalesReturnController extends Controller
             }),
         ]);
 
+        $returnedBySale = SalesReturnItem::query()
+            ->join('sales_returns', 'sales_returns.id', '=', 'sales_return_items.sales_return_id')
+            ->whereIn('sales_returns.sale_id', $recentSales->pluck('id'))
+            ->groupBy('sales_returns.sale_id', 'sales_return_items.product_id')
+            ->selectRaw('sales_returns.sale_id, sales_return_items.product_id, SUM(sales_return_items.quantity) as returned')
+            ->get()
+            ->groupBy('sale_id');
+
+        $saleLineLimits = $recentSales->mapWithKeys(fn (Sale $sale) => [
+            $sale->id => $sale->items->groupBy('product_id')->map(function ($lines, $productId) use ($returnedBySale, $sale) {
+                $sold = DecimalQuantity::sum($lines->pluck('quantity'));
+                $returned = DecimalQuantity::normalize(
+                    $returnedBySale->get($sale->id)?->firstWhere('product_id', $productId)?->returned ?? '0'
+                );
+                $remaining = DecimalQuantity::sub($sold, $returned);
+
+                return (float) (DecimalQuantity::compare($remaining, '0') < 0 ? '0' : $remaining);
+            }),
+        ]);
+
         // Check if cashier has active shift
         $activeShift = CashRegisterShift::where('user_id', $user->id)
             ->where('status', 'open')
@@ -124,6 +146,7 @@ class SalesReturnController extends Controller
             'accounts' => $accounts,
             'recentSales' => $recentSales,
             'saleLinePrices' => $saleLinePrices,
+            'saleLineLimits' => $saleLineLimits,
             'activeShift' => $activeShift,
             'todayDate' => now()->toDateString(),
         ]);

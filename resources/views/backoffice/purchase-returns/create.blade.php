@@ -23,8 +23,8 @@
         @endif
 
         <!-- Form Alpine.js Root -->
-        <div x-data="purchaseReturnForm(@js($products))" class="space-y-6">
-            <form method="POST" action="{{ route('backoffice.purchase-returns.store') }}" id="purchaseReturnFormElement" class="space-y-6">
+        <div x-data="purchaseReturnForm(@js($products), @js($receiptLimits))" class="space-y-6">
+            <form method="POST" action="{{ route('backoffice.purchase-returns.store') }}" id="purchaseReturnFormElement" class="space-y-6" @keypress.enter="ProductSmartSearch.blockImplicitSubmit($event)">
                 @csrf
 
                 <!-- Judul Halaman -->
@@ -96,6 +96,7 @@
                             <select
                                 id="goods_receipt_id"
                                 name="goods_receipt_id"
+                                x-model="goodsReceiptId"
                                 class="mt-2 block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                             >
                                 <option value="">-- Tanpa Tautan Penerimaan --</option>
@@ -185,10 +186,14 @@
                                                 x-model.number="item.quantity"
                                                 @input="calculateSubtotal(index)"
                                                 min="0.001"
+                                                :max="maxQuantity(item)"
                                                 step="0.001"
                                                 required
-                                                class="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-right text-sm font-mono text-slate-900 shadow-2xs focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
+                                                :class="quantityError(item) ? 'border-rose-500 ring-1 ring-rose-500' : 'border-slate-300'"
+                                                class="w-full rounded-lg border px-3 py-1.5 text-right text-sm font-mono text-slate-900 shadow-2xs focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
                                             >
+                                            <p x-show="maxQuantity(item) !== null && !quantityError(item)" x-cloak class="mt-0.5 text-[11px] text-right text-slate-500" x-text="'Maks ' + maxQuantity(item)"></p>
+                                            <p x-show="quantityError(item)" x-cloak class="mt-0.5 text-[11px] text-right font-semibold text-rose-600" x-text="quantityError(item)"></p>
                                         </td>
 
                                         <!-- Input Harga Satuan Beli dengan Live Rupiah Formatter -->
@@ -288,8 +293,8 @@
                     <button
                         type="submit"
                         id="btn-submit-return"
-                        :disabled="grandTotal <= 0"
-                        :class="grandTotal <= 0 ? 'opacity-50 cursor-not-allowed bg-slate-400' : 'bg-rose-600 hover:bg-rose-700 shadow-md'"
+                        :disabled="grandTotal <= 0 || hasQuantityError"
+                        :class="grandTotal <= 0 || hasQuantityError ? 'opacity-50 cursor-not-allowed bg-slate-400' : 'bg-rose-600 hover:bg-rose-700 shadow-md'"
                         class="inline-flex items-center gap-2 rounded-xl px-8 py-3 text-sm font-bold text-white transition focus:ring-2 focus:ring-sky-500 focus:ring-offset-2"
                     >
                         <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
@@ -304,9 +309,11 @@
     @include('inventory.partials.smart-search-script')
     @include('partials.decimal-math')
     <script>
-        function purchaseReturnForm(productsList) {
+        function purchaseReturnForm(productsList, receiptLimits) {
             return withProductPicker({
                 products: productsList || [],
+                receiptLimits: receiptLimits || {},
+                goodsReceiptId: @js((string) old('goods_receipt_id', '')),
                 selectedSupplierId: '{{ old('supplier_id', '') }}',
                 notes: '{{ old('notes', '') }}',
                 items: [
@@ -349,6 +356,25 @@
                 },
                 get grandTotal() {
                     return this.items.reduce((sum, item) => sum + (parseFloat(item.subtotal) || 0), 0);
+                },
+                maxQuantity(item) {
+                    if (!item.product_id || !this.goodsReceiptId) return null;
+                    return Number((this.receiptLimits[this.goodsReceiptId] || {})[item.product_id] ?? 0);
+                },
+                requestedQuantity(productId) {
+                    return this.items
+                        .filter(line => line.product_id == productId)
+                        .reduce((sum, line) => sum + Math.max(0, DecimalMath.qty(line.quantity)), 0);
+                },
+                quantityError(item) {
+                    const max = this.maxQuantity(item);
+                    if (max === null) return '';
+                    if (max <= 0) return 'Produk tidak ada / sudah habis diretur pada penerimaan ini.';
+                    if (this.requestedQuantity(item.product_id) > max + 0.0005) return 'Melebihi batas retur (maks ' + max + ').';
+                    return '';
+                },
+                get hasQuantityError() {
+                    return this.items.some(item => this.quantityError(item) !== '');
                 },
                 formatRupiah(amount) {
                     return 'Rp ' + new Intl.NumberFormat('id-ID').format(amount || 0);

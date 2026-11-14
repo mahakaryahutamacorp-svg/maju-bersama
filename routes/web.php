@@ -219,7 +219,9 @@ Route::middleware('auth')->group(function () {
         });
     });
 
-    Route::get('/backoffice/stock-transfers/{reference}/print', [StockTransferPrintController::class, 'print'])->name('stock-transfers.print');
+    Route::get('/backoffice/stock-transfers/{reference}/print', [StockTransferPrintController::class, 'print'])
+        ->middleware('can:access-inventory')
+        ->name('stock-transfers.print');
 
     // Akses per cabang dicek di dalam TransactionViewerController.
     Route::get('/backoffice/transactions/{reference}/details', [TransactionViewerController::class, 'show'])->name('transactions.details');

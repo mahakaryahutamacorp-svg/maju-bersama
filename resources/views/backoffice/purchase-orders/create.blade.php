@@ -45,7 +45,7 @@
 
         <!-- Form Alpine.js -->
         <div x-data="poForm(@js($products))" class="space-y-6">
-            <form method="POST" action="{{ route('backoffice.purchase-orders.store') }}" id="poFormElement" class="space-y-6">
+            <form method="POST" action="{{ route('backoffice.purchase-orders.store') }}" id="poFormElement" class="space-y-6" @keypress.enter="ProductSmartSearch.blockImplicitSubmit($event)">
                 @csrf
 
                 <!-- Bagian 1: Informasi Pemesanan -->

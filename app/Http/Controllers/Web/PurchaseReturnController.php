@@ -78,10 +78,32 @@ class PurchaseReturnController extends Controller
         $suppliers = Supplier::where('is_active', true)->orderBy('name')->get();
 
         // Available goods receipts
-        $goodsReceipts = GoodsReceipt::orderByDesc('date')
+        $goodsReceipts = GoodsReceipt::with('items')
+            ->orderByDesc('date')
             ->orderByDesc('id')
             ->limit(50)
             ->get();
+
+        $returnedByReceipt = PurchaseReturn::withoutGlobalScopes()
+            ->join('purchase_return_items', 'purchase_return_items.purchase_return_id', '=', 'purchase_returns.id')
+            ->whereIn('purchase_returns.goods_receipt_id', $goodsReceipts->pluck('id'))
+            ->where('purchase_returns.status', '!=', 'cancelled')
+            ->groupBy('purchase_returns.goods_receipt_id', 'purchase_return_items.product_id')
+            ->selectRaw('purchase_returns.goods_receipt_id, purchase_return_items.product_id, SUM(purchase_return_items.quantity) as returned')
+            ->get()
+            ->groupBy('goods_receipt_id');
+
+        $receiptLimits = $goodsReceipts->mapWithKeys(fn (GoodsReceipt $receipt) => [
+            $receipt->id => $receipt->items->groupBy('product_id')->map(function ($lines, $productId) use ($returnedByReceipt, $receipt) {
+                $received = DecimalQuantity::sum($lines->pluck('quantity'));
+                $returned = DecimalQuantity::normalize(
+                    $returnedByReceipt->get($receipt->id)?->firstWhere('product_id', $productId)?->returned ?? '0'
+                );
+                $remaining = DecimalQuantity::sub($received, $returned);
+
+                return (float) (DecimalQuantity::compare($remaining, '0') < 0 ? '0' : $remaining);
+            }),
+        ]);
 
         // Products for this branch
         $products = Product::orderBy('name')
@@ -92,6 +114,7 @@ class PurchaseReturnController extends Controller
             'isMaster' => $user->isMaster(),
             'suppliers' => $suppliers,
             'goodsReceipts' => $goodsReceipts,
+            'receiptLimits' => $receiptLimits,
             'products' => $products,
             'todayDate' => now()->toDateString(),
         ]);

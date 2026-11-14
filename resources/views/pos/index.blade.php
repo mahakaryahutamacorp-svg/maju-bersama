@@ -810,7 +810,7 @@
                         type="button" 
                         id="btn-process-checkout"
                         @click="processCheckout()" 
-                        :disabled="loading || (paymentMethod === 'cash' && changeDue < 0)"
+                        :disabled="loading || receiptOpen || cart.length === 0 || (paymentMethod === 'cash' && changeDue < 0)"
                         class="rounded-xl bg-indigo-600 px-6 py-2.5 text-xs font-bold text-white shadow-md transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:bg-slate-300"
                     >
                         <span x-show="!loading">Selesaikan & Cetak Faktur →</span>
@@ -2177,7 +2177,7 @@
 
                 // Proses Checkout ke API (menyertakan customer_id & due_date untuk tempo)
                 async processCheckout() {
-                    if (this.loading) return;
+                    if (this.loading || this.receiptOpen || this.showReceiptModal || this.cart.length === 0) return;
 
                     if (!this.hasActiveShift) {
                         alert('Shift kasir belum dibuka! Silakan buka shift terlebih dahulu.');
@@ -2286,7 +2286,6 @@
                             throw new Error(payload.message || 'Gagal memproses transaksi checkout.');
                         }
 
-                        this.checkoutKey = '';
                         if (payload.expected_balance !== null && payload.expected_balance !== undefined) {
                             this.expectedBalance = Number(payload.expected_balance) || 0;
                         }
@@ -2308,6 +2307,11 @@
                         this.paymentModalOpen = false;
                         this.receiptOpen = true;
                         this.showReceiptModal = true;
+
+                        // Keranjang dikosongkan agar klik susulan tidak bisa mengirim nota kedua.
+                        this.cart = [];
+                        this.discountAmount = 0;
+                        this.dueDate = '';
 
                     } catch (err) {
                         this.checkoutError = err.message;

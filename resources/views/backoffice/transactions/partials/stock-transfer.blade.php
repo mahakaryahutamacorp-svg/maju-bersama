@@ -10,11 +10,13 @@
                 <h3 class="mt-1 font-mono text-xl font-bold tracking-tight text-slate-900">{{ $stockTransfer->reference_number }}</h3>
             </div>
             <div class="flex items-center gap-2.5">
+                @can('access-inventory')
                 <a href="{{ route('stock-transfers.print', $stockTransfer->reference_number) }}" 
                    target="_blank"
                    class="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-xs hover:bg-slate-50 hover:text-slate-900 transition-colors">
                     🖨️ Cetak Surat Jalan
                 </a>
+                @endcan
                 <div class="text-right">
                     <span class="inline-flex rounded-md px-2.5 py-1 text-xs font-bold uppercase tracking-wider {{ $stockTransfer->status === 'completed' ? 'bg-emerald-100 text-emerald-800' : 'bg-sky-100 text-sky-800' }}">
                         {{ $stockTransfer->status ?? 'Completed' }}
@@ -112,6 +114,7 @@
     </div>
 
     <!-- Footer Modal Actions -->
+    @can('access-inventory')
     <div class="flex items-center justify-between border-t border-slate-200 pt-4">
         <p class="text-xs text-slate-500">
             Cetak dokumen fisik Delivery Note untuk dibawa oleh kurir logistik saat pengiriman barang.
@@ -122,4 +125,5 @@
             🖨️ Cetak Surat Jalan
         </a>
     </div>
+    @endcan
 </div>

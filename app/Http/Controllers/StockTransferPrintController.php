@@ -25,6 +25,14 @@ class StockTransferPrintController extends Controller
             ])
             ->firstOrFail();
 
+        // Admin cabang hanya boleh melihat transfer yang melibatkan cabangnya; selain itu dianggap tidak ada.
+        $user = $request->user();
+        $involvedBranchIds = [(int) $stockTransfer->source_branch_id, (int) $stockTransfer->destination_branch_id];
+        abort_unless(
+            $user->isMaster() || ($user->branch_id !== null && in_array((int) $user->branch_id, $involvedBranchIds, true)),
+            404
+        );
+
         return view('backoffice.stock-transfers.print', compact('stockTransfer'));
     }
 }

@@ -15,6 +15,7 @@
         @keydown.arrow-down.prevent="moveProduct(item, 1)"
         @keydown.arrow-up.prevent="moveProduct(item, -1)"
         @keydown.enter.prevent="confirmProduct(index)"
+        @keypress.enter.prevent
         @keydown.escape="item.open = false"
         :required="!item.product_id"
         autocomplete="off"

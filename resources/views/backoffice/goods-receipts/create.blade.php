@@ -42,7 +42,7 @@
 
         <!-- Form Alpine.js -->
         <div x-data="goodsReceiptForm(@js($activePOs), @js($products))" class="space-y-6">
-            <form method="POST" action="/purchases/goods-receipts" id="receiptForm" class="space-y-6">
+            <form method="POST" action="/purchases/goods-receipts" id="receiptForm" class="space-y-6" @keypress.enter="ProductSmartSearch.blockImplicitSubmit($event)">
                 @csrf
 
                 <!-- Input Hidden Purchase Order ID -->

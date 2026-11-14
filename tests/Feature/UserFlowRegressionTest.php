@@ -17,6 +17,7 @@ use App\Services\SalesReturnService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Testing\TestResponse;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class UserFlowRegressionTest extends TestCase
@@ -170,6 +171,32 @@ class UserFlowRegressionTest extends TestCase
         ], $this->admin);
 
         $this->assertEquals('7000.00', $salesReturn->total_amount);
+    }
+
+    public function test_sales_return_form_and_service_cap_quantity_at_remaining_sold(): void
+    {
+        $response = $this->checkout([
+            'items' => [['product_id' => $this->product->id, 'quantity' => 2]],
+        ])->assertCreated();
+        $sale = Sale::withoutGlobalScopes()->where('receipt_number', $response->json('receipt_number'))->firstOrFail();
+
+        $returnPayload = [
+            'sale_id' => $sale->id,
+            'refund_method' => 'cash',
+            'chart_of_account_id' => $this->cash->id,
+        ];
+        app(SalesReturnService::class)->processReturn($returnPayload, [
+            ['product_id' => $this->product->id, 'quantity' => 1, 'unit_price' => 4000],
+        ], $this->admin);
+
+        $this->actingAs($this->admin)->get(route('backoffice.sales-returns.create'))
+            ->assertOk()
+            ->assertViewHas('saleLineLimits', fn ($limits) => (float) $limits[$sale->id][$this->product->id] === 1.0);
+
+        $this->expectException(ValidationException::class);
+        app(SalesReturnService::class)->processReturn($returnPayload, [
+            ['product_id' => $this->product->id, 'quantity' => 2, 'unit_price' => 4000],
+        ], $this->admin);
     }
 
     public function test_fully_returned_tempo_invoice_is_no_longer_collectible(): void
