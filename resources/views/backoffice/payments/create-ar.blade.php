@@ -404,6 +404,14 @@
                     </div>
                 </section>
 
+                <div
+                    x-show="allocationProblem"
+                    x-cloak
+                    role="alert"
+                    class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700"
+                    x-text="allocationProblem"
+                ></div>
+
                 <!-- Tombol Submit -->
                 <div class="flex items-center justify-end gap-3 pt-2">
                     <a
@@ -484,7 +492,9 @@
                 description: s.description || 'Piutang penjualan',
                 total_amount: parseFloat(s.total_amount) || 0,
                 paid_amount: parseFloat(s.paid_amount) || 0,
-                remaining: Math.max(0, (parseFloat(s.total_amount) || 0) - (parseFloat(s.paid_amount) || 0)),
+                remaining: s.outstanding !== undefined
+                    ? Math.max(0, parseFloat(s.outstanding) || 0)
+                    : Math.max(0, (parseFloat(s.total_amount) || 0) - (parseFloat(s.paid_amount) || 0)),
                 selected: false,
                 allocated_amount: 0,
             });
@@ -785,7 +795,20 @@
                 },
 
                 get isBalanced() {
-                    return this.accountId && this.amount > 0 && this.getTotalAllocated() > 0;
+                    return this.accountId && this.amount > 0 && this.getTotalAllocated() > 0 && !this.allocationProblem;
+                },
+
+                get allocationProblem() {
+                    const allocated = this.getTotalAllocated();
+                    if (!(this.amount > 0) || allocated <= 0) return '';
+                    const over = this.salesList.find(s => s.selected && (parseFloat(s.allocated_amount) || 0) > s.remaining + 0.005);
+                    if (over) {
+                        return `Alokasi faktur ${over.receipt_number} melebihi sisa piutangnya (${this.formatRupiah(over.remaining)}).`;
+                    }
+                    if (Math.abs(this.amount - allocated) > 0.005) {
+                        return `Nominal pembayaran (${this.formatRupiah(this.amount)}) harus sama dengan total alokasi faktur (${this.formatRupiah(allocated)}).`;
+                    }
+                    return '';
                 },
 
                 formatRupiah(val) {

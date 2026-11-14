@@ -142,6 +142,7 @@
                                     </span>
                                 </td>
                                 <td class="px-6 py-4 text-center">
+                                    @if ($currentUser->canManageUser($user))
                                     <div class="inline-flex items-center gap-1.5">
                                         <a href="{{ route('backoffice.users.edit', $user->id) }}" class="rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700 hover:bg-sky-100">
                                             Edit
@@ -156,6 +157,9 @@
                                             </form>
                                         @endif
                                     </div>
+                                    @else
+                                        <span class="text-xs text-slate-400">Dikelola master</span>
+                                    @endif
                                 </td>
                             </tr>
                         @empty

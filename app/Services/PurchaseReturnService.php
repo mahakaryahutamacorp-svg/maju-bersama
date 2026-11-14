@@ -74,11 +74,22 @@ class PurchaseReturnService
 
             // 3. Optional Goods Receipt reference
             $goodsReceiptId = ! empty($data['goods_receipt_id']) ? (int) $data['goods_receipt_id'] : null;
+            $goodsReceipt = null;
             if ($goodsReceiptId) {
-                $goodsReceiptExists = GoodsReceipt::withoutGlobalScopes()->where('id', $goodsReceiptId)->exists();
-                if (! $goodsReceiptExists) {
+                $goodsReceipt = GoodsReceipt::withoutGlobalScopes()
+                    ->with('items')
+                    ->lockForUpdate()
+                    ->find($goodsReceiptId);
+
+                if (! $goodsReceipt) {
                     throw ValidationException::withMessages([
                         'goods_receipt_id' => ['Penerimaan barang tidak ditemukan.'],
+                    ]);
+                }
+
+                if ((int) $goodsReceipt->branch_id !== (int) $branch->id || ! $this->receiptBelongsToSupplier($goodsReceipt, $supplier)) {
+                    throw ValidationException::withMessages([
+                        'goods_receipt_id' => ['Penerimaan barang tidak cocok dengan supplier atau cabang retur ini.'],
                     ]);
                 }
             }
@@ -95,6 +106,7 @@ class PurchaseReturnService
             // 5. Process Items, Decrement Inventory & Synchronize Product Stock
             $totalAmount = '0.00';
             $processedItems = [];
+            $products = [];
 
             foreach ($returnItems as $index => $itemData) {
                 $productId = (int) ($itemData['product_id'] ?? 0);
@@ -127,21 +139,20 @@ class PurchaseReturnService
 
                 $totalAmount = bcadd($totalAmount, $subtotal, 2);
 
-                // Lock inventory record for branch & product
-                $inventory = $this->lockInventory($branch->id, $product->id);
-
-                // Decrement inventory stock
-                $inventory->decrement('quantity', $quantity);
-
-                // Decrement product cached stock
-                $product->decrement('stock', $quantity);
-
                 $processedItems[] = [
                     'product_id' => $product->id,
                     'quantity' => $quantity,
                     'unit_price' => $unitPrice,
                     'subtotal' => $subtotal,
                 ];
+                $products[$product->id] = $product;
+            }
+
+            $this->assertReturnableQuantities($processedItems, $products, $branch->id, $goodsReceipt);
+
+            foreach ($processedItems as $item) {
+                $this->lockInventory($branch->id, $item['product_id'])->decrement('quantity', $item['quantity']);
+                $products[$item['product_id']]->decrement('stock', $item['quantity']);
             }
 
             // 6. Save Header
@@ -181,6 +192,81 @@ class PurchaseReturnService
                 'journalHeader.journalLines.chartOfAccount',
             ]);
         });
+    }
+
+    private function receiptBelongsToSupplier(GoodsReceipt $goodsReceipt, Supplier $supplier): bool
+    {
+        if ($goodsReceipt->supplier_id !== null) {
+            return (int) $goodsReceipt->supplier_id === (int) $supplier->id;
+        }
+
+        return strcasecmp(trim((string) $goodsReceipt->supplier_name), trim((string) $supplier->name)) === 0;
+    }
+
+    /**
+     * Retur tidak boleh melebihi sisa kuantitas penerimaan yang ditautkan, dan tidak boleh membuat stok minus.
+     *
+     * @param  list<array{product_id: int, quantity: string}>  $processedItems
+     * @param  array<int, Product>  $products
+     *
+     * @throws ValidationException
+     */
+    private function assertReturnableQuantities(array $processedItems, array $products, int $branchId, ?GoodsReceipt $goodsReceipt): void
+    {
+        $requested = [];
+        foreach ($processedItems as $index => $item) {
+            $requested[$item['product_id']] ??= ['quantity' => '0', 'index' => $index];
+            $requested[$item['product_id']]['quantity'] = DecimalQuantity::add($requested[$item['product_id']]['quantity'], $item['quantity']);
+        }
+
+        foreach ($requested as $productId => $request) {
+            $name = $products[$productId]->name;
+            $field = "items.{$request['index']}.quantity";
+
+            if ($goodsReceipt) {
+                $received = DecimalQuantity::sum(
+                    $goodsReceipt->items->where('product_id', $productId)->pluck('quantity')
+                );
+
+                if (DecimalQuantity::compare($received, '0') <= 0) {
+                    throw ValidationException::withMessages([
+                        "items.{$request['index']}.product_id" => ["{$name} tidak ada pada penerimaan {$goodsReceipt->reference_number}."],
+                    ]);
+                }
+
+                $alreadyReturned = DecimalQuantity::normalize(
+                    PurchaseReturn::withoutGlobalScopes()
+                        ->join('purchase_return_items', 'purchase_return_items.purchase_return_id', '=', 'purchase_returns.id')
+                        ->where('purchase_returns.goods_receipt_id', $goodsReceipt->id)
+                        ->where('purchase_returns.status', '!=', 'cancelled')
+                        ->where('purchase_return_items.product_id', $productId)
+                        ->sum('purchase_return_items.quantity')
+                );
+                $returnable = DecimalQuantity::sub($received, $alreadyReturned);
+
+                if (DecimalQuantity::compare($request['quantity'], $returnable) > 0) {
+                    $returnableLabel = DecimalQuantity::present(DecimalQuantity::compare($returnable, '0') < 0 ? '0' : $returnable);
+                    throw ValidationException::withMessages([
+                        $field => ["Jumlah retur {$name} melebihi jumlah yang diterima pada {$goodsReceipt->reference_number}. Maksimal yang bisa diretur: {$returnableLabel}."],
+                    ]);
+                }
+            }
+
+            $onHand = DecimalQuantity::normalize(
+                Inventory::withoutGlobalScopes()
+                    ->where('branch_id', $branchId)
+                    ->where('product_id', $productId)
+                    ->lockForUpdate()
+                    ->value('quantity') ?? '0'
+            );
+
+            if (DecimalQuantity::compare($request['quantity'], $onHand) > 0) {
+                $onHandLabel = DecimalQuantity::present(DecimalQuantity::compare($onHand, '0') < 0 ? '0' : $onHand);
+                throw ValidationException::withMessages([
+                    $field => ["Jumlah retur {$name} melebihi stok tersedia ({$onHandLabel})."],
+                ]);
+            }
+        }
     }
 
     /**

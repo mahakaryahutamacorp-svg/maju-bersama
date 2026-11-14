@@ -98,4 +98,18 @@ class User extends Authenticatable
     {
         return ! $this->isMaster() && ! $this->isBranchAdmin();
     }
+
+    /**
+     * Admin cabang hanya mengelola staf non-master di cabangnya sendiri.
+     */
+    public function canManageUser(User $target): bool
+    {
+        if ($this->isMaster()) {
+            return true;
+        }
+
+        return $this->isBranchAdmin()
+            && ! $target->isMaster()
+            && (int) $target->branch_id === (int) $this->branch_id;
+    }
 }

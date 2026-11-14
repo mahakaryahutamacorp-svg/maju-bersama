@@ -131,6 +131,13 @@ class SalesReturnService
                 $salesReturn->update(['journal_header_id' => $journal->id]);
             }
 
+            if ($sale && $refundAccount->code === self::ACCOUNT_AR) {
+                $lockedSale = Sale::withoutGlobalScopes()->lockForUpdate()->find($sale->id);
+                if ($lockedSale) {
+                    app(ReceivableBalanceService::class)->refreshPaymentStatus($lockedSale);
+                }
+            }
+
             return $salesReturn->load([
                 'items.product',
                 'branch',
@@ -290,6 +297,9 @@ class SalesReturnService
                 [$dppAmount, $lineTax] = $this->taxShareForReturn($sale, $saleItem, $quantity);
                 $subtotal = bcadd($dppAmount, $lineTax, 2);
                 $unitPrice = (string) ($saleItem->price ?? '0.00');
+            } elseif ($saleItem) {
+                $subtotal = $this->netShareForReturn($sale, $saleItem, $quantity);
+                $unitPrice = Money::of(bcdiv($subtotal, $quantity, 6));
             } else {
                 $unitPrice = isset($itemData['unit_price'])
                     ? Money::of($itemData['unit_price'])
@@ -373,6 +383,63 @@ class SalesReturnService
         }
 
         return [$dpp, $tax];
+    }
+
+    /**
+     * Uang yang benar-benar dibayar untuk baris nota ini (setelah diskon baris dan porsi diskon nota).
+     */
+    public function paidLineAmount(Sale $sale, SaleItem $saleItem): string
+    {
+        $lineNet = Money::of($saleItem->subtotal ?? '0.00');
+        $saleDiscount = Money::of($sale->discount_amount ?? '0.00');
+
+        if (bccomp($saleDiscount, '0.00', 2) !== 1) {
+            return $lineNet;
+        }
+
+        $lines = $sale->items->sortBy('id')->values();
+        $shares = $this->taxCalculator->allocateDiscount(
+            $saleDiscount,
+            $lines->map(fn (SaleItem $line) => Money::of($line->subtotal ?? '0.00'))->all(),
+        );
+        $position = $lines->search(fn (SaleItem $line) => (int) $line->id === (int) $saleItem->id);
+        $net = bcsub($lineNet, $shares[$position] ?? '0.00', 2);
+
+        return bccomp($net, '0.00', 2) === -1 ? '0.00' : $net;
+    }
+
+    protected function netShareForReturn(Sale $sale, SaleItem $saleItem, string $quantity): string
+    {
+        $soldQty = DecimalQuantity::normalize($saleItem->quantity);
+        $linePaid = $this->paidLineAmount($sale, $saleItem);
+
+        $prior = SalesReturnItem::query()
+            ->where('product_id', $saleItem->product_id)
+            ->whereIn(
+                'sales_return_id',
+                SalesReturn::withoutGlobalScopes()->where('sale_id', $sale->id)->select('id')
+            )
+            ->get(['quantity', 'subtotal']);
+
+        $alreadyQty = DecimalQuantity::sum($prior->pluck('quantity'));
+        $alreadyRefunded = $prior->reduce(
+            fn (string $carry, SalesReturnItem $item) => bcadd($carry, (string) $item->subtotal, 2),
+            '0.00',
+        );
+
+        $remainingAmount = bcsub($linePaid, $alreadyRefunded, 2);
+        if (bccomp($remainingAmount, '0.00', 2) === -1) {
+            $remainingAmount = '0.00';
+        }
+
+        $remainingQty = DecimalQuantity::sub($soldQty, $alreadyQty);
+        if (DecimalQuantity::compare($remainingQty, '0') <= 0 || DecimalQuantity::compare($quantity, $remainingQty) >= 0) {
+            return $remainingAmount;
+        }
+
+        $share = $this->taxCalculator->share($linePaid, $quantity, $soldQty);
+
+        return bccomp($share, $remainingAmount, 2) === 1 ? $remainingAmount : $share;
     }
 
     protected function assertReturnableQuantity(Sale $sale, int $productId, string $quantity, int $index): void

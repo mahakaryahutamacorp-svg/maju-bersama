@@ -433,6 +433,61 @@ class GoodsReceiptServiceTest extends TestCase
         $this->assertEquals('completed', $po->status);
     }
 
+    public function test_goods_receipt_refuses_quantity_above_po_remaining(): void
+    {
+        $supplier = Supplier::withoutGlobalScopes()->create([
+            'branch_id' => $this->central->id,
+            'name' => 'PT Lebih Kirim',
+            'is_active' => true,
+        ]);
+
+        $po = PurchaseOrder::withoutGlobalScopes()->create([
+            'branch_id' => $this->central->id,
+            'supplier_id' => $supplier->id,
+            'reference_number' => 'PO-OVER-001',
+            'order_date' => '2026-09-19',
+            'status' => 'pending',
+            'total_amount' => 140000.00,
+        ]);
+
+        $poItem = PurchaseOrderItem::create([
+            'purchase_order_id' => $po->id,
+            'product_id' => $this->productA->id,
+            'quantity' => 10,
+            'received_quantity' => 0,
+            'unit_price' => 14000,
+            'subtotal' => 140000,
+        ]);
+
+        $this->service->processReceipt([
+            'purchase_order_id' => $po->id,
+            'items' => [['product_id' => $this->productA->id, 'quantity' => 8]],
+        ], $this->master);
+
+        $stockAfterPartial = (string) $this->productA->fresh()->stock;
+
+        try {
+            $this->service->processReceipt([
+                'purchase_order_id' => $po->id,
+                'items' => [['product_id' => $this->productA->id, 'quantity' => 3]],
+            ], $this->master);
+            $this->fail('Penerimaan melebihi sisa PO seharusnya ditolak.');
+        } catch (ValidationException $exception) {
+            $this->assertStringContainsString('melebihi sisa pesanan', $exception->errors()['items.0.quantity'][0]);
+        }
+
+        $this->assertEquals(8, $poItem->fresh()->received_quantity);
+        $this->assertSame($stockAfterPartial, (string) $this->productA->fresh()->stock);
+
+        $this->service->processReceipt([
+            'purchase_order_id' => $po->id,
+            'items' => [['product_id' => $this->productA->id, 'quantity' => 2]],
+        ], $this->master);
+
+        $this->assertEquals(10, $poItem->fresh()->received_quantity);
+        $this->assertEquals('completed', $po->fresh()->status);
+    }
+
     public function test_goods_receipt_rejects_completed_or_cancelled_po(): void
     {
         $supplier = Supplier::withoutGlobalScopes()->create([

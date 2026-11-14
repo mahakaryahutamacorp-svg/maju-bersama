@@ -126,9 +126,7 @@ class UserController extends Controller
 
         $user = User::with('branch')->findOrFail($id);
 
-        if (! $isMaster && (int) $user->branch_id !== (int) $currentUser->branch_id) {
-            abort(403, 'Anda tidak memiliki otorisasi untuk mengubah data pengguna cabang lain.');
-        }
+        $this->authorizeManage($currentUser, $user, 'mengubah');
 
         $branches = $isMaster ? Branch::orderBy('name')->get() : collect([$user->branch]);
 
@@ -150,9 +148,7 @@ class UserController extends Controller
 
         $user = User::findOrFail($id);
 
-        if (! $isMaster && (int) $user->branch_id !== (int) $currentUser->branch_id) {
-            abort(403, 'Anda tidak memiliki otorisasi untuk mengubah data pengguna cabang lain.');
-        }
+        $this->authorizeManage($currentUser, $user, 'mengubah');
 
         $allowedRoles = $isMaster ? ['master', 'admin', 'cashier'] : ['admin', 'cashier'];
 
@@ -202,13 +198,10 @@ class UserController extends Controller
     public function destroy(Request $request, int $id): RedirectResponse
     {
         $currentUser = $request->user();
-        $isMaster = $currentUser->isMaster();
 
         $user = User::findOrFail($id);
 
-        if (! $isMaster && (int) $user->branch_id !== (int) $currentUser->branch_id) {
-            abort(403, 'Anda tidak memiliki otorisasi untuk menghapus pengguna cabang lain.');
-        }
+        $this->authorizeManage($currentUser, $user, 'menghapus');
 
         if ($user->id === $currentUser->id) {
             return redirect()
@@ -222,5 +215,18 @@ class UserController extends Controller
         return redirect()
             ->route('backoffice.users.index')
             ->with('success', "Pengguna '{$name}' berhasil dihapus!");
+    }
+
+    private function authorizeManage(User $actor, User $target, string $action): void
+    {
+        if ($actor->canManageUser($target)) {
+            return;
+        }
+
+        $message = $target->isMaster()
+            ? "Hanya akun master yang dapat {$action} akun master."
+            : "Anda tidak memiliki otorisasi untuk {$action} pengguna cabang lain.";
+
+        abort(403, $message);
     }
 }

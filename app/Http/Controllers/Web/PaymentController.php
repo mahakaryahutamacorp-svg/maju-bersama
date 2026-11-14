@@ -9,15 +9,18 @@ use App\Models\PurchaseOrder;
 use App\Models\Sale;
 use App\Models\Supplier;
 use App\Services\ARAPPaymentService;
+use App\Services\ReceivableBalanceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class PaymentController extends Controller
 {
     public function __construct(
-        protected ARAPPaymentService $arapPaymentService
+        protected ARAPPaymentService $arapPaymentService,
+        protected ReceivableBalanceService $receivableBalance,
     ) {}
 
     /**
@@ -77,12 +80,13 @@ class PaymentController extends Controller
             ->get();
 
         // Faktur penjualan yang belum lunas (UNPAID / PARTIAL)
-        $unpaidSales = Sale::with(['customer', 'items.product'])
-            ->where('payment_status', '!=', 'PAID')
-            ->latest('id')
-            ->limit(50)
-            ->get()
-            ->map(fn (Sale $sale) => $this->receivableSalePayload($sale));
+        $unpaidSales = $this->receivablePayloads(
+            Sale::with(['customer', 'items.product'])
+                ->where('payment_status', '!=', 'PAID')
+                ->latest('id')
+                ->limit(50)
+                ->get()
+        );
 
         return view('backoffice.payments.create-ar', [
             'currentUser' => $user,
@@ -166,7 +170,7 @@ class PaymentController extends Controller
         $fullQuery = $tokens->implode(' ');
         $firstToken = (string) $tokens->first();
 
-        $debtors = Sale::query()
+        $openSales = Sale::query()
             ->leftJoin('customers', 'customers.id', '=', 'sales.customer_id')
             ->where('sales.payment_status', '!=', 'PAID')
             ->where(function ($builder) use ($knownCustomerIds, $includesWalkIn) {
@@ -175,9 +179,26 @@ class PaymentController extends Controller
                     $builder->orWhereNull('sales.customer_id');
                 }
             })
-            ->groupBy('sales.customer_id', 'customers.name', 'customers.phone')
-            ->selectRaw('sales.customer_id, customers.name as customer_name, customers.phone as customer_phone, COUNT(*) as invoice_count, SUM(sales.total_amount - sales.paid_amount) as remaining_amount')
-            ->get()
+            ->get(['sales.id', 'sales.customer_id', 'sales.total_amount', 'sales.paid_amount', 'customers.name as customer_name', 'customers.phone as customer_phone']);
+
+        $returned = $this->receivableBalance->returnedBySale($openSales->pluck('id'));
+
+        $debtors = $openSales
+            ->map(function (Sale $sale) use ($returned) {
+                $sale->setAttribute('outstanding', $this->receivableBalance->outstanding($sale, $returned[$sale->id] ?? '0.00'));
+
+                return $sale;
+            })
+            ->filter(fn (Sale $sale) => bccomp($sale->outstanding, '0.00', 2) === 1)
+            ->groupBy(fn (Sale $sale) => (string) $sale->customer_id)
+            ->map(fn ($group) => (object) [
+                'customer_id' => $group->first()->customer_id,
+                'customer_name' => $group->first()->customer_name,
+                'customer_phone' => $group->first()->customer_phone,
+                'invoice_count' => $group->count(),
+                'remaining_amount' => $group->reduce(fn (string $carry, Sale $sale) => bcadd($carry, $sale->outstanding, 2), '0.00'),
+            ])
+            ->values()
             ->map(function ($row) use ($fullQuery, $firstToken) {
                 $name = $row->customer_name ?: 'Pelanggan Umum';
                 $lowerName = mb_strtolower($name);
@@ -219,23 +240,37 @@ class PaymentController extends Controller
 
         $customer = $validated['customer'];
 
-        $sales = Sale::with(['customer', 'items.product'])
-            ->where('payment_status', '!=', 'PAID')
-            ->when(
-                $customer === 'walk-in',
-                fn ($builder) => $builder->whereNull('customer_id'),
-                fn ($builder) => $builder->where('customer_id', (int) $customer)
-            )
-            ->latest('id')
-            ->limit(500)
-            ->get()
-            ->map(fn (Sale $sale) => $this->receivableSalePayload($sale))
-            ->values();
+        $sales = $this->receivablePayloads(
+            Sale::with(['customer', 'items.product'])
+                ->where('payment_status', '!=', 'PAID')
+                ->when(
+                    $customer === 'walk-in',
+                    fn ($builder) => $builder->whereNull('customer_id'),
+                    fn ($builder) => $builder->where('customer_id', (int) $customer)
+                )
+                ->latest('id')
+                ->limit(500)
+                ->get()
+        );
 
         return response()->json(['sales' => $sales]);
     }
 
-    private function receivableSalePayload(Sale $sale): array
+    /**
+     * @param  Collection<int, Sale>  $sales
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function receivablePayloads(Collection $sales): Collection
+    {
+        $returned = $this->receivableBalance->returnedBySale($sales->pluck('id'));
+
+        return $sales
+            ->map(fn (Sale $sale) => $this->receivableSalePayload($sale, $returned[$sale->id] ?? '0.00'))
+            ->filter(fn (array $payload) => bccomp($payload['outstanding'], '0.00', 2) === 1)
+            ->values();
+    }
+
+    private function receivableSalePayload(Sale $sale, string $returned): array
     {
         return [
             'id' => $sale->id,
@@ -247,6 +282,8 @@ class PaymentController extends Controller
             'description' => $this->receivableDescription($sale),
             'total_amount' => $sale->total_amount,
             'paid_amount' => $sale->paid_amount,
+            'returned_amount' => $returned,
+            'outstanding' => $this->receivableBalance->outstanding($sale, $returned),
         ];
     }
 

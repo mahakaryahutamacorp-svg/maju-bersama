@@ -254,14 +254,35 @@
             <span>TOTAL:</span>
             <span>Rp {{ $rupiah($realTotal) }}</span>
         </div>
-        <div class="summary-row">
-            <span>TUNAI:</span>
-            <span>Rp {{ $rupiah($cash) }}</span>
-        </div>
-        <div class="summary-row">
-            <span>KEMBALIAN:</span>
-            <span>Rp {{ $rupiah($change) }}</span>
-        </div>
+        @if ($isTempo ?? false)
+            <div class="summary-row">
+                <span>PEMBAYARAN:</span>
+                <span>TEMPO / PIUTANG</span>
+            </div>
+            <div class="summary-row">
+                <span>UANG MUKA (DP):</span>
+                <span>Rp {{ $rupiah($downPayment) }}</span>
+            </div>
+            <div class="summary-row total-row">
+                <span>SISA PIUTANG:</span>
+                <span>Rp {{ $rupiah($remainingReceivable) }}</span>
+            </div>
+            @if ($sale->due_date)
+                <div class="summary-row">
+                    <span>JATUH TEMPO:</span>
+                    <span>{{ \Illuminate\Support\Carbon::parse($sale->due_date)->format('d/m/Y') }}</span>
+                </div>
+            @endif
+        @else
+            <div class="summary-row">
+                <span>TUNAI:</span>
+                <span>Rp {{ $rupiah($cash) }}</span>
+            </div>
+            <div class="summary-row">
+                <span>KEMBALIAN:</span>
+                <span>Rp {{ $rupiah($change) }}</span>
+            </div>
+        @endif
 
         <div class="divider"></div>
 

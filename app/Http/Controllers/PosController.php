@@ -14,9 +14,11 @@ use App\Models\User;
 use App\Services\CashRegisterShiftService;
 use App\Services\SalePostingService;
 use App\Support\DecimalQuantity;
+use App\Support\Money;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 
 class PosController extends Controller
@@ -41,23 +43,57 @@ class PosController extends Controller
             'payment_method' => ['nullable', 'string', 'max:255'],
             'discount_amount' => ['nullable', 'numeric', 'min:0'],
             'due_date' => ['nullable', 'date'],
+            'paid_amount' => ['nullable', 'numeric', 'min:0'],
+            'idempotency_key' => ['nullable', 'string', 'max:100'],
         ]);
 
-        $sale = $salePostingService->post(
-            $validated,
-            $request->user(),
-        );
+        $user = $request->user();
+        $idempotencyCacheKey = ! empty($validated['idempotency_key'])
+            ? "pos-checkout:{$user->id}:{$validated['idempotency_key']}"
+            : null;
+
+        $sale = null;
+        if ($idempotencyCacheKey !== null) {
+            $sale = Cache::lock("{$idempotencyCacheKey}:lock", 30)->block(15, function () use ($idempotencyCacheKey, $validated, $user, $salePostingService) {
+                $existingSaleId = Cache::get($idempotencyCacheKey);
+                if ($existingSaleId) {
+                    return Sale::withoutGlobalScopes()->with('items.product')->find($existingSaleId);
+                }
+
+                $sale = $salePostingService->post($validated, $user);
+                Cache::put($idempotencyCacheKey, $sale->id, now()->addDay());
+
+                return $sale;
+            });
+        }
+
+        $sale ??= $salePostingService->post($validated, $user);
 
         if ($request->expectsJson() || $request->isJson() || $request->wantsJson()) {
+            $activeShift = $this->shiftService->getActiveShiftForUser($user->id);
+
             return response()->json([
                 'message' => 'Checkout completed successfully.',
                 'status' => 'success',
                 'receipt_number' => $sale->receipt_number,
                 'sale' => $sale,
+                'expected_balance' => $activeShift ? $this->shiftService->calculateExpectedBalance($activeShift) : null,
             ], 201);
         }
 
         return redirect()->route('pos.receipt', $sale->receipt_number);
+    }
+
+    /**
+     * Saldo kas laci yang diharapkan untuk shift aktif kasir, dihitung ulang saat modal tutup shift dibuka.
+     */
+    public function expectedShiftBalance(Request $request): JsonResponse
+    {
+        $activeShift = $this->shiftService->getActiveShiftForUser($request->user()->id);
+
+        return response()->json([
+            'expected_balance' => $activeShift ? $this->shiftService->calculateExpectedBalance($activeShift) : null,
+        ]);
     }
 
     /**
@@ -276,10 +312,25 @@ class PosController extends Controller
         $cashTendered = $request->query('cash');
         $changeDue = $request->query('change');
 
+        $isTempo = in_array(strtolower((string) $sale->payment_method), ['tempo', 'piutang', 'kredit'], true);
+        $downPayment = null;
+        $remainingReceivable = null;
+        if ($isTempo) {
+            $settled = Money::of($sale->paymentAllocations()->sum('allocated_amount'));
+            $downPayment = bcsub(Money::of($sale->paid_amount ?? 0), $settled, 2);
+            if (bccomp($downPayment, '0.00', 2) === -1) {
+                $downPayment = '0.00';
+            }
+            $remainingReceivable = bcsub(Money::of($sale->total_amount), $downPayment, 2);
+        }
+
         return view('pos.receipt', [
             'sale' => $sale,
             'cashTendered' => $cashTendered ? (float) $cashTendered : null,
             'changeDue' => $changeDue ? (float) $changeDue : null,
+            'isTempo' => $isTempo,
+            'downPayment' => $downPayment,
+            'remainingReceivable' => $remainingReceivable,
         ]);
     }
 

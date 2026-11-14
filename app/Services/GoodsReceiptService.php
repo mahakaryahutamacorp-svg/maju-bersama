@@ -94,6 +94,10 @@ class GoodsReceiptService
         }
 
         return DB::transaction(function () use ($data, $actor, $paymentType, $purchaseOrder): GoodsReceipt {
+            if ($purchaseOrder) {
+                $purchaseOrder->setRelation('items', $purchaseOrder->items()->lockForUpdate()->get());
+            }
+
             $supplier = $this->resolveSupplier($data, $actor, $paymentType, $purchaseOrder);
 
             // Resolve branch (central branch or actor's own branch)
@@ -129,6 +133,11 @@ class GoodsReceiptService
                 $poItem = null;
                 if ($purchaseOrder) {
                     $poItem = $purchaseOrder->items->firstWhere('product_id', $productId);
+                    if ($poItem === null) {
+                        throw ValidationException::withMessages([
+                            "items.{$index}.product_id" => ['Produk ini tidak ada pada pesanan barang yang tertaut.'],
+                        ]);
+                    }
                 }
 
                 $unitPrice = $poItem
@@ -146,6 +155,10 @@ class GoodsReceiptService
                     'subtotal' => $subtotal,
                     'po_item' => $poItem,
                 ];
+            }
+
+            if ($purchaseOrder) {
+                $this->assertWithinOrderedQuantity($processedItems, $purchaseOrder);
             }
 
             // Langkah A: Simpan data ke goods_receipts
@@ -616,6 +629,13 @@ class GoodsReceiptService
                 ]);
             }
 
+            if (DecimalQuantity::compare($delta, '0') > 0 && DecimalQuantity::compare($next, $poItem->quantity) > 0) {
+                $remaining = DecimalQuantity::present(DecimalQuantity::sub($poItem->quantity, $poItem->received_quantity));
+                throw ValidationException::withMessages([
+                    'items' => ["Kuantitas diterima melebihi sisa pesanan. Sisa yang belum diterima: {$remaining}."],
+                ]);
+            }
+
             $poItem->received_quantity = $next;
             $poItem->save();
         }
@@ -656,6 +676,32 @@ class GoodsReceiptService
 
         $inventory->increment('quantity', $delta);
         $product->increment('stock', $delta);
+    }
+
+    /**
+     * @param  list<array{product_id: int, quantity: string, po_item: mixed}>  $processedItems
+     */
+    private function assertWithinOrderedQuantity(array $processedItems, PurchaseOrder $purchaseOrder): void
+    {
+        $requested = [];
+        foreach ($processedItems as $item) {
+            $requested[$item['product_id']] = DecimalQuantity::add($requested[$item['product_id']] ?? '0', $item['quantity']);
+        }
+
+        foreach ($requested as $productId => $quantity) {
+            $poItem = $purchaseOrder->items->firstWhere('product_id', $productId);
+            $remaining = DecimalQuantity::sub($poItem->quantity, $poItem->received_quantity);
+
+            if (DecimalQuantity::compare($quantity, $remaining) > 0) {
+                $index = collect($processedItems)->search(fn (array $item) => $item['product_id'] === $productId);
+                $name = $poItem->product?->name ?? "Produk #{$productId}";
+                $remainingLabel = DecimalQuantity::present(DecimalQuantity::compare($remaining, '0') < 0 ? '0' : $remaining);
+
+                throw ValidationException::withMessages([
+                    "items.{$index}.quantity" => ["Kuantitas {$name} melebihi sisa pesanan. Sisa yang belum diterima: {$remainingLabel}."],
+                ]);
+            }
+        }
     }
 
     private function refreshPurchaseOrderStatus(PurchaseOrder $purchaseOrder): void

@@ -20,6 +20,7 @@
         x-data="posApp({{ Js::from($products) }}, {{ Js::from($categories) }}, { hasActiveShift: {{ $hasActiveShift ? 'true' : 'false' }}, expectedBalance: {{ (float) $expectedBalance }}, branchId: {{ (int) $operatingBranch->id }}, cashierName: {{ Js::from($currentUser->name) }} }, {{ Js::from($customers ?? []) }}, {{ Js::from($customerGroups ?? []) }})" 
         class="min-h-screen flex flex-col"
         @keydown.window.escape="handleEscapeKey()"
+        @keydown.window.f9.prevent="handlePaymentShortcut()"
     >
         <!-- Header Utama Kasir -->
         <header class="border-b border-slate-800 bg-slate-950 text-white shadow-md">
@@ -657,7 +658,7 @@
                             <button 
                                 type="button" 
                                 id="btn-payment-tempo"
-                                @click="paymentMethod = 'tempo'; if (cashTendered > grandTotal) cashTendered = 0" 
+                                @click="paymentMethod = 'tempo'; cashTendered = 0" 
                                 class="rounded-lg border py-2 text-xs font-bold transition flex items-center justify-center gap-1"
                                 :class="paymentMethod === 'tempo' ? 'border-amber-600 bg-amber-50 text-amber-800 ring-2 ring-amber-500/20' : 'border-amber-300 bg-amber-50/50 text-amber-700 hover:bg-amber-100'"
                             >
@@ -705,7 +706,7 @@
 
                     <!-- Input Tunai / Bayar -->
                     <div>
-                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5">Tunai / Bayar (Rp)</label>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5" x-text="paymentMethod === 'tempo' ? 'Uang Muka / DP (Rp)' : 'Tunai / Bayar (Rp)'">Tunai / Bayar (Rp)</label>
                         <input 
                             type="number" 
                             id="input-cash-tendered"
@@ -780,13 +781,14 @@
                                 class="text-xs font-bold uppercase tracking-wider"
                                 :class="changeDue >= 0 ? 'text-emerald-800' : 'text-rose-800'"
                             >
-                                <span x-show="changeDue >= 0">Kembalian:</span>
-                                <span x-show="changeDue < 0">Kekurangan Bayar:</span>
+                                <span x-show="paymentMethod === 'tempo'">Sisa Piutang:</span>
+                                <span x-show="paymentMethod !== 'tempo' && changeDue >= 0">Kembalian:</span>
+                                <span x-show="paymentMethod !== 'tempo' && changeDue < 0">Kekurangan Bayar:</span>
                             </span>
                             <span 
                                 class="text-xl font-black font-mono"
                                 :class="changeDue >= 0 ? 'text-emerald-700' : 'text-rose-700'"
-                                x-text="formatRupiah(Math.abs(changeDue))"
+                                x-text="formatRupiah(paymentMethod === 'tempo' ? Math.max(0, grandTotal - tempoDownPayment) : Math.abs(changeDue))"
                             ></span>
                         </div>
                     </div>
@@ -844,14 +846,30 @@
                             <span>Total Akhir:</span>
                             <span class="font-bold text-slate-900" x-text="formatRupiah(lastSaleTotal)"></span>
                         </div>
-                        <div class="flex justify-between text-slate-600">
-                            <span>Tunai / Bayar:</span>
-                            <span class="font-mono text-slate-800" x-text="formatRupiah(lastCashTendered)"></span>
-                        </div>
-                        <div class="flex justify-between text-emerald-700 font-bold border-t border-slate-200 pt-1.5">
-                            <span>Kembalian:</span>
-                            <span class="font-mono text-base" x-text="formatRupiah(lastChangeDue)"></span>
-                        </div>
+                        <template x-if="lastPaymentMethod === 'tempo'">
+                            <div class="space-y-2">
+                                <div class="flex justify-between text-slate-600">
+                                    <span>Uang Muka (DP):</span>
+                                    <span class="font-mono text-slate-800" x-text="formatRupiah(lastDownPayment)"></span>
+                                </div>
+                                <div class="flex justify-between text-amber-700 font-bold border-t border-slate-200 pt-1.5">
+                                    <span>Sisa Piutang:</span>
+                                    <span class="font-mono text-base" x-text="formatRupiah(Math.max(0, lastSaleTotal - lastDownPayment))"></span>
+                                </div>
+                            </div>
+                        </template>
+                        <template x-if="lastPaymentMethod !== 'tempo'">
+                            <div class="space-y-2">
+                                <div class="flex justify-between text-slate-600">
+                                    <span>Tunai / Bayar:</span>
+                                    <span class="font-mono text-slate-800" x-text="formatRupiah(lastCashTendered)"></span>
+                                </div>
+                                <div class="flex justify-between text-emerald-700 font-bold border-t border-slate-200 pt-1.5">
+                                    <span>Kembalian:</span>
+                                    <span class="font-mono text-base" x-text="formatRupiah(lastChangeDue)"></span>
+                                </div>
+                            </div>
+                        </template>
                     </div>
 
                     <div class="grid grid-cols-2 gap-3 pt-2">
@@ -1429,7 +1447,21 @@
                     this.openingBalanceDisplay = val > 0 ? val.toLocaleString('id-ID') : '';
                 },
 
-                openCloseShiftModal() {
+                async openCloseShiftModal() {
+                    try {
+                        const response = await fetch('{{ route('pos.shift.expected') }}', {
+                            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        });
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.expected_balance !== null && data.expected_balance !== undefined) {
+                                this.expectedBalance = Number(data.expected_balance) || 0;
+                            }
+                        }
+                    } catch (error) {
+                        console.warn('Gagal memuat ulang saldo laci, memakai nilai terakhir.', error);
+                    }
+
                     this.closingBalanceRaw = this.expectedBalance;
                     this.closingBalanceDisplay = this.expectedBalance > 0 ? this.expectedBalance.toLocaleString('id-ID') : '0';
                     this.closeShiftModalOpen = true;
@@ -1448,6 +1480,7 @@
                 dueDate: '',
                 cashTendered: 0,
                 checkoutError: '',
+                checkoutKey: '',
 
                 // Helper selectedCustomer untuk validasi transaksi tempo
                 get selectedCustomer() {
@@ -1461,6 +1494,19 @@
                 lastSaleTotal: 0,
                 lastCashTendered: 0,
                 lastChangeDue: 0,
+                lastPaymentMethod: 'cash',
+                lastDownPayment: 0,
+
+                get tempoDownPayment() {
+                    return Math.min(Math.max(0, Number(this.cashTendered) || 0), this.grandTotal);
+                },
+
+                newCheckoutKey() {
+                    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+                        return window.crypto.randomUUID();
+                    }
+                    return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+                },
 
                 // Filter Katalog Produk berdasarkan Kategori dan Search Query
                 get filteredProducts() {
@@ -2107,6 +2153,7 @@
                     this.paymentMethod = 'cash';
                     this.cashTendered = this.grandTotal; // default uang pas
                     this.checkoutError = '';
+                    this.checkoutKey = this.newCheckoutKey();
                     this.paymentModalOpen = true;
 
                     this.$nextTick(() => {
@@ -2130,6 +2177,8 @@
 
                 // Proses Checkout ke API (menyertakan customer_id & due_date untuk tempo)
                 async processCheckout() {
+                    if (this.loading) return;
+
                     if (!this.hasActiveShift) {
                         alert('Shift kasir belum dibuka! Silakan buka shift terlebih dahulu.');
                         return;
@@ -2153,18 +2202,26 @@
 
                     this.loading = true;
                     this.checkoutError = '';
+                    if (!this.checkoutKey) this.checkoutKey = this.newCheckoutKey();
+
+                    const isTempo = this.paymentMethod === 'tempo';
+                    const checkoutPayload = {
+                        customer_id: this.customerId ? Number(this.customerId) : null,
+                        customer_group_id: this.customerGroupId ? Number(this.customerGroupId) : null,
+                        branch_id: this.branchId,
+                        payment_method: this.paymentMethod,
+                        due_date: this.dueDate || null,
+                        discount_amount: Number(this.discountAmount || 0),
+                        paid_amount: isTempo ? this.tempoDownPayment : null,
+                        idempotency_key: this.checkoutKey,
+                        items: this.checkoutItemsPayload(),
+                    };
+                    this.lastPaymentMethod = this.paymentMethod;
+                    this.lastDownPayment = isTempo ? this.tempoDownPayment : 0;
 
                     // 1. Percabangan Jika Kondisi Offline
                     if (!navigator.onLine) {
-                        const payload = {
-                            customer_id: this.customerId ? Number(this.customerId) : null,
-                            customer_group_id: this.customerGroupId ? Number(this.customerGroupId) : null,
-                            branch_id: this.branchId,
-                            payment_method: this.paymentMethod,
-                            due_date: this.dueDate || null,
-                            discount_amount: Number(this.discountAmount || 0),
-                            items: this.checkoutItemsPayload(),
-                        };
+                        const payload = checkoutPayload;
 
                         // Simpan payload transaksi ke Dexie IndexedDB
                         if (window.posDB && window.posDB.sync_queue) {
@@ -2201,6 +2258,7 @@
                         this.cart = [];
                         this.discountAmount = 0;
                         this.dueDate = '';
+                        this.checkoutKey = '';
 
                         this.loading = false;
                         return;
@@ -2220,20 +2278,17 @@
                                 'X-CSRF-TOKEN': csrfToken,
                                 'Authorization': 'Bearer ' + this.getApiToken(),
                             },
-                            body: JSON.stringify({
-                                customer_id: this.customerId ? Number(this.customerId) : null,
-                                customer_group_id: this.customerGroupId ? Number(this.customerGroupId) : null,
-                                branch_id: this.branchId,
-                                payment_method: this.paymentMethod,
-                                due_date: this.dueDate || null,
-                                discount_amount: Number(this.discountAmount || 0),
-                                items: this.checkoutItemsPayload(),
-                            }),
+                            body: JSON.stringify(checkoutPayload),
                         });
 
                         const payload = await response.json();
                         if (!response.ok) {
                             throw new Error(payload.message || 'Gagal memproses transaksi checkout.');
+                        }
+
+                        this.checkoutKey = '';
+                        if (payload.expected_balance !== null && payload.expected_balance !== undefined) {
+                            this.expectedBalance = Number(payload.expected_balance) || 0;
                         }
 
                         // Update local stocks
@@ -2348,6 +2403,12 @@
                             this.$refs.barcodeInput.focus();
                         }
                     });
+                },
+
+                handlePaymentShortcut() {
+                    if (this.paymentModalOpen || this.receiptOpen || this.showReceiptModal || this.closeShiftModalOpen) return;
+                    if (this.cart.length === 0) return;
+                    this.openPaymentModal();
                 },
 
                 handleEscapeKey() {

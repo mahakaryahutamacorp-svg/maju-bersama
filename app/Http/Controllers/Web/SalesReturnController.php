@@ -97,9 +97,19 @@ class SalesReturnController extends Controller
         }
 
         // Recent sales for optional receipt reference
-        $recentSales = Sale::orderByDesc('created_at')
+        $recentSales = Sale::with('items')
+            ->orderByDesc('created_at')
             ->limit(50)
-            ->get(['id', 'receipt_number', 'created_at', 'total_amount']);
+            ->get(['id', 'receipt_number', 'created_at', 'total_amount', 'discount_amount']);
+
+        $saleLinePrices = $recentSales->mapWithKeys(fn (Sale $sale) => [
+            $sale->id => $sale->items->mapWithKeys(function ($item) use ($sale) {
+                $quantity = (float) $item->quantity;
+                $paid = (float) $this->salesReturnService->paidLineAmount($sale, $item);
+
+                return [$item->product_id => $quantity > 0 ? round($paid / $quantity, 2) : 0];
+            }),
+        ]);
 
         // Check if cashier has active shift
         $activeShift = CashRegisterShift::where('user_id', $user->id)
@@ -113,6 +123,7 @@ class SalesReturnController extends Controller
             'products' => $products,
             'accounts' => $accounts,
             'recentSales' => $recentSales,
+            'saleLinePrices' => $saleLinePrices,
             'activeShift' => $activeShift,
             'todayDate' => now()->toDateString(),
         ]);

@@ -244,6 +244,12 @@ class PurchaseReturnServiceTest extends TestCase
             'total_amount' => 500000,
             'payment_type' => 'credit',
         ]);
+        $gr->items()->create([
+            'product_id' => $this->productA->id,
+            'quantity' => 5,
+            'unit_price' => 60000,
+            'subtotal' => 300000,
+        ]);
 
         $data = [
             'branch_id' => $this->branchA->id,
@@ -265,6 +271,70 @@ class PurchaseReturnServiceTest extends TestCase
         $this->assertEquals($gr->id, $purchaseReturn->goods_receipt_id);
         $this->assertInstanceOf(GoodsReceipt::class, $purchaseReturn->goodsReceipt);
         $this->assertEquals('GR-20260921-TEST1', $purchaseReturn->goodsReceipt->reference_number);
+    }
+
+    public function test_return_above_linked_receipt_quantity_is_refused_without_touching_stock(): void
+    {
+        $gr = GoodsReceipt::create([
+            'branch_id' => $this->branchA->id,
+            'supplier_id' => $this->supplier->id,
+            'reference_number' => 'GR-20260921-TEST2',
+            'supplier_name' => $this->supplier->name,
+            'date' => '2026-09-20',
+            'total_amount' => 300000,
+            'payment_type' => 'credit',
+        ]);
+        $gr->items()->create([
+            'product_id' => $this->productA->id,
+            'quantity' => 5,
+            'unit_price' => 60000,
+            'subtotal' => 300000,
+        ]);
+
+        $data = [
+            'branch_id' => $this->branchA->id,
+            'supplier_id' => $this->supplier->id,
+            'goods_receipt_id' => $gr->id,
+        ];
+
+        try {
+            $this->service->processReturn($data, [
+                ['product_id' => $this->productA->id, 'quantity' => 8, 'unit_price' => 60000],
+            ], $this->userA);
+            $this->fail('Retur melebihi penerimaan seharusnya ditolak.');
+        } catch (ValidationException $exception) {
+            $this->assertStringContainsString('melebihi jumlah yang diterima', $exception->errors()['items.0.quantity'][0]);
+        }
+
+        $this->service->processReturn($data, [
+            ['product_id' => $this->productA->id, 'quantity' => 3, 'unit_price' => 60000],
+        ], $this->userA);
+
+        $this->expectException(ValidationException::class);
+        try {
+            $this->service->processReturn($data, [
+                ['product_id' => $this->productA->id, 'quantity' => 3, 'unit_price' => 60000],
+            ], $this->userA);
+        } finally {
+            $this->assertSame(1, PurchaseReturn::withoutGlobalScopes()->count());
+            $this->assertEquals(97, $this->productA->fresh()->stock);
+        }
+    }
+
+    public function test_return_above_stock_on_hand_is_refused(): void
+    {
+        $this->expectException(ValidationException::class);
+
+        try {
+            $this->service->processReturn([
+                'branch_id' => $this->branchA->id,
+                'supplier_id' => $this->supplier->id,
+            ], [
+                ['product_id' => $this->productB->id, 'quantity' => 51, 'unit_price' => 30000],
+            ], $this->userA);
+        } finally {
+            $this->assertEquals(50, $this->productB->fresh()->stock);
+        }
     }
 
     public function test_process_return_with_multiple_items(): void

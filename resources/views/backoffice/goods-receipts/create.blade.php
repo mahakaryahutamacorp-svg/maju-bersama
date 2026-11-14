@@ -80,7 +80,8 @@
                                 <option value="">-- Penerimaan Mandiri (Tanpa PO) --</option>
                                 @foreach ($activePOs as $po)
                                     <option value="{{ $po['id'] }}">
-                                        {{ $po['reference_number'] }} | {{ $po['supplier_name'] }} ({{ count($po['items']) }} item sisa)
+                                        {{ $po['reference_number'] }} | {{ $po['supplier_name'] }} | {{ $po['order_date'] }}{{ $po['status'] === 'partial' ? ' | Sebagian diterima' : '' }}
+                                        ({{ collect($po['items'])->map(fn ($item) => $item['product_name'].' sisa '.$item['remaining_quantity'].'/'.$item['quantity'])->implode(', ') }})
                                     </option>
                                 @endforeach
                             </select>

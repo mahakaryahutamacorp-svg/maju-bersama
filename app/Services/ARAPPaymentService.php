@@ -10,6 +10,7 @@ use App\Models\PaymentAllocation;
 use App\Models\PurchaseOrder;
 use App\Models\Sale;
 use App\Models\User;
+use App\Support\Money;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -20,8 +21,77 @@ class ARAPPaymentService
     public const ACCOUNT_PAYABLE_CODE = '2110';
 
     public function __construct(
-        protected JournalEntryService $journalEntryService
+        protected JournalEntryService $journalEntryService,
+        protected ReceivableBalanceService $receivableBalance,
     ) {}
+
+    /**
+     * @param  array<int, array{sale_id?: int|string|null, allocated_amount?: float|int|string|null}>  $allocations
+     * @return array<int, Sale>
+     *
+     * @throws ValidationException
+     */
+    private function assertReceivableAllocations(string $amount, array $allocations, ?User $actor): array
+    {
+        $requested = [];
+        $totalAllocated = '0.00';
+
+        foreach ($allocations as $index => $allocation) {
+            $allocated = Money::of($allocation['allocated_amount'] ?? 0);
+            if (bccomp($allocated, '0.00', 2) !== 1) {
+                continue;
+            }
+
+            $saleId = (int) ($allocation['sale_id'] ?? 0);
+            if ($saleId <= 0) {
+                throw ValidationException::withMessages([
+                    "allocations.{$index}.sale_id" => ['Faktur penjualan untuk alokasi ini wajib dipilih.'],
+                ]);
+            }
+
+            $requested[$saleId] = bcadd($requested[$saleId] ?? '0.00', $allocated, 2);
+            $totalAllocated = bcadd($totalAllocated, $allocated, 2);
+        }
+
+        if ($requested === []) {
+            throw ValidationException::withMessages([
+                'allocations' => ['Pilih minimal satu faktur penjualan yang akan dialokasikan pembayarannya.'],
+            ]);
+        }
+
+        if (bccomp($amount, $totalAllocated, 2) !== 0) {
+            throw ValidationException::withMessages([
+                'amount' => ['Nominal pembayaran ('.Money::rupiah($amount).') harus sama dengan total alokasi faktur ('.Money::rupiah($totalAllocated).').'],
+            ]);
+        }
+
+        $sales = Sale::withoutGlobalScopes()
+            ->whereIn('id', array_keys($requested))
+            ->lockForUpdate()
+            ->get()
+            ->keyBy('id');
+
+        $returned = $this->receivableBalance->returnedBySale(array_keys($requested));
+
+        foreach ($requested as $saleId => $allocated) {
+            $sale = $sales->get($saleId);
+
+            if (! $sale || ($actor instanceof User && ! $actor->isMaster() && (int) $sale->branch_id !== (int) $actor->branch_id)) {
+                throw ValidationException::withMessages([
+                    'allocations' => ['Faktur penjualan tidak ditemukan di cabang Anda.'],
+                ]);
+            }
+
+            $outstanding = $this->receivableBalance->outstanding($sale, $returned[$saleId] ?? '0.00');
+            if (bccomp($allocated, $outstanding, 2) === 1) {
+                throw ValidationException::withMessages([
+                    'allocations' => ["Alokasi untuk faktur {$sale->receipt_number} (".Money::rupiah($allocated).') melebihi sisa piutangnya ('.Money::rupiah($outstanding).').'],
+                ]);
+            }
+        }
+
+        return $sales->all();
+    }
 
     /**
      * Memproses penerimaan pembayaran piutang pelanggan (Account Receivable / AR).
@@ -44,6 +114,8 @@ class ARAPPaymentService
                     'amount' => ['Nominal pembayaran piutang harus lebih besar dari 0.'],
                 ]);
             }
+
+            $lockedSales = $this->assertReceivableAllocations(Money::of($data['amount']), $allocations, $actor);
 
             $bankAccount = ChartOfAccount::findOrFail($data['account_id']);
             $arAccount = $this->getReceivableAccount();
@@ -93,17 +165,9 @@ class ARAPPaymentService
                 ]);
 
                 if ($saleId) {
-                    $sale = Sale::withoutGlobalScopes()->findOrFail($saleId);
-                    $newPaidAmount = bcadd((string) ($sale->paid_amount ?? 0), $allocatedAmount, 4);
-                    $sale->paid_amount = $newPaidAmount;
-
-                    // Update payment_status
-                    if (bccomp($newPaidAmount, (string) $sale->total_amount, 4) >= 0) {
-                        $sale->payment_status = 'PAID';
-                    } else {
-                        $sale->payment_status = 'PARTIAL';
-                    }
-                    $sale->save();
+                    $sale = $lockedSales[(int) $saleId];
+                    $sale->paid_amount = bcadd(Money::of($sale->paid_amount ?? 0), Money::of($allocatedAmount), 2);
+                    $this->receivableBalance->refreshPaymentStatus($sale);
                 }
             }
 

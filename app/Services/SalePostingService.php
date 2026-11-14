@@ -317,8 +317,20 @@ class SalePostingService
                     ->first();
             }
 
-            $paymentStatus = in_array(strtolower($paymentMethod), ['tempo', 'piutang', 'kredit']) ? 'UNPAID' : 'PAID';
-            $paidAmount = $paymentStatus === 'PAID' ? $grandTotal : $this->money($data['paid_amount'] ?? 0);
+            $isTempo = in_array(strtolower($paymentMethod), ['tempo', 'piutang', 'kredit']);
+            $paidAmount = $isTempo ? $this->money($data['paid_amount'] ?? 0) : $grandTotal;
+
+            if ($isTempo && bccomp($paidAmount, $grandTotal, 2) === 1) {
+                throw ValidationException::withMessages([
+                    'paid_amount' => ['Uang muka (DP) tidak boleh melebihi total belanja.'],
+                ]);
+            }
+
+            $paymentStatus = match (true) {
+                ! $isTempo, bccomp($paidAmount, $grandTotal, 2) === 0 => 'PAID',
+                bccomp($paidAmount, '0.00', 2) === 1 => 'PARTIAL',
+                default => 'UNPAID',
+            };
 
             $attributes = [
                 'branch_id' => $operatingBranchId,
@@ -393,17 +405,39 @@ class SalePostingService
         ]);
 
         $isTempo = in_array(strtolower($sale->payment_method ?? ''), ['tempo', 'piutang', 'kredit']);
-        $debitAccountId = $isTempo ? $accounts[self::ACCOUNT_AR]->id : $accounts[self::ACCOUNT_CASH]->id;
-        $debitMemo = $isTempo ? 'Piutang penjualan POS (Tempo)' : 'Penjualan tunai POS';
 
-        $lines = [
-            [
-                'chart_of_account_id' => $debitAccountId,
-                'debit' => $grandTotal,
-                'credit' => 0,
-                'memo' => $debitMemo,
-            ],
-        ];
+        if ($isTempo) {
+            $downPayment = $this->money($sale->paid_amount ?? 0);
+            $receivable = bcsub($grandTotal, $downPayment, 2);
+            $lines = [];
+
+            if (bccomp($downPayment, '0.00', 2) === 1) {
+                $lines[] = [
+                    'chart_of_account_id' => $accounts[self::ACCOUNT_CASH]->id,
+                    'debit' => $downPayment,
+                    'credit' => 0,
+                    'memo' => 'Uang muka (DP) penjualan tempo POS',
+                ];
+            }
+
+            if (bccomp($receivable, '0.00', 2) === 1) {
+                $lines[] = [
+                    'chart_of_account_id' => $accounts[self::ACCOUNT_AR]->id,
+                    'debit' => $receivable,
+                    'credit' => 0,
+                    'memo' => 'Piutang penjualan POS (Tempo)',
+                ];
+            }
+        } else {
+            $lines = [
+                [
+                    'chart_of_account_id' => $accounts[self::ACCOUNT_CASH]->id,
+                    'debit' => $grandTotal,
+                    'credit' => 0,
+                    'memo' => 'Penjualan tunai POS',
+                ],
+            ];
+        }
 
         // Jika ada diskon, debit akun Potongan Penjualan
         if (bccomp($discountAmount, '0.00', 2) === 1) {

@@ -40,7 +40,7 @@
         @endif
 
         <!-- Form Alpine.js Root -->
-        <div x-data="salesReturnForm(@js($products), @js($accounts))" class="space-y-6">
+        <div x-data="salesReturnForm(@js($products), @js($accounts), @js($saleLinePrices), @js((string) old('sale_id', '')))" class="space-y-6">
             <form method="POST" action="{{ route('backoffice.sales-returns.store') }}" id="salesReturnFormElement" class="space-y-6">
                 @csrf
 
@@ -111,13 +111,15 @@
                             <select
                                 id="sale_id"
                                 name="sale_id"
+                                x-model="saleId"
+                                @change="applySalePrices()"
                                 @if (! $isMaster) required @endif
                                 class="mt-2 block w-full rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-xs focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20"
                             >
                                 <option value="">-- Tanpa Tautan Struk --</option>
                                 @foreach ($recentSales as $sale)
                                     <option value="{{ $sale->id }}" {{ old('sale_id') == $sale->id ? 'selected' : '' }}>
-                                        {{ $sale->receipt_number }} ({{ $sale->created_at->format('d/m/Y H:i') }} - Rp {{ number_format($sale->total_amount / 100, 0, ',', '.') }})
+                                        {{ $sale->receipt_number }} ({{ $sale->created_at->format('d/m/Y H:i') }} - Rp {{ number_format((float) $sale->total_amount, 0, ',', '.') }})
                                     </option>
                                 @endforeach
                             </select>
@@ -252,6 +254,8 @@
                                                     :name="'items[' + index + '][unit_price]'"
                                                     x-model.number="item.unit_price"
                                                     @input="calculateSubtotal(index)"
+                                                    :readonly="salePriceFor(item.product_id) !== null"
+                                                    :title="salePriceFor(item.product_id) !== null ? 'Harga bersih sesuai struk (setelah diskon)' : ''"
                                                     min="0"
                                                     required
                                                     class="w-full rounded-lg border border-slate-300 px-3 py-1.5 text-right text-sm font-mono text-slate-900 shadow-2xs focus:border-sky-500 focus:outline-none focus:ring-1 focus:ring-sky-500"
@@ -370,10 +374,12 @@
     @include('inventory.partials.smart-search-script')
     @include('partials.decimal-math')
     <script>
-        function salesReturnForm(productsList, accountsList) {
+        function salesReturnForm(productsList, accountsList, saleLinePrices, initialSaleId) {
             return withProductPicker({
                 products: productsList || [],
                 accounts: accountsList || [],
+                saleLinePrices: saleLinePrices || {},
+                saleId: initialSaleId || '',
                 refundMethod: 'cash',
                 selectedAccountId: '',
                 items: [
@@ -418,10 +424,21 @@
                     const selectedId = this.items[index].product_id;
                     const product = this.products.find(p => p.id == selectedId);
                     if (product) {
-                        this.items[index].unit_price = parseFloat(product.selling_price) || 0;
+                        const salePrice = this.salePriceFor(product.id);
+                        this.items[index].unit_price = salePrice !== null ? salePrice : (parseFloat(product.selling_price) || 0);
                         this.items[index].unit_cost = parseFloat(product.purchase_price) || 0;
                     }
                     this.calculateSubtotal(index);
+                },
+                salePriceFor(productId) {
+                    const prices = this.saleId ? this.saleLinePrices[this.saleId] : null;
+                    if (!prices || !productId || prices[productId] === undefined) return null;
+                    return parseFloat(prices[productId]) || 0;
+                },
+                applySalePrices() {
+                    this.items.forEach((item, index) => {
+                        if (item.product_id) this.onProductSelect(index);
+                    });
                 },
                 calculateSubtotal(index) {
                     const item = this.items[index];

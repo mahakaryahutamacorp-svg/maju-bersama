@@ -7,6 +7,7 @@ use App\Models\CashRegisterShift;
 use App\Models\Sale;
 use App\Models\SalesReturn;
 use App\Models\User;
+use App\Support\Money;
 use Illuminate\Validation\ValidationException;
 
 class CashRegisterShiftService
@@ -66,12 +67,27 @@ class CashRegisterShiftService
     {
         $opening = (float) $shift->opening_balance;
 
-        $cashSales = Sale::where('cash_register_shift_id', $shift->id)
+        $totalCash = Money::of(Sale::withoutGlobalScopes()
+            ->where('cash_register_shift_id', $shift->id)
             ->whereIn('payment_method', ['cash', 'Cash', 'tunai', 'Tunai'])
             ->where('status', 'completed')
-            ->get();
+            ->sum('total_amount'));
 
-        $totalCash = $cashSales->sum(fn (Sale $sale) => (float) $sale->total_amount);
+        // Uang muka (DP) nota tempo masuk laci; pelunasan piutang di backoffice tidak.
+        $tempoSales = Sale::withoutGlobalScopes()
+            ->where('cash_register_shift_id', $shift->id)
+            ->whereIn('payment_method', ['tempo', 'piutang', 'kredit'])
+            ->where('status', 'completed')
+            ->where('paid_amount', '>', 0)
+            ->withSum('paymentAllocations', 'allocated_amount')
+            ->get(['id', 'paid_amount']);
+
+        foreach ($tempoSales as $tempoSale) {
+            $downPayment = bcsub(Money::of($tempoSale->paid_amount), Money::of($tempoSale->payment_allocations_sum_allocated_amount), 2);
+            if (bccomp($downPayment, '0.00', 2) === 1) {
+                $totalCash = bcadd($totalCash, $downPayment, 2);
+            }
+        }
 
         // Kurangi refund retur penjualan tunai pada shift ini
         $cashRefunds = SalesReturn::withoutGlobalScopes()

@@ -45,7 +45,7 @@ Route::get('/', function () {
     return view('landing');
 })->name('home');
 Route::get('/login', [AuthController::class, 'create'])->name('login');
-Route::post('/login', [AuthController::class, 'store']);
+Route::post('/login', [AuthController::class, 'store'])->middleware('throttle:30,1');
 
 Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
@@ -57,6 +57,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/pos', [PosController::class, 'store'])->name('pos.store');
     Route::post('/pos/shift/open', [PosController::class, 'openShift'])->name('pos.shift.open');
     Route::post('/pos/shift/close', [PosController::class, 'closeShift'])->name('pos.shift.close');
+    Route::get('/pos/shift/expected', [PosController::class, 'expectedShiftBalance'])->name('pos.shift.expected');
     Route::get('/pos/receipt/{receipt_number}', [PosController::class, 'receipt'])
         ->where('receipt_number', '.+')
         ->name('pos.receipt');
