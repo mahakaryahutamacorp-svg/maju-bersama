@@ -258,14 +258,18 @@
         };
 
         form.productResults = function (item) {
-            return ProductSmartSearch.results(this.products, item.query, 12);
+            const query = item?.query || '';
+            if (!ProductSmartSearch.normalize(query)) return [];
+            return ProductSmartSearch.results(this.products, query, 12);
         };
 
-        form.onProductQuery = function (item) {
+        form.onProductQuery = function (item, event) {
+            const field = event && event.target;
+            if (field && typeof field.value === 'string') item.query = field.value;
             item.product_id = '';
             item.open = true;
             item.active = 0;
-            ProductSmartSearch.reposition(item);
+            if (field) ProductSmartSearch.anchor(item, field);
         };
 
         form.onProductFocus = function (item, event) {
@@ -287,11 +291,22 @@
             }
         };
 
-        form.confirmProduct = function (index) {
+        form.confirmProduct = function (index, event) {
             const item = this.items[index];
-            const chosen = ProductSmartSearch.exactSku(this.products, item.query)
-                || this.productResults(item)[item.active || 0]
-                || null;
+            const field = event && event.target;
+            if (field && typeof field.value === 'string') item.query = field.value;
+            if (field) ProductSmartSearch.anchor(item, field);
+
+            const query = item.query || '';
+            if (!ProductSmartSearch.normalize(query)) {
+                item.product_id = '';
+                item.open = false;
+                return;
+            }
+
+            const exact = ProductSmartSearch.exactSku(this.products, query);
+            const results = this.productResults(item);
+            const chosen = exact || results[Number(item.active) || 0] || null;
             if (chosen) this.chooseProduct(index, chosen);
         };
 

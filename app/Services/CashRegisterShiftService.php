@@ -61,7 +61,8 @@ class CashRegisterShiftService
 
     /**
      * Menghitung dinamis expected_closing_balance.
-     * Rumus: opening_balance + Total nilai transaksi penjualan tunai/cash pada shift ini.
+     * Rumus: opening_balance + penjualan tunai pada shift ini - refund tunai.
+     * Uang muka nota tempo dan pelunasan piutang tidak masuk ekspektasi laci.
      */
     public function calculateExpectedBalance(CashRegisterShift $shift): float
     {
@@ -72,22 +73,6 @@ class CashRegisterShiftService
             ->whereIn('payment_method', ['cash', 'Cash', 'tunai', 'Tunai'])
             ->where('status', 'completed')
             ->sum('total_amount'));
-
-        // Uang muka (DP) nota tempo masuk laci; pelunasan piutang di backoffice tidak.
-        $tempoSales = Sale::withoutGlobalScopes()
-            ->where('cash_register_shift_id', $shift->id)
-            ->whereIn('payment_method', ['tempo', 'piutang', 'kredit'])
-            ->where('status', 'completed')
-            ->where('paid_amount', '>', 0)
-            ->withSum('paymentAllocations', 'allocated_amount')
-            ->get(['id', 'paid_amount']);
-
-        foreach ($tempoSales as $tempoSale) {
-            $downPayment = bcsub(Money::of($tempoSale->paid_amount), Money::of($tempoSale->payment_allocations_sum_allocated_amount), 2);
-            if (bccomp($downPayment, '0.00', 2) === 1) {
-                $totalCash = bcadd($totalCash, $downPayment, 2);
-            }
-        }
 
         // Kurangi refund retur penjualan tunai pada shift ini
         $cashRefunds = SalesReturn::withoutGlobalScopes()

@@ -10,11 +10,11 @@
         type="text"
         data-product-query
         x-model="item.query"
-        @input="onProductQuery(item)"
+        @input="onProductQuery(item, $event)"
         @focus="onProductFocus(item, $event)"
         @keydown.arrow-down.prevent="moveProduct(item, 1)"
         @keydown.arrow-up.prevent="moveProduct(item, -1)"
-        @keydown.enter.prevent="confirmProduct(index)"
+        @keydown.enter.prevent="confirmProduct(index, $event)"
         @keypress.enter.prevent
         @keydown.escape="item.open = false"
         :required="!item.product_id"
@@ -25,14 +25,14 @@
     <div
         x-show="item.open && (item.query || '').trim() !== '' && productResults(item).length > 0"
         x-cloak
-        class="fixed z-50 max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
+        class="fixed z-[80] max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
         :style="ProductSmartSearch.menuStyle(item)"
     >
         <template x-for="(prod, resultIndex) in productResults(item)" :key="prod.id">
             <button
                 type="button"
                 @mouseenter="item.active = resultIndex"
-                @click="chooseProduct(index, prod)"
+                @mousedown.prevent="chooseProduct(index, prod)"
                 :class="resultIndex === item.active ? 'bg-sky-50' : ''"
                 class="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-sky-50"
             >

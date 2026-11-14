@@ -131,7 +131,7 @@ class UserFlowRegressionTest extends TestCase
         ])->assertStatus(422);
     }
 
-    public function test_expected_shift_cash_counts_cash_sales_and_tempo_down_payments(): void
+    public function test_expected_shift_cash_counts_cash_sales_only(): void
     {
         $cashSale = $this->checkout(['items' => [['product_id' => $this->product->id, 'quantity' => 1]]])->assertCreated();
         $this->assertEquals(104000, $cashSale->json('expected_balance'));
@@ -146,9 +146,9 @@ class UserFlowRegressionTest extends TestCase
 
         $this->actingAs($this->cashier)->getJson(route('pos.shift.expected'))
             ->assertOk()
-            ->assertJson(['expected_balance' => 109000]);
+            ->assertJson(['expected_balance' => 104000]);
 
-        $this->actingAs($this->cashier)->post(route('pos.shift.close'), ['actual_closing_balance' => 109000])
+        $this->actingAs($this->cashier)->post(route('pos.shift.close'), ['actual_closing_balance' => 104000])
             ->assertRedirect(route('pos'));
 
         $this->actingAs($this->cashier)->get('/pos')->assertSee('Sesi Kasir Terkunci');
