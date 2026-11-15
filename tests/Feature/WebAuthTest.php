@@ -52,7 +52,8 @@ class WebAuthTest extends TestCase
             ->assertOk()
             ->assertSee('Semua cabang')
             ->assertSee('majubersama 1')
-            ->assertSee('Master monitoring');
+            ->assertSee('Monitor penjualan')
+            ->assertSee('Total hari ini');
 
         $this->actingAs($master)
             ->get('/inventory')

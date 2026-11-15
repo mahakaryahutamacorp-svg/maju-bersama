@@ -51,6 +51,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
     Route::get('/backoffice', [BackofficeController::class, 'index']);
     Route::get('/dashboard', [BackofficeController::class, 'index'])->name('dashboard');
+    Route::get('/backoffice/monitoring', [BackofficeController::class, 'monitoring'])->name('backoffice.monitoring');
 
     // POS Kasir Operasional (Semua role terotentikasi)
     Route::get('/pos', [PosController::class, 'index'])->name('pos');

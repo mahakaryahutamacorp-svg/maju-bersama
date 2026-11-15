@@ -55,85 +55,117 @@
             @endif
 
             <section x-show="active === 'overview'" x-transition>
-                {{-- RBAC: Widget backup (dan scan storage-nya) HANYA dirender untuk role master. --}}
-                @can('manage-system')
-                @php
-                    $latestBackupFile = null;
-                    $latestBackupTime = null;
-                    try {
-                        $backupDisk = \Illuminate\Support\Facades\Storage::disk(config('backup.backup.destination.disks.0', 'local'));
-                        $backupName = config('backup.backup.name', config('app.name', 'Laravel'));
-                        $backupFiles = $backupDisk->allFiles($backupName);
-                        foreach ($backupFiles as $bf) {
-                            if (str_ends_with(strtolower($bf), '.zip')) {
-                                $mtime = $backupDisk->lastModified($bf);
-                                if (! $latestBackupTime || $mtime > $latestBackupTime) {
-                                    $latestBackupTime = $mtime;
-                                    $latestBackupFile = basename($bf);
-                                }
-                            }
-                        }
-                    } catch (\Throwable $e) {}
-                @endphp
-
-                <!-- Card Sistem & Keamanan (Cadangan Database) -->
-                <div class="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-                        <div class="flex items-start gap-4">
-                            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600 border border-sky-100 shadow-xs">
-                                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                </svg>
-                            </div>
-                            <div>
-                                <div class="flex items-center gap-2">
-                                    <span class="text-xs font-bold uppercase tracking-wider text-amber-600">Sistem &amp; Keamanan</span>
-                                    <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Backup Otomatis Siap</span>
-                                </div>
-                                <h2 class="mt-1 text-lg font-bold text-slate-950">Cadangan Database Sistem (Manual Backup)</h2>
-                                <p class="mt-1 text-xs text-slate-500 max-w-2xl">
-                                    Amankan seluruh data transaksi, jurnal akuntansi, dan master data toko dengan membuat snapshot database (.zip) yang dapat diunduh langsung.
-                                </p>
-                                @if ($latestBackupFile)
-                                    <p class="mt-2 text-xs font-medium text-slate-600 flex items-center gap-1.5">
-                                        <span class="inline-block h-2 w-2 rounded-full bg-emerald-500"></span>
-                                        <span>Cadangan terakhir: <span class="font-mono text-slate-800 font-semibold">{{ $latestBackupFile }}</span> ({{ date('d M Y H:i', $latestBackupTime) }} WIB)</span>
-                                    </p>
-                                @endif
-                            </div>
+                <section
+                    class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm"
+                    x-data="salesMonitor(@js($monitoring), @js(route('backoffice.monitoring', [], false)))"
+                    x-init="start()"
+                >
+                    <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-amber-600">Penjualan kasir</p>
+                            <h2 class="mt-1 text-xl font-bold text-slate-950">Monitor penjualan</h2>
                         </div>
-
-                        <!-- Tombol Aksi Backup -->
-                        <div class="flex flex-wrap items-center gap-3 sm:shrink-0" x-data="{ loading: false }">
-                            <form method="POST" action="/backoffice/backup/generate" @submit="loading = true">
-                                @csrf
-                                <button type="submit" 
-                                        :disabled="loading" 
-                                        class="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 active:bg-sky-800 disabled:opacity-60 disabled:cursor-not-allowed transition">
-                                    <svg x-show="!loading" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                                    </svg>
-                                    <svg x-show="loading" x-cloak class="h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
-                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
-                                    </svg>
-                                    <span x-text="loading ? 'Sedang Mem-backup...' : 'Buat Backup Baru'">Buat Backup Baru</span>
-                                </button>
-                            </form>
-
-                            <a href="/backoffice/backup/download" 
-                               class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 active:bg-emerald-800 transition">
-                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                </svg>
-                                <span>Unduh Backup Terakhir</span>
-                            </a>
+                        <div class="lg:text-right" aria-live="polite">
+                            <p class="text-3xl font-bold tracking-tight text-slate-950" x-text="snapshot.total_formatted">{{ $monitoring['total_formatted'] }}</p>
+                            <p class="mt-1 text-sm text-slate-500" x-text="snapshot.total_label">{{ $monitoring['total_label'] }}</p>
                         </div>
                     </div>
-                </div>
-                @endcan
 
-                <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                    <div class="mt-5 flex flex-wrap gap-2" role="group" aria-label="Periode penjualan">
+                        @foreach (['day' => 'Hari ini', 'week' => 'Minggu ini', 'month' => 'Bulan ini', 'year' => 'Tahun ini'] as $periodId => $periodLabel)
+                            <button
+                                type="button"
+                                @click="selectPeriod('{{ $periodId }}')"
+                                :aria-pressed="period === '{{ $periodId }}'"
+                                :class="period === '{{ $periodId }}' ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'"
+                                class="rounded-full border px-3 py-1.5 text-sm font-semibold transition"
+                            >{{ $periodLabel }}</button>
+                        @endforeach
+                    </div>
+
+                    <div x-show="!live">
+                        @include('backoffice.partials.sales-monitor-list', ['locations' => $monitoring['locations']])
+                    </div>
+                    <div x-show="live" x-cloak>
+                        <ul class="mt-5 space-y-2 sm:hidden">
+                            <template x-for="row in snapshot.locations" :key="row.id">
+                                <li class="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3">
+                                    <div class="min-w-0">
+                                        <p class="truncate text-sm font-semibold text-slate-900" x-text="row.name"></p>
+                                        <p class="text-xs text-slate-500" x-text="row.receipt_count + ' nota'"></p>
+                                    </div>
+                                    <p class="shrink-0 text-sm font-semibold text-slate-950" x-text="row.total_formatted"></p>
+                                </li>
+                            </template>
+                        </ul>
+                        <div class="mt-5 hidden overflow-x-auto sm:block">
+                            <table class="min-w-full divide-y divide-slate-200">
+                                <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left">Lokasi</th>
+                                        <th class="px-4 py-3 text-right">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 [&>tr:nth-child(even)]:bg-slate-50/60">
+                                    <template x-for="row in snapshot.locations" :key="'desktop-' + row.id">
+                                        <tr class="hover:bg-slate-50">
+                                            <td class="px-4 py-3">
+                                                <p class="text-sm font-semibold text-slate-900" x-text="row.name"></p>
+                                                <p class="text-xs text-slate-500" x-text="row.receipt_count + ' nota'"></p>
+                                            </td>
+                                            <td class="px-4 py-3 text-right text-sm font-semibold text-slate-950" x-text="row.total_formatted"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div class="flex items-end justify-between gap-3">
+                        <div>
+                            <p class="text-sm font-medium text-slate-500">{{ $isMaster ? 'Aktivitas lintas lokasi' : 'Aktivitas transaksi' }}</p>
+                            <h2 class="mt-1 text-lg font-semibold text-slate-950">Transaksi terbaru</h2>
+                        </div>
+                        @can('access-enterprise')
+                            <a href="/reports/journal" class="text-sm font-semibold text-sky-700 hover:text-sky-800">Buka ledger</a>
+                        @endcan
+                    </div>
+                    <div class="mt-5 overflow-x-auto">
+                        <table class="min-w-full divide-y divide-slate-200">
+                            <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
+                                <tr>
+                                    <th class="px-4 py-3 text-left">Waktu</th>
+                                    <th class="px-4 py-3 text-left">Nomor</th>
+                                    <th class="px-4 py-3 text-left">Lokasi</th>
+                                    <th class="px-4 py-3 text-left">Keterangan</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 [&>tr:nth-child(even)]:bg-slate-50/60">
+                                @forelse ($recentJournals as $journal)
+                                    <tr class="hover:bg-slate-50">
+                                        <td class="whitespace-nowrap px-4 py-3 text-sm text-slate-500">{{ $journal->created_at?->timezone('Asia/Jakarta')->format('d/m/Y H:i') ?? $journal->transaction_date?->format('d/m/Y') }}</td>
+                                        <td class="px-4 py-3 font-mono text-xs font-semibold">
+                                            <button type="button"
+                                                    @click="loadTransaction('{{ $journal->reference_number }}')"
+                                                    class="group inline-flex items-center gap-1.5 text-left font-semibold text-sky-600 hover:text-sky-800 hover:underline focus:outline-none"
+                                                    title="Klik untuk melihat detail transaksi">
+                                                <span>{{ $journal->reference_number }}</span>
+                                            </button>
+                                        </td>
+                                        <td class="px-4 py-3 text-sm text-slate-700">{{ $journal->branch?->name }}</td>
+                                        <td class="px-4 py-3 text-sm text-slate-700">{{ $journal->description === 'POS Sale' ? 'Penjualan kasir' : $journal->description }}</td>
+                                    </tr>
+                                @empty
+                                    <tr><td colspan="4" class="px-4 py-8 text-center text-sm text-slate-400">Belum ada transaksi antar branch.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <div class="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     <template x-for="stat in stats" :key="stat.label">
                         <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                             <p class="text-sm text-slate-500" x-text="stat.label"></p>
@@ -176,52 +208,6 @@
                         </div>
                     </section>
                 @endif
-
-                <section class="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                    <div class="flex items-end justify-between gap-3">
-                        <div>
-                            <p class="text-sm font-medium text-amber-600">{{ $isMaster ? 'Cross-branch activity' : 'Aktivitas transaksi' }}</p>
-                            <h2 class="mt-1 text-xl font-bold text-slate-950">{{ $isMaster ? 'Transaksi terbaru seluruh branch' : 'Transaksi terbaru branch ini' }}</h2>
-                        </div>
-                        @can('access-enterprise')
-                            <a href="/reports/journal" class="text-sm font-semibold text-sky-700 hover:text-sky-800">Buka ledger</a>
-                        @endcan
-                    </div>
-                        <div class="mt-5 overflow-x-auto">
-                            <table class="min-w-full divide-y divide-slate-200">
-                                <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
-                                    <tr>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">Reference</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">Branch</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">Description</th>
-                                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">User</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-slate-100 [&>tr:nth-child(even)]:bg-slate-50/60">
-                                    @forelse ($recentJournals as $journal)
-                                        <tr class="hover:bg-slate-50">
-                                            <td class="px-4 py-3 font-mono text-xs font-semibold">
-                                                <button type="button" 
-                                                        @click="loadTransaction('{{ $journal->reference_number }}')" 
-                                                        class="group inline-flex items-center gap-1.5 font-semibold text-sky-600 hover:text-sky-800 hover:underline focus:outline-none transition text-left" 
-                                                        title="Klik untuk melihat detail transaksi">
-                                                    <span>{{ $journal->reference_number }}</span>
-                                                    <svg class="h-3.5 w-3.5 text-sky-400 group-hover:text-sky-600 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                                                    </svg>
-                                                </button>
-                                            </td>
-                                            <td class="px-4 py-3 text-sm text-slate-700">{{ $journal->branch?->name }}</td>
-                                            <td class="px-4 py-3 text-sm text-slate-700">{{ $journal->description }}</td>
-                                            <td class="px-4 py-3 text-sm text-slate-500">{{ $journal->user?->name }}</td>
-                                        </tr>
-                                    @empty
-                                        <tr><td colspan="4" class="px-4 py-8 text-center text-sm text-slate-400">Belum ada transaksi antar branch.</td></tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
-                        </div>
-                    </section>
 
                 <div class="mt-8 grid gap-6 xl:grid-cols-[1.4fr_0.6fr]">
                     <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -269,6 +255,84 @@
                         </p>
                     </section>
                 </div>
+
+                {{-- RBAC: Widget backup (dan scan storage-nya) HANYA dirender untuk role master. --}}
+                @can('manage-system')
+                @php
+                    $latestBackupFile = null;
+                    $latestBackupTime = null;
+                    try {
+                        $backupDisk = \Illuminate\Support\Facades\Storage::disk(config('backup.backup.destination.disks.0', 'local'));
+                        $backupName = config('backup.backup.name', config('app.name', 'Laravel'));
+                        $backupFiles = $backupDisk->allFiles($backupName);
+                        foreach ($backupFiles as $bf) {
+                            if (str_ends_with(strtolower($bf), '.zip')) {
+                                $mtime = $backupDisk->lastModified($bf);
+                                if (! $latestBackupTime || $mtime > $latestBackupTime) {
+                                    $latestBackupTime = $mtime;
+                                    $latestBackupFile = basename($bf);
+                                }
+                            }
+                        }
+                    } catch (\Throwable $e) {}
+                @endphp
+
+                <!-- Card Sistem & Keamanan (Cadangan Database) -->
+                <div class="mt-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                        <div class="flex items-start gap-4">
+                            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-600 border border-sky-100 shadow-xs">
+                                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-bold uppercase tracking-wider text-amber-600">Sistem &amp; Keamanan</span>
+                                    <span class="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">Backup Otomatis Siap</span>
+                                </div>
+                                <h2 class="mt-1 text-lg font-bold text-slate-950">Cadangan Database Sistem (Manual Backup)</h2>
+                                <p class="mt-1 text-xs text-slate-500 max-w-2xl">
+                                    Amankan seluruh data transaksi, jurnal akuntansi, dan master data toko dengan membuat snapshot database (.zip) yang dapat diunduh langsung.
+                                </p>
+                                @if ($latestBackupFile)
+                                    <p class="mt-2 text-xs font-medium text-slate-600 flex items-center gap-1.5">
+                                        <span class="inline-block h-2 w-2 rounded-full bg-emerald-500"></span>
+                                        <span>Cadangan terakhir: <span class="font-mono text-slate-800 font-semibold">{{ $latestBackupFile }}</span> ({{ date('d M Y H:i', $latestBackupTime) }} WIB)</span>
+                                    </p>
+                                @endif
+                            </div>
+                        </div>
+
+                        <!-- Tombol Aksi Backup -->
+                        <div class="flex flex-wrap items-center gap-3 sm:shrink-0" x-data="{ loading: false }">
+                            <form method="POST" action="/backoffice/backup/generate" @submit="loading = true">
+                                @csrf
+                                <button type="submit"
+                                        :disabled="loading"
+                                        class="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-sky-700 active:bg-sky-800 disabled:opacity-60 disabled:cursor-not-allowed transition">
+                                    <svg x-show="!loading" class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                    </svg>
+                                    <svg x-show="loading" x-cloak class="h-4 w-4 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                                    </svg>
+                                    <span x-text="loading ? 'Sedang Mem-backup...' : 'Buat Backup Baru'">Buat Backup Baru</span>
+                                </button>
+                            </form>
+
+                            <a href="/backoffice/backup/download"
+                               class="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-emerald-700 active:bg-emerald-800 transition">
+                                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                </svg>
+                                <span>Unduh Backup Terakhir</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                @endcan
             </section>
 
             <section x-show="active !== 'overview'" x-transition class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -372,6 +436,56 @@
 
     <x-slot:scripts>
     <script>
+        function salesMonitor(initial, endpoint) {
+            return {
+                snapshot: initial,
+                endpoint,
+                period: initial.period || 'day',
+                live: false,
+                requestId: 0,
+                timer: null,
+                start() {
+                    this.timer = window.setInterval(() => {
+                        if (document.visibilityState === 'visible') {
+                            this.load();
+                        }
+                    }, 120000);
+                },
+                destroy() {
+                    if (this.timer) {
+                        window.clearInterval(this.timer);
+                    }
+                },
+                selectPeriod(period) {
+                    this.period = period;
+                    this.load();
+                },
+                async load() {
+                    const requestId = ++this.requestId;
+                    try {
+                        const response = await fetch(this.endpoint + '?period=' + encodeURIComponent(this.period), {
+                            headers: {
+                                Accept: 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                            },
+                            credentials: 'same-origin',
+                        });
+                        if (!response.ok || requestId !== this.requestId) {
+                            return;
+                        }
+                        const data = await response.json();
+                        if (!data || !Array.isArray(data.locations) || requestId !== this.requestId) {
+                            return;
+                        }
+                        this.snapshot = data;
+                        this.live = true;
+                    } catch (error) {
+                        // Angka terakhir tetap tampil bila penyegaran gagal.
+                    }
+                },
+            };
+        }
+
         function backoffice() {
             const modules = [
                 { id: 'purchases', group: 'Purchases', name: 'Pembelian', status: 'planned', description: 'Kelola hutang usaha, pembayaran hutang, dan retur pembelian dari satu alur kerja.', actions: ['Hutang usaha', 'Pembayaran hutang usaha', 'Retur pembelian'] },

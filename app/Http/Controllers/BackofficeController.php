@@ -5,12 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\Branch;
 use App\Models\JournalHeader;
 use App\Models\Product;
+use App\Services\BackofficeMonitoringService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class BackofficeController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, BackofficeMonitoringService $monitoring): View
     {
         $user = $request->user();
         $isMaster = $user->isMaster();
@@ -41,6 +43,7 @@ class BackofficeController extends Controller
             'isMaster' => $isMaster,
             'branchSummaries' => $branchSummaries,
             'recentJournals' => $recentJournals,
+            'monitoring' => $monitoring->snapshot($user, 'day'),
             'stats' => [
                 'branches' => $branchSummaries->count(),
                 'products' => Product::whereIn('branch_id', $branchIds)->count(),
@@ -51,5 +54,12 @@ class BackofficeController extends Controller
                     ->count(),
             ],
         ]);
+    }
+
+    public function monitoring(Request $request, BackofficeMonitoringService $monitoring): JsonResponse
+    {
+        return response()->json(
+            $monitoring->snapshot($request->user(), $request->query('period'))
+        );
     }
 }
