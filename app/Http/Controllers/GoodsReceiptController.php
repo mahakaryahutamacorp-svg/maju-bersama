@@ -273,6 +273,8 @@ class GoodsReceiptController extends Controller
 
         $initialItems = old('items', $receipt->items->map(fn ($item) => [
             'product_id' => $item->product_id,
+            'sku' => $item->product?->sku,
+            'product_name' => $item->product?->name,
             'quantity' => DecimalQuantity::present($item->quantity),
             'unit_price' => (float) $item->unit_price,
         ])->all());

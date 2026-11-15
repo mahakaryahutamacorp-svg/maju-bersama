@@ -43,7 +43,8 @@
         @endif
 
         <form method="POST" action="{{ route('purchases.goods-receipts.update', $receipt->id) }}" class="space-y-6"
-              x-data="receiptEditor(@js($products), @js($initialItems), @js((bool) $lockReason), @js($receipt->purchase_order_id ? 'credit' : old('payment_type', $receipt->payment_type)))">
+              x-data="withProductPicker(receiptEditor(@js($products), @js($initialItems), @js((bool) $lockReason), @js($receipt->purchase_order_id ? 'credit' : old('payment_type', $receipt->payment_type))))"
+              @keypress.enter="ProductSmartSearch.blockImplicitSubmit($event)">
             @csrf
             @method('PUT')
 
@@ -124,16 +125,18 @@
                         <tbody>
                             <template x-for="(item, index) in items" :key="index">
                                 <tr class="border-t border-slate-100">
-                                    <td class="px-2 py-3">
+                                    <td class="px-2 py-3 min-w-[16rem]">
                                         <template x-if="locked || fromPurchaseOrder">
-                                            <input type="hidden" :name="'items[' + index + '][product_id]'" :value="item.product_id">
+                                            <div>
+                                                <input type="hidden" :name="'items[' + index + '][product_id]'" :value="item.product_id">
+                                                <input type="text" readonly :value="item.query || item.product_name || ''" class="w-full rounded-lg border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-700">
+                                            </div>
                                         </template>
-                                        <select :name="(locked || fromPurchaseOrder) ? null : ('items[' + index + '][product_id]')" x-model="item.product_id" @change="fillPrice(index)" :required="!locked && !fromPurchaseOrder" :disabled="locked || fromPurchaseOrder" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100">
-                                            <option value="">Pilih produk</option>
-                                            <template x-for="product in products" :key="product.id">
-                                                <option :value="String(product.id)" x-text="product.sku + ' — ' + product.name"></option>
-                                            </template>
-                                        </select>
+                                        <template x-if="!locked && !fromPurchaseOrder">
+                                            <div>
+                                                @include('inventory.partials.product-smart-picker', ['placeholder' => 'Ketik nama barang yang diterima...'])
+                                            </div>
+                                        </template>
                                     </td>
                                     <td class="px-2 py-3">
                                         <input type="number" :name="'items[' + index + '][quantity]'" x-model="item.quantity" min="0.001" step="0.001" required :readonly="locked" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-center font-mono text-sm read-only:bg-slate-100">
@@ -158,6 +161,7 @@
         </form>
     </main>
 
+    @include('inventory.partials.smart-search-script')
     <script>
         function receiptEditor(products, initialItems, locked, paymentType) {
             return {
@@ -168,11 +172,16 @@
                 supplierId: @js((string) old('supplier_id', $receipt->supplier_id ?? '')),
                 items: initialItems.length ? initialItems.map((item) => ({
                     product_id: String(item.product_id ?? ''),
+                    sku: item.sku || '',
+                    product_name: item.product_name || item.name || '',
                     quantity: item.quantity,
                     unit_price: item.unit_price,
                 })) : [{ product_id: '', quantity: 1, unit_price: 0 }],
                 addItem() {
-                    this.items.push({ product_id: '', quantity: 1, unit_price: 0 });
+                    this.items.push(this.blankProductLine({ product_id: '', quantity: 1, unit_price: 0 }));
+                },
+                onProductSelect(index) {
+                    this.fillPrice(index);
                 },
                 fillPrice(index) {
                     const product = this.products.find((row) => String(row.id) === String(this.items[index].product_id));

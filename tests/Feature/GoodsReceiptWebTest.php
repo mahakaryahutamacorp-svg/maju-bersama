@@ -485,7 +485,9 @@ class GoodsReceiptWebTest extends TestCase
         $this->actingAs($branchAdmin)
             ->get(route('purchases.goods-receipts.edit', $receipt->id))
             ->assertOk()
-            ->assertSee('Ubah GR-ADJ-001');
+            ->assertSee('Ubah GR-ADJ-001')
+            ->assertSee('Ketik nama barang yang diterima')
+            ->assertDontSee('x-for="product in products"', false);
 
         $this->actingAs($branchAdmin)
             ->put(route('purchases.goods-receipts.update', $receipt->id), [
