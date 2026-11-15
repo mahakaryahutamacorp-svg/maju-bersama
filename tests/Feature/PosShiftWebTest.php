@@ -257,4 +257,79 @@ class PosShiftWebTest extends TestCase
 
         $response->assertSessionHasErrors(['cash_register_id']);
     }
+
+    public function test_each_branch_gets_three_drawers_for_its_cashiers(): void
+    {
+        $branch = Branch::create([
+            'name' => 'Gudang Uji',
+            'code' => 'GDG-UJI',
+            'address' => 'Gudang',
+            'phone' => '0811',
+        ]);
+        CashRegister::create([
+            'branch_id' => $branch->id,
+            'name' => 'Kasir Utama',
+            'is_active' => true,
+        ]);
+        $cashier = User::factory()->create([
+            'role' => 'cashier',
+            'branch_id' => $branch->id,
+        ]);
+
+        $response = $this->actingAs($cashier)->get('/pos');
+
+        $response->assertOk();
+        $response->assertSee('Laci 1');
+        $response->assertSee('Laci 2');
+        $response->assertSee('Laci 3');
+        $response->assertSee('Setiap kasir menyesuaikan modal awal lacinya sendiri.');
+        $response->assertDontSee('Kasir Utama');
+
+        $this->assertSame(3, CashRegister::withoutGlobalScopes()->where('branch_id', $branch->id)->where('is_active', true)->count());
+    }
+
+    public function test_each_cashier_opens_their_own_drawer_with_their_own_float(): void
+    {
+        $second = User::factory()->create([
+            'name' => 'Siti Kasir',
+            'role' => 'cashier',
+            'branch_id' => $this->branch->id,
+        ]);
+        $this->actingAs($this->cashier)->get('/pos')->assertOk();
+        $drawerOne = CashRegister::withoutGlobalScopes()->where('branch_id', $this->branch->id)->where('name', 'Laci 1')->firstOrFail();
+        $drawerTwo = CashRegister::withoutGlobalScopes()->where('branch_id', $this->branch->id)->where('name', 'Laci 2')->firstOrFail();
+
+        $this->actingAs($this->cashier)->post(route('pos.shift.open'), [
+            'cash_register_id' => $drawerOne->id,
+            'opening_balance' => 150000,
+        ])->assertSessionHasNoErrors();
+
+        $blocked = $this->actingAs($second)->get('/pos');
+        $blocked->assertOk();
+        $blocked->assertSee('Laci 1 — sedang dipakai Budi Kasir');
+        $blocked->assertSee('Laci 2 — kosong, modal diisi sendiri');
+
+        $this->actingAs($second)->post(route('pos.shift.open'), [
+            'cash_register_id' => $drawerOne->id,
+            'opening_balance' => 50000,
+        ])->assertSessionHasErrors('cash_register_id');
+
+        $this->actingAs($second)->post(route('pos.shift.open'), [
+            'cash_register_id' => $drawerTwo->id,
+            'opening_balance' => 80000,
+        ])->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('cash_register_shifts', [
+            'cash_register_id' => $drawerOne->id,
+            'user_id' => $this->cashier->id,
+            'opening_balance' => 150000,
+            'status' => 'open',
+        ]);
+        $this->assertDatabaseHas('cash_register_shifts', [
+            'cash_register_id' => $drawerTwo->id,
+            'user_id' => $second->id,
+            'opening_balance' => 80000,
+            'status' => 'open',
+        ]);
+    }
 }

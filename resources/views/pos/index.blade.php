@@ -917,18 +917,28 @@
                     </span>
                     <h2 class="mt-2 text-xl font-bold tracking-tight">Buka Shift Kasir Baru</h2>
                     <p class="mt-1 text-xs text-slate-300 max-w-sm mx-auto">
-                        Untuk keamanan dan rekonsiliasi kasir, Anda wajib memilih mesin kasir dan mendeklarasikan modal kembalian awal sebelum memulai transaksi.
+                        Pilih laci Anda sendiri, lalu isi modal sesuai uang yang ada di laci itu. Dua kasir tidak memakai laci yang sama.
                     </p>
                 </div>
 
                 <!-- Form Buka Shift -->
                 <form method="POST" action="{{ route('pos.shift.open') }}" class="p-8 space-y-5">
                     @csrf
+
+                    @if ($errors->any())
+                        <div class="rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs font-semibold text-rose-800">
+                            <ul class="list-disc list-inside space-y-1">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
                     
                     <!-- Pilihan Mesin Kasir / Register -->
                     <div>
                         <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2">
-                            Pilih Mesin / Laci Kasir <span class="text-rose-500">*</span>
+                            Pilih Laci Anda <span class="text-rose-500">*</span>
                         </label>
                         <select 
                             name="cash_register_id" 
@@ -936,9 +946,11 @@
                             class="w-full rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 focus:border-indigo-500 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
                         >
                             @foreach ($registers as $register)
-                                <option value="{{ $register->id }}">{{ $register->name }} (Cabang: {{ $operatingBranch->name ?? 'Pusat' }})</option>
+                                @php($busyShift = $openShifts[$register->id] ?? null)
+                                <option value="{{ $register->id }}" @disabled($busyShift)>{{ $register->name }}{{ $busyShift ? ' — sedang dipakai '.($busyShift->user?->name ?? 'kasir lain') : ' — kosong, modal diisi sendiri' }}</option>
                             @endforeach
                         </select>
+                        <p class="mt-1.5 text-[11px] text-slate-500">Cabang {{ $operatingBranch->name ?? 'ini' }} punya tiga laci. Setiap kasir menyesuaikan modal awal lacinya sendiri.</p>
                     </div>
 
                     <!-- Input Modal Awal -->

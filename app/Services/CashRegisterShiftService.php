@@ -20,6 +20,18 @@ class CashRegisterShiftService
         $register = CashRegister::withoutGlobalScopes()->findOrFail($registerId);
         $user = User::findOrFail($userId);
 
+        if (! $register->is_active) {
+            throw ValidationException::withMessages([
+                'cash_register_id' => ["Laci {$register->name} tidak aktif."],
+            ]);
+        }
+
+        if (! $user->isMaster() && (int) $user->branch_id !== (int) $register->branch_id) {
+            throw ValidationException::withMessages([
+                'cash_register_id' => ['Laci ini milik cabang lain.'],
+            ]);
+        }
+
         // Cek apakah kasir ini masih memiliki shift aktif
         $existingUserShift = CashRegisterShift::where('user_id', $userId)
             ->where('status', 'open')

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Branch;
-use App\Models\CashRegister;
 use App\Models\CashRegisterShift;
 use App\Models\Category;
 use App\Models\Customer;
@@ -11,6 +10,7 @@ use App\Models\CustomerGroup;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\User;
+use App\Services\BranchCashDrawerService;
 use App\Services\CashRegisterShiftService;
 use App\Services\SalePostingService;
 use App\Support\DecimalQuantity;
@@ -24,7 +24,8 @@ use Illuminate\View\View;
 class PosController extends Controller
 {
     public function __construct(
-        protected CashRegisterShiftService $shiftService
+        protected CashRegisterShiftService $shiftService,
+        protected BranchCashDrawerService $drawers
     ) {}
 
     /**
@@ -124,21 +125,13 @@ class PosController extends Controller
             ->latest('opened_at')
             ->first();
 
-        // Ambil daftar register aktif untuk cabang kasir
-        $registers = CashRegister::where('branch_id', $branchId)
-            ->where('is_active', true)
-            ->orderBy('name')
-            ->get();
-
-        // Fallback jika belum ada register di cabang kasir
-        if ($registers->isEmpty()) {
-            $defaultRegister = CashRegister::create([
-                'branch_id' => $branchId,
-                'name' => 'Kasir Utama',
-                'is_active' => true,
-            ]);
-            $registers = collect([$defaultRegister]);
-        }
+        $registers = $this->drawers->ensure($branchId);
+        $openShifts = CashRegisterShift::query()
+            ->whereIn('cash_register_id', $registers->pluck('id'))
+            ->where('status', 'open')
+            ->with('user:id,name')
+            ->get()
+            ->keyBy('cash_register_id');
 
         // Kalkulasi dinamis expected closing balance untuk modal tutup shift
         $expectedBalance = $activeShift
@@ -229,6 +222,7 @@ class PosController extends Controller
             'activeShift' => $activeShift,
             'hasActiveShift' => $activeShift !== null,
             'registers' => $registers,
+            'openShifts' => $openShifts,
             'expectedBalance' => $expectedBalance,
         ]);
     }
