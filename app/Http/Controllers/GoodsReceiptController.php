@@ -247,12 +247,10 @@ class GoodsReceiptController extends Controller
     }
 
     /**
-     * Formulir koreksi penerimaan. Hanya akun master.
+     * Formulir koreksi penerimaan. Master, atau admin cabang untuk nota mandiri miliknya.
      */
     public function edit(int $id, Request $request): View
     {
-        $this->ensureMaster($request);
-
         $user = $request->user()->load('branch');
         $receipt = GoodsReceipt::with([
             'branch',
@@ -260,6 +258,8 @@ class GoodsReceiptController extends Controller
             'purchaseOrder.supplier',
             'supplier',
         ])->findOrFail($id);
+
+        $this->goodsReceiptService->assertCanRevise($user, $receipt);
 
         $productIds = $receipt->items->pluck('product_id');
         $products = Product::withoutGlobalScopes()
@@ -306,25 +306,19 @@ class GoodsReceiptController extends Controller
     }
 
     /**
-     * Hapus penerimaan dan kembalikan stok serta jurnal. Hanya akun master.
+     * Hapus penerimaan dan kembalikan stok serta jurnal.
+     * Master, atau admin cabang untuk nota mandiri miliknya.
      */
     public function destroy(Request $request, int $id): RedirectResponse
     {
-        $this->ensureMaster($request);
-
         $receipt = GoodsReceipt::query()->findOrFail($id);
+        $this->goodsReceiptService->assertCanRevise($request->user(), $receipt);
+
         $reference = $receipt->reference_number;
         $this->goodsReceiptService->deleteReceipt($receipt, $request->user());
 
         return redirect()
             ->route('purchases.goods-receipts.index')
             ->with('success', "Penerimaan {$reference} dihapus. Stok dikurangi kembali dan jurnalnya dibatalkan.");
-    }
-
-    private function ensureMaster(Request $request): void
-    {
-        if (! $request->user()?->isMaster()) {
-            abort(403, 'Hanya akun master yang dapat mengubah atau menghapus penerimaan barang.');
-        }
     }
 }

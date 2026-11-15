@@ -19,7 +19,7 @@
                 + Catat Barang Datang Lagi
             </a>
             <div class="flex items-center gap-2">
-                @if ($currentUser->isMaster())
+                @if (app(\App\Services\GoodsReceiptService::class)->canRevise($currentUser, $receipt))
                     <a href="{{ route('purchases.goods-receipts.edit', $receipt->id) }}" class="inline-flex items-center rounded-lg border border-sky-200 bg-sky-50 px-3.5 py-1.5 text-xs font-bold text-sky-800 hover:bg-sky-100">
                         Ubah Nota
                     </a>

@@ -215,16 +215,12 @@ class GoodsReceiptWebTest extends TestCase
         $showResponse = $this->actingAs($branchAdmin)->get(route('purchases.goods-receipts.show', $receipt->id));
         $showResponse->assertStatus(200);
         $showResponse->assertSee('GR-BR1-001');
-        $showResponse->assertDontSee('Ubah Nota');
-        $showResponse->assertDontSee('Hapus Nota');
+        $showResponse->assertSee('Ubah Nota');
+        $showResponse->assertSee('Hapus Nota');
     }
 
-    public function test_only_master_can_correct_payment_type_and_delete_goods_receipt(): void
+    public function test_master_can_correct_payment_type_and_delete_goods_receipt(): void
     {
-        $branchAdmin = User::factory()->create([
-            'branch_id' => $this->central->id,
-            'role' => 'branch_admin',
-        ]);
         $supplier = Supplier::withoutGlobalScopes()->create([
             'branch_id' => $this->central->id,
             'name' => 'PT LOKAMITRA',
@@ -247,14 +243,6 @@ class GoodsReceiptWebTest extends TestCase
             ->assertOk()
             ->assertSee('Ubah Nota')
             ->assertSee('Hapus Nota');
-
-        $this->actingAs($branchAdmin)->get('/purchases/goods-receipts')
-            ->assertOk()
-            ->assertDontSee('Ubah Nota');
-
-        $this->actingAs($branchAdmin)->get(route('purchases.goods-receipts.edit', $receipt->id))->assertForbidden();
-        $this->actingAs($branchAdmin)->put(route('purchases.goods-receipts.update', $receipt->id), [])->assertForbidden();
-        $this->actingAs($branchAdmin)->delete(route('purchases.goods-receipts.destroy', $receipt->id))->assertForbidden();
 
         $this->actingAs($this->master)
             ->put(route('purchases.goods-receipts.update', $receipt->id), [
@@ -460,5 +448,258 @@ class GoodsReceiptWebTest extends TestCase
 
         $response = $this->actingAs($branchAdmin)->get(route('purchases.goods-receipts.show', $centralReceipt->id));
         $response->assertStatus(403);
+
+        $this->actingAs($branchAdmin)->get(route('purchases.goods-receipts.edit', $centralReceipt->id))->assertForbidden();
+        $this->actingAs($branchAdmin)->put(route('purchases.goods-receipts.update', $centralReceipt->id), [])->assertForbidden();
+        $this->actingAs($branchAdmin)->delete(route('purchases.goods-receipts.destroy', $centralReceipt->id))->assertForbidden();
+    }
+
+    public function test_branch_admin_can_adjust_quantity_on_own_direct_receipt(): void
+    {
+        $branchAdmin = User::factory()->create([
+            'branch_id' => $this->branchOne->id,
+            'role' => 'branch_admin',
+        ]);
+        $product = Product::create([
+            'branch_id' => $this->branchOne->id,
+            'category_id' => $this->product->category_id,
+            'sku' => 'PRD-ADJ',
+            'name' => 'Pupuk Urea',
+            'purchase_price' => 12000,
+            'selling_price' => 15000,
+            'stock' => 0,
+        ]);
+
+        $this->actingAs($branchAdmin)->post('/purchases/goods-receipts', [
+            'supplier_name' => 'Toko Sumber',
+            'date' => now()->toDateString(),
+            'payment_type' => 'cash',
+            'reference_number' => 'GR-ADJ-001',
+            'items' => [
+                ['product_id' => $product->id, 'quantity' => 10, 'unit_price' => 12000],
+            ],
+        ])->assertSessionHasNoErrors();
+
+        $receipt = GoodsReceipt::where('reference_number', 'GR-ADJ-001')->firstOrFail();
+
+        $this->actingAs($branchAdmin)
+            ->get(route('purchases.goods-receipts.edit', $receipt->id))
+            ->assertOk()
+            ->assertSee('Ubah GR-ADJ-001');
+
+        $this->actingAs($branchAdmin)
+            ->put(route('purchases.goods-receipts.update', $receipt->id), [
+                'payment_type' => 'cash',
+                'supplier_name' => 'Toko Sumber',
+                'date' => now()->toDateString(),
+                'notes' => 'Truk hanya bawa sebagian',
+                'items' => [
+                    ['product_id' => $product->id, 'quantity' => '4.500', 'unit_price' => 12000],
+                ],
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('purchases.goods-receipts.show', $receipt->id));
+
+        $receipt->refresh()->load('items', 'journalHeader.journalLines');
+        $product->refresh();
+
+        $this->assertSame('Truk hanya bawa sebagian', $receipt->notes);
+        $this->assertEquals(4.5, (float) $receipt->items->first()->quantity);
+        $this->assertEquals(54000, (float) $receipt->total_amount);
+        $this->assertEquals(4.5, (float) $product->stock);
+        $this->assertEquals(54000, (float) $receipt->journalHeader->journalLines->sum('debit'));
+    }
+
+    public function test_branch_admin_can_delete_own_direct_receipt(): void
+    {
+        $branchAdmin = User::factory()->create([
+            'branch_id' => $this->branchOne->id,
+            'role' => 'branch_admin',
+        ]);
+        $product = Product::create([
+            'branch_id' => $this->branchOne->id,
+            'category_id' => $this->product->category_id,
+            'sku' => 'PRD-DEL',
+            'name' => 'Pupuk NPK',
+            'purchase_price' => 20000,
+            'selling_price' => 25000,
+            'stock' => 0,
+        ]);
+
+        $this->actingAs($branchAdmin)->post('/purchases/goods-receipts', [
+            'date' => now()->toDateString(),
+            'payment_type' => 'cash',
+            'reference_number' => 'GR-DEL-001',
+            'items' => [
+                ['product_id' => $product->id, 'quantity' => 3, 'unit_price' => 20000],
+            ],
+        ])->assertSessionHasNoErrors();
+
+        $receipt = GoodsReceipt::where('reference_number', 'GR-DEL-001')->firstOrFail();
+
+        $this->actingAs($branchAdmin)
+            ->delete(route('purchases.goods-receipts.destroy', $receipt->id))
+            ->assertRedirect(route('purchases.goods-receipts.index'));
+
+        $this->assertNull(GoodsReceipt::query()->find($receipt->id));
+        $product->refresh();
+        $this->assertEquals(0, (float) $product->stock);
+    }
+
+    public function test_branch_admin_cannot_revise_receipt_linked_to_purchase_order(): void
+    {
+        $branchAdmin = User::factory()->create([
+            'branch_id' => $this->central->id,
+            'role' => 'branch_admin',
+        ]);
+        $supplier = Supplier::withoutGlobalScopes()->create([
+            'branch_id' => $this->central->id,
+            'name' => 'PT PESAN',
+            'is_active' => true,
+        ]);
+        $po = PurchaseOrder::withoutGlobalScopes()->create([
+            'branch_id' => $this->central->id,
+            'supplier_id' => $supplier->id,
+            'reference_number' => 'PO-LOCK-01',
+            'order_date' => now()->toDateString(),
+            'status' => 'pending',
+            'total_amount' => 100000,
+        ]);
+        PurchaseOrderItem::create([
+            'purchase_order_id' => $po->id,
+            'product_id' => $this->product->id,
+            'quantity' => 4,
+            'received_quantity' => 0,
+            'unit_price' => 25000,
+            'subtotal' => 100000,
+        ]);
+
+        $this->actingAs($this->master)->post('/purchases/goods-receipts', [
+            'purchase_order_id' => $po->id,
+            'date' => now()->toDateString(),
+            'payment_type' => 'credit',
+            'reference_number' => 'GR-PO-LOCK',
+            'items' => [
+                ['product_id' => $this->product->id, 'quantity' => 2, 'unit_price' => 25000],
+            ],
+        ])->assertSessionHasNoErrors();
+
+        $receipt = GoodsReceipt::where('reference_number', 'GR-PO-LOCK')->firstOrFail();
+
+        $this->actingAs($branchAdmin)
+            ->get(route('purchases.goods-receipts.show', $receipt->id))
+            ->assertOk()
+            ->assertDontSee('Ubah Nota')
+            ->assertDontSee('Hapus Nota');
+
+        $this->actingAs($branchAdmin)->get(route('purchases.goods-receipts.edit', $receipt->id))->assertForbidden();
+        $this->actingAs($branchAdmin)->put(route('purchases.goods-receipts.update', $receipt->id), [])->assertForbidden();
+        $this->actingAs($branchAdmin)->delete(route('purchases.goods-receipts.destroy', $receipt->id))->assertForbidden();
+    }
+
+    public function test_branch_admin_cannot_change_settled_direct_receipt_items(): void
+    {
+        $branchAdmin = User::factory()->create([
+            'branch_id' => $this->branchOne->id,
+            'role' => 'branch_admin',
+        ]);
+        $product = Product::create([
+            'branch_id' => $this->branchOne->id,
+            'category_id' => $this->product->category_id,
+            'sku' => 'PRD-PAID',
+            'name' => 'Pupuk Lunas',
+            'purchase_price' => 10000,
+            'selling_price' => 12000,
+            'stock' => 0,
+        ]);
+
+        $this->actingAs($branchAdmin)->post('/purchases/goods-receipts', [
+            'supplier_name' => 'Toko Lunas',
+            'date' => now()->toDateString(),
+            'payment_type' => 'cash',
+            'reference_number' => 'GR-PAID-001',
+            'items' => [
+                ['product_id' => $product->id, 'quantity' => 8, 'unit_price' => 10000],
+            ],
+        ])->assertSessionHasNoErrors();
+
+        $receipt = GoodsReceipt::where('reference_number', 'GR-PAID-001')->firstOrFail();
+        $receipt->update(['paid_amount' => 1000]);
+
+        $this->actingAs($branchAdmin)
+            ->put(route('purchases.goods-receipts.update', $receipt->id), [
+                'payment_type' => 'cash',
+                'supplier_name' => 'Toko Lunas',
+                'date' => now()->toDateString(),
+                'notes' => 'Coba kurangi barang',
+                'items' => [
+                    ['product_id' => $product->id, 'quantity' => 2, 'unit_price' => 10000],
+                ],
+            ])
+            ->assertSessionHasErrors('payment_type');
+
+        $product->refresh();
+        $this->assertEquals(8, (float) $product->stock);
+
+        $this->actingAs($branchAdmin)
+            ->put(route('purchases.goods-receipts.update', $receipt->id), [
+                'payment_type' => 'cash',
+                'supplier_name' => 'Toko Lunas',
+                'date' => now()->toDateString(),
+                'notes' => 'Catatan truk susulan',
+                'items' => [
+                    ['product_id' => $product->id, 'quantity' => 8, 'unit_price' => 10000],
+                ],
+            ])
+            ->assertSessionHasNoErrors();
+
+        $receipt->refresh();
+        $product->refresh();
+        $this->assertSame('Catatan truk susulan', $receipt->notes);
+        $this->assertEquals(8, (float) $product->stock);
+    }
+
+    public function test_branch_admin_cannot_attach_another_branch_supplier_when_revising(): void
+    {
+        $branchAdmin = User::factory()->create([
+            'branch_id' => $this->branchOne->id,
+            'role' => 'branch_admin',
+        ]);
+        $product = Product::create([
+            'branch_id' => $this->branchOne->id,
+            'category_id' => $this->product->category_id,
+            'sku' => 'PRD-SUP',
+            'name' => 'Pupuk Cabang',
+            'purchase_price' => 10000,
+            'selling_price' => 12000,
+            'stock' => 0,
+        ]);
+        $otherSupplier = Supplier::withoutGlobalScopes()->create([
+            'branch_id' => $this->central->id,
+            'name' => 'Pemasok Pusat',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($branchAdmin)->post('/purchases/goods-receipts', [
+            'date' => now()->toDateString(),
+            'payment_type' => 'cash',
+            'reference_number' => 'GR-SUP-001',
+            'items' => [
+                ['product_id' => $product->id, 'quantity' => 1, 'unit_price' => 10000],
+            ],
+        ])->assertSessionHasNoErrors();
+
+        $receipt = GoodsReceipt::where('reference_number', 'GR-SUP-001')->firstOrFail();
+
+        $this->actingAs($branchAdmin)
+            ->put(route('purchases.goods-receipts.update', $receipt->id), [
+                'payment_type' => 'credit',
+                'supplier_id' => $otherSupplier->id,
+                'date' => now()->toDateString(),
+                'items' => [
+                    ['product_id' => $product->id, 'quantity' => 1, 'unit_price' => 10000],
+                ],
+            ])
+            ->assertSessionHasErrors('supplier_id');
     }
 }

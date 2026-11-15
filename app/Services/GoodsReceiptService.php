@@ -229,7 +229,8 @@ class GoodsReceiptService
 
     /**
      * Koreksi penerimaan yang sudah tercatat. Stok, pesanan, dan jurnal ikut disesuaikan.
-     * Hanya akun master. Nota yang sudah dilunasi atau diretur tidak boleh diubah strukturnya.
+     * Master, atau admin cabang untuk nota mandiri miliknya. Nota yang sudah dilunasi
+     * atau diretur tidak boleh diubah strukturnya.
      *
      * @param array{
      *     supplier_id?: int|null,
@@ -242,7 +243,7 @@ class GoodsReceiptService
      */
     public function updateReceipt(GoodsReceipt $receipt, array $data, User $actor): GoodsReceipt
     {
-        $this->ensureMaster($actor);
+        $this->assertCanRevise($actor, $receipt);
 
         return DB::transaction(function () use ($receipt, $data, $actor): GoodsReceipt {
             $receipt = GoodsReceipt::query()->lockForUpdate()->findOrFail($receipt->id);
@@ -318,7 +319,7 @@ class GoodsReceiptService
      */
     public function deleteReceipt(GoodsReceipt $receipt, User $actor): void
     {
-        $this->ensureMaster($actor);
+        $this->assertCanRevise($actor, $receipt);
 
         DB::transaction(function () use ($receipt): void {
             $receipt = GoodsReceipt::query()->lockForUpdate()->findOrFail($receipt->id);
@@ -466,11 +467,34 @@ class GoodsReceiptService
         ]);
     }
 
-    private function ensureMaster(User $actor): void
+    /**
+     * Master boleh mengoreksi semua nota. Admin cabang hanya boleh mengoreksi
+     * penerimaan mandiri (tanpa PO) pada cabangnya sendiri.
+     */
+    public function canRevise(User $actor, GoodsReceipt $receipt): bool
     {
-        if (! $actor->isMaster()) {
-            abort(403, 'Hanya akun master yang dapat mengubah atau menghapus penerimaan barang.');
+        if ($receipt->purchase_order_id !== null) {
+            return $actor->isMaster();
         }
+
+        if ($actor->isMaster()) {
+            return true;
+        }
+
+        return $actor->isBranchAdmin()
+            && $actor->branch_id !== null
+            && (int) $actor->branch_id === (int) $receipt->branch_id;
+    }
+
+    public function assertCanRevise(User $actor, GoodsReceipt $receipt): void
+    {
+        if ($this->canRevise($actor, $receipt)) {
+            return;
+        }
+
+        abort(403, $receipt->purchase_order_id !== null
+            ? 'Penerimaan yang tertaut pesanan barang hanya dapat diubah oleh akun master.'
+            : 'Anda hanya dapat mengubah penerimaan mandiri pada cabang Anda sendiri.');
     }
 
     /**
