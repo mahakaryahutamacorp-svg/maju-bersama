@@ -304,7 +304,7 @@ class BranchDataIsolationTest extends TestCase
 
         // 3. Submit expense as super_admin: can assign to Branch B
         $masterPayload = [
-            'expense_category_id' => $this->expenseCategory->id,
+            'expense_category_id' => $this->expenseCategoryB->id,
             'account_id' => $this->cashAccount->id,
             'expense_date' => now()->toDateString(),
             'amount' => 99000,

@@ -8,6 +8,8 @@ use App\Models\Branch;
 use App\Models\ChartOfAccount;
 use App\Models\ExpenseCategory;
 use App\Models\JournalHeader;
+use App\Services\BranchCashAccountService;
+use App\Services\BranchExpenseSetupService;
 use App\Services\FinanceDashboardService;
 use App\Services\JournalPostingService;
 use Illuminate\Http\RedirectResponse;
@@ -18,7 +20,9 @@ class FinanceDashboardController extends Controller
 {
     public function __construct(
         protected FinanceDashboardService $dashboardService,
-        protected JournalPostingService $journalPostingService
+        protected JournalPostingService $journalPostingService,
+        protected BranchExpenseSetupService $branchExpenseSetup,
+        protected BranchCashAccountService $branchCashAccounts,
     ) {}
 
     public function index(Request $request): View
@@ -34,9 +38,15 @@ class FinanceDashboardController extends Controller
         $endDate = $request->input('end_date', now()->toDateString());
         $tab = $request->input('tab', 'kas_bank');
 
+        if ($branchId) {
+            $this->branchExpenseSetup->ensureForBranch($branchId);
+        }
+
         $dashboard = $this->dashboardService->build($user, $branchId, $startDate, $endDate);
 
-        $cashBankAccounts = ChartOfAccount::query()->cashAndBank()->orderBy('code')->get();
+        $cashBankAccounts = $branchId
+            ? $this->branchCashAccounts->listForBranch($branchId)
+            : ChartOfAccount::query()->whereIn('id', ChartOfAccount::cashAccountIds())->orderBy('code')->get();
 
         return view('backoffice.finance.dashboard', [
             'currentUser' => $user,

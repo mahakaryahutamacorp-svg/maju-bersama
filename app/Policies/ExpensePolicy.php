@@ -12,7 +12,7 @@ class ExpensePolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->isMaster() || $user->isBranchAdmin();
+        return $user->isMaster() || $user->isBranchAdmin() || $user->isCashier();
     }
 
     /**
@@ -32,7 +32,7 @@ class ExpensePolicy
      */
     public function create(User $user): bool
     {
-        return $user->isMaster() || $user->isBranchAdmin();
+        return $user->isMaster() || $user->isBranchAdmin() || $user->isCashier();
     }
 
     /**

@@ -52,6 +52,16 @@
                     </nav>
 
                     <div class="flex items-center gap-3 border-l border-slate-800 pl-4">
+                        @can('record-branch-expenses')
+                            <button
+                                type="button"
+                                @click="expenseModalOpen = true"
+                                class="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs hover:bg-amber-500 transition"
+                                title="Catat pengeluaran dari kas cabang"
+                            >
+                                Catat Pengeluaran
+                            </button>
+                        @endcan
                         @if ($hasActiveShift)
                             <div class="flex items-center gap-2">
                                 <span class="rounded-full bg-emerald-500/20 px-2.5 py-1 text-[11px] font-bold text-emerald-300 flex items-center gap-1.5 border border-emerald-500/30">
@@ -1029,6 +1039,77 @@
         </div>
         @endif
 
+        @if (session('success'))
+            <div class="mx-auto max-w-7xl px-6 pt-3">
+                <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-medium text-emerald-800">
+                    {{ session('success') }}
+                </div>
+            </div>
+        @endif
+        @if (session('error'))
+            <div class="mx-auto max-w-7xl px-6 pt-3">
+                <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-800">
+                    {{ session('error') }}
+                </div>
+            </div>
+        @endif
+
+        <!-- MODAL: CATAT PENGELUARAN KAS CABANG (KASIR) -->
+        <div
+            x-show="expenseModalOpen"
+            x-cloak
+            class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm"
+            role="dialog"
+            aria-modal="true"
+        >
+            <div class="relative w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl border border-slate-100">
+                <div class="bg-gradient-to-r from-amber-700 via-amber-800 to-slate-900 px-6 py-5 text-white">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-lg font-bold">Pengeluaran Kas Cabang</h2>
+                            <p class="text-xs text-amber-100">Dana dicatat dari {{ $branchCashAccount->name ?? 'Kas' }} ({{ $branchCashAccount->code ?? '1110' }})</p>
+                        </div>
+                        <button type="button" @click="expenseModalOpen = false" class="rounded-xl p-2 text-amber-200 hover:bg-white/10">✕</button>
+                    </div>
+                </div>
+                <form method="POST" action="{{ route('pos.expenses.store') }}" class="p-6 space-y-4">
+                    @csrf
+                    <input type="hidden" name="expense_date" value="{{ now()->toDateString() }}">
+                    <p class="text-xs text-slate-500">Cabang: <strong class="text-slate-800">{{ $operatingBranch->name }}</strong></p>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Kategori biaya</label>
+                        <select name="expense_category_id" required class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+                            <option value="">Pilih kategori</option>
+                            @forelse ($expenseCategories as $category)
+                                <option value="{{ $category->id }}" @selected((int) old('expense_category_id') === (int) $category->id)>{{ $category->name }}</option>
+                            @empty
+                                <option value="" disabled>Belum ada kategori — hubungi admin cabang</option>
+                            @endforelse
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Nominal (Rp)</label>
+                        <input type="number" name="amount" min="0.01" step="0.01" required value="{{ old('amount') }}" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-mono" placeholder="0">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold uppercase text-slate-600 mb-1">Catatan</label>
+                        <textarea name="notes" required rows="2" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm" placeholder="Contoh: beli token listrik">{{ old('notes') }}</textarea>
+                    </div>
+                    @if ($errors->any())
+                        <div class="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
+                            @foreach ($errors->all() as $error)
+                                <p>{{ $error }}</p>
+                            @endforeach
+                        </div>
+                    @endif
+                    <div class="flex gap-2 pt-2">
+                        <button type="button" @click="expenseModalOpen = false" class="flex-1 rounded-xl border border-slate-300 py-2.5 text-sm font-semibold text-slate-700">Batal</button>
+                        <button type="submit" class="flex-1 rounded-xl bg-amber-600 py-2.5 text-sm font-bold text-white hover:bg-amber-700" @disabled($expenseCategories->isEmpty())>Simpan</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
         <!-- ======================================================== -->
         <!-- MODAL 4: TUTUP SHIFT KASIR & REKONSILIASI LACI -->
         <!-- ======================================================== -->
@@ -1080,7 +1161,7 @@
                             <span class="font-bold text-slate-800">Rp {{ number_format($activeShift->opening_balance, 0, ',', '.') }}</span>
                         </div>
                         <div class="flex justify-between items-center border-t border-slate-200 pt-2 font-bold text-slate-900">
-                            <span>Ekspektasi Saldo Sistem (Modal + Penjualan Tunai):</span>
+                            <span>Ekspektasi Saldo Sistem (Modal + Penjualan Tunai − Pengeluaran):</span>
                             <span class="font-mono text-sm text-indigo-700" x-text="formatRupiah(expectedBalance)"></span>
                         </div>
                     </div>
@@ -1438,6 +1519,7 @@
                 hasActiveShift: shiftConfig.hasActiveShift ?? false,
                 expectedBalance: Number(shiftConfig.expectedBalance || 0),
                 closeShiftModalOpen: false,
+                expenseModalOpen: @json($errors->any() && old('expense_category_id')),
                 openingBalanceDisplay: '',
                 openingBalanceRaw: 0,
                 closingBalanceDisplay: '',
@@ -2422,7 +2504,7 @@
                 },
 
                 handlePaymentShortcut() {
-                    if (this.paymentModalOpen || this.receiptOpen || this.showReceiptModal || this.closeShiftModalOpen) return;
+                    if (this.paymentModalOpen || this.receiptOpen || this.showReceiptModal || this.closeShiftModalOpen || this.expenseModalOpen) return;
                     if (this.cart.length === 0) return;
                     this.openPaymentModal();
                 },
@@ -2434,6 +2516,8 @@
                         this.paymentModalOpen = false;
                     } else if (this.closeShiftModalOpen) {
                         this.closeShiftModalOpen = false;
+                    } else if (this.expenseModalOpen) {
+                        this.expenseModalOpen = false;
                     } else if (this.heldListOpen) {
                         this.heldListOpen = false;
                     }

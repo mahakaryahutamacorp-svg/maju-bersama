@@ -10,8 +10,12 @@ use App\Models\CustomerGroup;
 use App\Models\Product;
 use App\Models\Sale;
 use App\Models\User;
+use App\Models\ExpenseCategory;
+use App\Services\BranchCashAccountService;
 use App\Services\BranchCashDrawerService;
+use App\Services\BranchExpenseSetupService;
 use App\Services\CashRegisterShiftService;
+use App\Services\ExpenseService;
 use App\Services\SalePostingService;
 use App\Support\DecimalQuantity;
 use App\Support\Money;
@@ -25,7 +29,10 @@ class PosController extends Controller
 {
     public function __construct(
         protected CashRegisterShiftService $shiftService,
-        protected BranchCashDrawerService $drawers
+        protected BranchCashDrawerService $drawers,
+        protected BranchExpenseSetupService $branchExpenseSetup,
+        protected BranchCashAccountService $branchCashAccounts,
+        protected ExpenseService $expenseService,
     ) {}
 
     /**
@@ -207,6 +214,15 @@ class PosController extends Controller
 
         $customers = $customersQuery->orderBy('name')->get();
 
+        $this->branchExpenseSetup->ensureForBranch($branchId);
+        $expenseCategories = ExpenseCategory::query()
+            ->where('branch_id', $branchId)
+            ->where('is_active', true)
+            ->with('chartOfAccount')
+            ->orderBy('name')
+            ->get();
+        $branchCashAccount = $this->branchCashAccounts->defaultForBranch($branchId);
+
         $token = $user->createToken('pos_preview')->plainTextToken;
 
         $viewName = view()->exists('pos.index') ? 'pos.index' : 'pos';
@@ -224,7 +240,76 @@ class PosController extends Controller
             'registers' => $registers,
             'openShifts' => $openShifts,
             'expectedBalance' => $expectedBalance,
+            'expenseCategories' => $expenseCategories,
+            'branchCashAccount' => $branchCashAccount,
         ]);
+    }
+
+    /**
+     * Catat pengeluaran operasional dari layar POS; dana diambil dari kas cabang (default akun Kas).
+     */
+    public function storeExpense(Request $request): RedirectResponse|JsonResponse
+    {
+        $this->authorize('create', \App\Models\Expense::class);
+
+        $user = $request->user();
+        $branchId = $this->operatingBranchId($request, $user);
+
+        if ($branchId === null) {
+            return redirect()->route('pos')->with('error', 'Cabang operasional belum dipilih.');
+        }
+
+        $this->branchExpenseSetup->ensureForBranch($branchId);
+        $defaultCashAccountId = $this->branchCashAccounts->defaultForBranch($branchId)->id;
+
+        $validated = $request->validate([
+            'expense_category_id' => [
+                'required',
+                'integer',
+                \Illuminate\Validation\Rule::exists('expense_categories', 'id')->where(
+                    fn ($query) => $query->where('branch_id', $branchId)->where('is_active', true)
+                ),
+            ],
+            'amount' => ['required', 'numeric', 'min:0.01'],
+            'expense_date' => ['nullable', 'date'],
+            'reference_number' => ['nullable', 'string', 'max:100'],
+            'notes' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $activeShift = CashRegisterShift::query()
+            ->where('user_id', $user->id)
+            ->where('branch_id', $branchId)
+            ->where('status', 'open')
+            ->first();
+
+        $expense = $this->expenseService->recordExpense([
+            'branch_id' => $branchId,
+            'user_id' => $user->id,
+            'cash_register_shift_id' => $activeShift?->id,
+            'expense_category_id' => (int) $validated['expense_category_id'],
+            'account_id' => $defaultCashAccountId,
+            'amount' => $validated['amount'],
+            'expense_date' => $validated['expense_date'] ?? now()->toDateString(),
+            'reference_number' => $validated['reference_number'] ?? null,
+            'notes' => $validated['notes'],
+        ]);
+
+        $formattedAmount = 'Rp '.number_format((float) $expense->amount, 0, ',', '.');
+        $catName = $expense->expenseCategory?->name ?? 'Biaya';
+
+        if ($request->expectsJson() || $request->wantsJson()) {
+            return response()->json([
+                'status' => 'success',
+                'message' => "Pengeluaran kas {$formattedAmount} untuk {$catName} berhasil dicatat.",
+                'expected_balance' => $activeShift
+                    ? $this->shiftService->calculateExpectedBalance($activeShift->fresh())
+                    : null,
+            ], 201);
+        }
+
+        return redirect()
+            ->route('pos')
+            ->with('success', "Pengeluaran kas {$formattedAmount} untuk {$catName} berhasil dicatat dari kas cabang.");
     }
 
     /**

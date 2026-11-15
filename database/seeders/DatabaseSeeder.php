@@ -150,6 +150,8 @@ class DatabaseSeeder extends Seeder
             ]);
         }
 
+        app(\App\Services\BranchExpenseSetupService::class)->ensureAllBranches();
+
         // 10. Product Catalog (Stock = 0, Inventory = 0)
         $this->call(ProductSeeder::class);
 

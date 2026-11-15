@@ -93,7 +93,11 @@ class FinanceDashboardService
 
     private function cashAccountBalances(?int $branchId): Collection
     {
-        $accounts = ChartOfAccount::query()->cashAndBank()->orderBy('code')->get();
+        $accounts = ChartOfAccount::query()
+            ->whereIn('id', ChartOfAccount::cashAccountIds())
+            ->where('is_active', true)
+            ->orderBy('code')
+            ->get();
         if ($accounts->isEmpty()) {
             return collect();
         }

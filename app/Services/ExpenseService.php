@@ -48,10 +48,21 @@ class ExpenseService
                 ]);
             }
 
+            $branchId = (int) ($data['branch_id'] ?? $category->branch_id);
+            if ((int) $category->branch_id !== $branchId) {
+                throw ValidationException::withMessages([
+                    'expense_category_id' => ['Kategori biaya harus milik cabang yang sama dengan sumber kas.'],
+                ]);
+            }
+
             // Ambil akun sumber dana kas/bank
             $account = ChartOfAccount::findOrFail($data['account_id']);
-
-            $branchId = $data['branch_id'] ?? $category->branch_id;
+            $cashAccountIds = ChartOfAccount::cashAccountIds();
+            if (! in_array((int) $account->id, $cashAccountIds, true)) {
+                throw ValidationException::withMessages([
+                    'account_id' => ['Sumber dana harus akun kas atau bank cabang.'],
+                ]);
+            }
             $expenseDate = $data['expense_date'] ?? now()->toDateString();
             $referenceNumber = $data['reference_number'] ?? $this->generateReferenceNumber($branchId);
             $notes = isset($data['notes']) && trim((string) $data['notes']) !== '' ? trim((string) $data['notes']) : null;
@@ -65,6 +76,8 @@ class ExpenseService
             // 1. Simpan data ke tabel expenses
             $expense = Expense::create([
                 'branch_id' => $branchId,
+                'user_id' => $data['user_id'] ?? null,
+                'cash_register_shift_id' => $data['cash_register_shift_id'] ?? null,
                 'expense_category_id' => $category->id,
                 'account_id' => $account->id,
                 'amount' => $amount,

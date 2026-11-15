@@ -62,6 +62,9 @@ Route::middleware('auth')->group(function () {
         ->where('receipt_number', '.+')
         ->name('pos.receipt');
     Route::post('/pos/customers', [PosController::class, 'storeCustomer'])->name('pos.customers.store');
+    Route::post('/pos/expenses', [PosController::class, 'storeExpense'])
+        ->middleware('can:record-branch-expenses')
+        ->name('pos.expenses.store');
 
     Route::middleware('can:manage-branch-operations')->group(function () {
         Route::post('/fixed-assets/run-depreciation', [FixedAssetController::class, 'runDepreciation']);
@@ -166,9 +169,8 @@ Route::middleware('auth')->group(function () {
                 ->middleware('can:view-accounting')
                 ->name('finance.journals.store');
 
-            // Expense Categories & Expenses (Biaya Operasional Cabang)
+            // Kategori biaya operasional cabang (admin cabang / master)
             Route::resource('expense-categories', ExpenseCategoryController::class);
-            Route::resource('expenses', ExpenseController::class);
 
             // Cash Transfers & Transactions (Mutasi Kas Cabang)
             Route::resource('cash-transfers', CashTransferController::class);
@@ -197,6 +199,11 @@ Route::middleware('auth')->group(function () {
             Route::post('payments/receivables', [PaymentController::class, 'storeAR'])->name('payments.receivables.store');
             Route::get('payments/payables/create', [PaymentController::class, 'createAP'])->name('payments.payables.create');
             Route::post('payments/payables', [PaymentController::class, 'storeAP'])->name('payments.payables.store');
+        });
+
+        // Pengeluaran kas cabang — admin cabang, kasir, dan master (bukan modul enterprise penuh)
+        Route::middleware('can:record-branch-expenses')->group(function () {
+            Route::resource('expenses', ExpenseController::class)->only(['index', 'create', 'store', 'show']);
         });
 
         // Pesan Internal antar cabang & Pusat (Master & Branch Admin bercabang)
