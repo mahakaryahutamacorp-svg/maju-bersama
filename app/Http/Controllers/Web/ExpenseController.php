@@ -3,19 +3,25 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Models\CashRegisterShift;
 use App\Models\ChartOfAccount;
 use App\Models\Expense;
 use App\Models\ExpenseCategory;
+use App\Services\BranchCashAccountService;
+use App\Services\BranchExpenseSetupService;
 use App\Services\ExpenseService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class ExpenseController extends Controller
 {
     public function __construct(
-        protected ExpenseService $expenseService
+        protected ExpenseService $expenseService,
+        protected BranchExpenseSetupService $branchExpenseSetup,
+        protected BranchCashAccountService $branchCashAccounts,
     ) {}
 
     /**
@@ -23,6 +29,8 @@ class ExpenseController extends Controller
      */
     public function index(Request $request): View|JsonResponse
     {
+        $this->authorize('viewAny', Expense::class);
+
         $user = $request->user()->load('branch');
         $search = $request->input('search');
         $startDate = $request->input('start_date');
@@ -80,7 +88,16 @@ class ExpenseController extends Controller
      */
     public function create(Request $request): View
     {
+        $this->authorize('create', Expense::class);
+
         $user = $request->user()->load('branch');
+        $branchId = $user->isMaster() && $request->filled('branch_id')
+            ? (int) $request->input('branch_id')
+            : (int) $user->branch_id;
+
+        if ($branchId) {
+            $this->branchExpenseSetup->ensureForBranch($branchId);
+        }
 
         // Kategori biaya yang aktif beserta relasi akun bebannya
         $categories = ExpenseCategory::where('is_active', true)
@@ -88,19 +105,9 @@ class ExpenseController extends Controller
             ->orderBy('name')
             ->get();
 
-        // Akun Kas & Bank (Aset Lancar - 11xx)
-        $accounts = ChartOfAccount::where('type', 'asset')
-            ->where(function ($q) {
-                $q->where('code', 'like', '11%')
-                    ->orWhere('name', 'like', '%kas%')
-                    ->orWhere('name', 'like', '%bank%');
-            })
-            ->orderBy('code')
-            ->get();
-
-        if ($accounts->isEmpty()) {
-            $accounts = ChartOfAccount::where('type', 'asset')->orderBy('code')->get();
-        }
+        $accounts = $branchId
+            ? $this->branchCashAccounts->listForBranch($branchId)
+            : ChartOfAccount::query()->whereIn('id', ChartOfAccount::cashAccountIds())->orderBy('code')->get();
 
         $isMaster = $user->isMaster();
         $branches = $isMaster ? \App\Models\Branch::orderBy('name')->get() : collect([$user->branch]);
@@ -120,29 +127,59 @@ class ExpenseController extends Controller
      */
     public function store(Request $request): RedirectResponse|JsonResponse
     {
+        $this->authorize('create', Expense::class);
+
+        $user = $request->user();
+        $isMaster = $user->isMaster();
+
+        $branchId = ($isMaster && $request->filled('branch_id'))
+            ? (int) $request->input('branch_id')
+            : (int) $user->branch_id;
+
+        if ($branchId <= 0) {
+            abort(422, 'Cabang tidak valid untuk pencatatan pengeluaran.');
+        }
+
+        $this->branchExpenseSetup->ensureForBranch($branchId);
+
+        $defaultCashAccountId = $this->branchCashAccounts->defaultForBranch($branchId)->id;
+
         $validated = $request->validate([
-            'expense_category_id' => ['required', 'integer', 'exists:expense_categories,id'],
-            'account_id' => ['required', 'integer', 'exists:chart_of_accounts,id'],
+            'expense_category_id' => [
+                'required',
+                'integer',
+                Rule::exists('expense_categories', 'id')->where(
+                    fn ($query) => $query->where('branch_id', $branchId)->where('is_active', true)
+                ),
+            ],
+            'account_id' => ['nullable', 'integer', 'exists:chart_of_accounts,id'],
             'amount' => ['required', 'numeric', 'min:0.01'],
             'expense_date' => ['required', 'date'],
             'reference_number' => ['nullable', 'string', 'max:100'],
             'notes' => ['required', 'string', 'max:1000'],
             'branch_id' => ['nullable', 'integer', 'exists:branches,id'],
+            'cash_register_shift_id' => ['nullable', 'integer', 'exists:cash_register_shifts,id'],
         ]);
 
-        $user = $request->user();
-        $isMaster = $user->isMaster();
+        $activeShift = null;
+        if ($user->isCashier()) {
+            $activeShift = CashRegisterShift::query()
+                ->where('user_id', $user->id)
+                ->where('branch_id', $branchId)
+                ->where('status', 'open')
+                ->first();
+        }
 
-        // Branch Admin otomatis terkunci ke cabangnya sendiri (auto-fill)
-        $branchId = ($isMaster && ! empty($validated['branch_id']))
-            ? (int) $validated['branch_id']
-            : (int) $user->branch_id;
+        $shiftId = isset($validated['cash_register_shift_id'])
+            ? (int) $validated['cash_register_shift_id']
+            : $activeShift?->id;
 
         $expense = $this->expenseService->recordExpense([
             'branch_id' => $branchId,
             'user_id' => $user->id,
+            'cash_register_shift_id' => $shiftId,
             'expense_category_id' => (int) $validated['expense_category_id'],
-            'account_id' => (int) $validated['account_id'],
+            'account_id' => (int) ($validated['account_id'] ?? $defaultCashAccountId),
             'amount' => $validated['amount'],
             'expense_date' => $validated['expense_date'],
             'reference_number' => $validated['reference_number'] ?? null,
@@ -166,6 +203,12 @@ class ExpenseController extends Controller
                 ->with('success', "Pengeluaran kas {$formattedAmount} untuk {$catName} berhasil dibukukan dengan jurnal akuntansi otomatis.");
         }
 
+        if ($request->input('return_to') === 'pos') {
+            return redirect()
+                ->route('pos')
+                ->with('success', "Pengeluaran kas {$formattedAmount} untuk {$catName} berhasil dicatat dari kas cabang.");
+        }
+
         return redirect()
             ->route('backoffice.expenses.index')
             ->with('success', "Pengeluaran kas {$formattedAmount} untuk {$catName} berhasil dibukukan dengan jurnal akuntansi otomatis.");
@@ -184,6 +227,8 @@ class ExpenseController extends Controller
             'branch',
             'journalHeader.journalLines.chartOfAccount',
         ])->findOrFail($id);
+
+        $this->authorize('view', $expense);
 
         return view('backoffice.expenses.show', [
             'currentUser' => $user,

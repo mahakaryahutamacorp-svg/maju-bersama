@@ -71,8 +71,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/goods-receipts', [GoodsReceiptController::class, 'store']);
     Route::get('/goods-receipts/{id}', [GoodsReceiptController::class, 'show']);
 
-    Route::get('/expenses', [ExpenseController::class, 'index']);
-    Route::post('/expenses', [ExpenseController::class, 'store']);
+    Route::middleware('can:record-branch-expenses')->group(function () {
+        Route::get('/expenses', [ExpenseController::class, 'index']);
+        Route::post('/expenses', [ExpenseController::class, 'store']);
+    });
 
     Route::get('/stock-adjustments', [StockAdjustmentController::class, 'index']);
     Route::post('/stock-adjustments', [StockAdjustmentController::class, 'store']);

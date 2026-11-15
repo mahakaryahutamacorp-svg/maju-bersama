@@ -76,8 +76,20 @@ class ExpenseCategoryController extends Controller
             'is_active' => ['nullable', 'boolean'],
         ]);
 
+        $user = $request->user();
+        $branchId = $user->isMaster() && $request->filled('branch_id')
+            ? (int) $request->input('branch_id')
+            : (int) $user->branch_id;
+
+        if ($branchId <= 0) {
+            return redirect()
+                ->back()
+                ->withInput()
+                ->withErrors(['branch_id' => 'Pilih cabang untuk kategori biaya ini.']);
+        }
+
         $category = ExpenseCategory::create([
-            'branch_id' => $request->user()->branch_id,
+            'branch_id' => $branchId,
             'name' => $validated['name'],
             'chart_of_account_id' => $validated['chart_of_account_id'],
             'is_active' => $request->boolean('is_active', true),

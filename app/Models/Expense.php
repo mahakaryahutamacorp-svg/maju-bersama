@@ -12,6 +12,8 @@ class Expense extends Model
 
     protected $fillable = [
         'branch_id',
+        'user_id',
+        'cash_register_shift_id',
         'expense_category_id',
         'account_id',
         'amount',
@@ -32,6 +34,16 @@ class Expense extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(Branch::class);
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function cashRegisterShift(): BelongsTo
+    {
+        return $this->belongsTo(CashRegisterShift::class);
     }
 
     public function expenseCategory(): BelongsTo

@@ -29,7 +29,7 @@ class AppServiceProvider extends ServiceProvider
      * Matriks RBAC Backoffice:
      *  - master       : semua modul.
      *  - branch_admin : Dashboard & Kasir, Gudang & Inventaris, Katalog Produk, Data Pelanggan.
-     *  - cashier      : Dashboard & Kasir saja.
+     *  - cashier      : Dashboard, Kasir, dan pencatatan pengeluaran kas cabang.
      */
     protected function registerAccessGates(): void
     {
@@ -56,6 +56,9 @@ class AppServiceProvider extends ServiceProvider
 
         // Operasional Cabang: Kas, Biaya (Expenses), Aset Tetap, Pembelian PO & Retur, Mutasi, Pembayaran.
         Gate::define('manage-branch-operations', fn (User $user) => $user->isMaster() || $user->isBranchAdmin());
+
+        // Pencatatan pengeluaran kas cabang (admin cabang, kasir, dan master).
+        Gate::define('record-branch-expenses', fn (User $user) => $user->isMaster() || $user->isBranchAdmin() || $user->isCashier());
 
         // Riwayat Penjualan & Piutang (AR) Cabang
         Gate::define('view-sales-history', fn (User $user) => $user->isMaster() || $user->isBranchAdmin());

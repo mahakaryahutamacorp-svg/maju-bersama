@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\CashRegister;
 use App\Models\CashRegisterShift;
+use App\Models\Expense;
 use App\Models\Sale;
 use App\Models\SalesReturn;
 use App\Models\User;
@@ -73,7 +74,7 @@ class CashRegisterShiftService
 
     /**
      * Menghitung dinamis expected_closing_balance.
-     * Rumus: opening_balance + penjualan tunai pada shift ini - refund tunai.
+     * Rumus: opening_balance + penjualan tunai pada shift ini - refund tunai - pengeluaran kas shift.
      * Uang muka nota tempo dan pelunasan piutang tidak masuk ekspektasi laci.
      */
     public function calculateExpectedBalance(CashRegisterShift $shift): float
@@ -95,7 +96,13 @@ class CashRegisterShiftService
 
         $netCash = bcsub((string) $totalCash, (string) $cashRefunds, 2);
 
-        return (float) bcadd((string) $opening, (string) $netCash, 2);
+        $shiftExpenses = Expense::withoutGlobalScopes()
+            ->where('cash_register_shift_id', $shift->id)
+            ->sum('amount');
+
+        $withSales = bcadd((string) $opening, (string) $netCash, 2);
+
+        return (float) bcsub($withSales, (string) $shiftExpenses, 2);
     }
 
     /**
