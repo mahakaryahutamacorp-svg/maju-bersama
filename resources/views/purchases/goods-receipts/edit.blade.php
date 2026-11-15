@@ -3,6 +3,10 @@
     ['label' => 'Terima Barang', 'url' => route('purchases.goods-receipts.index')],
     ['label' => 'Ubah '.$receipt->reference_number],
 ]">
+    <x-slot:head>
+        @include('inventory.partials.smart-search-script')
+    </x-slot:head>
+
     <main class="mx-auto w-full max-w-5xl space-y-6 px-6 py-6 lg:px-8">
         @if ($errors->any())
             <div class="rounded-2xl border border-rose-200 bg-rose-50 p-5 text-rose-900 shadow-xs">
@@ -44,7 +48,7 @@
 
         <form method="POST" action="{{ route('purchases.goods-receipts.update', $receipt->id) }}" class="space-y-6"
               x-data="withProductPicker(receiptEditor(@js($products), @js($initialItems), @js((bool) $lockReason), @js($receipt->purchase_order_id ? 'credit' : old('payment_type', $receipt->payment_type))))"
-              @keypress.enter="ProductSmartSearch.blockImplicitSubmit($event)">
+              @keydown.enter="ProductSmartSearch.blockImplicitSubmit($event)">
             @csrf
             @method('PUT')
 
@@ -161,7 +165,7 @@
         </form>
     </main>
 
-    @include('inventory.partials.smart-search-script')
+    <x-slot:scripts>
     <script>
         function receiptEditor(products, initialItems, locked, paymentType) {
             return {
@@ -192,4 +196,5 @@
             };
         }
     </script>
+    </x-slot:scripts>
 </x-app-layout>

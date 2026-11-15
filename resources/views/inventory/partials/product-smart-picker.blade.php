@@ -12,6 +12,7 @@
         x-model="item.query"
         @input="onProductQuery(item, $event)"
         @focus="onProductFocus(item, $event)"
+        @blur="onProductBlur(item)"
         @keydown.arrow-down.prevent="moveProduct(item, 1)"
         @keydown.arrow-up.prevent="moveProduct(item, -1)"
         @keydown.enter.prevent="confirmProduct(index, $event)"
@@ -23,10 +24,11 @@
         class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
     >
     <div
+        data-product-menu
         x-show="item.open && (item.query || '').trim() !== '' && productResults(item).length > 0"
         x-cloak
         class="fixed z-[80] max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
-        :style="ProductSmartSearch.menuStyle(item)"
+        :style="item.open ? ProductSmartSearch.menuStyle(item) : null"
     >
         <template x-for="(prod, resultIndex) in productResults(item)" :key="prod.id">
             <button
@@ -50,10 +52,11 @@
         </template>
     </div>
     <p
+        data-product-menu
         x-show="item.open && (item.query || '').trim() !== '' && productResults(item).length === 0"
         x-cloak
-        class="fixed z-50 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-500 shadow-xl"
-        :style="ProductSmartSearch.menuStyle(item)"
+        class="fixed z-50 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-500 shadow-xl pointer-events-none"
+        :style="item.open ? ProductSmartSearch.menuStyle(item) : null"
     >
         Produk tidak ditemukan. Coba nama, SKU, atau kategori.
     </p>

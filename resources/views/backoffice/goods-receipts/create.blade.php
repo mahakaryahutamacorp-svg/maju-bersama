@@ -3,6 +3,17 @@
     ['label' => 'Terima Barang', 'url' => route('purchases.goods-receipts.index')],
     ['label' => 'Catat Barang Datang'],
 ]">
+    <x-slot:head>
+        @include('partials.decimal-math')
+        @include('inventory.partials.smart-search-script')
+        <script>
+            window.__goodsReceiptCreate = {
+                activePOs: @json($activePOs),
+                products: @json($products),
+            };
+        </script>
+    </x-slot:head>
+
     <main class="mx-auto w-full max-w-7xl space-y-6 px-6 py-6 lg:px-10">
         <p class="text-xs font-semibold text-slate-500">
             Lokasi barang masuk: <span class="font-bold text-slate-900">{{ $centralBranch->name ?? 'Gudang Pusat' }}</span>
@@ -41,8 +52,8 @@
         </div>
 
         <!-- Form Alpine.js -->
-        <div x-data="goodsReceiptForm(@js($activePOs), @js($products))" class="space-y-6">
-            <form method="POST" action="/purchases/goods-receipts" id="receiptForm" class="space-y-6" @keypress.enter="ProductSmartSearch.blockImplicitSubmit($event)">
+        <div x-data="goodsReceiptForm()" class="space-y-6">
+            <form method="POST" action="/purchases/goods-receipts" id="receiptForm" class="space-y-6" @keydown.enter="ProductSmartSearch.blockImplicitSubmit($event)">
                 @csrf
 
                 <!-- Input Hidden Purchase Order ID -->
@@ -380,19 +391,11 @@
     </main>
 
     <x-slot:scripts>
-    @include('inventory.partials.smart-search-script')
-    @include('partials.decimal-math')
     <script>
-        function goodsReceiptForm(activePOsList = [], productsList = []) {
-            let activePOs = activePOsList || [];
-            let products = productsList || [];
-
-            // Fallback jika urutan argumen terbalik
-            if (activePOs.length > 0 && ('purchase_price' in activePOs[0] || 'stock' in activePOs[0])) {
-                const temp = activePOs;
-                activePOs = Array.isArray(productsList) ? productsList : [];
-                products = temp;
-            }
+        function goodsReceiptForm() {
+            const boot = window.__goodsReceiptCreate || { activePOs: [], products: [] };
+            let activePOs = Array.isArray(boot.activePOs) ? boot.activePOs : [];
+            let products = Array.isArray(boot.products) ? boot.products : [];
 
             return withProductPicker({
                 products: products,

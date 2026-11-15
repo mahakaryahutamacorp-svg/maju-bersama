@@ -65,6 +65,9 @@ class GoodsReceiptWebTest extends TestCase
 
         $createResponse = $this->actingAs($this->master)->get('/purchases/goods-receipts/create');
         $createResponse->assertStatus(200);
+        $createResponse->assertSee('__goodsReceiptCreate', false);
+        $createResponse->assertSee('x-data="goodsReceiptForm()"', false);
+        $createResponse->assertSee('ProductSmartSearch', false);
         $createResponse->assertSee('Catat Barang Datang');
         $createResponse->assertSee('Beras Organik 5kg');
         $createResponse->assertSee('goodsReceiptForm');

@@ -186,9 +186,14 @@
             // Enter di kolom isian dokumen tidak boleh mengirim form setengah jadi.
             blockImplicitSubmit(event) {
                 const target = event.target;
-                if (!(target instanceof HTMLInputElement)) return;
-                if (['submit', 'button', 'image', 'reset'].includes(target.type)) return;
-                event.preventDefault();
+                if (!target || !(target instanceof HTMLElement)) return;
+                if (target.closest('[data-product-query]')) return;
+                if (target instanceof HTMLTextAreaElement) return;
+                if (target instanceof HTMLInputElement && ['submit', 'button', 'image', 'reset'].includes(target.type)) return;
+                if (target instanceof HTMLSelectElement) return;
+                if (target instanceof HTMLInputElement || target.getAttribute('contenteditable') === 'true') {
+                    event.preventDefault();
+                }
             },
 
             move(active, total, step) {
@@ -273,8 +278,17 @@
         };
 
         form.onProductFocus = function (item, event) {
-            item.open = true;
-            ProductSmartSearch.anchor(item, event.target);
+            const query = (item.query || '').trim();
+            item.open = query !== '';
+            if (item.open && event?.target) {
+                ProductSmartSearch.anchor(item, event.target);
+            }
+        };
+
+        form.onProductBlur = function (item) {
+            window.setTimeout(() => {
+                item.open = false;
+            }, 120);
         };
 
         form.moveProduct = function (item, step) {
