@@ -139,7 +139,8 @@
             },
 
             ensureLine(item) {
-                return Object.assign({
+                const line = Object.assign({
+                    _key: 'line-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9),
                     product_id: '',
                     query: '',
                     open: false,
@@ -148,6 +149,12 @@
                     menuLeft: 0,
                     menuWidth: 280,
                 }, item || {});
+
+                if (! line._key) {
+                    line._key = 'line-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9);
+                }
+
+                return line;
             },
 
             apply(item, product) {

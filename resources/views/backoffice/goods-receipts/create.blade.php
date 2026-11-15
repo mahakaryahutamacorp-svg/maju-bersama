@@ -248,7 +248,7 @@
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
-                                <template x-for="(item, index) in items" :key="index">
+                                <template x-for="(item, index) in items" :key="item._key || index">
                                     <tr class="transition hover:bg-slate-50/70">
                                         <!-- Index -->
                                         <td class="py-3 px-3 text-center text-xs font-bold text-slate-400 font-mono" x-text="index + 1"></td>
