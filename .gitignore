@@ -5,6 +5,8 @@
 .env.production
 .phpactor.json
 .phpunit.result.cache
+__pycache__/
+*.pyc
 /.fleet
 /.idea
 /.nova
@@ -35,4 +37,5 @@ testsprite_tests/tmp/config.json
 .testsprite/
 .agents/
 .cursor/mcp.json
+.cursor/settings.json
 
