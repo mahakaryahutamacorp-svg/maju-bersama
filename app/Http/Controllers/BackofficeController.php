@@ -33,6 +33,7 @@ class BackofficeController extends Controller
         $recentJournals = JournalHeader::query()
             ->with(['branch', 'user'])
             ->whereIn('branch_id', $branchIds)
+            ->where('description', 'not like', 'Saldo Awal Piutang%')
             ->latest('transaction_date')
             ->latest('id')
             ->limit(12)

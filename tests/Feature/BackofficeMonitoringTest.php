@@ -35,6 +35,13 @@ class BackofficeMonitoringTest extends TestCase
             'reference_number' => 'POS-1001',
             'description' => 'POS Sale',
         ]);
+        JournalHeader::create([
+            'branch_id' => $melati->id,
+            'user_id' => $master->id,
+            'transaction_date' => '2026-11-11',
+            'reference_number' => 'JV-2907',
+            'description' => 'Saldo Awal Piutang - DHANI (Nota: 2907)',
+        ]);
 
         $this->actingAs($master)
             ->get('/backoffice')
@@ -56,7 +63,9 @@ class BackofficeMonitoringTest extends TestCase
                 'POS-1001',
                 'Penjualan kasir',
             ])
-            ->assertDontSee('POS Sale');
+            ->assertDontSee('POS Sale')
+            ->assertDontSee('JV-2907')
+            ->assertDontSee('Saldo Awal Piutang');
     }
 
     public function test_period_selector_returns_week_month_and_year_totals(): void
