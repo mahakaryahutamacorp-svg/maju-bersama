@@ -10,6 +10,7 @@ use App\Models\Product;
 use App\Models\PurchaseOrder;
 use App\Models\Supplier;
 use App\Services\GoodsReceiptService;
+use App\Services\MasterCatalogService;
 use App\Support\DecimalQuantity;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -94,28 +95,77 @@ class GoodsReceiptController extends Controller
         $user = $request->user()->load('branch');
         $isMaster = $user->isMaster();
 
-        // Resolve branch for goods receipt
+        // Resolve branch for goods receipt — same rules as GoodsReceiptService (katalog gudang sumber dulu).
         $targetBranchId = $isMaster ? ($request->input('branch_id') ?: null) : $user->branch_id;
+        $catalog = app(MasterCatalogService::class);
 
-        $targetBranch = $targetBranchId
-            ? Branch::find($targetBranchId)
-            : (Branch::whereNull('parent_id')->first() ?? Branch::where('code', 'PUSAT')->first() ?? Branch::first());
+        if ($targetBranchId) {
+            $targetBranch = Branch::find($targetBranchId);
+        } else {
+            $targetBranch = null;
+            foreach (MasterCatalogService::SOURCE_BRANCH_CODES as $code) {
+                $targetBranch = Branch::where('code', $code)->first();
+                if ($targetBranch) {
+                    break;
+                }
+            }
+            $targetBranch = $targetBranch
+                ?? Branch::whereNull('parent_id')->first()
+                ?? Branch::where('code', 'PUSAT')->first()
+                ?? Branch::first();
+        }
+
+        // Jika cabang yang dipilih mengikuti katalog gudang sumber, tampilkan produk gudang itu.
+        if ($isMaster && $targetBranch) {
+            $sourceBranch = $catalog->sourceBranch((int) $targetBranch->id);
+            if ($sourceBranch) {
+                $targetBranch = $sourceBranch;
+            }
+        }
 
         // Fetch products available at target branch (or fallback to all products if target branch has none)
         $products = Product::withoutGlobalScopes()
+            ->with('category:id,name')
             ->whereNull('deleted_at')
             ->when($targetBranch, fn ($q) => $q->where('branch_id', $targetBranch->id))
             ->orderBy('name')
             ->get();
 
+        // Jika cabang target belum punya baris produk, pindah ke cabang segrup yang punya katalog terbanyak.
+        if ($products->isEmpty() && $targetBranch) {
+            $groupIds = $catalog->groupBranchIds((int) $targetBranch->id);
+            $richestBranchId = Product::withoutGlobalScopes()
+                ->whereNull('deleted_at')
+                ->whereIn('branch_id', $groupIds)
+                ->selectRaw('branch_id, COUNT(*) as product_count')
+                ->groupBy('branch_id')
+                ->orderByDesc('product_count')
+                ->value('branch_id');
+
+            if ($richestBranchId) {
+                $targetBranch = Branch::find((int) $richestBranchId) ?? $targetBranch;
+                $products = Product::withoutGlobalScopes()
+                    ->with('category:id,name')
+                    ->whereNull('deleted_at')
+                    ->where('branch_id', $targetBranch->id)
+                    ->orderBy('name')
+                    ->get();
+            }
+        }
+
         if ($products->isEmpty()) {
-            $products = Product::withoutGlobalScopes()->whereNull('deleted_at')->orderBy('name')->get();
+            $products = Product::withoutGlobalScopes()
+                ->with('category:id,name')
+                ->whereNull('deleted_at')
+                ->orderBy('name')
+                ->get();
         }
 
         $productsData = $products->map(fn (Product $p) => [
             'id' => $p->id,
             'sku' => $p->sku,
             'name' => $p->name,
+            'category' => $p->category?->name,
             'purchase_price' => (float) $p->purchase_price,
             'stock' => $p->availableQuantity(),
         ])->values();

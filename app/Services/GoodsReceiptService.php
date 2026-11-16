@@ -16,6 +16,7 @@ use App\Support\DecimalQuantity;
 use App\Support\Money;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use App\Services\MasterCatalogService;
 
 /**
  * Service to process goods receipt (penerimaan barang dari supplier ke Gudang Pusat).
@@ -880,12 +881,21 @@ class GoodsReceiptService
     }
 
     /**
-     * Resolve the central (Pusat) branch.
+     * Resolve the central/warehouse branch for receiving stock.
+     * When branch is omitted (master penerimaan mandiri), prefer the catalog source
+     * warehouse (e.g. GUDANG-PUPUK) so the product list and stock target stay aligned.
      */
     private function resolveCentralBranch(?int $branchId): Branch
     {
         if ($branchId !== null) {
             return Branch::query()->findOrFail($branchId);
+        }
+
+        foreach (MasterCatalogService::SOURCE_BRANCH_CODES as $code) {
+            $source = Branch::query()->where('code', $code)->first();
+            if ($source) {
+                return $source;
+            }
         }
 
         $branch = Branch::query()->whereNull('parent_id')->first()

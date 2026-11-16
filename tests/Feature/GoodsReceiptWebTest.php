@@ -71,6 +71,51 @@ class GoodsReceiptWebTest extends TestCase
         $createResponse->assertSee('Catat Barang Datang');
         $createResponse->assertSee('Beras Organik 5kg');
         $createResponse->assertSee('goodsReceiptForm');
+        $createResponse->assertSee('data-product-query', false);
+        $createResponse->assertSee('name="branch_id"', false);
+        $createResponse->assertSee('refreshProductResults', false);
+    }
+
+    public function test_create_form_lists_catalog_source_branch_products_for_master(): void
+    {
+        $office = Branch::create(['code' => 'OFFICE-PUPUK', 'name' => 'OFFICE MAJU BERSAMA']);
+        $gudang = Branch::create(['code' => 'GUDANG-PUPUK', 'name' => 'GUDANG MAJU BERSAMA', 'parent_id' => $office->id]);
+
+        Product::create([
+            'branch_id' => $office->id,
+            'category_id' => $this->product->category_id,
+            'sku' => 'OFF-ONLY-1',
+            'name' => 'Produk Sedikit di Office',
+            'purchase_price' => 1000,
+            'selling_price' => 2000,
+            'stock' => 1,
+        ]);
+
+        Product::create([
+            'branch_id' => $gudang->id,
+            'category_id' => $this->product->category_id,
+            'sku' => 'GDG-FULL-1',
+            'name' => 'ABOLISI 400ML Katalog Gudang',
+            'purchase_price' => 5000,
+            'selling_price' => 7000,
+            'stock' => 20,
+        ]);
+        Product::create([
+            'branch_id' => $gudang->id,
+            'category_id' => $this->product->category_id,
+            'sku' => 'GDG-FULL-2',
+            'name' => 'ABOS 100ML Katalog Gudang',
+            'purchase_price' => 4000,
+            'selling_price' => 6000,
+            'stock' => 15,
+        ]);
+
+        $createResponse = $this->actingAs($this->master)->get('/purchases/goods-receipts/create');
+        $createResponse->assertStatus(200);
+        $createResponse->assertSee('ABOLISI 400ML Katalog Gudang');
+        $createResponse->assertSee('ABOS 100ML Katalog Gudang');
+        $createResponse->assertSee('value="'.$gudang->id.'"', false);
+        $createResponse->assertDontSee('Produk Sedikit di Office');
     }
 
     public function test_master_can_store_goods_receipt_and_view_show_slip(): void

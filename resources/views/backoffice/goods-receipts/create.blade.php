@@ -56,6 +56,9 @@
             <form method="POST" action="/purchases/goods-receipts" id="receiptForm" class="space-y-6" @keydown.enter="ProductSmartSearch.blockImplicitSubmit($event)">
                 @csrf
 
+                {{-- Cabang gudang yang sama dengan daftar produk di picker --}}
+                <input type="hidden" name="branch_id" value="{{ $centralBranch->id ?? '' }}">
+
                 <!-- Input Hidden Purchase Order ID -->
                 <input type="hidden" name="purchase_order_id" :value="selectedPoId || ''">
 

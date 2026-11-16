@@ -146,6 +146,8 @@
                     query: '',
                     open: false,
                     active: 0,
+                    _results: [],
+                    _anchoredOnce: false,
                     menuTop: 0,
                     menuLeft: 0,
                     menuWidth: 280,
@@ -155,6 +157,9 @@
 
                 if (! line._key) {
                     line._key = 'line-' + Date.now() + '-' + Math.random().toString(36).slice(2, 9);
+                }
+                if (!Array.isArray(line._results)) {
+                    line._results = [];
                 }
 
                 return line;
@@ -284,6 +289,7 @@
         form.init = function () {
             this.items = (this.items || []).map((item) => ProductSmartSearch.ensureLine(item));
             this.hydrateProductQueries();
+            this.items.forEach((item) => this.refreshProductResults(item));
             if (typeof baseInit === 'function') {
                 return baseInit.call(this);
             }
@@ -303,39 +309,83 @@
             return ProductSmartSearch.ensureLine(extra || {});
         };
 
-        form.productResults = function (item) {
+        form.refreshProductResults = function (item) {
             const query = item?.query || '';
             const products = this.products || [];
-            if (!ProductSmartSearch.normalize(query)) return products.slice(0, 50);
-            return ProductSmartSearch.results(products, query, 50);
+            // Tanpa kata kunci: cuplikan awal katalog. Dengan kata kunci: saring seluruh katalog.
+            if (!ProductSmartSearch.normalize(query)) {
+                item._results = products.slice(0, 100);
+            } else {
+                item._results = ProductSmartSearch.results(products, query, Math.min(products.length || 100, 100));
+            }
+            item._resultsQuery = query;
+            return item._results;
+        };
+
+        form.productResults = function (item) {
+            if (!item) return [];
+            if (!Array.isArray(item._results) || item._resultsQuery !== (item.query || '')) {
+                item._resultsQuery = item.query || '';
+                return this.refreshProductResults(item);
+            }
+            return item._results;
         };
 
         form.onProductQuery = function (item, event) {
             const field = event && event.target;
-            if (field && typeof field.value === 'string') item.query = field.value;
+            // Baca langsung dari DOM supaya fill/type otomatisasi (tanpa x-model) tetap tersaring.
+            const next = field && typeof field.value === 'string' ? field.value : (item.query || '');
+            if (item.query === next && item.open && Array.isArray(item._results) && item._resultsQuery === next) {
+                return;
+            }
+            item.query = next;
             item.product_id = '';
             item.open = true;
             item.active = 0;
             item._keepMenu = true;
-            window.setTimeout(() => { item._keepMenu = false; }, 0);
-            if (field) ProductSmartSearch.anchor(item, field);
-            this.$nextTick(() => {
-                if (field) ProductSmartSearch.anchor(item, field);
-            });
+            window.setTimeout(() => { item._keepMenu = false; }, 100);
+
+            // Debounce penggantian daftar supaya fill otomatisasi tidak dikalahkan re-render menu.
+            if (item._filterTimer) {
+                window.clearTimeout(item._filterTimer);
+            }
+            item._filterTimer = window.setTimeout(() => {
+                this.refreshProductResults(item);
+                if (field && item.open) {
+                    // Pastikan teks yang baru diisi tidak hilang setelah render menu.
+                    if (field.value !== item.query) {
+                        field.value = item.query || '';
+                    }
+                    ProductSmartSearch.anchor(item, field);
+                }
+            }, 160);
         };
 
         form.onProductFocus = function (item, event) {
             const field = event && event.target;
             item.open = true;
+            this.refreshProductResults(item);
             item._keepMenu = true;
-            window.setTimeout(() => { item._keepMenu = false; }, 50);
-            if (field) ProductSmartSearch.anchor(item, field, { allowScroll: true });
-            this.$nextTick(() => {
-                if (field) {
-                    field.focus({ preventScroll: true });
-                    ProductSmartSearch.anchor(item, field);
+            window.setTimeout(() => { item._keepMenu = false; }, 150);
+            if (field) {
+                ProductSmartSearch.anchor(item, field, { allowScroll: !item._anchoredOnce });
+            }
+            item._anchoredOnce = true;
+
+            // Sinkronkan value DOM → state saat otomasi mengisi tanpa event input.
+            if (item._querySync) {
+                window.clearInterval(item._querySync);
+            }
+            item._querySync = window.setInterval(() => {
+                if (!field || !item.open) {
+                    window.clearInterval(item._querySync);
+                    item._querySync = null;
+                    return;
                 }
-            });
+                if (field.value !== (item.query || '')) {
+                    this.onProductQuery(item, { target: field });
+                }
+            }, 120);
         };
 
         form.closeProductMenu = function (item, event) {
@@ -359,10 +409,22 @@
         };
 
         form.chooseProduct = function (index, product) {
-            ProductSmartSearch.apply(this.items[index], product);
+            const item = this.items[index];
+            ProductSmartSearch.apply(item, product);
+            item.open = false;
+            item._keepMenu = false;
+            this.refreshProductResults(item);
             if (typeof this.onProductSelect === 'function') {
                 this.onProductSelect(index);
             }
+            this.$nextTick(() => {
+                item.open = false;
+                const field = document.querySelectorAll('[data-product-query]')[index];
+                if (field) {
+                    field.value = item.query || '';
+                    field.blur();
+                }
+            });
         };
 
         form.confirmProduct = function (index, event) {

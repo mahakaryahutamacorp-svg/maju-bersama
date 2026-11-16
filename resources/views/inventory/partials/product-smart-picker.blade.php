@@ -1,27 +1,28 @@
 {{-- Kolom pilih produk dengan smart search. Butuh withProductPicker() di Alpine parent. --}}
 <div
-    class="relative z-20"
+    class="relative z-30"
     @mousedown.outside="closeProductMenu(item, $event)"
-    @scroll.window="item.open && ProductSmartSearch.reposition(item)"
-    @resize.window="item.open && ProductSmartSearch.reposition(item)"
+    @scroll.window="item.open && !item._keepMenu && ProductSmartSearch.reposition(item)"
+    @resize.window="item.open && !item._keepMenu && ProductSmartSearch.reposition(item)"
 >
     <input type="hidden" :name="'items[' + index + '][product_id]'" :value="item.product_id">
     <input
         type="text"
         data-product-query
-        x-model="item.query"
+        x-init="if (item.query) $el.value = item.query"
         @input="onProductQuery(item, $event)"
+        @keyup="onProductQuery(item, $event)"
         @focus="onProductFocus(item, $event)"
-        @click="onProductFocus(item, $event)"
         @keydown.arrow-down.prevent="moveProduct(item, 1)"
         @keydown.arrow-up.prevent="moveProduct(item, -1)"
         @keydown.enter.prevent="confirmProduct(index, $event)"
         @keypress.enter.prevent
         @keydown.escape="item.open = false"
         autocomplete="off"
+        spellcheck="false"
+        inputmode="search"
         placeholder="{{ $placeholder ?? 'Ketik nama, SKU, atau kategori...' }}"
-        style="z-index: 90; color: #0f172a; caret-color: #0284c7;"
-        class="relative w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+        class="relative z-[90] w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 caret-sky-600 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
     >
     <template x-teleport="body">
         <div
@@ -30,14 +31,21 @@
             x-show="item.open"
             x-cloak
             class="fixed z-[80] overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
+            role="listbox"
         >
-            <p class="border-b border-slate-100 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                <span x-text="productResults(item).length"></span> hasil
+            <p class="sticky top-0 z-10 border-b border-slate-100 bg-white px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                <span x-text="(item._results || []).length"></span>
+                <span x-show="(products || []).length > (item._results || []).length">
+                    dari <span x-text="(products || []).length"></span>
+                </span>
+                hasil
                 <span x-show="!(item.query || '').trim()">· ketik nama/SKU untuk menyaring</span>
+                <span x-show="(item.query || '').trim()">· cocok dengan "<span class="normal-case text-slate-600" x-text="item.query"></span>"</span>
             </p>
-            <template x-for="(prod, resultIndex) in productResults(item)" :key="prod.id">
+            <template x-for="(prod, resultIndex) in (item._results || [])" :key="prod.id">
                 <button
                     type="button"
+                    tabindex="-1"
                     @mouseenter="item.active = resultIndex"
                     @mousedown.prevent="chooseProduct(index, prod)"
                     :class="resultIndex === item.active ? 'bg-sky-50' : ''"
@@ -56,7 +64,7 @@
                 </button>
             </template>
             <p
-                x-show="(item.query || '').trim() !== '' && productResults(item).length === 0"
+                x-show="(item.query || '').trim() !== '' && (item._results || []).length === 0"
                 x-cloak
                 class="px-3 py-2 text-sm text-slate-500"
             >
