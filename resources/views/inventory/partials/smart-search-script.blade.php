@@ -323,16 +323,19 @@
 
         form.onProductQuery = function (item, event) {
             const field = event && event.target;
-            const next = field && typeof field.value === 'string' ? field.value : (item.query || '');
-            item.query = next;
+            // x-model sudah mengisi item.query; jaga agar ketikan di DOM tidak dikembalikan ke nilai lama.
+            if (field && typeof field.value === 'string' && field.value !== item.query) {
+                item.query = field.value;
+            }
             item.product_id = '';
             item.active = 0;
 
             if (item._filterTimer) {
                 window.clearTimeout(item._filterTimer);
             }
-            // Tampilkan ketikan langsung; filter katalog di frame berikutnya agar UI tidak macet.
-            const shouldOpen = ProductSmartSearch.normalize(item.query) !== '';
+
+            const next = item.query || '';
+            const shouldOpen = ProductSmartSearch.normalize(next) !== '';
             if (shouldOpen && field) {
                 ProductSmartSearch.anchor(item, field);
             }
@@ -346,7 +349,12 @@
             }
 
             item._filterTimer = window.setTimeout(() => {
-                this.refreshProductResults(item);
+                try {
+                    this.refreshProductResults(item);
+                } catch (error) {
+                    console.error('ProductSmartSearch filter failed', error);
+                    item._results = [];
+                }
                 window.setTimeout(() => { item._keepMenu = false; }, 80);
             }, 0);
         };

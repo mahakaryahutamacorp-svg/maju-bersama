@@ -238,7 +238,7 @@
                         </div>
                     </div>
 
-                    <div class="overflow-x-auto p-5">
+                    <div class="overflow-visible p-5">
                         <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
                             <thead>
                                 <tr class="border-b border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-600">

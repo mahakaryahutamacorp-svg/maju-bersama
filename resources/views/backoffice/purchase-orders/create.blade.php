@@ -127,7 +127,7 @@
                         </button>
                     </div>
 
-                    <div class="overflow-x-auto">
+                    <div class="overflow-visible">
                         <table class="min-w-full divide-y divide-slate-200 text-left text-sm">
                             <thead class="bg-slate-900 text-xs font-semibold uppercase tracking-wider text-white">
                                 <tr>

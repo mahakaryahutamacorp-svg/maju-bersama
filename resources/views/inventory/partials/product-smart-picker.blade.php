@@ -9,7 +9,7 @@
     <input
         type="text"
         data-product-query
-        :value="item.query"
+        x-model="item.query"
         @input="onProductQuery(item, $event)"
         @focus="onProductFocus(item, $event)"
         @keydown.arrow-down.prevent="moveProduct(item, 1)"
