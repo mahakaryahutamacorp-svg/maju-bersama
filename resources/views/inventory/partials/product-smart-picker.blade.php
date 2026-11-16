@@ -1,5 +1,10 @@
-{{-- Kolom pilih produk: smart search. Dropdown di bawah input (bukan teleport) agar fokus & ketikan tetap terlihat. --}}
-<div class="relative z-30" @click.outside="closeProductMenu(item, $event)">
+{{-- Menu memakai posisi fixed agar tidak terpotong wadah tabel yang overflow-x-auto; posisinya dihitung sebelum menu dibuka supaya tidak menutupi input. --}}
+<div
+    class="relative z-30"
+    @click.outside="closeProductMenu(item, $event)"
+    @scroll.window="item.open && ProductSmartSearch.reposition(item)"
+    @resize.window="item.open && ProductSmartSearch.reposition(item)"
+>
     <input type="hidden" :name="'items[' + index + '][product_id]'" :value="item.product_id">
     <input
         type="text"
@@ -23,9 +28,10 @@
     </p>
     <div
         data-product-menu
+        x-init="ProductSmartSearch.registerMenu(item, $el)"
         x-show="item.open && (item.query || '').trim() !== ''"
         x-cloak
-        class="absolute left-0 right-0 top-full z-[120] mt-1 max-h-72 min-w-[18rem] overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
+        class="fixed z-[120] overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
         role="listbox"
     >
         <p class="sticky top-0 z-10 border-b border-slate-100 bg-white px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">

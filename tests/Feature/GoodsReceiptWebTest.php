@@ -76,7 +76,7 @@ class GoodsReceiptWebTest extends TestCase
         $createResponse->assertSee('refreshProductResults', false);
         $createResponse->assertSee('Ketik untuk mencari di', false);
         $createResponse->assertSee('data-product-menu', false);
-        $createResponse->assertSee('top-full', false);
+        $createResponse->assertSee('ProductSmartSearch.registerMenu(item, $el)', false);
         $createResponse->assertDontSee('x-teleport="body"', false);
     }
 

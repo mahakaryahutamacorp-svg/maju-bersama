@@ -147,8 +147,8 @@
                     open: false,
                     active: 0,
                     _results: [],
-                    _anchoredOnce: false,
                     menuTop: 0,
+                    menuBottom: 0,
                     menuLeft: 0,
                     menuWidth: 280,
                     menuAbove: false,
@@ -182,45 +182,37 @@
                 if (!item) return;
                 const menu = menus.get(item);
                 if (!menu) return;
-                // Selalu di bawah input (tanpa translateY), supaya kolom ketikan tidak tertutup menu.
-                menu.style.top = (item.menuTop || 0) + 'px';
+                // Menu buka ke atas memakai `bottom`, jadi tepi menu selalu menempel ke input tanpa menutupinya.
+                if (item.menuAbove) {
+                    menu.style.top = 'auto';
+                    menu.style.bottom = (item.menuBottom || 0) + 'px';
+                } else {
+                    menu.style.bottom = 'auto';
+                    menu.style.top = (item.menuTop || 0) + 'px';
+                }
                 menu.style.left = (item.menuLeft || 0) + 'px';
                 menu.style.width = (item.menuWidth || 280) + 'px';
                 menu.style.maxHeight = (item.menuMaxHeight || 360) + 'px';
                 menu.style.transform = 'none';
-                menu.style.zIndex = '80';
             },
 
-            anchor(item, element, options = {}) {
+            anchor(item, element) {
                 if (!element) return;
                 anchors.set(item, element);
                 const gap = 4;
                 const margin = 8;
                 const menuCap = 360;
-                let rect = element.getBoundingClientRect();
-                let spaceBelow = Math.max(0, window.innerHeight - rect.bottom - gap - margin);
+                const rect = element.getBoundingClientRect();
+                const spaceBelow = Math.max(0, window.innerHeight - rect.bottom - gap - margin);
+                const spaceAbove = Math.max(0, rect.top - gap - margin);
+                const width = Math.max(rect.width, 280);
 
-                // Hanya saat buka/fokus: geser sekali bila ruang bawah sempit. Jangan di scroll/resize (hindari loop).
-                if (options.allowScroll && spaceBelow < 200 && !item._scrolling) {
-                    item._scrolling = true;
-                    item._keepMenu = true;
-                    element.scrollIntoView({ block: 'center', inline: 'nearest' });
-                    rect = element.getBoundingClientRect();
-                    spaceBelow = Math.max(0, window.innerHeight - rect.bottom - gap - margin);
-                    window.setTimeout(() => {
-                        item._scrolling = false;
-                        item._keepMenu = false;
-                    }, 50);
-                }
-
-                item.menuAbove = false;
+                item.menuAbove = spaceBelow < 200 && spaceAbove > spaceBelow;
                 item.menuTop = rect.bottom + gap;
-                item.menuLeft = Math.max(margin, Math.min(rect.left, window.innerWidth - Math.max(rect.width, 280) - margin));
-                item.menuWidth = Math.max(rect.width, 280);
-                item.menuMaxHeight = Math.min(menuCap, Math.max(spaceBelow, 140));
-                if (item.menuTop + item.menuMaxHeight > window.innerHeight - margin) {
-                    item.menuMaxHeight = Math.max(120, window.innerHeight - margin - item.menuTop);
-                }
+                item.menuBottom = window.innerHeight - rect.top + gap;
+                item.menuLeft = Math.max(margin, Math.min(rect.left, window.innerWidth - width - margin));
+                item.menuWidth = width;
+                item.menuMaxHeight = Math.max(120, Math.min(menuCap, item.menuAbove ? spaceAbove : spaceBelow));
                 this.applyMenuBox(item);
             },
 
@@ -341,6 +333,9 @@
             }
             // Tampilkan ketikan langsung; filter katalog di frame berikutnya agar UI tidak macet.
             const shouldOpen = ProductSmartSearch.normalize(item.query) !== '';
+            if (shouldOpen && field) {
+                ProductSmartSearch.anchor(item, field);
+            }
             item.open = shouldOpen;
             item._keepMenu = true;
             if (!shouldOpen) {
@@ -362,7 +357,11 @@
                 item.query = field.value;
             }
             this.refreshProductResults(item);
-            item.open = ProductSmartSearch.normalize(item.query) !== '' && !item.product_id;
+            const shouldOpen = ProductSmartSearch.normalize(item.query) !== '' && !item.product_id;
+            if (shouldOpen && field) {
+                ProductSmartSearch.anchor(item, field);
+            }
+            item.open = shouldOpen;
         };
 
         form.closeProductMenu = function (item, event) {
