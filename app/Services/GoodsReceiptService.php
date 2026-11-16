@@ -68,7 +68,10 @@ class GoodsReceiptService
 
         if ($purchaseOrderId) {
             $purchaseOrder = PurchaseOrder::withoutGlobalScopes()
-                ->with(['items', 'supplier'])
+                ->with([
+                    'supplier',
+                    'items.product' => fn ($query) => $query->withoutGlobalScopes()->withTrashed(),
+                ])
                 ->find($purchaseOrderId);
 
             if (! $purchaseOrder) {
@@ -96,7 +99,9 @@ class GoodsReceiptService
 
         return DB::transaction(function () use ($data, $actor, $paymentType, $purchaseOrder): GoodsReceipt {
             if ($purchaseOrder) {
-                $purchaseOrder->setRelation('items', $purchaseOrder->items()->lockForUpdate()->get());
+                $lockedItems = $purchaseOrder->items()->lockForUpdate()->get();
+                $lockedItems->load(['product' => fn ($query) => $query->withoutGlobalScopes()->withTrashed()]);
+                $purchaseOrder->setRelation('items', $lockedItems);
             }
 
             $supplier = $this->resolveSupplier($data, $actor, $paymentType, $purchaseOrder);
@@ -121,7 +126,6 @@ class GoodsReceiptService
             $processedItems = [];
 
             foreach ($data['items'] as $index => $itemData) {
-                $productId = (int) ($itemData['product_id'] ?? 0);
                 $quantity = DecimalQuantity::normalize($itemData['quantity'] ?? 0);
 
                 if (DecimalQuantity::compare($quantity, '0') <= 0) {
@@ -130,10 +134,13 @@ class GoodsReceiptService
                     ]);
                 }
 
-                // If linked to PO, resolve unit_price from PO item or itemData
+                // Arahkan ke baris produk cabang penerima (SKU sama). Stok cabang lain tidak diubah.
+                $product = $this->resolveProductForBranch((int) ($itemData['product_id'] ?? 0), (int) $branch->id, $index);
+                $productId = (int) $product->id;
+
                 $poItem = null;
                 if ($purchaseOrder) {
-                    $poItem = $purchaseOrder->items->firstWhere('product_id', $productId);
+                    $poItem = $this->findPurchaseOrderItem($purchaseOrder, $product);
                     if ($poItem === null) {
                         throw ValidationException::withMessages([
                             "items.{$index}.product_id" => ['Produk ini tidak ada pada pesanan barang yang tertaut.'],
@@ -175,7 +182,7 @@ class GoodsReceiptService
                 'notes' => $data['notes'] ?? null,
             ]);
 
-            // Langkah B: Update kuantitas stok di inventories dan sync cache di products (dengan locking)
+            // Langkah B: Naikkan stok hanya pada baris produk cabang penerima.
             foreach ($processedItems as $item) {
                 $product = Product::withoutGlobalScopes()
                     ->where('id', $item['product_id'])
@@ -188,11 +195,14 @@ class GoodsReceiptService
                     ]);
                 }
 
-                // Lock and increment inventories row for Pusat branch
+                if ((int) $product->branch_id !== (int) $branch->id) {
+                    throw ValidationException::withMessages([
+                        'items' => ["Produk {$product->name} bukan milik cabang penerima. Stok cabang lain tidak boleh diubah."],
+                    ]);
+                }
+
                 $inventory = $this->lockInventory($branch->id, $product->id);
                 $inventory->increment('quantity', $item['quantity']);
-
-                // Synchronize product cached stock column
                 $product->increment('stock', $item['quantity']);
 
                 // Create GoodsReceiptItem record
@@ -531,8 +541,9 @@ class GoodsReceiptService
     {
         $processedItems = [];
 
+        $branchId = $purchaseOrder?->branch_id;
+
         foreach ($items as $index => $itemData) {
-            $productId = (int) ($itemData['product_id'] ?? 0);
             $quantity = DecimalQuantity::normalize($itemData['quantity'] ?? 0);
 
             if (DecimalQuantity::compare($quantity, '0') <= 0) {
@@ -541,7 +552,18 @@ class GoodsReceiptService
                 ]);
             }
 
-            $poItem = $purchaseOrder?->items->firstWhere('product_id', $productId);
+            $productId = (int) ($itemData['product_id'] ?? 0);
+            $product = $branchId
+                ? $this->resolveProductForBranch($productId, (int) $branchId, $index)
+                : Product::withoutGlobalScopes()->whereNull('deleted_at')->find($productId);
+
+            if (! $product) {
+                throw ValidationException::withMessages([
+                    "items.{$index}.product_id" => ['Produk tidak ditemukan.'],
+                ]);
+            }
+
+            $poItem = $purchaseOrder ? $this->findPurchaseOrderItem($purchaseOrder, $product) : null;
             if ($purchaseOrder && $poItem === null) {
                 throw ValidationException::withMessages([
                     "items.{$index}.product_id" => ['Produk ini tidak ada pada pesanan barang yang tertaut.'],
@@ -553,7 +575,7 @@ class GoodsReceiptService
                 : Money::of($itemData['unit_price'] ?? '0.00');
 
             $processedItems[] = [
-                'product_id' => $productId,
+                'product_id' => (int) $product->id,
                 'quantity' => $quantity,
                 'unit_price' => $unitPrice,
                 'subtotal' => Money::mul($unitPrice, $quantity),
@@ -672,16 +694,12 @@ class GoodsReceiptService
             return;
         }
 
+        $product = $this->resolveProductForBranch($productId, $branchId, 0);
         $product = Product::withoutGlobalScopes()
-            ->where('id', $productId)
+            ->where('id', $product->id)
             ->lockForUpdate()
-            ->first();
-
-        if (! $product) {
-            throw ValidationException::withMessages([
-                'items' => ["Produk #{$productId} tidak ditemukan."],
-            ]);
-        }
+            ->firstOrFail();
+        $productId = (int) $product->id;
 
         $inventory = $this->lockInventory($branchId, $productId);
 
@@ -714,12 +732,20 @@ class GoodsReceiptService
         }
 
         foreach ($requested as $productId => $quantity) {
-            $poItem = $purchaseOrder->items->firstWhere('product_id', $productId);
+            $product = Product::withoutGlobalScopes()->find($productId);
+            $poItem = $product
+                ? $this->findPurchaseOrderItem($purchaseOrder, $product)
+                : $purchaseOrder->items->firstWhere('product_id', $productId);
+
+            if ($poItem === null) {
+                continue;
+            }
+
             $remaining = DecimalQuantity::sub($poItem->quantity, $poItem->received_quantity);
 
             if (DecimalQuantity::compare($quantity, $remaining) > 0) {
                 $index = collect($processedItems)->search(fn (array $item) => $item['product_id'] === $productId);
-                $name = $poItem->product?->name ?? "Produk #{$productId}";
+                $name = $product?->name ?? $poItem->product?->name ?? "Produk #{$productId}";
                 $remainingLabel = DecimalQuantity::present(DecimalQuantity::compare($remaining, '0') < 0 ? '0' : $remaining);
 
                 throw ValidationException::withMessages([
@@ -727,6 +753,58 @@ class GoodsReceiptService
                 ]);
             }
         }
+    }
+
+    /**
+     * Arahkan product_id ke baris produk cabang penerima/pemesan lewat SKU.
+     * Tidak memindahkan atau mengubah stok cabang lain.
+     */
+    private function resolveProductForBranch(int $productId, int $branchId, int $index): Product
+    {
+        $product = Product::withoutGlobalScopes()
+            ->whereNull('deleted_at')
+            ->find($productId);
+
+        if (! $product) {
+            throw ValidationException::withMessages([
+                "items.{$index}.product_id" => ['Produk tidak ditemukan.'],
+            ]);
+        }
+
+        if ((int) $product->branch_id === $branchId) {
+            return $product;
+        }
+
+        $local = Product::withoutGlobalScopes()
+            ->whereNull('deleted_at')
+            ->where('branch_id', $branchId)
+            ->where('sku', $product->sku)
+            ->first();
+
+        if (! $local) {
+            throw ValidationException::withMessages([
+                "items.{$index}.product_id" => ["Produk {$product->name} (SKU {$product->sku}) bukan milik cabang ini. Stok cabang lain tidak boleh diubah."],
+            ]);
+        }
+
+        return $local;
+    }
+
+    private function findPurchaseOrderItem(PurchaseOrder $purchaseOrder, Product $product)
+    {
+        $byId = $purchaseOrder->items->firstWhere('product_id', $product->id);
+        if ($byId) {
+            return $byId;
+        }
+
+        $sku = (string) $product->sku;
+
+        return $purchaseOrder->items->first(function ($item) use ($sku) {
+            $itemSku = $item->product?->sku
+                ?? Product::withoutGlobalScopes()->where('id', $item->product_id)->value('sku');
+
+            return $itemSku !== null && strcasecmp((string) $itemSku, $sku) === 0;
+        });
     }
 
     private function refreshPurchaseOrderStatus(PurchaseOrder $purchaseOrder): void

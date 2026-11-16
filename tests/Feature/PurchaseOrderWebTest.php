@@ -312,4 +312,97 @@ class PurchaseOrderWebTest extends TestCase
         $this->get(route('backoffice.purchase-orders.create'))->assertForbidden();
         $this->post(route('backoffice.purchase-orders.store'), [])->assertForbidden();
     }
+
+    public function test_purchase_order_store_maps_same_sku_from_other_branch_without_changing_stock(): void
+    {
+        $otherBranch = Branch::create([
+            'name' => 'Cabang Lain',
+            'code' => 'C02',
+            'is_active' => true,
+        ]);
+
+        $foreignProduct = Product::withoutGlobalScopes()->create([
+            'branch_id' => $otherBranch->id,
+            'category_id' => $this->category->id,
+            'sku' => 'NPK-001',
+            'name' => 'Pupuk NPK 16-16-16',
+            'purchase_price' => 15000,
+            'selling_price' => 20000,
+            'stock' => 99,
+        ]);
+
+        $supplier = Supplier::withoutGlobalScopes()->create([
+            'branch_id' => $this->branch->id,
+            'name' => 'PT Map SKU',
+            'is_active' => true,
+        ]);
+
+        $localStockBefore = (int) $this->productA->fresh()->stock;
+        $foreignStockBefore = (int) $foreignProduct->fresh()->stock;
+
+        $this->actingAs($this->user)->post(route('backoffice.purchase-orders.store'), [
+            'supplier_id' => $supplier->id,
+            'order_date' => '2026-11-16',
+            'items' => [
+                [
+                    'product_id' => $foreignProduct->id,
+                    'quantity' => 3,
+                    'unit_price' => 15000,
+                ],
+            ],
+        ])->assertRedirect();
+
+        $po = PurchaseOrder::where('supplier_id', $supplier->id)->firstOrFail();
+        $this->assertDatabaseHas('purchase_order_items', [
+            'purchase_order_id' => $po->id,
+            'product_id' => $this->productA->id,
+        ]);
+        $this->assertDatabaseMissing('purchase_order_items', [
+            'purchase_order_id' => $po->id,
+            'product_id' => $foreignProduct->id,
+        ]);
+
+        $this->assertSame($localStockBefore, (int) $this->productA->fresh()->stock);
+        $this->assertSame($foreignStockBefore, (int) $foreignProduct->fresh()->stock);
+    }
+
+    public function test_purchase_order_store_rejects_product_from_other_branch_without_local_sku(): void
+    {
+        $otherBranch = Branch::create([
+            'name' => 'Cabang Lain',
+            'code' => 'C03',
+            'is_active' => true,
+        ]);
+
+        $foreignOnly = Product::withoutGlobalScopes()->create([
+            'branch_id' => $otherBranch->id,
+            'category_id' => $this->category->id,
+            'sku' => 'FOREIGN-ONLY',
+            'name' => 'Produk Hanya Cabang Lain',
+            'purchase_price' => 1000,
+            'selling_price' => 2000,
+            'stock' => 40,
+        ]);
+
+        $supplier = Supplier::withoutGlobalScopes()->create([
+            'branch_id' => $this->branch->id,
+            'name' => 'PT Tolak Lintas',
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($this->user)->post(route('backoffice.purchase-orders.store'), [
+            'supplier_id' => $supplier->id,
+            'order_date' => '2026-11-16',
+            'items' => [
+                [
+                    'product_id' => $foreignOnly->id,
+                    'quantity' => 1,
+                    'unit_price' => 1000,
+                ],
+            ],
+        ])->assertSessionHasErrors(['items.0.product_id']);
+
+        $this->assertSame(40, (int) $foreignOnly->fresh()->stock);
+        $this->assertDatabaseMissing('purchase_orders', ['supplier_id' => $supplier->id]);
+    }
 }

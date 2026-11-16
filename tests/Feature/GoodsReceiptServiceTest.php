@@ -617,4 +617,71 @@ class GoodsReceiptServiceTest extends TestCase
             ],
         ], $this->master);
     }
+
+    public function test_receipt_maps_foreign_sku_to_local_product_without_changing_other_branch_stock(): void
+    {
+        $otherBranch = Branch::create([
+            'code' => 'CAB-LAIN',
+            'name' => 'Cabang Lain',
+        ]);
+
+        $foreignProduct = Product::withoutGlobalScopes()->create([
+            'branch_id' => $otherBranch->id,
+            'category_id' => $this->category->id,
+            'sku' => 'PRD-001',
+            'name' => 'Minyak Goreng 1L',
+            'purchase_price' => 14000,
+            'selling_price' => 18000,
+            'stock' => 77,
+        ]);
+
+        $supplier = Supplier::withoutGlobalScopes()->create([
+            'branch_id' => $this->central->id,
+            'name' => 'PT Map Terima',
+            'is_active' => true,
+        ]);
+
+        $po = PurchaseOrder::withoutGlobalScopes()->create([
+            'branch_id' => $this->central->id,
+            'supplier_id' => $supplier->id,
+            'reference_number' => 'PO-MAP-SKU-01',
+            'order_date' => '2026-11-16',
+            'status' => 'pending',
+            'total_amount' => 14000,
+        ]);
+
+        PurchaseOrderItem::create([
+            'purchase_order_id' => $po->id,
+            'product_id' => $foreignProduct->id,
+            'quantity' => 1,
+            'received_quantity' => 0,
+            'unit_price' => 14000,
+            'subtotal' => 14000,
+        ]);
+
+        $localBefore = (int) $this->productA->fresh()->stock;
+        $foreignBefore = (int) $foreignProduct->fresh()->stock;
+
+        $receipt = $this->service->processReceipt([
+            'purchase_order_id' => $po->id,
+            'date' => '2026-11-16',
+            'items' => [
+                ['product_id' => $foreignProduct->id, 'quantity' => 1],
+            ],
+        ], $this->master);
+
+        $this->assertDatabaseHas('goods_receipt_items', [
+            'goods_receipt_id' => $receipt->id,
+            'product_id' => $this->productA->id,
+            'quantity' => 1,
+        ]);
+        $this->assertDatabaseMissing('goods_receipt_items', [
+            'goods_receipt_id' => $receipt->id,
+            'product_id' => $foreignProduct->id,
+        ]);
+
+        $this->assertSame($localBefore + 1, (int) $this->productA->fresh()->stock);
+        $this->assertSame($foreignBefore, (int) $foreignProduct->fresh()->stock);
+        $this->assertSame(0, (int) Inventory::where('branch_id', $otherBranch->id)->where('product_id', $foreignProduct->id)->value('quantity'));
+    }
 }

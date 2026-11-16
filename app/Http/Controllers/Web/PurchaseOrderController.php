@@ -14,6 +14,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class PurchaseOrderController extends Controller
@@ -169,17 +170,18 @@ class PurchaseOrderController extends Controller
                 $referenceNumber = 'PO-'.$datePrefix.'-'.strtoupper(Str::random(4));
             }
 
-            // Calculate total amount from items
+            // Hanya simpan product_id milik cabang PO. Stok cabang lain tidak disentuh.
             $totalAmount = '0.00';
             $itemsData = [];
-            foreach ($validated['items'] as $item) {
+            foreach ($validated['items'] as $index => $item) {
+                $product = $this->resolveProductForBranch((int) $item['product_id'], (int) $branchId, $index);
                 $qty = DecimalQuantity::normalize($item['quantity']);
                 $unitPrice = Money::of($item['unit_price']);
                 $subtotal = Money::mul($unitPrice, $qty);
                 $totalAmount = Money::add($totalAmount, $subtotal);
 
                 $itemsData[] = [
-                    'product_id' => $item['product_id'],
+                    'product_id' => $product->id,
                     'quantity' => $qty,
                     'received_quantity' => 0,
                     'unit_price' => $unitPrice,
@@ -261,5 +263,39 @@ class PurchaseOrderController extends Controller
         return redirect()
             ->route('backoffice.purchase-orders.index')
             ->with('success', "Purchase Order '{$ref}' berhasil dihapus.");
+    }
+
+    /**
+     * Produk katalog sama lewat SKU; stok tetap per cabang. PO hanya boleh memakai baris produk cabang pemesan.
+     */
+    private function resolveProductForBranch(int $productId, int $branchId, int $index): Product
+    {
+        $product = Product::withoutGlobalScopes()
+            ->whereNull('deleted_at')
+            ->find($productId);
+
+        if (! $product) {
+            throw ValidationException::withMessages([
+                "items.{$index}.product_id" => ['Produk tidak ditemukan.'],
+            ]);
+        }
+
+        if ((int) $product->branch_id === $branchId) {
+            return $product;
+        }
+
+        $local = Product::withoutGlobalScopes()
+            ->whereNull('deleted_at')
+            ->where('branch_id', $branchId)
+            ->where('sku', $product->sku)
+            ->first();
+
+        if (! $local) {
+            throw ValidationException::withMessages([
+                "items.{$index}.product_id" => ["Produk {$product->name} (SKU {$product->sku}) bukan milik cabang pemesan. Pilih produk dari katalog cabang ini."],
+            ]);
+        }
+
+        return $local;
     }
 }
