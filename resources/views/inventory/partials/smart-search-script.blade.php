@@ -149,7 +149,7 @@
                     menuLeft: 0,
                     menuWidth: 280,
                     menuAbove: false,
-                    menuMaxHeight: 240,
+                    menuMaxHeight: 320,
                 }, item || {});
 
                 if (! line._key) {
@@ -166,13 +166,24 @@
                 item.active = 0;
             },
 
+            applyMenuBox(item) {
+                if (!item || !item._key) return;
+                const menu = document.querySelector('[data-product-menu][data-line-key="' + item._key + '"]');
+                if (!menu) return;
+                menu.style.top = (item.menuTop || 0) + 'px';
+                menu.style.left = (item.menuLeft || 0) + 'px';
+                menu.style.width = (item.menuWidth || 280) + 'px';
+                menu.style.maxHeight = (item.menuMaxHeight || 320) + 'px';
+                menu.style.transform = item.menuAbove ? 'translateY(-100%)' : 'none';
+            },
+
             anchor(item, element) {
                 if (!element) return;
                 anchors.set(item, element);
                 const rect = element.getBoundingClientRect();
                 const gap = 4;
                 const margin = 8;
-                const menuCap = 240;
+                const menuCap = 320;
                 const spaceBelow = Math.max(0, window.innerHeight - rect.bottom - gap - margin);
                 const spaceAbove = Math.max(0, rect.top - gap - margin);
                 const fitsBelow = spaceBelow >= menuCap;
@@ -183,6 +194,7 @@
                 item.menuTop = item.menuAbove ? rect.top - gap : rect.bottom + gap;
                 item.menuLeft = Math.max(margin, rect.left);
                 item.menuWidth = Math.max(rect.width, 260);
+                this.applyMenuBox(item);
             },
 
             reposition(item) {
@@ -190,14 +202,12 @@
                 if (element) this.anchor(item, element);
             },
 
-            // Objek, bukan string. String atau undefined membuat Alpine menghapus seluruh atribut style,
-            // termasuk display:none dari x-show, lalu x-show tidak memasangnya lagi bila nilainya tidak berubah.
             menuStyle(item) {
                 return {
                     top: (item.menuTop || 0) + 'px',
                     left: (item.menuLeft || 0) + 'px',
                     width: (item.menuWidth || 280) + 'px',
-                    maxHeight: (item.menuMaxHeight || 240) + 'px',
+                    maxHeight: (item.menuMaxHeight || 320) + 'px',
                     transform: item.menuAbove ? 'translateY(-100%)' : 'none',
                 };
             },
@@ -284,8 +294,8 @@
         form.productResults = function (item) {
             const query = item?.query || '';
             const products = this.products || [];
-            if (!ProductSmartSearch.normalize(query)) return products.slice(0, 12);
-            return ProductSmartSearch.results(products, query, 12);
+            if (!ProductSmartSearch.normalize(query)) return products.slice(0, 30);
+            return ProductSmartSearch.results(products, query, 30);
         };
 
         form.onProductQuery = function (item, event) {
@@ -298,15 +308,29 @@
         };
 
         form.onProductFocus = function (item, event) {
-            item.open = true;
             if (event?.target) {
                 ProductSmartSearch.anchor(item, event.target);
             }
+            item.open = true;
+            item._keepMenu = true;
+            window.setTimeout(() => {
+                item._keepMenu = false;
+            }, 0);
+            this.$nextTick(() => {
+                if (event?.target) ProductSmartSearch.anchor(item, event.target);
+            });
+        };
+
+        form.closeProductMenu = function (item, event) {
+            if (!item.open || item._keepMenu) return;
+            const target = event && event.target;
+            if (target && target.closest && target.closest('[data-product-menu]')) return;
+            item.open = false;
         };
 
         form.onProductBlur = function (item) {
             window.setTimeout(() => {
-                item.open = false;
+                if (!item._keepMenu) item.open = false;
             }, 120);
         };
 

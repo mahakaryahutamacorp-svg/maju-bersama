@@ -1,7 +1,7 @@
 {{-- Kolom pilih produk dengan smart search. Butuh withProductPicker() di Alpine parent. --}}
 <div
     class="relative"
-    @click.away="item.open = false"
+    @mousedown.outside="closeProductMenu(item, $event)"
     @scroll.window="item.open && ProductSmartSearch.reposition(item)"
 >
     <input type="hidden" :name="'items[' + index + '][product_id]'" :value="item.product_id">
@@ -11,6 +11,7 @@
         x-model="item.query"
         @input="onProductQuery(item, $event)"
         @focus="onProductFocus(item, $event)"
+        @click="onProductFocus(item, $event)"
         @keydown.arrow-down.prevent="moveProduct(item, 1)"
         @keydown.arrow-up.prevent="moveProduct(item, -1)"
         @keydown.enter.prevent="confirmProduct(index, $event)"
@@ -23,10 +24,10 @@
     <template x-teleport="body">
         <div
             data-product-menu
+            :data-line-key="item._key"
             x-show="item.open"
             x-cloak
-            class="fixed z-[80] max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
-            :style="ProductSmartSearch.menuStyle(item)"
+            class="fixed z-[80] overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
         >
             <template x-for="(prod, resultIndex) in productResults(item)" :key="prod.id">
                 <button
