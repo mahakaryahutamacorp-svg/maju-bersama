@@ -23,10 +23,10 @@
     <template x-teleport="body">
         <div
             data-product-menu
-            x-show="item.open && (item.query || '').trim() !== '' && productResults(item).length > 0"
+            x-show="item.open && (item.query || '').trim() !== ''"
             x-cloak
             class="fixed z-[80] max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
-            :style="item.open ? ProductSmartSearch.menuStyle(item) : undefined"
+            :style="ProductSmartSearch.menuStyle(item)"
         >
             <template x-for="(prod, resultIndex) in productResults(item)" :key="prod.id">
                 <button
@@ -48,17 +48,13 @@
                     <span class="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600" x-show="prod.stock !== undefined && prod.stock !== null" x-text="'Stok ' + prod.stock"></span>
                 </button>
             </template>
+            <p
+                x-show="productResults(item).length === 0"
+                x-cloak
+                class="px-3 py-2 text-sm text-slate-500"
+            >
+                Produk tidak ditemukan. Coba nama, SKU, atau kategori.
+            </p>
         </div>
-    </template>
-    <template x-teleport="body">
-        <p
-            data-product-menu
-            x-show="item.open && (item.query || '').trim() !== '' && productResults(item).length === 0"
-            x-cloak
-            class="fixed z-[80] rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-500 shadow-xl pointer-events-none"
-            :style="item.open ? ProductSmartSearch.menuStyle(item) : undefined"
-        >
-            Produk tidak ditemukan. Coba nama, SKU, atau kategori.
-        </p>
     </template>
 </div>

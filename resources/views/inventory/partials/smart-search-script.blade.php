@@ -181,7 +181,8 @@
                 if (element) this.anchor(item, element);
             },
 
-            // Harus objek: :style berupa string menimpa seluruh atribut style, termasuk display:none dari x-show.
+            // Objek, bukan string. String atau undefined membuat Alpine menghapus seluruh atribut style,
+            // termasuk display:none dari x-show, lalu x-show tidak memasangnya lagi bila nilainya tidak berubah.
             menuStyle(item) {
                 return {
                     top: (item.menuTop || 0) + 'px',
