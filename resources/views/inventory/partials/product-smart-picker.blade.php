@@ -1,18 +1,14 @@
-{{-- Kolom pilih produk dengan smart search. Butuh withProductPicker() di Alpine parent. --}}
-<div
-    class="relative z-30"
-    @mousedown.outside="closeProductMenu(item, $event)"
-    @scroll.window="item.open && !item._keepMenu && ProductSmartSearch.reposition(item)"
-    @resize.window="item.open && !item._keepMenu && ProductSmartSearch.reposition(item)"
->
+{{-- Kolom pilih produk: smart search. Menu baru muncul setelah ada ketikan supaya tidak menutupi input. --}}
+<div class="relative z-30">
     <input type="hidden" :name="'items[' + index + '][product_id]'" :value="item.product_id">
     <input
         type="text"
         data-product-query
+        x-model="item.query"
         x-init="if (item.query) $el.value = item.query"
         @input="onProductQuery(item, $event)"
-        @keyup="onProductQuery(item, $event)"
         @focus="onProductFocus(item, $event)"
+        @click.stop
         @keydown.arrow-down.prevent="moveProduct(item, 1)"
         @keydown.arrow-up.prevent="moveProduct(item, -1)"
         @keydown.enter.prevent="confirmProduct(index, $event)"
@@ -20,30 +16,26 @@
         @keydown.escape="item.open = false"
         autocomplete="off"
         spellcheck="false"
-        inputmode="search"
+        inputmode="text"
         placeholder="{{ $placeholder ?? 'Ketik nama, SKU, atau kategori...' }}"
-        class="relative z-[90] w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 caret-sky-600 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
+        class="relative z-[100] w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 caret-sky-600 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
     >
+    <p class="mt-1 text-[11px] text-slate-500" x-show="!item.product_id" x-cloak>
+        Ketik untuk mencari di <span class="font-semibold text-slate-700" x-text="(products || []).length"></span> produk (contoh: D, Abacel, SKU…)
+    </p>
     <template x-teleport="body">
         <div
             data-product-menu
             x-init="ProductSmartSearch.registerMenu(item, $el)"
-            x-show="item.open"
+            x-show="item.open && (item.query || '').trim() !== ''"
             x-cloak
-            class="fixed z-[80] overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
+            @mousedown.outside="closeProductMenu(item, $event)"
+            class="fixed z-[60] overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
             role="listbox"
         >
             <p class="sticky top-0 z-10 border-b border-slate-100 bg-white px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                <span x-show="!(item.query || '').trim()">
-                    Ketik nama/SKU untuk mencari
-                    <span x-show="(products || []).length">
-                        di <span x-text="(products || []).length"></span> produk
-                    </span>
-                </span>
-                <span x-show="(item.query || '').trim()">
-                    <span x-text="(item._results || []).length"></span> hasil
-                    · cocok dengan "<span class="normal-case text-slate-600" x-text="item.query"></span>"
-                </span>
+                <span x-text="(item._results || []).length"></span> hasil
+                · cocok dengan "<span class="normal-case text-slate-600" x-text="item.query"></span>"
             </p>
             <template x-for="(prod, resultIndex) in (item._results || [])" :key="prod.id">
                 <button
@@ -67,14 +59,7 @@
                 </button>
             </template>
             <p
-                x-show="!(item.query || '').trim()"
-                x-cloak
-                class="px-3 py-3 text-sm text-slate-500"
-            >
-                Mulai ketik, misalnya huruf <span class="font-semibold text-slate-700">D</span>, untuk menampilkan produk yang cocok dari seluruh katalog.
-            </p>
-            <p
-                x-show="(item.query || '').trim() !== '' && (item._results || []).length === 0"
+                x-show="(item._results || []).length === 0"
                 x-cloak
                 class="px-3 py-2 text-sm text-slate-500"
             >
