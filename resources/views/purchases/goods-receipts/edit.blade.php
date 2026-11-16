@@ -109,7 +109,7 @@
                 </div>
             </section>
 
-            <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+            <section class="overflow-visible rounded-2xl border border-slate-200 bg-white shadow-xs">
                 <div class="flex items-center justify-between border-b border-slate-100 px-5 py-4">
                     <h3 class="text-sm font-bold text-slate-950">Barang yang diterima</h3>
                     @unless ($lockReason || $receipt->purchase_order_id)

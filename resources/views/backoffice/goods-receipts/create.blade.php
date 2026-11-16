@@ -218,7 +218,7 @@
                 </section>
 
                 <!-- Section 2: Baris Produk Masuk (Tabel Interaktif Alpine.js) -->
-                <section class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+                <section class="overflow-visible rounded-2xl border border-slate-200 bg-white shadow-xs">
                     <div class="border-b border-slate-100 bg-slate-50/70 p-5 sm:flex sm:items-center sm:justify-between">
                         <div>
                             <h3 class="text-base font-bold text-slate-950 flex items-center gap-2">
