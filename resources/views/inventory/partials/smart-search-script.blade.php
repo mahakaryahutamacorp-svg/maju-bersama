@@ -149,6 +149,7 @@
                     menuLeft: 0,
                     menuWidth: 280,
                     menuAbove: false,
+                    menuMaxHeight: 240,
                 }, item || {});
 
                 if (! line._key) {
@@ -169,11 +170,18 @@
                 if (!element) return;
                 anchors.set(item, element);
                 const rect = element.getBoundingClientRect();
-                const spaceBelow = window.innerHeight - rect.bottom;
-                const spaceAbove = rect.top;
-                item.menuAbove = spaceBelow < 220 && spaceAbove > spaceBelow;
-                item.menuTop = item.menuAbove ? Math.max(8, rect.top - 4) : rect.bottom + 4;
-                item.menuLeft = Math.max(8, rect.left);
+                const gap = 4;
+                const margin = 8;
+                const menuCap = 240;
+                const spaceBelow = Math.max(0, window.innerHeight - rect.bottom - gap - margin);
+                const spaceAbove = Math.max(0, rect.top - gap - margin);
+                const fitsBelow = spaceBelow >= menuCap;
+                const fitsAbove = spaceAbove >= menuCap;
+                item.menuAbove = fitsBelow ? false : (fitsAbove ? true : spaceAbove > spaceBelow);
+                const room = item.menuAbove ? spaceAbove : spaceBelow;
+                item.menuMaxHeight = Math.max(0, Math.min(menuCap, room));
+                item.menuTop = item.menuAbove ? rect.top - gap : rect.bottom + gap;
+                item.menuLeft = Math.max(margin, rect.left);
                 item.menuWidth = Math.max(rect.width, 260);
             },
 
@@ -189,6 +197,7 @@
                     top: (item.menuTop || 0) + 'px',
                     left: (item.menuLeft || 0) + 'px',
                     width: (item.menuWidth || 280) + 'px',
+                    maxHeight: (item.menuMaxHeight || 240) + 'px',
                     transform: item.menuAbove ? 'translateY(-100%)' : 'none',
                 };
             },
