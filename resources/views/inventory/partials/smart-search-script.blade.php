@@ -312,20 +312,22 @@
         form.refreshProductResults = function (item) {
             const query = item?.query || '';
             const products = this.products || [];
-            // Tanpa kata kunci: cuplikan awal katalog. Dengan kata kunci: saring seluruh katalog.
+            // Mode smart search: tanpa ketikan tidak dump katalog.
+            // Dengan ketikan: saring SELURUH katalog, tampilkan hingga 80 kecocokan teratas.
             if (!ProductSmartSearch.normalize(query)) {
-                item._results = products.slice(0, 100);
+                item._results = [];
             } else {
-                item._results = ProductSmartSearch.results(products, query, Math.min(products.length || 100, 100));
+                const matched = ProductSmartSearch.results(products, query, products.length || 0);
+                item._results = matched.slice(0, 80);
             }
             item._resultsQuery = query;
+            item._matchTotal = item._results.length;
             return item._results;
         };
 
         form.productResults = function (item) {
             if (!item) return [];
             if (!Array.isArray(item._results) || item._resultsQuery !== (item.query || '')) {
-                item._resultsQuery = item.query || '';
                 return this.refreshProductResults(item);
             }
             return item._results;
@@ -333,11 +335,7 @@
 
         form.onProductQuery = function (item, event) {
             const field = event && event.target;
-            // Baca langsung dari DOM supaya fill/type otomatisasi (tanpa x-model) tetap tersaring.
             const next = field && typeof field.value === 'string' ? field.value : (item.query || '');
-            if (item.query === next && item.open && Array.isArray(item._results) && item._resultsQuery === next) {
-                return;
-            }
             item.query = next;
             item.product_id = '';
             item.open = true;
@@ -345,24 +343,26 @@
             item._keepMenu = true;
             window.setTimeout(() => { item._keepMenu = false; }, 100);
 
-            // Debounce penggantian daftar supaya fill otomatisasi tidak dikalahkan re-render menu.
             if (item._filterTimer) {
                 window.clearTimeout(item._filterTimer);
             }
+            // Filter cepat (50ms) agar huruf pertama langsung memunculkan hasil.
             item._filterTimer = window.setTimeout(() => {
                 this.refreshProductResults(item);
                 if (field && item.open) {
-                    // Pastikan teks yang baru diisi tidak hilang setelah render menu.
-                    if (field.value !== item.query) {
+                    if (field.value !== (item.query || '')) {
                         field.value = item.query || '';
                     }
                     ProductSmartSearch.anchor(item, field);
                 }
-            }, 160);
+            }, 50);
         };
 
         form.onProductFocus = function (item, event) {
             const field = event && event.target;
+            if (field && typeof field.value === 'string' && field.value !== (item.query || '')) {
+                item.query = field.value;
+            }
             item.open = true;
             this.refreshProductResults(item);
             item._keepMenu = true;
@@ -372,7 +372,6 @@
             }
             item._anchoredOnce = true;
 
-            // Sinkronkan value DOM → state saat otomasi mengisi tanpa event input.
             if (item._querySync) {
                 window.clearInterval(item._querySync);
             }
@@ -385,7 +384,7 @@
                 if (field.value !== (item.query || '')) {
                     this.onProductQuery(item, { target: field });
                 }
-            }, 120);
+            }, 100);
         };
 
         form.closeProductMenu = function (item, event) {

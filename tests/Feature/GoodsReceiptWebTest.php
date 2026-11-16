@@ -74,6 +74,8 @@ class GoodsReceiptWebTest extends TestCase
         $createResponse->assertSee('data-product-query', false);
         $createResponse->assertSee('name="branch_id"', false);
         $createResponse->assertSee('refreshProductResults', false);
+        $createResponse->assertSee('Ketik nama/SKU untuk mencari', false);
+        $createResponse->assertSee('Mulai ketik', false);
     }
 
     public function test_create_form_lists_catalog_source_branch_products_for_master(): void

@@ -34,13 +34,16 @@
             role="listbox"
         >
             <p class="sticky top-0 z-10 border-b border-slate-100 bg-white px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                <span x-text="(item._results || []).length"></span>
-                <span x-show="(products || []).length > (item._results || []).length">
-                    dari <span x-text="(products || []).length"></span>
+                <span x-show="!(item.query || '').trim()">
+                    Ketik nama/SKU untuk mencari
+                    <span x-show="(products || []).length">
+                        di <span x-text="(products || []).length"></span> produk
+                    </span>
                 </span>
-                hasil
-                <span x-show="!(item.query || '').trim()">· ketik nama/SKU untuk menyaring</span>
-                <span x-show="(item.query || '').trim()">· cocok dengan "<span class="normal-case text-slate-600" x-text="item.query"></span>"</span>
+                <span x-show="(item.query || '').trim()">
+                    <span x-text="(item._results || []).length"></span> hasil
+                    · cocok dengan "<span class="normal-case text-slate-600" x-text="item.query"></span>"
+                </span>
             </p>
             <template x-for="(prod, resultIndex) in (item._results || [])" :key="prod.id">
                 <button
@@ -63,6 +66,13 @@
                     <span class="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600" x-show="prod.stock !== undefined && prod.stock !== null" x-text="'Stok ' + prod.stock"></span>
                 </button>
             </template>
+            <p
+                x-show="!(item.query || '').trim()"
+                x-cloak
+                class="px-3 py-3 text-sm text-slate-500"
+            >
+                Mulai ketik, misalnya huruf <span class="font-semibold text-slate-700">D</span>, untuk menampilkan produk yang cocok dari seluruh katalog.
+            </p>
             <p
                 x-show="(item.query || '').trim() !== '' && (item._results || []).length === 0"
                 x-cloak
