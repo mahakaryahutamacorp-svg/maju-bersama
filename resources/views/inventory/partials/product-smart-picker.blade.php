@@ -24,7 +24,7 @@
         class="relative z-10 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-900 caret-sky-600 outline-none focus:border-sky-500 focus:ring-1 focus:ring-sky-500"
     >
     <p class="mt-1 text-[11px] text-slate-500" x-show="!item.product_id" x-cloak>
-        Ketik untuk mencari di <span class="font-semibold text-slate-700" x-text="(products || []).length"></span> produk (contoh: D, Abacel, SKU…)
+        Ketik untuk mencari di <span class="font-semibold text-slate-700" x-text="(products || []).length"></span> produk berdasarkan nama, SKU, atau kategori.
     </p>
     <div
         data-product-menu

@@ -170,9 +170,12 @@ class GoodsReceiptController extends Controller
             'stock' => $p->availableQuantity(),
         ])->values();
 
+        // Produk item PO bisa tercatat di cabang lain; scope cabang membuat namanya hilang untuk admin cabang.
+        $poItemProducts = fn ($query) => $query->withoutGlobalScopes()->withTrashed();
+
         // Fetch active POs (pending or partial) with items and supplier
         $activePOs = PurchaseOrder::withoutGlobalScopes()
-            ->with(['supplier', 'items.product'])
+            ->with(['supplier', 'items.product' => $poItemProducts])
             ->whereIn('status', ['pending', 'partial'])
             ->when($targetBranch, fn ($q) => $q->where('branch_id', $targetBranch->id))
             ->latest('order_date')
@@ -181,7 +184,7 @@ class GoodsReceiptController extends Controller
 
         if ($activePOs->isEmpty() && $isMaster) {
             $activePOs = PurchaseOrder::withoutGlobalScopes()
-                ->with(['supplier', 'items.product'])
+                ->with(['supplier', 'items.product' => $poItemProducts])
                 ->whereIn('status', ['pending', 'partial'])
                 ->latest('order_date')
                 ->latest('id')

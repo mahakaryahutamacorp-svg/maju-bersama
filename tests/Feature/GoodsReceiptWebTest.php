@@ -216,6 +216,56 @@ class GoodsReceiptWebTest extends TestCase
         $this->assertEquals(6, $poItem->received_quantity);
     }
 
+    public function test_branch_admin_sees_po_item_name_for_product_recorded_in_other_branch(): void
+    {
+        $branchAdmin = User::factory()->create([
+            'branch_id' => $this->branchOne->id,
+            'role' => 'branch_admin',
+        ]);
+
+        Product::create([
+            'branch_id' => $this->branchOne->id,
+            'category_id' => $this->product->category_id,
+            'sku' => 'PRD-BR1-PO',
+            'name' => 'Produk Cabang Satu PO',
+            'purchase_price' => 30000,
+            'selling_price' => 45000,
+            'stock' => 5,
+        ]);
+
+        $supplier = Supplier::withoutGlobalScopes()->create([
+            'branch_id' => $this->branchOne->id,
+            'name' => 'Pemasok Cabang Satu',
+            'is_active' => true,
+        ]);
+
+        $po = PurchaseOrder::withoutGlobalScopes()->create([
+            'branch_id' => $this->branchOne->id,
+            'supplier_id' => $supplier->id,
+            'reference_number' => 'PO-LINTAS-CABANG-01',
+            'order_date' => now()->toDateString(),
+            'status' => 'pending',
+            'total_amount' => 500000.00,
+        ]);
+
+        PurchaseOrderItem::create([
+            'purchase_order_id' => $po->id,
+            'product_id' => $this->product->id,
+            'quantity' => 10,
+            'received_quantity' => 0,
+            'unit_price' => 50000,
+            'subtotal' => 500000,
+        ]);
+
+        $response = $this->actingAs($branchAdmin)->get('/purchases/goods-receipts/create');
+
+        $response->assertOk();
+        $response->assertSee('PO-LINTAS-CABANG-01');
+        $response->assertSee('Beras Organik 5kg sisa', false);
+        $response->assertDontSee('Produk #'.$this->product->id, false);
+        $response->assertDontSee('Abacel', false);
+    }
+
     public function test_branch_admin_can_access_goods_receipts_for_own_branch(): void
     {
         $branchAdmin = User::factory()->create([
