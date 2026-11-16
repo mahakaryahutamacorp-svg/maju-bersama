@@ -148,6 +148,7 @@
                     menuTop: 0,
                     menuLeft: 0,
                     menuWidth: 280,
+                    menuAbove: false,
                 }, item || {});
 
                 if (! line._key) {
@@ -168,10 +169,10 @@
                 if (!element) return;
                 anchors.set(item, element);
                 const rect = element.getBoundingClientRect();
-                const menuHeight = 240;
                 const spaceBelow = window.innerHeight - rect.bottom;
-                const openUp = spaceBelow < menuHeight && rect.top > spaceBelow;
-                item.menuTop = openUp ? Math.max(8, rect.top - menuHeight - 4) : rect.bottom + 4;
+                const spaceAbove = rect.top;
+                item.menuAbove = spaceBelow < 220 && spaceAbove > spaceBelow;
+                item.menuTop = item.menuAbove ? Math.max(8, rect.top - 4) : rect.bottom + 4;
                 item.menuLeft = Math.max(8, rect.left);
                 item.menuWidth = Math.max(rect.width, 260);
             },
@@ -188,6 +189,7 @@
                     top: (item.menuTop || 0) + 'px',
                     left: (item.menuLeft || 0) + 'px',
                     width: (item.menuWidth || 280) + 'px',
+                    transform: item.menuAbove ? 'translateY(-100%)' : 'none',
                 };
             },
 
@@ -272,8 +274,9 @@
 
         form.productResults = function (item) {
             const query = item?.query || '';
-            if (!ProductSmartSearch.normalize(query)) return [];
-            return ProductSmartSearch.results(this.products, query, 12);
+            const products = this.products || [];
+            if (!ProductSmartSearch.normalize(query)) return products.slice(0, 12);
+            return ProductSmartSearch.results(products, query, 12);
         };
 
         form.onProductQuery = function (item, event) {
@@ -286,9 +289,8 @@
         };
 
         form.onProductFocus = function (item, event) {
-            const query = (item.query || '').trim();
-            item.open = query !== '';
-            if (item.open && event?.target) {
+            item.open = true;
+            if (event?.target) {
                 ProductSmartSearch.anchor(item, event.target);
             }
         };

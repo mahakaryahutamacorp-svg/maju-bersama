@@ -8,7 +8,7 @@
     <input
         type="text"
         data-product-query
-        :value="item.query"
+        x-model="item.query"
         @input="onProductQuery(item, $event)"
         @focus="onProductFocus(item, $event)"
         @keydown.arrow-down.prevent="moveProduct(item, 1)"
@@ -23,7 +23,7 @@
     <template x-teleport="body">
         <div
             data-product-menu
-            x-show="item.open && (item.query || '').trim() !== ''"
+            x-show="item.open"
             x-cloak
             class="fixed z-[80] max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
             :style="ProductSmartSearch.menuStyle(item)"
@@ -49,7 +49,7 @@
                 </button>
             </template>
             <p
-                x-show="productResults(item).length === 0"
+                x-show="(item.query || '').trim() !== '' && productResults(item).length === 0"
                 x-cloak
                 class="px-3 py-2 text-sm text-slate-500"
             >
