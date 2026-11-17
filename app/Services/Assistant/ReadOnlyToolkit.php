@@ -2,10 +2,17 @@
 
 namespace App\Services\Assistant;
 
+use App\Models\Customer;
+use App\Models\GoodsReceipt;
 use App\Models\Inventory;
 use App\Models\JournalHeader;
+use App\Models\Payment;
 use App\Models\PaymentAllocation;
+use App\Models\Product;
+use App\Models\Purchase;
+use App\Models\PurchaseOrder;
 use App\Models\Sale;
+use App\Models\Supplier;
 use App\Models\User;
 use App\Services\FinanceDashboardService;
 use Illuminate\Support\Facades\Gate;
@@ -14,6 +21,7 @@ class ReadOnlyToolkit
 {
     public function __construct(
         private readonly SystemGuide $guide,
+        private readonly UsageAdvice $advice,
         private readonly FinanceDashboardService $finance,
     ) {}
 
@@ -29,6 +37,8 @@ class ReadOnlyToolkit
 
         return match ($tool) {
             'search_guide' => $this->guide->search((string) ($arguments['query'] ?? '')),
+            'usage_advice' => $this->advice->advise((string) ($arguments['query'] ?? '')),
+            'smart_search' => $this->smartSearch($user, (string) ($arguments['query'] ?? '')),
             'stock_on_hand' => $this->stockOnHand($user, (string) ($arguments['query'] ?? '')),
             'list_receivables' => $this->listReceivables((string) ($arguments['query'] ?? '')),
             'sales_summary' => $this->salesSummary((string) ($arguments['period'] ?? 'today')),
@@ -37,6 +47,358 @@ class ReadOnlyToolkit
             'trace_document' => $this->traceDocument($user, (string) ($arguments['query'] ?? '')),
             default => throw new AssistantToolDenied($tool),
         };
+    }
+
+    /**
+     * Pencarian cerdas lintas pelanggan, pemasok, produk, dan dokumen.
+     *
+     * @return array{found: bool, summary: string, links: array<int, array{label: string, url: string}>}
+     */
+    private function smartSearch(User $user, string $query): array
+    {
+        $term = trim($query);
+        if (mb_strlen($term) < 2) {
+            return [
+                'found' => false,
+                'summary' => 'Sebutkan nama pelanggan, pemasok, produk, SKU, atau nomor dokumen untuk dicari.',
+                'links' => [
+                    ['label' => 'Pusat Laporan', 'url' => route('reports.index')],
+                ],
+            ];
+        }
+
+        $sections = [];
+        $links = [];
+
+        $this->appendCustomerMatches($term, $user, $sections, $links);
+        $this->appendSupplierMatches($term, $user, $sections, $links);
+        $this->appendProductMatches($user, $term, $sections, $links);
+        $this->appendDocumentMatches($user, $term, $sections, $links);
+
+        if ($sections === []) {
+            return [
+                'found' => false,
+                'summary' => "Tidak ditemukan data yang cocok untuk \"{$term}\" di cabang yang boleh Anda lihat.",
+                'links' => [
+                    ['label' => 'Pusat Laporan', 'url' => route('reports.index')],
+                    ['label' => 'Riwayat Penjualan', 'url' => route('reports.sales')],
+                ],
+            ];
+        }
+
+        return [
+            'found' => true,
+            'summary' => "Hasil pencarian \"{$term}\":\n\n".implode("\n\n", $sections),
+            'links' => array_values($links),
+        ];
+    }
+
+    /**
+     * @param  array<int, string>  $sections
+     * @param  array<string, array{label: string, url: string}>  $links
+     */
+    private function appendCustomerMatches(string $term, User $user, array &$sections, array &$links): void
+    {
+        $customers = Customer::query()
+            ->with('branch')
+            ->where(function ($builder) use ($term) {
+                $builder->where('name', 'like', "%{$term}%")
+                    ->orWhere('phone', 'like', "%{$term}%");
+            })
+            ->orderBy('name')
+            ->limit(5)
+            ->get();
+
+        foreach ($customers as $customer) {
+            $sales = Sale::query()
+                ->where('customer_id', $customer->id)
+                ->latest('id')
+                ->limit(5)
+                ->get();
+
+            $open = Sale::query()
+                ->where('customer_id', $customer->id)
+                ->where('payment_status', '!=', 'PAID')
+                ->get();
+
+            $openTotal = $open->sum(fn (Sale $sale) => max(0, (float) $sale->total_amount - (float) $sale->paid_amount));
+            $paidTotal = (float) Payment::query()->where('customer_id', $customer->id)->where('type', 'AR')->sum('amount');
+
+            $lines = [
+                'Pelanggan: '.$customer->name.($customer->phone ? " ({$customer->phone})" : ''),
+            ];
+            if ($user->isMaster() && $customer->branch) {
+                $lines[] = 'Cabang: '.$customer->branch->name;
+            }
+            $lines[] = 'Piutang terbuka: '.$open->count().' faktur, sisa '.$this->rupiah((float) $openTotal).'.';
+            $lines[] = 'Total penerimaan piutang tercatat: '.$this->rupiah($paidTotal).'.';
+
+            if ($sales->isEmpty()) {
+                $lines[] = 'Belum ada transaksi penjualan.';
+            } else {
+                $lines[] = 'Transaksi terbaru:';
+                foreach ($sales as $sale) {
+                    $remaining = max(0, (float) $sale->total_amount - (float) $sale->paid_amount);
+                    $when = $sale->created_at?->timezone(config('app.timezone'))->format('d/m/Y') ?: '-';
+                    $lines[] = '- '.$when.' '.$sale->receipt_number.' '.$this->rupiah((float) $sale->total_amount)
+                        .' status '.$sale->payment_status
+                        .($remaining > 0 ? ', sisa '.$this->rupiah($remaining) : '');
+                }
+            }
+
+            $sections[] = implode("\n", $lines);
+            $links[route('backoffice.customers.show', $customer)] = [
+                'label' => 'Pelanggan '.$customer->name,
+                'url' => route('backoffice.customers.show', $customer),
+            ];
+            $links[route('reports.ar-aging')] = [
+                'label' => 'Piutang Pelanggan',
+                'url' => route('reports.ar-aging'),
+            ];
+            $links[route('backoffice.payments.receivables.create')] = [
+                'label' => 'Terima Bayaran Piutang',
+                'url' => route('backoffice.payments.receivables.create'),
+            ];
+        }
+    }
+
+    /**
+     * @param  array<int, string>  $sections
+     * @param  array<string, array{label: string, url: string}>  $links
+     */
+    private function appendSupplierMatches(string $term, User $user, array &$sections, array &$links): void
+    {
+        $suppliers = Supplier::query()
+            ->with('branch')
+            ->where(function ($builder) use ($term) {
+                $builder->where('name', 'like', "%{$term}%")
+                    ->orWhere('contact_person', 'like', "%{$term}%")
+                    ->orWhere('phone', 'like', "%{$term}%");
+            })
+            ->orderBy('name')
+            ->limit(5)
+            ->get();
+
+        foreach ($suppliers as $supplier) {
+            $purchases = Purchase::query()
+                ->where('distributor_id', $supplier->id)
+                ->latest('id')
+                ->limit(5)
+                ->get();
+
+            $openPurchases = Purchase::query()
+                ->where('distributor_id', $supplier->id)
+                ->whereRaw('LOWER(status) != ?', ['paid'])
+                ->get();
+            $openDebt = $openPurchases->sum(fn (Purchase $purchase) => (float) $purchase->remaining_debt);
+
+            $orders = PurchaseOrder::query()
+                ->where('supplier_id', $supplier->id)
+                ->latest('id')
+                ->limit(3)
+                ->get();
+
+            $receiptsQuery = GoodsReceipt::query()
+                ->where(function ($builder) use ($supplier) {
+                    $builder->where('supplier_id', $supplier->id)
+                        ->orWhere('supplier_name', 'like', '%'.$supplier->name.'%');
+                })
+                ->latest('id')
+                ->limit(3);
+            if (! $user->isMaster()) {
+                $receiptsQuery->where('branch_id', $user->branch_id);
+            }
+            $receipts = $receiptsQuery->get();
+
+            $lines = [
+                'Pemasok: '.$supplier->name.($supplier->contact_person ? " (kontak {$supplier->contact_person})" : ''),
+            ];
+            if ($user->isMaster() && $supplier->branch) {
+                $lines[] = 'Cabang: '.$supplier->branch->name;
+            }
+            $lines[] = 'Hutang terbuka: '.$openPurchases->count().' dokumen, sisa '.$this->rupiah((float) $openDebt).'.';
+
+            if ($purchases->isNotEmpty()) {
+                $lines[] = 'Pembelian/hutang terbaru:';
+                foreach ($purchases as $purchase) {
+                    $lines[] = '- '.($purchase->invoice_number ?: '#'.$purchase->id)
+                        .' total '.$this->rupiah((float) $purchase->total_amount)
+                        .', sisa '.$this->rupiah((float) $purchase->remaining_debt)
+                        .', status '.$purchase->status.'.';
+                }
+            }
+
+            if ($orders->isNotEmpty()) {
+                $lines[] = 'Pesanan (PO) terbaru:';
+                foreach ($orders as $order) {
+                    $lines[] = '- '.$order->reference_number.' status '.$order->status.'.';
+                }
+            }
+
+            if ($receipts->isNotEmpty()) {
+                $lines[] = 'Penerimaan barang terbaru:';
+                foreach ($receipts as $receipt) {
+                    $when = $receipt->date?->format('d/m/Y') ?: '-';
+                    $lines[] = '- '.$when.' '.$receipt->reference_number.' '.$this->rupiah((float) $receipt->total_amount).'.';
+                }
+            }
+
+            if ($purchases->isEmpty() && $orders->isEmpty() && $receipts->isEmpty()) {
+                $lines[] = 'Belum ada transaksi belanja tercatat untuk pemasok ini.';
+            }
+
+            $sections[] = implode("\n", $lines);
+            $links[route('backoffice.suppliers.show', $supplier)] = [
+                'label' => 'Pemasok '.$supplier->name,
+                'url' => route('backoffice.suppliers.show', $supplier),
+            ];
+            $links[route('backoffice.suppliers.index')] = [
+                'label' => 'Buku Pemasok',
+                'url' => route('backoffice.suppliers.index'),
+            ];
+            if (Gate::forUser($user)->allows('view-accounting')) {
+                $links[route('reports.ap-aging')] = [
+                    'label' => 'Aging Hutang',
+                    'url' => route('reports.ap-aging'),
+                ];
+            }
+        }
+    }
+
+    /**
+     * @param  array<int, string>  $sections
+     * @param  array<string, array{label: string, url: string}>  $links
+     */
+    private function appendProductMatches(User $user, string $term, array &$sections, array &$links): void
+    {
+        $canInventory = Gate::forUser($user)->allows('access-inventory');
+        $canCatalog = Gate::forUser($user)->allows('view-sellable-catalog')
+            || Gate::forUser($user)->allows('manage-catalog')
+            || $canInventory;
+
+        if (! $canCatalog) {
+            return;
+        }
+
+        $products = Product::query()
+            ->with(['category', 'branch'])
+            ->where(function ($builder) use ($term) {
+                $builder->where('name', 'like', "%{$term}%")
+                    ->orWhere('sku', 'like', "%{$term}%");
+            })
+            ->orderBy('name')
+            ->limit(5)
+            ->get();
+
+        foreach ($products as $product) {
+            $lines = [
+                'Produk: '.$product->name.' (SKU '.($product->sku ?: '-').')',
+            ];
+            if ($product->category) {
+                $lines[] = 'Kategori: '.$product->category->name;
+            }
+            if ($user->isMaster() && $product->branch) {
+                $lines[] = 'Cabang master produk: '.$product->branch->name;
+            }
+            $lines[] = 'Harga jual '.$this->rupiah((float) $product->selling_price)
+                .', harga beli '.$this->rupiah((float) $product->purchase_price).'.';
+
+            if ($canInventory) {
+                $qty = (float) Inventory::query()
+                    ->where('product_id', $product->id)
+                    ->sum('quantity');
+                $lines[] = 'Stok tersedia: '.$this->formatQty($qty).' '.($product->unit ?: 'unit').'.';
+            }
+
+            $saleHits = Sale::query()
+                ->whereHas('items', fn ($items) => $items->where('product_id', $product->id))
+                ->latest('id')
+                ->limit(3)
+                ->get();
+            if ($saleHits->isNotEmpty()) {
+                $lines[] = 'Penjualan yang memuat produk ini:';
+                foreach ($saleHits as $sale) {
+                    $when = $sale->created_at?->timezone(config('app.timezone'))->format('d/m/Y') ?: '-';
+                    $lines[] = '- '.$when.' '.$sale->receipt_number.' '.$this->rupiah((float) $sale->total_amount).'.';
+                }
+            }
+
+            $sections[] = implode("\n", $lines);
+            $links[route('backoffice.products.index')] = [
+                'label' => 'Katalog Produk',
+                'url' => route('backoffice.products.index'),
+            ];
+            if ($canInventory) {
+                $links[url('/inventory')] = [
+                    'label' => 'Stok Barang',
+                    'url' => url('/inventory'),
+                ];
+            }
+        }
+    }
+
+    /**
+     * @param  array<int, string>  $sections
+     * @param  array<string, array{label: string, url: string}>  $links
+     */
+    private function appendDocumentMatches(User $user, string $term, array &$sections, array &$links): void
+    {
+        $sale = Sale::query()
+            ->with('customer')
+            ->where('receipt_number', 'like', "%{$term}%")
+            ->latest('id')
+            ->first();
+
+        if ($sale !== null) {
+            $remaining = max(0, (float) $sale->total_amount - (float) $sale->paid_amount);
+            $when = $sale->created_at?->timezone(config('app.timezone'))->format('d/m/Y H:i') ?: '-';
+            $sections[] = implode("\n", [
+                'Dokumen penjualan: '.$sale->receipt_number,
+                'Pelanggan: '.($sale->customer?->name ?: 'Pelanggan Umum'),
+                'Tanggal '.$when.', total '.$this->rupiah((float) $sale->total_amount)
+                    .', dibayar '.$this->rupiah((float) $sale->paid_amount)
+                    .', sisa '.$this->rupiah($remaining)
+                    .', status '.$sale->payment_status.'.',
+            ]);
+            $links[route('transactions.details', ['reference' => $sale->receipt_number])] = [
+                'label' => 'Detail '.$sale->receipt_number,
+                'url' => route('transactions.details', ['reference' => $sale->receipt_number]),
+            ];
+        }
+
+        $receiptQuery = GoodsReceipt::query()
+            ->where(function ($builder) use ($term) {
+                $builder->where('reference_number', 'like', "%{$term}%")
+                    ->orWhere('supplier_name', 'like', "%{$term}%");
+            })
+            ->latest('id')
+            ->limit(3);
+        if (! $user->isMaster()) {
+            $receiptQuery->where('branch_id', $user->branch_id);
+        }
+        $receipts = $receiptQuery->get();
+
+        foreach ($receipts as $receipt) {
+            $sections[] = implode("\n", [
+                'Dokumen terima barang: '.$receipt->reference_number,
+                'Pemasok: '.($receipt->supplier_name ?: '-'),
+                'Tanggal '.($receipt->date?->format('d/m/Y') ?: '-')
+                    .', total '.$this->rupiah((float) $receipt->total_amount).'.',
+            ]);
+            $links[route('purchases.goods-receipts.show', $receipt->id)] = [
+                'label' => 'Terima '.$receipt->reference_number,
+                'url' => route('purchases.goods-receipts.show', $receipt->id),
+            ];
+        }
+    }
+
+    private function formatQty(float $qty): string
+    {
+        if (abs($qty - round($qty)) < 0.0001) {
+            return (string) (int) round($qty);
+        }
+
+        return rtrim(rtrim(number_format($qty, 3, ',', '.'), '0'), ',');
     }
 
     /**

@@ -14,11 +14,15 @@ class ReadOnlyAssistant
     ) {}
 
     /**
+     * @param  array<int, array{role?: string, text?: string}>  $history
      * @return array{answer: string, links: array<int, array{label: string, url: string}>, outcome: string}
      */
-    public function ask(User $user, string $question): array
+    public function ask(User $user, string $question, array $history = []): array
     {
         $question = trim($question);
+        $history = $this->normalizeHistory($history);
+        $resolved = $this->resolveWithHistory($question, $history);
+
         $limitKey = 'assistant:'.$user->id;
         $limit = max(1, (int) config('assistant.hourly_limit'));
 
@@ -28,14 +32,20 @@ class ReadOnlyAssistant
 
         RateLimiter::hit($limitKey, 3600);
 
-        if (AssistantContract::isActionRequest($question)) {
-            $guide = $this->toolkit->run('search_guide', ['query' => $question], $user);
-            $answer = "Saya tidak mencatat, mengubah, atau menghapus data. Langkahnya dikerjakan sendiri di halaman yang sesuai.\n\n".$guide['summary'];
+        if (AssistantContract::isActionRequest($resolved)) {
+            $guide = $this->toolkit->run('search_guide', ['query' => $resolved], $user);
+            $advice = $this->toolkit->run('usage_advice', ['query' => $resolved], $user);
+            $answer = AssistantContract::ROLE."\n\nSaya tidak menulis, mengedit, menghapus, atau menambahkan data. Kerjakan sendiri di halaman yang sesuai.\n\n"
+                .$guide['summary']."\n\n".$advice['summary'];
+            $links = [];
+            foreach (array_merge($guide['links'], $advice['links']) as $link) {
+                $links[$link['url']] = $link;
+            }
 
-            return $this->finish($user, $question, 'refused_action', ['search_guide'], $answer, $guide['links']);
+            return $this->finish($user, $question, 'refused_action', ['search_guide', 'usage_advice'], $answer, array_values($links));
         }
 
-        if (! AssistantContract::mentionsApplication($question)) {
+        if (! AssistantContract::mentionsApplication($resolved)) {
             return $this->finish(
                 $user,
                 $question,
@@ -46,11 +56,11 @@ class ReadOnlyAssistant
             );
         }
 
-        $selection = $this->selectTools($question);
+        $selection = $this->selectTools($resolved);
         if (config('assistant.remote')) {
-            $selection = $this->model->chooseTools($question) ?? $selection;
+            $selection = $this->model->chooseTools($resolved) ?? $selection;
             if ($selection === []) {
-                $selection = $this->selectTools($question);
+                $selection = $this->selectTools($resolved);
             }
         }
 
@@ -74,9 +84,16 @@ class ReadOnlyAssistant
 
             $used[] = $name;
             $found = $found || $result['found'];
-            $parts[] = $result['summary'];
-            foreach ($result['links'] as $link) {
-                $links[$link['url']] = $link;
+            if ($result['found'] || in_array($name, ['search_guide', 'usage_advice'], true)) {
+                $parts[] = $result['summary'];
+                foreach ($result['links'] as $link) {
+                    $links[$link['url']] = $link;
+                }
+            } elseif ($parts === [] && $name === 'smart_search') {
+                $parts[] = $result['summary'];
+                foreach ($result['links'] as $link) {
+                    $links[$link['url']] = $link;
+                }
             }
         }
 
@@ -86,7 +103,7 @@ class ReadOnlyAssistant
                 $question,
                 'refused_action',
                 [],
-                'Saya tidak melakukan tindakan itu. Asisten ini hanya membaca data dan menunjukkan halamannya.',
+                AssistantContract::ROLE,
                 [],
             );
         }
@@ -96,9 +113,14 @@ class ReadOnlyAssistant
             $found = false;
         }
 
+        $answer = implode("\n\n", $parts);
+        if ($history !== [] && $resolved !== $question) {
+            $answer = "Memakai konteks percakapan sebelumnya.\n\n".$answer;
+        }
+
         $outcome = $found ? 'answered' : 'not_found';
 
-        return $this->finish($user, $question, $outcome, $used, implode("\n\n", $parts), array_values($links));
+        return $this->finish($user, $question, $outcome, $used, $answer, array_values($links));
     }
 
     /**
@@ -124,22 +146,118 @@ class ReadOnlyAssistant
     }
 
     /**
+     * @param  array<int, array{role?: string, text?: string}>  $history
+     * @return array<int, array{role: string, text: string}>
+     */
+    private function normalizeHistory(array $history): array
+    {
+        $normalized = [];
+
+        foreach (array_slice($history, -3) as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $role = (string) ($item['role'] ?? '');
+            $text = trim((string) ($item['text'] ?? ''));
+            if (! in_array($role, ['user', 'assistant'], true) || $text === '') {
+                continue;
+            }
+
+            $normalized[] = [
+                'role' => $role,
+                'text' => mb_substr($text, 0, 500),
+            ];
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Gabungkan follow-up dengan 2–3 pertanyaan user sebelumnya (hanya di memori request).
+     *
+     * @param  array<int, array{role: string, text: string}>  $history
+     */
+    private function resolveWithHistory(string $question, array $history): string
+    {
+        if ($history === []) {
+            return $question;
+        }
+
+        $priorUserText = collect($history)
+            ->where('role', 'user')
+            ->pluck('text')
+            ->implode(' ');
+
+        if ($priorUserText === '') {
+            return $question;
+        }
+
+        if (AssistantContract::isFollowUp($question)) {
+            return trim($priorUserText.' '.$question);
+        }
+
+        // Saran tanpa nama, tapi riwayat punya entitas: "bagaimana caranya bayar?" setelah "hutang budi".
+        if (AssistantContract::wantsAdvice($question) && AssistantContract::entityTerm($question) === '') {
+            $priorEntity = AssistantContract::entityTerm($priorUserText);
+            if ($priorEntity !== '') {
+                return trim($question.' '.$priorEntity);
+            }
+        }
+
+        return $question;
+    }
+
+    /**
      * @return array<int, array{name: string, arguments: array<string, mixed>}>
      */
     private function selectTools(string $question): array
     {
         $normalized = mb_strtolower($question);
         $term = $this->searchTerm($question);
-        $isHowTo = preg_match('/cara|bagaimana|di mana|dimana|apa arti|menu|kode akun/u', $normalized) === 1;
-        $wantsFigures = preg_match('/berapa|sisa|telusuri|inv-/iu', $question) === 1;
+        $wantsAdvice = AssistantContract::wantsAdvice($question);
+        $isLocation = preg_match('/di\s*mana|dimana|letak\s+menu|menu\s+mana|halaman\s+(mana|apa)|apa\s+arti|kode\s+akun/u', $normalized) === 1;
+        $wantsFigures = preg_match('/berapa|sisa|telusuri|inv-|gr-|po-/iu', $question) === 1;
+        $hasEntity = $term !== '' && mb_strlen($term) >= 2 && ! preg_match('/^(menu|halaman|data|info|saran)$/iu', $term);
 
-        if ($isHowTo && ! $wantsFigures) {
-            return [['name' => 'search_guide', 'arguments' => ['query' => $question]]];
+        if (($wantsAdvice || $isLocation) && ! $wantsFigures) {
+            $calls = [];
+            if ($hasEntity) {
+                $calls[] = ['name' => 'smart_search', 'arguments' => ['query' => $term]];
+            }
+            if ($isLocation || ! $wantsAdvice) {
+                $calls[] = ['name' => 'search_guide', 'arguments' => ['query' => $question]];
+            }
+            if ($wantsAdvice) {
+                $calls[] = ['name' => 'usage_advice', 'arguments' => ['query' => $question]];
+            }
+
+            return array_slice($calls !== [] ? $calls : [
+                ['name' => 'usage_advice', 'arguments' => ['query' => $question]],
+            ], 0, 3);
+        }
+
+        if (preg_match('/inv-[a-z0-9-]+/i', $question) === 1 || str_contains($normalized, 'telusuri')) {
+            $calls = [['name' => 'trace_document', 'arguments' => ['query' => $term !== '' ? $term : $question]]];
+            if ($wantsAdvice) {
+                $calls[] = ['name' => 'usage_advice', 'arguments' => ['query' => $question]];
+            }
+
+            return array_slice($calls, 0, 3);
+        }
+
+        if ($hasEntity && ! preg_match('/\b(hari ini|bulan ini|posisi kas|omzet)\b/u', $normalized)) {
+            $calls = [['name' => 'smart_search', 'arguments' => ['query' => $term]]];
+            if ($wantsAdvice) {
+                $calls[] = ['name' => 'usage_advice', 'arguments' => ['query' => $question]];
+            }
+
+            return array_slice($calls, 0, 3);
         }
 
         $calls = [];
 
-        if (preg_match('/inv-[a-z0-9-]+/i', $question) === 1 || str_contains($normalized, 'faktur') || str_contains($normalized, 'telusuri') || str_contains($normalized, 'jurnal')) {
+        if (str_contains($normalized, 'faktur') || str_contains($normalized, 'jurnal')) {
             $calls[] = ['name' => 'trace_document', 'arguments' => ['query' => $term]];
         }
         if (str_contains($normalized, 'piutang') || str_contains($normalized, 'debitur') || str_contains($normalized, 'tagihan')) {
@@ -157,7 +275,10 @@ class ReadOnlyAssistant
         if (str_contains($normalized, 'kas') || str_contains($normalized, 'bank') || str_contains($normalized, 'saldo')) {
             $calls[] = ['name' => 'cash_position', 'arguments' => []];
         }
-        if ($calls === [] || preg_match('/cara|bagaimana|di mana|dimana|apa arti|menu|kode akun|1130|1110|2110/u', $normalized) === 1) {
+        if ($wantsAdvice) {
+            $calls[] = ['name' => 'usage_advice', 'arguments' => ['query' => $question]];
+        }
+        if ($calls === [] || preg_match('/menu|kode akun|1130|1110|2110/u', $normalized) === 1) {
             $calls[] = ['name' => 'search_guide', 'arguments' => ['query' => $question]];
         }
 
@@ -166,15 +287,7 @@ class ReadOnlyAssistant
 
     private function searchTerm(string $question): string
     {
-        if (preg_match('/inv-[a-z0-9-]+/i', $question, $match) === 1) {
-            return $match[0];
-        }
-
-        $cleaned = preg_replace('/\b(berapa|sisa|stok|piutang|bagaimana|cara|tolong|dimana|di|mana|nama|pelanggan|debitur|hari|ini|bulan|posisi|kas|bank|penjualan|omzet|cek|lihat|tampilkan|saldo|faktur|telusuri|jurnal|barang|dan|yang|ada|apa|arti|transaksi|terbaru|terakhir|data|minta|diminta|semua|seluruh|cabang)\b/iu', ' ', $question) ?? $question;
-        $cleaned = preg_replace('/[^\p{L}\p{N}\s-]/u', ' ', (string) $cleaned) ?? '';
-        $cleaned = trim((string) preg_replace('/\s+/', ' ', $cleaned));
-
-        return mb_substr($cleaned, 0, 60);
+        return AssistantContract::entityTerm($question);
     }
 
     /**

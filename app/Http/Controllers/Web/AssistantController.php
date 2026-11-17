@@ -26,10 +26,18 @@ class AssistantController extends Controller
     {
         $validated = $request->validate([
             'question' => ['required', 'string', 'min:3', 'max:500'],
+            // Opsional: 2–3 giliran sebelumnya dari browser. Tidak disimpan ke DB live.
+            'history' => ['sometimes', 'array', 'max:3'],
+            'history.*.role' => ['required_with:history', 'string', 'in:user,assistant'],
+            'history.*.text' => ['required_with:history', 'string', 'max:500'],
         ]);
 
         return response()->json(
-            $this->assistant->ask($request->user(), $validated['question'])
+            $this->assistant->ask(
+                $request->user(),
+                $validated['question'],
+                $validated['history'] ?? [],
+            )
         );
     }
 }

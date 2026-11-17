@@ -13,7 +13,9 @@ use App\Models\JournalLine;
 use App\Models\Payment;
 use App\Models\PaymentAllocation;
 use App\Models\Product;
+use App\Models\Purchase;
 use App\Models\Sale;
+use App\Models\Supplier;
 use App\Models\User;
 use App\Services\Assistant\AssistantContract;
 use App\Services\Assistant\AssistantToolDenied;
@@ -51,6 +53,8 @@ class ReadOnlyAssistantTest extends TestCase
     {
         $this->assertSame([
             'search_guide',
+            'usage_advice',
+            'smart_search',
             'stock_on_hand',
             'list_receivables',
             'sales_summary',
@@ -409,6 +413,173 @@ class ReadOnlyAssistantTest extends TestCase
         $this->actingAs($this->admin)->postJson(route('backoffice.assistant.ask'), [
             'question' => 'Di mana menu stok barang?',
         ])->assertOk()->assertJsonPath('outcome', 'rate_limited');
+    }
+
+    public function test_follow_up_uses_short_history_without_persisting_chat(): void
+    {
+        $customer = Customer::create([
+            'branch_id' => $this->branch->id,
+            'name' => 'Budi Konteks',
+            'phone' => '0812888',
+        ]);
+        Sale::create([
+            'branch_id' => $this->branch->id,
+            'customer_id' => $customer->id,
+            'receipt_number' => 'INV-CTX-01',
+            'total_amount' => 175000,
+            'paid_amount' => 0,
+            'payment_status' => 'UNPAID',
+            'payment_method' => 'tempo',
+            'status' => 'completed',
+            'created_by' => $this->admin->id,
+        ]);
+
+        $response = $this->actingAs($this->admin)->postJson(route('backoffice.assistant.ask'), [
+            'question' => 'Lalu bagaimana cara bayarnya?',
+            'history' => [
+                ['role' => 'user', 'text' => 'hutang Budi Konteks'],
+            ],
+        ]);
+
+        $response->assertOk()->assertJsonPath('outcome', 'answered');
+        $this->assertStringContainsString('Memakai konteks percakapan sebelumnya', $response->json('answer'));
+        $this->assertStringContainsString('Budi Konteks', $response->json('answer'));
+        $this->assertStringContainsString('INV-CTX-01', $response->json('answer'));
+        $this->assertStringContainsString('Saran penerapan', $response->json('answer'));
+        $this->assertDatabaseCount('payments', 0);
+        $this->assertDatabaseCount('assistant_inquiries', 1);
+        $this->assertDatabaseHas('assistant_inquiries', [
+            'question' => 'Lalu bagaimana cara bayarnya?',
+        ]);
+    }
+
+    public function test_ask_without_history_still_works_for_live_clients(): void
+    {
+        $this->actingAs($this->admin)->postJson(route('backoffice.assistant.ask'), [
+            'question' => 'Di mana menu terima bayaran piutang?',
+        ])->assertOk()->assertJsonPath('outcome', 'answered');
+    }
+
+    public function test_usage_advice_gives_self_serve_steps_without_mutating(): void
+    {
+        $response = $this->actingAs($this->admin)->postJson(route('backoffice.assistant.ask'), [
+            'question' => 'Saran cara terima bayaran piutang pelanggan',
+        ]);
+
+        $response->assertOk()->assertJsonPath('outcome', 'answered');
+        $this->assertStringContainsString('Saran penerapan', $response->json('answer'));
+        $this->assertStringContainsString('Terima Bayaran Piutang', $response->json('answer'));
+        $this->assertDatabaseCount('payments', 0);
+
+        $inquiry = AssistantInquiry::query()->latest('id')->first();
+        $this->assertNotNull($inquiry);
+        $this->assertContains('usage_advice', $inquiry->tools_used);
+    }
+
+    public function test_advice_with_entity_combines_smart_search_and_usage_steps(): void
+    {
+        $customer = Customer::create([
+            'branch_id' => $this->branch->id,
+            'name' => 'Budi Advice',
+            'phone' => '0812999',
+        ]);
+        Sale::create([
+            'branch_id' => $this->branch->id,
+            'customer_id' => $customer->id,
+            'receipt_number' => 'INV-ADV-01',
+            'total_amount' => 200000,
+            'paid_amount' => 0,
+            'payment_status' => 'UNPAID',
+            'payment_method' => 'tempo',
+            'status' => 'completed',
+            'created_by' => $this->admin->id,
+        ]);
+
+        $response = $this->actingAs($this->admin)->postJson(route('backoffice.assistant.ask'), [
+            'question' => 'Bagaimana cara lunasi piutang Budi Advice?',
+        ]);
+
+        $response->assertOk()->assertJsonPath('outcome', 'answered');
+        $this->assertStringContainsString('Budi Advice', $response->json('answer'));
+        $this->assertStringContainsString('INV-ADV-01', $response->json('answer'));
+        $this->assertStringContainsString('Saran penerapan', $response->json('answer'));
+        $this->assertDatabaseCount('payments', 0);
+
+        $inquiry = AssistantInquiry::query()->latest('id')->first();
+        $this->assertNotNull($inquiry);
+        $this->assertContains('smart_search', $inquiry->tools_used);
+        $this->assertContains('usage_advice', $inquiry->tools_used);
+    }
+
+    public function test_smart_search_lists_related_customer_supplier_and_product_data(): void
+    {
+        $category = Category::create(['name' => 'Pupuk']);
+        $customer = Customer::create([
+            'branch_id' => $this->branch->id,
+            'name' => 'Budi Santoso',
+            'phone' => '081234567',
+        ]);
+        $supplier = Supplier::create([
+            'branch_id' => $this->branch->id,
+            'name' => 'CV Budi Makmur',
+            'contact_person' => 'Budi',
+            'phone' => '081111',
+            'is_active' => true,
+        ]);
+        $product = Product::withoutGlobalScopes()->create([
+            'branch_id' => $this->branch->id,
+            'category_id' => $category->id,
+            'sku' => 'ABC-01',
+            'name' => 'Abacel 500',
+            'purchase_price' => 10000,
+            'selling_price' => 15000,
+            'stock' => 12,
+        ]);
+        Inventory::withoutGlobalScopes()->create([
+            'branch_id' => $this->branch->id,
+            'product_id' => $product->id,
+            'quantity' => 12,
+        ]);
+        Sale::create([
+            'branch_id' => $this->branch->id,
+            'customer_id' => $customer->id,
+            'receipt_number' => 'INV-BUDI-01',
+            'total_amount' => 300000,
+            'paid_amount' => 100000,
+            'payment_status' => 'PARTIAL',
+            'payment_method' => 'tempo',
+            'status' => 'completed',
+            'created_by' => $this->admin->id,
+        ]);
+        Purchase::create([
+            'branch_id' => $this->branch->id,
+            'distributor_id' => $supplier->id,
+            'invoice_number' => 'AP-BUDI-01',
+            'total_amount' => 500000,
+            'paid_amount' => 0,
+            'status' => 'unpaid',
+            'created_by' => $this->admin->id,
+        ]);
+
+        $debt = $this->actingAs($this->admin)->postJson(route('backoffice.assistant.ask'), [
+            'question' => 'hutang budi',
+        ]);
+        $debt->assertOk()->assertJsonPath('outcome', 'answered');
+        $this->assertStringContainsString('Budi Santoso', $debt->json('answer'));
+        $this->assertStringContainsString('INV-BUDI-01', $debt->json('answer'));
+        $this->assertStringContainsString('CV Budi Makmur', $debt->json('answer'));
+        $this->assertStringContainsString('AP-BUDI-01', $debt->json('answer'));
+        $inquiry = AssistantInquiry::query()->latest('id')->first();
+        $this->assertNotNull($inquiry);
+        $this->assertContains('smart_search', $inquiry->tools_used);
+
+        $productAnswer = $this->actingAs($this->admin)->postJson(route('backoffice.assistant.ask'), [
+            'question' => 'Abacel',
+        ]);
+        $productAnswer->assertOk()->assertJsonPath('outcome', 'answered');
+        $this->assertStringContainsString('Abacel 500', $productAnswer->json('answer'));
+        $this->assertStringContainsString('ABC-01', $productAnswer->json('answer'));
+        $this->assertStringContainsString('12', $productAnswer->json('answer'));
     }
 
     public function test_master_and_superadmin_can_read_latest_transactions_across_branches(): void

@@ -31,7 +31,7 @@ class AssistantModelClient
                     'messages' => [
                         [
                             'role' => 'system',
-                            'content' => 'Anda hanya memilih alat baca untuk aplikasi Maju Bersama. Jangan menjawab pertanyaan di luar stok, piutang, penjualan, transaksi terbaru, kas, jurnal, atau cara pakai aplikasi. Jangan meminta tindakan simpan, ubah, atau hapus. Panggil paling banyak tiga alat.',
+                            'content' => AssistantContract::ROLE.' Hanya pilih alat baca yang ada. Untuk cara pakai/penerapan, pilih usage_advice. Untuk nama orang/produk, pilih smart_search. Jangan menjawab di luar isi aplikasi. Jangan menjalankan simpan/ubah/hapus/tambah. Panggil paling banyak tiga alat.',
                         ],
                         ['role' => 'user', 'content' => $question],
                     ],
@@ -71,7 +71,9 @@ class AssistantModelClient
     private function toolDefinitions(): array
     {
         $definitions = [
-            ['search_guide', 'Cari panduan menu, arti status, dan kode akun di dalam aplikasi.', ['query' => 'Kata kunci panduan']],
+            ['search_guide', 'Cari letak menu, arti status, dan kode akun di dalam aplikasi.', ['query' => 'Kata kunci panduan']],
+            ['usage_advice', 'Berikan saran langkah cara pakai/penerapan yang dikerjakan pengguna sendiri di UI.', ['query' => 'Topik cara pakai atau tujuan pengguna']],
+            ['smart_search', 'Pencarian cerdas nama pelanggan, pemasok, produk, SKU, atau nomor dokumen; kembalikan ringkasan transaksi terkait.', ['query' => 'Nama, SKU, atau nomor dokumen']],
             ['stock_on_hand', 'Baca stok barang yang boleh dilihat pengguna.', ['query' => 'Nama atau SKU barang']],
             ['list_receivables', 'Baca piutang yang belum lunas.', ['query' => 'Nama debitur atau nomor faktur']],
             ['sales_summary', 'Baca ringkasan penjualan hari ini atau bulan ini.', ['period' => 'today atau month']],

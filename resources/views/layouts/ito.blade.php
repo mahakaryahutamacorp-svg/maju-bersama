@@ -78,9 +78,19 @@
             error: '',
             messages: [{
                 role: 'assistant',
-                text: 'Saya Ito, Ica Taufik assistant. Tanya data di dalam aplikasi, termasuk transaksi terbaru, atau cara memakainya. Saya hanya membaca, lalu menunjukkan halamannya.',
+                text: 'Saya Ito, Ica Taufik assistant. Tanya data (mis. "hutang Budi"), letak menu, atau saran cara pakai. Saya ingat 2–3 pertanyaan terakhir di percakapan ini. Saya tidak menulis/mengedit/menghapus/menambah apapun.',
                 links: [],
             }],
+
+            recentHistory() {
+                return this.messages
+                    .filter((message) => message.role === 'user')
+                    .slice(-3)
+                    .map((message) => ({
+                        role: 'user',
+                        text: String(message.text || '').slice(0, 500),
+                    }));
+            },
 
             async ask(text) {
                 const question = (text || '').trim();
@@ -90,6 +100,7 @@
 
                 this.error = '';
                 this.open = true;
+                const history = this.recentHistory();
                 this.messages.push({ role: 'user', text: question, links: [] });
                 this.question = '';
                 this.busy = true;
@@ -102,7 +113,7 @@
                             'Accept': 'application/json',
                             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                         },
-                        body: JSON.stringify({ question }),
+                        body: JSON.stringify({ question, history }),
                     });
                     const payload = await response.json();
 
