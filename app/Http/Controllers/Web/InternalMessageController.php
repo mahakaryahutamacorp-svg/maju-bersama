@@ -30,6 +30,13 @@ class InternalMessageController extends Controller
         ]);
     }
 
+    public function unreadCount(Request $request): JsonResponse
+    {
+        return response()->json([
+            'unread' => InternalMessage::unreadTotalForUser($request->user()),
+        ]);
+    }
+
     public function fetchMessages(Request $request): JsonResponse
     {
         $validated = $request->validate([

@@ -17,6 +17,7 @@
     <style>[x-cloak] { display: none !important; }</style>
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
+@include('partials.internal-message-notifier')
 <div class="min-h-screen lg:flex" x-data="{ mobileMenu: false }">
     @include('layouts.sidebar')
 

@@ -1,6 +1,9 @@
 @php
     $sidebarUser = $currentUser ?? auth()->user();
     $sidebarIsMaster = $isMaster ?? ($sidebarUser ? $sidebarUser->isMaster() : false);
+    $internalUnreadCount = ($sidebarUser && \Illuminate\Support\Facades\Gate::forUser($sidebarUser)->allows('use-internal-messages'))
+        ? \App\Models\InternalMessage::unreadTotalForUser($sidebarUser)
+        : 0;
 
     $isOverviewActive = (isset($active) && $active === 'overview') || request()->is('backoffice') || request()->is('dashboard');
     $isPosActive = request()->is('pos*');
@@ -63,8 +66,16 @@
             </span>
         </a>
         <button type="button" @click="mobileMenu = !mobileMenu"
-                class="rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:text-white lg:hidden">
+                class="relative rounded-lg border border-slate-700 bg-slate-900 px-2.5 py-1.5 text-xs font-medium text-slate-300 hover:text-white lg:hidden">
             <span x-text="mobileMenu ? 'Tutup' : 'Menu'">Menu</span>
+            @can('use-internal-messages')
+                <span
+                    @if ($internalUnreadCount < 1) x-cloak @endif
+                    x-show="$store.internalMessages.unread > 0"
+                    class="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-bold leading-none text-white"
+                    x-text="$store.internalMessages.unread > 9 ? '9+' : $store.internalMessages.unread"
+                >{{ $internalUnreadCount > 9 ? '9+' : ($internalUnreadCount > 0 ? $internalUnreadCount : '') }}</span>
+            @endcan
         </button>
     </div>
 
@@ -82,6 +93,23 @@
             <p class="mt-0.5 truncate text-[10px] text-slate-400">
                 {{ $sidebarUser->name ?? 'User' }} &middot; <span class="capitalize">{{ str_replace('_', ' ', $sidebarUser->role ?? 'staf') }}</span>
             </p>
+            @can('use-internal-messages')
+                <a
+                    href="{{ route('backoffice.messages.index') }}"
+                    @if ($internalUnreadCount < 1) x-cloak @endif
+                    x-show="$store.internalMessages.unread > 0"
+                    class="mt-2 flex items-center justify-between gap-2 rounded-lg border border-rose-400/40 bg-rose-500/15 px-2.5 py-1.5 text-[11px] font-bold text-rose-50 hover:bg-rose-500/25"
+                >
+                    <span class="flex items-center gap-1.5">
+                        <span class="h-2 w-2 animate-pulse rounded-full bg-rose-300"></span>
+                        Pesan baru
+                    </span>
+                    <span
+                        class="rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] text-white"
+                        x-text="$store.internalMessages.unread > 99 ? '99+' : $store.internalMessages.unread"
+                    >{{ $internalUnreadCount > 99 ? '99+' : ($internalUnreadCount > 0 ? $internalUnreadCount : '') }}</span>
+                </a>
+            @endcan
         </div>
     </div>
 
@@ -196,9 +224,18 @@
         @endcan
 
         @can('use-internal-messages')
-            <a href="{{ route('backoffice.messages.index') }}" class="{{ $topLinkClass(request()->is('backoffice/messages*')) }}">
-                <svg class="h-4 w-4 shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
-                Pesan Internal
+            <a href="{{ route('backoffice.messages.index') }}" data-internal-unread="{{ $internalUnreadCount }}" class="{{ $topLinkClass(request()->is('backoffice/messages*')) }} w-full justify-between">
+                <span class="flex min-w-0 items-center gap-2.5">
+                    <svg class="h-4 w-4 shrink-0 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+                    Pesan Internal
+                </span>
+                <span
+                    @if ($internalUnreadCount < 1) x-cloak @endif
+                    x-show="$store.internalMessages.unread > 0"
+                    class="inline-flex min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white"
+                    x-text="$store.internalMessages.unread > 99 ? '99+' : $store.internalMessages.unread"
+                    :aria-label="`${$store.internalMessages.unread} pesan belum dibaca`"
+                >{{ $internalUnreadCount > 99 ? '99+' : ($internalUnreadCount > 0 ? $internalUnreadCount : '') }}</span>
             </a>
         @endcan
 

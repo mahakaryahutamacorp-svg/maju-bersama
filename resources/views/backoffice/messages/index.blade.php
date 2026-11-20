@@ -8,7 +8,7 @@
         <div class="mb-5">
             <p class="text-sm font-medium text-emerald-700">Kanal Anda: {{ $ownChannelName }}</p>
             <h2 class="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">Pesan Internal</h2>
-            <p class="mt-1 text-sm text-slate-600">Kirim pesan singkat antar cabang dan Pusat. Pesan baru dimuat otomatis setiap 10 detik.</p>
+            <p class="mt-1 text-sm text-slate-600">Kirim pesan singkat antar cabang dan Pusat. Pesan baru dimuat otomatis setiap 10 detik. Jumlah yang belum dibaca juga tampil di menu, tanpa membuka halaman ini.</p>
         </div>
 
         <div class="grid overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:grid-cols-[18rem_1fr]">
@@ -135,6 +135,11 @@
                         return this.messages.length ? this.messages[this.messages.length - 1].id : 0;
                     },
 
+                    publishUnreadTotal() {
+                        const total = Object.values(this.unreadCounts).reduce((sum, value) => sum + Number(value || 0), 0);
+                        window.dispatchEvent(new CustomEvent('internal-messages:unread', { detail: { unread: total } }));
+                    },
+
                     async fetchMessages(silent) {
                         const contact = this.selectedBranch;
                         if (! contact) {
@@ -163,6 +168,7 @@
 
                             const payload = await response.json();
                             this.unreadCounts = payload.unread_counts || {};
+                            this.publishUnreadTotal();
 
                             if (this.selectedBranch?.key !== contact.key) {
                                 return;

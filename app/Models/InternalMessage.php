@@ -63,6 +63,21 @@ class InternalMessage extends Model
         return self::whereChannel($query, 'receiver_branch_id', $channel)->where('is_read', false);
     }
 
+    /**
+     * Jumlah pesan masuk yang belum dibaca untuk kanal pengguna.
+     * Tidak mengubah is_read, supaya lencana di luar halaman chat tetap akurat.
+     */
+    public static function unreadTotalForUser(User $user): int
+    {
+        if (! $user->isMaster() && $user->branch_id === null) {
+            return 0;
+        }
+
+        $channel = $user->isMaster() ? null : (int) $user->branch_id;
+
+        return (int) static::query()->unreadFor($channel)->count();
+    }
+
     private static function whereChannel(Builder $query, string $column, ?int $channel): Builder
     {
         return $channel === null ? $query->whereNull($column) : $query->where($column, $channel);

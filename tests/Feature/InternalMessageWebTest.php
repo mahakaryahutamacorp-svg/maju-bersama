@@ -43,6 +43,7 @@ class InternalMessageWebTest extends TestCase
 
         foreach ([$cashier, $branchlessAdmin] as $user) {
             $this->actingAs($user)->get('/backoffice/messages')->assertForbidden();
+            $this->actingAs($user)->getJson('/backoffice/messages/unread')->assertForbidden();
             $this->actingAs($user)->getJson('/backoffice/messages/fetch?branch_id=')->assertForbidden();
             $this->actingAs($user)->postJson('/backoffice/messages/send', ['branch_id' => null, 'message' => 'x'])->assertForbidden();
         }
@@ -51,6 +52,7 @@ class InternalMessageWebTest extends TestCase
     public function test_guest_is_redirected(): void
     {
         $this->get('/backoffice/messages')->assertRedirect('/login');
+        $this->get('/backoffice/messages/unread')->assertRedirect('/login');
     }
 
     public function test_branch_admin_sends_to_pusat_and_master_reads_it(): void
@@ -166,6 +168,77 @@ class InternalMessageWebTest extends TestCase
             ->assertOk()
             ->assertJsonCount(1, 'messages')
             ->assertJsonPath('messages.0.message', 'Baru');
+    }
+
+    public function test_unread_badge_is_visible_outside_the_chat_without_marking_messages_read(): void
+    {
+        InternalMessage::create([
+            'sender_id' => $this->adminA->id,
+            'sender_branch_id' => $this->branchA->id,
+            'receiver_branch_id' => null,
+            'message' => 'Untuk Pusat',
+        ]);
+        InternalMessage::create([
+            'sender_id' => $this->adminA->id,
+            'sender_branch_id' => $this->branchA->id,
+            'receiver_branch_id' => null,
+            'message' => 'Untuk Pusat lagi',
+        ]);
+        InternalMessage::create([
+            'sender_id' => $this->master->id,
+            'sender_branch_id' => null,
+            'receiver_branch_id' => $this->branchB->id,
+            'message' => 'Untuk Cabang B',
+        ]);
+
+        $this->actingAs($this->master)
+            ->getJson('/backoffice/messages/unread')
+            ->assertOk()
+            ->assertJsonPath('unread', 2);
+
+        $this->assertDatabaseHas('internal_messages', ['message' => 'Untuk Pusat', 'is_read' => false]);
+
+        $this->actingAs($this->master)
+            ->get('/backoffice')
+            ->assertOk()
+            ->assertSee('data-internal-unread="2"', false)
+            ->assertSee('Pesan baru');
+
+        $this->actingAs($this->adminB)
+            ->getJson('/backoffice/messages/unread')
+            ->assertOk()
+            ->assertJsonPath('unread', 1);
+
+        $this->actingAs($this->adminB)
+            ->get('/backoffice')
+            ->assertOk()
+            ->assertSee('data-internal-unread="1"', false);
+
+        $this->actingAs($this->adminA)
+            ->getJson('/backoffice/messages/unread')
+            ->assertOk()
+            ->assertJsonPath('unread', 0);
+
+        $this->actingAs($this->adminA)
+            ->get('/backoffice')
+            ->assertOk()
+            ->assertSee('data-internal-unread="0"', false);
+
+        $cashier = User::factory()->create(['branch_id' => $this->branchA->id, 'role' => 'cashier']);
+        $this->actingAs($cashier)
+            ->get('/backoffice')
+            ->assertOk()
+            ->assertDontSee('data-internal-unread', false)
+            ->assertDontSee('Pesan Internal');
+
+        $this->actingAs($this->master)
+            ->getJson('/backoffice/messages/fetch?branch_id='.$this->branchA->id)
+            ->assertOk();
+
+        $this->actingAs($this->master)
+            ->getJson('/backoffice/messages/unread')
+            ->assertOk()
+            ->assertJsonPath('unread', 0);
     }
 
     public function test_index_renders_contacts_for_branch_admin(): void

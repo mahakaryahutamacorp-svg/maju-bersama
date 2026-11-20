@@ -297,7 +297,7 @@ class SystemGuide
                 'id' => 'pesan-internal',
                 'title' => 'Pesan Internal',
                 'keywords' => ['pesan', 'pesan internal', 'chat internal', 'komunikasi cabang'],
-                'body' => 'Pesan Internal ada di sidebar sebagai tautan tersendiri. Untuk komunikasi antar cabang dan pusat. Asisten tidak mengirim pesan atas nama pengguna.',
+                'body' => 'Pesan Internal ada di sidebar sebagai tautan tersendiri. Angka merah di menu, di kartu pengguna, dan di judul tab menunjukkan pesan yang belum dibaca, jadi tidak harus membuka halaman chat dulu. Untuk komunikasi antar cabang dan pusat. Asisten tidak mengirim pesan atas nama pengguna.',
                 'links' => [
                     ['label' => 'Pesan Internal', 'url' => route('backoffice.messages.index')],
                 ],

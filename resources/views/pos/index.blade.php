@@ -16,6 +16,7 @@
     <script src="https://cdn.jsdelivr.net/npm/dexie@3.2.4/dist/dexie.min.js"></script>
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-900 antialiased">
+    @include('partials.internal-message-notifier')
     <div 
         x-data="posApp({{ Js::from($products) }}, {{ Js::from($categories) }}, { hasActiveShift: {{ $hasActiveShift ? 'true' : 'false' }}, expectedBalance: {{ (float) $expectedBalance }}, branchId: {{ (int) $operatingBranch->id }}, cashierName: {{ Js::from($currentUser->name) }} }, {{ Js::from($customers ?? []) }}, {{ Js::from($customerGroups ?? []) }})" 
         class="min-h-screen flex flex-col"
@@ -44,6 +45,19 @@
                 </div>
 
                 <div class="flex items-center gap-4">
+                    @can('use-internal-messages')
+                        @php($posUnreadCount = \App\Models\InternalMessage::unreadTotalForUser(auth()->user()))
+                        <a href="{{ route('backoffice.messages.index') }}" data-internal-unread="{{ $posUnreadCount }}" class="relative inline-flex items-center gap-1.5 rounded-lg border border-slate-700 px-2.5 py-1.5 text-xs font-semibold text-slate-200 hover:bg-slate-800" title="Pesan Internal">
+                            <svg class="h-3.5 w-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" /></svg>
+                            <span class="hidden sm:inline">Pesan</span>
+                            <span
+                                @if ($posUnreadCount < 1) x-cloak @endif
+                                x-show="$store.internalMessages.unread > 0"
+                                class="inline-flex min-w-4 items-center justify-center rounded-full bg-rose-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white"
+                                x-text="$store.internalMessages.unread > 99 ? '99+' : $store.internalMessages.unread"
+                            >{{ $posUnreadCount > 99 ? '99+' : ($posUnreadCount > 0 ? $posUnreadCount : '') }}</span>
+                        </a>
+                    @endcan
                     <nav class="hidden items-center gap-3 text-xs text-slate-300 sm:flex font-medium">
                         <a href="/inventory" class="hover:text-white px-2 py-1 rounded hover:bg-slate-800">Persediaan Barang</a>
                         <a href="/inventory/adjustments" class="hover:text-white px-2 py-1 rounded hover:bg-slate-800">Stok Opname</a>

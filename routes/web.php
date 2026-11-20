@@ -210,6 +210,7 @@ Route::middleware('auth')->group(function () {
         // Pesan Internal antar cabang & Pusat (Master & Branch Admin bercabang)
         Route::middleware('can:use-internal-messages')->prefix('messages')->name('messages.')->group(function () {
             Route::get('/', [InternalMessageController::class, 'index'])->name('index');
+            Route::get('unread', [InternalMessageController::class, 'unreadCount'])->middleware('throttle:60,1')->name('unread');
             Route::get('fetch', [InternalMessageController::class, 'fetchMessages'])->middleware('throttle:60,1')->name('fetch');
             Route::post('send', [InternalMessageController::class, 'sendMessage'])->middleware('throttle:30,1')->name('send');
         });

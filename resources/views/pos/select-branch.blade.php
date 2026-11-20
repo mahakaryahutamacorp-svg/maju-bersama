@@ -10,6 +10,15 @@
     <main class="mx-auto flex min-h-screen w-full max-w-3xl flex-col justify-center px-6 py-10">
         <p class="text-xs font-semibold uppercase tracking-[0.24em] text-amber-600">Maju Bersama ERP</p>
         <h1 class="mt-2 text-3xl font-bold tracking-tight text-slate-950">Kasir POS</h1>
+        @can('use-internal-messages')
+            @php($branchPickerUnread = \App\Models\InternalMessage::unreadTotalForUser($currentUser))
+            @if ($branchPickerUnread > 0)
+                <a href="{{ route('backoffice.messages.index') }}" data-internal-unread="{{ $branchPickerUnread }}" class="mt-4 inline-flex items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-sm font-bold text-rose-800">
+                    <span class="h-2 w-2 animate-pulse rounded-full bg-rose-500"></span>
+                    {{ $branchPickerUnread }} pesan baru
+                </a>
+            @endif
+        @endcan
 
         @if ($needsBranchAssignment)
             <div class="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-6 text-amber-950">
