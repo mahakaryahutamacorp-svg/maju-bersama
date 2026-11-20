@@ -15,7 +15,6 @@
         @keydown.arrow-down.prevent="moveProduct(item, 1)"
         @keydown.arrow-up.prevent="moveProduct(item, -1)"
         @keydown.enter.prevent="confirmProduct(index, $event)"
-        @keypress.enter.prevent
         @keydown.escape="item.open = false"
         autocomplete="off"
         spellcheck="false"
@@ -29,14 +28,17 @@
     <div
         data-product-menu
         x-init="ProductSmartSearch.registerMenu(item, $el)"
-        x-show="item.open && (item.query || '').trim() !== ''"
+        x-show="item.open && (item.query || '').trim() !== '' && (item._resultsQuery === item.query || (item._results || []).length > 0)"
         x-cloak
         class="fixed z-[120] overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
         role="listbox"
     >
         <p class="sticky top-0 z-10 border-b border-slate-100 bg-white px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-            <span x-text="(item._results || []).length"></span> hasil
+            <span x-text="item._total ?? (item._results || []).length"></span> hasil
             · cocok dengan "<span class="normal-case text-slate-600" x-text="item.query"></span>"
+            <span x-show="(item._total ?? 0) > (item._results || []).length" x-cloak class="normal-case text-amber-600">
+                · menampilkan <span x-text="(item._results || []).length"></span> teratas, persempit pencarian
+            </span>
         </p>
         <template x-for="(prod, resultIndex) in (item._results || [])" :key="prod.id">
             <button
@@ -60,7 +62,7 @@
             </button>
         </template>
         <p
-            x-show="(item._results || []).length === 0"
+            x-show="(item._results || []).length === 0 && item._resultsQuery === item.query"
             x-cloak
             class="px-3 py-2 text-sm text-slate-500"
         >

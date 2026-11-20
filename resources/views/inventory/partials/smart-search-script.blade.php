@@ -41,6 +41,7 @@
                     all,
                     allCompact: all.replace(/ /g, ''),
                     words: all.split(' ').filter(Boolean),
+                    nameWords: [name, sku].join(' ').split(' ').filter(Boolean),
                 };
                 indexCache.set(product, index);
             }
@@ -64,21 +65,23 @@
             return previous[b.length];
         };
 
-        const tokenScore = (token, index) => {
+        const tokenScore = (token, index, fuzzy = true) => {
             if (index.words.some((word) => word.startsWith(token))) return 40;
             if (index.all.includes(token) || index.allCompact.includes(token)) return 25;
-            if (token.length < 3) return 0;
+            // Typo-tolerant hanya sebagai cadangan dan hanya terhadap nama/SKU (bukan kategori),
+            // agar tidak menjaring ratusan produk yang tidak relevan.
+            if (!fuzzy || token.length < 4) return 0;
 
-            const allowed = token.length <= 4 ? 1 : 2;
+            const allowed = token.length <= 5 ? 1 : 2;
             let best = allowed + 1;
-            for (const word of index.words) {
+            for (const word of index.nameWords) {
                 best = Math.min(best, distance(token, word, allowed), distance(token, word.slice(0, token.length), allowed));
                 if (best === 0) break;
             }
             return best <= allowed ? 15 - best * 4 : 0;
         };
 
-        const score = (product, query) => {
+        const score = (product, query, fuzzy = true) => {
             const normalizedQuery = normalize(query);
             if (!normalizedQuery) return 1;
 
@@ -92,7 +95,7 @@
             else if (index.name.includes(normalizedQuery)) total += 200;
 
             for (const token of normalizedQuery.split(' ')) {
-                const value = tokenScore(token, index);
+                const value = tokenScore(token, index, fuzzy);
                 if (value === 0 && total < 600) return 0;
                 total += value;
             }
@@ -112,12 +115,16 @@
             search(products, query, limit = 20) {
                 if (!normalize(query)) return products.slice(0, limit);
 
-                return products
-                    .map((product) => ({ product, value: score(product, query) }))
+                const rank = (fuzzy) => products
+                    .map((product) => ({ product, value: score(product, query, fuzzy) }))
                     .filter((entry) => entry.value > 0)
-                    .sort((a, b) => b.value - a.value || String(a.product.name).localeCompare(String(b.product.name)))
-                    .slice(0, limit)
-                    .map((entry) => entry.product);
+                    .sort((a, b) => b.value - a.value || String(a.product.name).localeCompare(String(b.product.name)));
+
+                // Cocokkan persis dulu; toleransi salah ketik hanya dipakai bila tidak ada hasil.
+                let ranked = rank(false);
+                if (ranked.length === 0) ranked = rank(true);
+
+                return ranked.slice(0, limit).map((entry) => entry.product);
             },
 
             exactSku(products, query) {
@@ -127,6 +134,8 @@
             },
 
             textOf,
+
+            menuLimit: 40,
 
             results(products, query, limit = 12) {
                 return this.search(products || [], query || '', limit);
@@ -306,8 +315,12 @@
             const products = this.products || [];
             if (!ProductSmartSearch.normalize(query)) {
                 item._results = [];
+                item._total = 0;
             } else {
-                item._results = ProductSmartSearch.results(products, query, products.length || 0);
+                // Render dibatasi agar mengetik tetap lancar di laptop; jumlah total tetap ditampilkan.
+                const matches = ProductSmartSearch.search(products, query, products.length || 0);
+                item._total = matches.length;
+                item._results = matches.slice(0, ProductSmartSearch.menuLimit);
             }
             item._resultsQuery = query;
             return item._results;
@@ -343,6 +356,7 @@
             item._keepMenu = true;
             if (!shouldOpen) {
                 item._results = [];
+                item._total = 0;
                 item._resultsQuery = next;
                 window.setTimeout(() => { item._keepMenu = false; }, 80);
                 return;
@@ -356,7 +370,7 @@
                     item._results = [];
                 }
                 window.setTimeout(() => { item._keepMenu = false; }, 80);
-            }, 0);
+            }, 90);
         };
 
         form.onProductFocus = function (item, event) {

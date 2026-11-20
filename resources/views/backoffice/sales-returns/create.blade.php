@@ -41,7 +41,7 @@
 
         <!-- Form Alpine.js Root -->
         <div x-data="salesReturnForm(@js($products), @js($accounts), @js($saleLinePrices), @js((string) old('sale_id', '')), @js($saleLineLimits))" class="space-y-6">
-            <form method="POST" action="{{ route('backoffice.sales-returns.store') }}" id="salesReturnFormElement" class="space-y-6" @keypress.enter="ProductSmartSearch.blockImplicitSubmit($event)">
+            <form method="POST" action="{{ route('backoffice.sales-returns.store') }}" id="salesReturnFormElement" class="space-y-6" @keydown.enter="ProductSmartSearch.blockImplicitSubmit($event)">
                 @csrf
 
                 <!-- Judul Halaman -->

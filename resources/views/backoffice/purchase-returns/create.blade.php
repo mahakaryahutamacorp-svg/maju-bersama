@@ -24,7 +24,7 @@
 
         <!-- Form Alpine.js Root -->
         <div x-data="purchaseReturnForm(@js($products), @js($receiptLimits))" class="space-y-6">
-            <form method="POST" action="{{ route('backoffice.purchase-returns.store') }}" id="purchaseReturnFormElement" class="space-y-6" @keypress.enter="ProductSmartSearch.blockImplicitSubmit($event)">
+            <form method="POST" action="{{ route('backoffice.purchase-returns.store') }}" id="purchaseReturnFormElement" class="space-y-6" @keydown.enter="ProductSmartSearch.blockImplicitSubmit($event)">
                 @csrf
 
                 <!-- Judul Halaman -->
